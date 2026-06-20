@@ -1,0 +1,15 @@
+{
+  "name": "scoutflow-academy-mvp",
+  "version": "0.1.0",
+  "description": "ScoutFlow Academy MVP web prototype",
+  "scripts": {
+    "start": "npx serve ."
+  },
+  "keywords": [
+    "scoutflow",
+    "academy",
+    "sports-crm"
+  ],
+  "author": "ScoutFlow Academy",
+  "license": "UNLICENSED"
+}

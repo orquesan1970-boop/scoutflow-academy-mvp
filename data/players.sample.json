@@ -1,0 +1,21 @@
+{
+  "players": [
+    {
+      "id": "player_001",
+      "scoutflowId": "SF-2026-0001",
+      "fullName": "Pablo Ignacio Andrés Suárez",
+      "birthDate": "2002-08-25",
+      "birthYear": 2002,
+      "age": 23,
+      "nationality": [
+        "Argentina",
+        "España"
+      ],
+      "sport": "Baloncesto",
+      "primaryPosition": "Base",
+      "secondaryPosition": "Escolta",
+      "height": "1,86 m",
+      "status": "Datos incompletos"
+    }
+  ]
+}

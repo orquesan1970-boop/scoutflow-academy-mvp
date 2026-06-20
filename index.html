@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ScoutFlow Academy MVP</title>
+  <link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-logo">SFA</div>
+        <div>
+          <h1>ScoutFlow</h1>
+          <p>From Prospect to Player</p>
+        </div>
+      </div>
+
+      <nav class="nav">
+        <button class="nav-item active" data-page="dashboard">🏠 Inicio</button>
+        <button class="nav-item" data-page="players">👤 Jugadores</button>
+        <button class="nav-item" data-page="ai-import">🤖 Importar con IA</button>
+        <button class="nav-item" data-page="pipeline">🎯 Captación</button>
+        <button class="nav-item" data-page="documents">📄 Documentos</button>
+        <button class="nav-item" data-page="reports">📊 Informes</button>
+        <button class="nav-item" data-page="family">👨‍👩‍👦 Family</button>
+        <button class="nav-item" data-page="finance">💳 Finanzas</button>
+        <button class="nav-item" data-page="permissions">🔐 Permisos</button>
+        <button class="nav-item" data-page="settings">⚙️ Configuración</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="page-title">Inicio</h2>
+          <p id="page-subtitle">Demo MVP para CBJA Academy</p>
+        </div>
+        <div class="top-actions">
+          <button class="btn btn-light" id="camera-btn">📷 Cámara / subir foto</button>
+          <button class="btn btn-primary" data-page-target="ai-import">🤖 Importar con IA</button>
+          <button class="btn btn-primary" id="new-player-btn">+ Nuevo jugador</button>
+        </div>
+      </header>
+
+      <section class="smart-search">
+        <span>🔍</span>
+        <input id="smart-search-input" placeholder="Buscar: pívots 2009 México, jugadores sin pasaporte, Pablo, Base/Escolta..." />
+      </section>
+
+      <div id="app-root"></div>
+    </main>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
