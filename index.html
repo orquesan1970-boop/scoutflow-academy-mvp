@@ -481,22 +481,22 @@ SF.COACHES = ['Carlos Gorosito', 'Laura Méndez', 'Diego Pérez'];
 SF.ROLES = {
   director: {
     label: 'Director',
-    nav: ['inicio', 'jugadores', 'equipos', 'importar', 'captacion', 'documentos', 'informes', 'family', 'finanzas', 'economia', 'permisos', 'config'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'importar', 'captacion', 'documentos', 'informes', 'family', 'finanzas', 'economia', 'permisos', 'config'],
     tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, segments: 'all'
   },
   dt_general: {
     label: 'Dirección Técnica General',
-    nav: ['inicio', 'jugadores', 'equipos', 'captacion', 'documentos', 'informes', 'economia', 'family'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, segments: 'all'
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, segments: 'all', staff: true
   },
   preparador_fisico: {
     label: 'Preparador Físico',
-    nav: ['inicio', 'jugadores', 'equipos', 'documentos', 'informes', 'economia'],
+    nav: ['inicio', 'jugadores', 'equipos', 'informes', 'economia', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false,
     canEvaluate: true, evalGroups: ['Física'], canEditPhysical: true,
-    canManageTeams: false, segments: 'all'
+    canManageTeams: false, segments: 'all', staff: true
   },
   dt_femenino: {
     label: 'Dirección Técnica Femenino',
@@ -530,13 +530,13 @@ SF.ROLES = {
   },
   entrenador: {
     label: 'Entrenador',
-    nav: ['inicio', 'jugadores', 'equipos', 'documentos', 'informes', 'economia'],
+    nav: ['inicio', 'jugadores', 'equipos', 'informes', 'economia', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, team_scope: true, segments: 'all'
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, team_scope: true, segments: 'all', staff: true
   },
   administrativo: {
     label: 'Administrativo',
-    nav: ['inicio', 'jugadores', 'documentos', 'finanzas', 'economia'],
+    nav: ['inicio', 'jugadores', 'staff', 'documentos', 'finanzas', 'economia', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all'
   },
@@ -545,6 +545,34 @@ SF.ROLES = {
     nav: ['portal-family'],
     tabs: ['perfil', 'documentos', 'informes', 'finanzas'],
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: false, segments: 'all'
+  },
+  psicologo: {
+    label: 'Psicólogo/a deportivo',
+    nav: ['inicio', 'jugadores', 'equipos', 'mi-ficha'],
+    tabs: ['perfil', 'seguimiento', 'informes'],
+    canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: true,
+    evalGroups: ['Mental'], canManageTeams: false, team_scope: true, segments: 'all', staff: true
+  },
+  fisio: {
+    label: 'Fisioterapeuta',
+    nav: ['inicio', 'jugadores', 'equipos', 'mi-ficha'],
+    tabs: ['perfil', 'deportivo', 'seguimiento'],
+    canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: false,
+    canEditPhysical: true, canManageTeams: false, team_scope: true, segments: 'all', staff: true
+  },
+  delegado_equipo: {
+    label: 'Delegado/a de equipo',
+    nav: ['equipos', 'mi-ficha'],
+    tabs: ['perfil'],
+    canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: false,
+    canManageTeams: false, team_scope: true, segments: 'all', staff: true
+  },
+  delegado_campo: {
+    label: 'Delegado/a de campo',
+    nav: ['equipos', 'mi-ficha'],
+    tabs: [],
+    canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: false,
+    canManageTeams: false, segments: 'all', staff: true
   },
   jugador: {
     label: 'Jugador',
@@ -595,7 +623,84 @@ SF.ACADEMY = { name: 'CBJA Academy', country: 'España', city: 'Madrid', primary
   economy: { season: '2026/2027', prev_balance: 3200, est_income: 48000, est_expense: 41000 }
 };
 
-SF.EXPENSE_CATEGORIES = ['Material deportivo', 'Viajes / desplazamientos', 'Arbitrajes', 'Instalaciones / pabellón', 'Equipación', 'Supermercado', 'Comidas / catering', 'Administración', 'Otros'];
+/* ===================== STAFF =====================
+   Ficha profesional de todo el que trabaja con jugadores.
+   Dos cosas NO se guardan aquí a propósito:
+   - El certificado de delitos sexuales: solo se registra que administración
+     lo comprobó y para qué temporada. Nunca el documento.
+   - Los papeles: los custodia administración fuera de la app. */
+SF.SEASON = '2026/2027';
+
+SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'psicologo', 'fisio',
+  'scout', 'delegado_equipo', 'delegado_campo', 'dt_general', 'dt_femenino',
+  'dt_masculino', 'dt_escuelas', 'dt_minis', 'administrativo', 'director'];
+
+SF.STAFF = [
+  { id: 's1', num: 1, full_name: 'Carlos Gorosito', role: 'entrenador',
+    email: 'carlos@cbja.es', phone: '+34 600 100 001', team_ids: ['t1'],
+    bio: 'Entrenador de formación, especializado en categorías cadete y junior.',
+    qualification: 'TD2 Baloncesto', qual_entity: 'FEB', qual_year: 2019, qual_number: 'TD2-1188',
+    languages: 'Español, Inglés',
+    licence: { season: '2026/2027', number: 'FBM-24518', category: 'Cadete / Junior', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-02', checked_by: 'Marta Soler' },
+    experience: [
+      { club: 'CB Pozuelo', role: 'Entrenador', category: 'Infantil', from: '2021/22', to: '2023/24' },
+      { club: 'CBJA Academy', role: 'Entrenador', category: 'Cadete', from: '2024/25', to: '' }
+    ],
+    training: [{ title: 'Clinic FEB de dirección de equipo', entity: 'FEB', year: 2024 }],
+    cv_file: '' },
+  { id: 's2', num: 2, full_name: 'Laura Méndez', role: 'entrenador',
+    email: 'laura@cbja.es', phone: '+34 600 100 002', team_ids: ['t2'],
+    bio: '', qualification: 'TD1 Baloncesto', qual_entity: 'FBM', qual_year: 2022, qual_number: 'TD1-0761',
+    languages: 'Español',
+    licence: { season: '2026/2027', number: 'FBM-24902', category: 'Infantil', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-02', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's3', num: 3, full_name: 'Diego Pérez', role: 'entrenador',
+    email: 'diegop@cbja.es', phone: '+34 600 100 003', team_ids: ['t3'],
+    bio: '', qualification: 'Nivel 1', qual_entity: 'FBM', qual_year: 2023, qual_number: 'N1-3320',
+    languages: 'Español',
+    licence: { season: '2025/2026', number: 'FBM-23110', category: 'Mini', valid_until: '2026-06-30', status: 'caducada' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-04', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's4', num: 4, full_name: 'Diego Sosa', role: 'preparador_fisico',
+    email: 'diegos@cbja.es', phone: '+34 600 100 004', team_ids: ['t1', 't2', 't3'],
+    bio: 'Preparador físico del club. Control de medidas y readaptación.',
+    qualification: 'Grado en CAFYD', qual_entity: 'UPM', qual_year: 2018, qual_number: '',
+    languages: 'Español, Inglés',
+    licence: { season: '2026/2027', number: 'FBM-PF-118', category: '—', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-02', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's5', num: 5, full_name: 'Nuria Palau', role: 'psicologo',
+    email: 'nuria@cbja.es', phone: '+34 600 100 005', team_ids: [],
+    bio: 'Psicóloga deportiva. Trabajo de grupo y acompañamiento individual.',
+    qualification: 'Grado en Psicología · Máster en Psicología del Deporte', qual_entity: 'UAM', qual_year: 2020, qual_number: 'COP M-28114',
+    languages: 'Español, Catalán',
+    licence: { season: '', number: '', category: '', valid_until: '', status: 'no_aplica' },
+    clearance: { season: '', cleared: false, checked_on: '', checked_by: '' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's6', num: 6, full_name: 'Javier Sanz', role: 'delegado_equipo',
+    email: 'javier@cbja.es', phone: '+34 600 100 006', team_ids: ['t3'],
+    bio: 'Voluntario. Padre de jugador del Mini Mixto.',
+    qualification: '', qual_entity: '', qual_year: null, qual_number: '', languages: 'Español',
+    licence: { season: '', number: '', category: '', valid_until: '', status: 'no_aplica' },
+    clearance: { season: '', cleared: false, checked_on: '', checked_by: '' },
+    experience: [], training: [], cv_file: '' }
+];
+
+/* Estado de habilitación para la temporada en curso.
+   Sin fila de esta temporada -> NO habilitado. La caducidad es automática. */
+SF.staffStatus = function (s) {
+  var c = s.clearance || {}, l = s.licence || {};
+  var okClear = !!(c.cleared && c.season === SF.SEASON);
+  var licNA = l.status === 'no_aplica' || !l.status;
+  var okLic = licNA || (l.status === 'vigente' && l.season === SF.SEASON);
+  if (!okClear) return { level: 'bad', label: 'Sin habilitar', why: 'Falta la comprobación de esta temporada' };
+  if (!okLic) return { level: 'warn', label: 'Licencia caducada', why: 'La licencia federativa no es de ' + SF.SEASON };
+  return { level: 'ok', label: 'Al día', why: '' };
+};
+
+SF.EXPENSE_CATEGORIES =['Material deportivo', 'Viajes / desplazamientos', 'Arbitrajes', 'Instalaciones / pabellón', 'Equipación', 'Supermercado', 'Comidas / catering', 'Administración', 'Otros'];
 SF.EXPENSES = [
   { id: 'g1', date: '2026-06-10', concept: 'Balones de entrenamiento', category: 'Material deportivo', amount: 240, by: 'Carlos Gorosito', role: 'Entrenador', status: 'aprobado', note: '', ticket: 'ticket-balones.jpg' },
   { id: 'g2', date: '2026-06-12', concept: 'Autobús desplazamiento Alcalá', category: 'Viajes / desplazamientos', amount: 380, by: 'Jorge Andrés', role: 'Director', status: 'aprobado', note: '', ticket: '' },
@@ -799,6 +904,7 @@ SF.store = (function () {
       players: seedPlayers,
       teams: JSON.parse(JSON.stringify(SF.TEAMS || [])),
       expenses: JSON.parse(JSON.stringify(SF.EXPENSES || [])),
+      staff: JSON.parse(JSON.stringify(SF.STAFF || [])),
       role: 'director',
       seq: 8, teamSeq: (SF.TEAMS ? SF.TEAMS.length + 1 : 1)
     };
@@ -809,6 +915,7 @@ SF.store = (function () {
     if (!d) { d = seed(); write(d); }
     if (!d.teams) { d.teams = JSON.parse(JSON.stringify(SF.TEAMS || [])); d.teamSeq = (SF.TEAMS ? SF.TEAMS.length + 1 : 1); write(d); }
     if (!d.expenses) { d.expenses = JSON.parse(JSON.stringify(SF.EXPENSES || [])); write(d); }
+    if (!d.staff) { d.staff = JSON.parse(JSON.stringify(SF.STAFF || [])); write(d); }
     if (!d.academy.economy && SF.ACADEMY.economy) { d.academy.economy = JSON.parse(JSON.stringify(SF.ACADEMY.economy)); write(d); }
     /* Migración: asigna número de ficha a quien no lo tenga, sin borrar datos.
        Así no hay que subir la versión del almacén y nadie pierde su trabajo. */
@@ -854,6 +961,37 @@ SF.store = (function () {
 
     players: function () { return db().players.slice(); },
     get: function (id) { return db().players.filter(function (p) { return p.id === id; })[0] || null; },
+
+    /* ---- STAFF ---- */
+    staff: function () { return db().staff.slice(); },
+    staffGet: function (id) { return db().staff.filter(function (s) { return s.id === id; })[0] || null; },
+    /* Quién soy yo: en la demo, el primer staff con mi rol. En producción
+       saldrá del usuario autenticado. */
+    staffMe: function () {
+      var r = db().role;
+      return db().staff.filter(function (s) { return s.role === r; })[0] || null;
+    },
+    staffUpdate: function (id, patch) {
+      var d = db();
+      d.staff = d.staff.map(function (s) { return s.id === id ? Object.assign({}, s, patch) : s; });
+      save(d);
+      return d.staff.filter(function (s) { return s.id === id; })[0];
+    },
+    /* Asignar / quitar una ficha de staff a un equipo. Lo hace dirección. */
+    staffAssign: function (id, teamId, on) {
+      var d = db();
+      d.staff = d.staff.map(function (s) {
+        if (s.id !== id) return s;
+        var t = (s.team_ids || []).slice(), i = t.indexOf(teamId);
+        if (on && i < 0) t.push(teamId);
+        if (!on && i >= 0) t.splice(i, 1);
+        return Object.assign({}, s, { team_ids: t });
+      });
+      save(d);
+    },
+    staffOfTeam: function (teamId) {
+      return db().staff.filter(function (s) { return (s.team_ids || []).indexOf(teamId) >= 0; });
+    },
 
     create: function (obj) {
       var d = db();
@@ -2541,6 +2679,211 @@ window.SF = window.SF || {};
     view.appendChild(phone);
   };
 
+  /* ===================== STAFF =====================
+     Ficha profesional de quien trabaja con jugadores.
+     Quién edita qué:
+       - Su currículum, titulación y experiencia -> el propio interesado
+       - Licencia federativa y habilitación       -> SOLO administración/dirección
+     Si cada uno pudiera marcarse su habilitación, la ficha no acreditaría nada. */
+  function roleLabel(r) { return (SF.ROLES[r] || {}).label || r; }
+  function isAdminRole() { return ['director', 'administrativo'].indexOf(SF.store.role()) >= 0; }
+  function canAssignTeams() { return !!(SF.ROLES[SF.store.role()] || {}).canManageTeams; }
+
+  function staffBadge(s) {
+    var st = SF.staffStatus(s);
+    var cls = st.level === 'ok' ? 'tag-green' : (st.level === 'warn' ? 'tag-warn' : 'tag-danger');
+    return '<span class="tag ' + cls + '">' + st.label + '</span>';
+  }
+
+  pages.staff = function (view, id) {
+    if (id) return pages['staff-ficha'](view, id);   // #/staff/s1 -> ficha
+    view.innerHTML = head('Staff', 'Cuerpo técnico y personal del club. Titulación, licencia y habilitación.');
+    var all = SF.store.staff();
+
+    /* Aviso arriba: lo que hay que resolver, no la lista entera. */
+    var bad = all.filter(function (s) { return SF.staffStatus(s).level === 'bad'; });
+    var warn = all.filter(function (s) { return SF.staffStatus(s).level === 'warn'; });
+    if (bad.length || warn.length) {
+      var al = el('<div class="empty-panel" style="text-align:left"></div>');
+      al.appendChild(el('<p class="sec-label" style="margin-top:0">Habilitación del staff</p>'));
+      bad.forEach(function (s) { al.appendChild(el('<p class="hint"><b>' + esc(s.full_name) + '</b> · sin comprobar para ' + SF.SEASON + ' — no puede trabajar con jugadores</p>')); });
+      warn.forEach(function (s) { al.appendChild(el('<p class="hint"><b>' + esc(s.full_name) + '</b> · licencia federativa caducada</p>')); });
+      al.appendChild(el('<p class="hint">' + (all.length - bad.length - warn.length) + ' de ' + all.length + ' al día.</p>'));
+      view.appendChild(al);
+    }
+
+    var t = el('<table class="tbl"><thead><tr><th>Nº</th><th>Nombre</th><th>Función</th><th>Titulación</th><th>Equipos</th><th>Habilitación</th></tr></thead><tbody></tbody></table>');
+    var tb = t.querySelector('tbody');
+    all.forEach(function (s) {
+      var teams = (s.team_ids || []).map(function (id) { var x = SF.store.teamGet(id); return x ? x.name : ''; }).filter(Boolean).join(', ');
+      var tr = el('<tr><td>' + SF.staffCode(s.num) + '</td><td><div class="tcell"><span class="av-sm">' + U.initials(s.full_name) + '</span>' + esc(s.full_name) + '</div></td><td>' + esc(roleLabel(s.role)) + '</td><td>' + esc(s.qualification || '—') + '</td><td>' + esc(teams || '—') + '</td><td>' + staffBadge(s) + '</td></tr>');
+      tr.onclick = function () { location.hash = '#/staff/' + s.id; };
+      tb.appendChild(tr);
+    });
+    view.appendChild(t);
+  };
+
+  pages['mi-ficha'] = function (view) {
+    var me = SF.store.staffMe();
+    if (!me) { view.innerHTML = head('Mi ficha', '') + '<div class="empty-panel"><p>Tu rol todavía no tiene ficha de staff creada.</p></div>'; return; }
+    pages['staff-ficha'](view, me.id, true);
+  };
+
+  pages['staff-ficha'] = function (view, id, mine) {
+    var s = SF.store.staffGet(id);
+    if (!s) { view.innerHTML = head('Staff', '') + '<div class="empty-panel"><p>Ficha no encontrada.</p></div>'; return; }
+    var st = SF.staffStatus(s);
+    var me = SF.store.staffMe();
+    var isMine = mine || (me && me.id === s.id);
+    var canEditPro = isMine || isAdminRole();      // currículum y titulación
+    var canEditOfficial = isAdminRole();           // licencia y habilitación
+
+    view.innerHTML = head(mine ? 'Mi ficha' : 'Ficha de staff', SF.staffCode(s.num) + ' · ' + roleLabel(s.role));
+
+    // Cabecera
+    var hd = el('<div class="ficha-head"><div class="fh-photo">' + U.initials(s.full_name) + '</div><div class="fh-info"></div></div>');
+    hd.querySelector('.fh-info').innerHTML =
+      '<h2>' + esc(s.full_name) + '</h2>' +
+      '<p class="fh-sub"><b>' + SF.staffCode(s.num) + '</b> · ' + esc(roleLabel(s.role)) + (s.email ? ' · ' + esc(s.email) : '') + (s.phone ? ' · ' + esc(s.phone) : '') + '</p>' +
+      '<p>' + staffBadge(s) + (st.why ? ' <span class="hint">' + esc(st.why) + '</span>' : '') + '</p>';
+    view.appendChild(hd);
+
+    if (canEditPro) {
+      var bph = el('<div class="row-c"><button class="btn btn-light btn-sm">' + ico('camera') + 'Foto de la ficha</button><button class="btn btn-light btn-sm">' + ico('file') + (s.cv_file ? 'Cambiar CV (PDF)' : 'Subir CV (PDF)') + '</button></div>');
+      var bs = bph.querySelectorAll('button');
+      bs[0].onclick = function () { U.toast('Abriría la cámara o la galería'); };
+      bs[1].onclick = function () { U.toast('Subiría el PDF a un almacén privado'); };
+      view.appendChild(bph);
+      if (s.cv_file) view.appendChild(el('<p class="hint">CV actual: ' + esc(s.cv_file) + '</p>'));
+    }
+
+    function sec(label) { view.appendChild(el('<p class="sec-label">' + label + '</p>')); }
+    function fld(l, v) { return '<div class="field"><span class="f-lab">' + l + '</span><span class="f-val">' + (v ? esc(String(v)) : '—') + '</span></div>'; }
+
+    // --- Currículum y titulación (lo edita el interesado)
+    sec('Titulación y currículum');
+    view.appendChild(el('<div class="field-grid">' +
+      fld('Titulación', s.qualification) + fld('Entidad', s.qual_entity) +
+      fld('Año', s.qual_year) + fld('Nº de título', s.qual_number) +
+      fld('Idiomas', s.languages) + '</div>'));
+    if (s.bio) view.appendChild(el('<p class="hint">' + esc(s.bio) + '</p>'));
+    if (canEditPro) {
+      var be = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Editar</button>');
+      be.onclick = function () {
+        U.modal('Titulación y currículum', smallForm([
+          { name: 'qualification', label: 'Titulación' }, { name: 'qual_entity', label: 'Entidad' },
+          { name: 'qual_year', label: 'Año', type: 'number' }, { name: 'qual_number', label: 'Nº de título' },
+          { name: 'languages', label: 'Idiomas' }, { name: 'bio', label: 'Presentación', type: 'textarea' }
+        ], s, function (d) { SF.store.staffUpdate(s.id, d); U.toast('Ficha actualizada'); SF.router.render(); }));
+      };
+      view.appendChild(be);
+    }
+
+    // --- Experiencia
+    sec('Experiencia');
+    var ex = (s.experience || []);
+    if (!ex.length) view.appendChild(el('<p class="hint">Sin experiencia registrada.</p>'));
+    var exl = el('<div class="mini-list"></div>');
+    ex.forEach(function (e, i) {
+      var row = el('<div class="mini-row"><span><b>' + esc(e.club) + '</b> · ' + esc(e.role || '') + (e.category ? ' · ' + esc(e.category) : '') + '</span><span class="hint">' + esc(e.from || '') + (e.to ? ' — ' + esc(e.to) : ' — actualidad') + '</span></div>');
+      if (canEditPro) {
+        var del = el('<button class="lnk-del">' + ico('x') + '</button>');
+        del.onclick = function () { var a = ex.slice(); a.splice(i, 1); SF.store.staffUpdate(s.id, { experience: a }); SF.router.render(); };
+        row.appendChild(del);
+      }
+      exl.appendChild(row);
+    });
+    view.appendChild(exl);
+    if (canEditPro) {
+      var bx = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir etapa</button>');
+      bx.onclick = function () {
+        U.modal('Añadir experiencia', smallForm([
+          { name: 'club', label: 'Club o entidad' }, { name: 'role', label: 'Cargo' },
+          { name: 'category', label: 'Categoría' }, { name: 'from', label: 'Desde (temporada)' }, { name: 'to', label: 'Hasta (temporada)' }
+        ], {}, function (d) { SF.store.staffUpdate(s.id, { experience: (s.experience || []).concat([d]) }); U.toast('Etapa añadida'); SF.router.render(); }));
+      };
+      view.appendChild(bx);
+    }
+
+    // --- Licencia federativa (solo administración)
+    sec('Licencia federativa');
+    var l = s.licence || {};
+    if (l.status === 'no_aplica' || !l.status) view.appendChild(el('<p class="hint">No aplica a esta función.</p>'));
+    else view.appendChild(el('<div class="field-grid">' + fld('Número', l.number) + fld('Temporada', l.season) +
+      fld('Categoría habilitada', l.category) + fld('Vigente hasta', l.valid_until ? fmtDate(l.valid_until) : '') +
+      fld('Estado', l.status) + '</div>'));
+    if (canEditOfficial) {
+      var bl = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Actualizar licencia</button>');
+      bl.onclick = function () {
+        U.modal('Licencia federativa', smallForm([
+          { name: 'number', label: 'Número de licencia' }, { name: 'season', label: 'Temporada' },
+          { name: 'category', label: 'Categoría habilitada' }, { name: 'valid_until', label: 'Vigente hasta', type: 'date' },
+          { name: 'status', label: 'Estado', type: 'select', options: ['en_tramite', 'vigente', 'caducada', 'no_aplica'] }
+        ], l, function (d) { SF.store.staffUpdate(s.id, { licence: d }); U.toast('Licencia actualizada'); SF.router.render(); }));
+      };
+      view.appendChild(bl);
+    } else view.appendChild(el('<p class="hint">La licencia la registra administración del club.</p>'));
+
+    // --- Habilitación para trabajar con menores
+    sec('Habilitación para trabajar con jugadores');
+    var c = s.clearance || {};
+    view.appendChild(el('<div class="field-grid">' +
+      fld('Temporada', c.season) +
+      fld('Habilitado', c.cleared && c.season === SF.SEASON ? 'Sí' : 'No') +
+      fld('Comprobado el', c.checked_on ? fmtDate(c.checked_on) : '') +
+      fld('Comprobado por', c.checked_by) + '</div>'));
+    view.appendChild(el('<p class="hint">La app <b>no guarda el certificado</b>: solo registra que administración lo comprobó y para qué temporada. La documentación la custodia el club.</p>'));
+    if (canEditOfficial) {
+      var bc = el('<button class="btn btn-light btn-sm">' + ico('shield') + 'Registrar comprobación</button>');
+      bc.onclick = function () {
+        U.modal('Habilitación ' + SF.SEASON, smallForm([
+          { name: 'cleared', label: '¿Puede trabajar con jugadores esta temporada?', type: 'select', options: ['Sí', 'No'] },
+          { name: 'checked_on', label: 'Fecha de comprobación', type: 'date' },
+          { name: 'checked_by', label: 'Comprobado por' }
+        ], { cleared: c.cleared ? 'Sí' : 'No', checked_on: c.checked_on, checked_by: c.checked_by || SF.store.me().name },
+          function (d) {
+            SF.store.staffUpdate(s.id, { clearance: { season: SF.SEASON, cleared: d.cleared === 'Sí', checked_on: d.checked_on, checked_by: d.checked_by } });
+            U.toast('Habilitación registrada'); SF.router.render();
+          }));
+      };
+      view.appendChild(bc);
+    } else view.appendChild(el('<p class="hint">Solo administración puede registrarla.</p>'));
+
+    // --- Equipos asignados (lo hace dirección técnica)
+    sec('Equipos asignados');
+    var teams = SF.store.teams();
+    var asg = (s.team_ids || []);
+    if (!asg.length) view.appendChild(el('<p class="hint">Sin equipos asignados.</p>'));
+    var tl = el('<div class="mini-list"></div>');
+    asg.forEach(function (tid) {
+      var tt = SF.store.teamGet(tid); if (!tt) return;
+      var row = el('<div class="mini-row"><span><b>' + esc(tt.name) + '</b> · ' + esc(tt.category || '') + '</span></div>');
+      if (canAssignTeams()) {
+        var q = el('<button class="lnk-del">' + ico('x') + '</button>');
+        q.onclick = function () { SF.store.staffAssign(s.id, tid, false); U.toast('Quitado del equipo'); SF.router.render(); };
+        row.appendChild(q);
+      }
+      tl.appendChild(row);
+    });
+    view.appendChild(tl);
+    if (canAssignTeams()) {
+      var libres = teams.filter(function (tt) { return asg.indexOf(tt.id) < 0; });
+      if (libres.length) {
+        var ba = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Asignar a un equipo</button>');
+        ba.onclick = function () {
+          var box = el('<div class="mini-list"></div>');
+          libres.forEach(function (tt) {
+            var r = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span><b>' + esc(tt.name) + '</b> · ' + esc(tt.category || '') + '</span></button>');
+            r.onclick = function () { SF.store.staffAssign(s.id, tt.id, true); U.closeModal(); U.toast('Asignado a ' + tt.name); SF.router.render(); };
+            box.appendChild(r);
+          });
+          U.modal('Asignar ' + s.full_name + ' a un equipo', box);
+        };
+        view.appendChild(ba);
+      }
+    } else view.appendChild(el('<p class="hint">La asignación a equipos la hace la dirección técnica.</p>'));
+  };
+
   /* ===================== PORTAL JUGADOR (mobile) =====================
      La edad se CALCULA, no se guarda: cambia sola el día del cumpleaños.
      - MENOR: vista corta. Sus datos, su equipo, citas y avisos. Nada más:
@@ -2836,9 +3179,38 @@ window.SF = window.SF || {};
     view.appendChild(rl);
     if (can) { var addP = el('<button class="btn btn-light btn-sm">' + ico('search') + 'Buscar y añadir jugadores</button>'); addP.onclick = function () { openAddPlayers(t); }; view.appendChild(addP); }
 
-    // Cuerpo técnico
+    // Cuerpo técnico — desde las fichas de staff asignadas a este equipo.
+    // Con distintivo de habilitación: quien no puede trabajar con jugadores
+    // tiene que verse AQUÍ, antes del sábado, no en una pestaña escondida.
     view.appendChild(el('<p class="sec-label">Cuerpo técnico</p>'));
-    view.appendChild(el('<p class="hint">' + ((t.coaches || []).length ? esc(t.coaches.join(', ')) : 'Sin entrenador asignado') + '</p>'));
+    var sTeam = SF.store.staffOfTeam(t.id);
+    var sl = el('<div class="mini-list"></div>');
+    if (!sTeam.length) sl.appendChild(el('<p class="hint">Sin cuerpo técnico asignado.' + ((t.coaches || []).length ? ' (Antiguo: ' + esc(t.coaches.join(', ')) + ')' : '') + '</p>'));
+    sTeam.forEach(function (s) {
+      var stt = SF.staffStatus(s);
+      var cls = stt.level === 'ok' ? 'tag-green' : (stt.level === 'warn' ? 'tag-warn' : 'tag-danger');
+      var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> · ' + esc(roleLabel(s.role)) + ' <span class="hint">' + SF.staffCode(s.num) + '</span></span>' +
+        '<span class="row-actions"><span class="tag ' + cls + '">' + stt.label + '</span><button class="lnk" data-open>Ver ficha</button></span></div>');
+      row.querySelector('[data-open]').onclick = function () { location.hash = '#/staff/' + s.id; };
+      sl.appendChild(row);
+    });
+    view.appendChild(sl);
+    if (can) {
+      var bAsig = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Asignar staff a este equipo</button>');
+      bAsig.onclick = function () {
+        var libres = SF.store.staff().filter(function (s) { return (s.team_ids || []).indexOf(t.id) < 0; });
+        var box = el('<div class="mini-list"></div>');
+        if (!libres.length) box.appendChild(el('<p class="hint">Todo el staff ya está asignado a este equipo.</p>'));
+        libres.forEach(function (s) {
+          var stt = SF.staffStatus(s);
+          var r2 = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span><b>' + esc(s.full_name) + '</b> · ' + esc(roleLabel(s.role)) + '</span><span class="hint">' + stt.label + '</span></button>');
+          r2.onclick = function () { SF.store.staffAssign(s.id, t.id, true); U.closeModal(); U.toast(s.full_name + ' asignado a ' + t.name); SF.router.render(); };
+          box.appendChild(r2);
+        });
+        U.modal('Asignar staff a ' + t.name, box);
+      };
+      view.appendChild(bAsig);
+    }
 
     // Familias
     view.appendChild(el('<p class="sec-label">Familias del equipo</p>'));
@@ -2911,16 +3283,18 @@ SF.router = (function () {
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
+    ['staff', 'Staff', 'shield'], ['mi-ficha', 'Mi ficha', 'file'],
     ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
   var ROUTE_PAGE = {
     inicio: 'inicio', jugadores: 'jugadores', jugador: 'jugador', equipos: 'equipos', equipo: 'equipo',
     importar: 'importar', captacion: 'captacion', documentos: 'documentos', informes: 'informes',
     family: 'family', finanzas: 'finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
-    'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador'
+    'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
+    staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha'
   };
   // a qué item de nav corresponde resaltar
-  var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family' };
+  var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff' };
 
   function parse() {
     var h = (location.hash || '').replace(/^#\/?/, '');
@@ -2943,6 +3317,8 @@ SF.router = (function () {
     if (route === 'portal-family') {                                         // padre (su portal) o staff que lo previsualiza
       return r.nav.indexOf('portal-family') >= 0 || r.nav.indexOf('family') >= 0 || r.nav.indexOf('jugadores') >= 0;
     }
+    // La ficha de staff: la abre quien ve el listado, o cualquiera la suya.
+    if (route === 'staff-ficha') return r.nav.indexOf('staff') >= 0 || r.nav.indexOf('mi-ficha') >= 0;
     return r.nav.indexOf(route) >= 0;
   }
 
