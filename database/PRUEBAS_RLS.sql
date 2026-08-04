@@ -13,7 +13,7 @@
 --   Si alguna falla, el script se PARA con el motivo.
 --
 -- CÓMO SE EJECUTA
---   1. Aplica primero schema.sql y SUPABASE_auth_v2.sql
+--   1. Aplica primero database/schema_completo.sql (el unico archivo)
 --   2. Pega este archivo entero en el editor SQL de Supabase y ejecútalo
 --   3. Debe terminar con:  === TODAS LAS PRUEBAS PASAN ===
 --
@@ -111,11 +111,11 @@ begin
     (ac,'jugador',       false,false,false,false,false)
   on conflict do nothing;
 
-  insert into finance (player_id, concept, amount, status) values
+  insert into finance (player_id, label, amount, status) values
     (jMartin,'Cuota octubre', 90, 'pendiente'),
     (jAna,   'Cuota octubre', 90, 'pendiente');
 
-  insert into documents (player_id, type) values (jMartin,'dni'), (jAna,'dni');
+  insert into documents (player_id, document_type) values (jMartin,'dni'), (jAna,'dni');
 
   -- Guardar los ids para las pruebas
   create temp table t_ids as select ac academia, eqA equipoA, eqB equipoB,
