@@ -617,6 +617,14 @@ SF.finTotals = function (p) {
 };
 SF.finHas = function (p, status) { return SF.finItems(p).some(function (i) { return i.status === status; }); };
 
+/* Numeración de fichas. Dos series separadas y con prefijo, para que nadie
+   confunda al jugador 7 con el entrenador 7:
+     J-0007  jugadores        S-007  staff
+   El número es correlativo, permanente y no codifica nada (ni equipo ni
+   categoría): si lo hiciera, mentiría en cuanto la persona cambiase. */
+SF.fichaCode = function (n) { return n == null ? '' : 'J-' + String(n).padStart(4, '0'); };
+SF.staffCode = function (n) { return n == null ? '' : 'S-' + String(n).padStart(3, '0'); };
+
 /* Helper para fabricar un jugador con valores por defecto seguros */
 function P(o) {
   return Object.assign({
@@ -999,7 +1007,7 @@ SF.ui = (function () {
     var card = el(
       '<button class="pcard" data-id="' + p.id + '">' +
       '<div class="pcard-photo">' + initials(p.full_name) +
-      (p.ficha != null ? '<span class="pcard-ficha">Nº ' + p.ficha + '</span>' : '') + '</div>' +
+      (p.ficha != null ? '<span class="pcard-ficha">' + SF.fichaCode(p.ficha) + '</span>' : '') + '</div>' +
       '<div class="pcard-body">' +
       '<div class="pcard-name">' + esc(p.full_name) + '</div>' +
       '<div class="pcard-meta">' + esc(nat || '—') + ' · ' + (p.birth_year || '—') + '</div>' +
@@ -1428,12 +1436,14 @@ window.SF = window.SF || {};
         if (fn && (p.nationality || []).indexOf(fn) < 0) return false;
         if (fs && p.status !== fs) return false;
         if (q) {
-          /* Se busca también por NÚMERO DE FICHA: escribir "7" encuentra al 7.
-             Si la consulta es solo dígitos, se compara exacta con el número,
-             para que buscar "7" no devuelva a todos los nacidos en 2007. */
-          if (/^\d+$/.test(q)) { if (String(p.ficha) === String(parseInt(q, 10))) return true; }
+          /* Búsqueda por NÚMERO DE FICHA. Acepta las tres formas en que la
+             gente lo va a escribir: "7", "J-7", "J-0007". Si la consulta es
+             un número, se compara EXACTA, para que buscar "7" no devuelva a
+             todos los nacidos en 2007. */
+          var qn = q.replace(/^j-?/, '').replace(/^0+(?=\d)/, '');
+          if (/^\d+$/.test(qn) && String(p.ficha) === qn) return true;
           var hay = (p.full_name + ' ' + (p.primary_position || '') + ' ' + (p.nationality || []).join(' ') + ' ' +
-            (p.birth_year || '') + ' ' + (p.scoutflow_id || '') + ' ' + (p.ficha != null ? 'nº' + p.ficha : '')).toLowerCase();
+            (p.birth_year || '') + ' ' + (p.scoutflow_id || '') + ' ' + SF.fichaCode(p.ficha)).toLowerCase();
           if (q.indexOf('sin pasaporte') >= 0) return p.documents.pasaporte === 'pendiente';
           if (hay.indexOf(q) < 0) return false;
         }
@@ -1491,7 +1501,7 @@ window.SF = window.SF || {};
     var nat = (p.nationality || []).join(', ');
     fhead.querySelector('.fh-info').innerHTML =
       '<h2>' + esc(p.full_name) + '</h2>' +
-      '<p class="fh-sub">' + (p.ficha != null ? '<b>Ficha nº ' + p.ficha + '</b> · ' : '') + esc(p.scoutflow_id) + ' · ' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + (p.height_cm ? ' · ' + (p.height_cm / 100).toFixed(2) + ' m' : '') + '</p>' +
+      '<p class="fh-sub">' + (p.ficha != null ? '<b>' + SF.fichaCode(p.ficha) + '</b> · ' : '') + esc(p.scoutflow_id) + ' · ' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + (p.height_cm ? ' · ' + (p.height_cm / 100).toFixed(2) + ' m' : '') + '</p>' +
       '<div class="fh-tags">' + U.statusTag(p.status) + (r.canSeeScore ? '<span class="tag tag-purple">Score ' + (p.scout_score != null ? p.scout_score : 'pendiente') + '</span>' : '') + '<span class="tag tag-gray">' + esc(nat || '—') + '</span></div>';
     view.appendChild(fhead);
 
