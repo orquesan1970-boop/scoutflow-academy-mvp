@@ -751,7 +751,10 @@ SF.SEED_PLAYERS = [
    (algunos entornos sandbox), cae a memoria sin romperse. */
 window.SF = window.SF || {};
 SF.store = (function () {
-  var KEY = 'scoutflow:db:v1';
+  /* Al cambiar el modelo de datos hay que subir la versión de la clave, o el
+     navegador seguiría sirviendo los datos de demo antiguos y los campos
+     nuevos (informes, consentimientos) no aparecerían nunca. */
+  var KEY = 'scoutflow:db:v2';
   var mem = null; // fallback en memoria
 
   function canLS() {
