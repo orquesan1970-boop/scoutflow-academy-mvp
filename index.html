@@ -2354,17 +2354,24 @@ window.SF = window.SF || {};
       }
     }
 
-    var labels = { pasaporte: 'Pasaporte', expediente: 'Expediente', seguro_medico: 'Seguro médico' };
-    b.appendChild(el('<p class="ph-sec">Documentos pendientes</p>'));
-    var dl = el('<div></div>');
+    /* Documentación = CHECKLIST. La app no guarda documentos: solo lleva la
+       cuenta de qué se ha entregado. Los papeles van por correo o en mano, y
+       solo el club marca la recepción. (Decisión 2026-08-02) */
+    var labels = { pasaporte: 'Pasaporte o DNI', expediente: 'Expediente académico', seguro_medico: 'Seguro médico' };
+    b.appendChild(el('<p class="ph-sec">Documentación</p>'));
+    var dl = el('<div></div>'), faltan = 0;
     Object.keys(labels).forEach(function (k) {
-      if (p.documents[k] === 'validado') return;
-      var row = el('<div class="ph-row"><span>' + labels[k] + '</span><button class="ph-btn">' + ico('camera') + 'Subir</button></div>');
-      row.querySelector('button').onclick = function () { U.toast('Abriría la cámara / galería'); };
-      dl.appendChild(row);
+      var st = p.documents[k];
+      var entregado = (st === 'validado' || st === 'recibido');
+      if (!entregado) faltan++;
+      dl.appendChild(el('<div class="ph-row"><span>' + (entregado ? '✓ ' : '○ ') + labels[k] +
+        '</span><span class="tag ' + (entregado ? 'tag-green' : 'tag-gray') + '">' +
+        (entregado ? 'entregado' : 'pendiente') + '</span></div>'));
     });
-    if (!dl.children.length) dl.appendChild(el('<p class="hint">Todo en orden. </p>'));
     b.appendChild(dl);
+    b.appendChild(el('<p class="hint">' + (faltan
+      ? 'Te faltan ' + faltan + '. Entrégalos por correo a secretaría o en el pabellón; el club los marca al recibirlos.'
+      : 'Toda la documentación entregada.') + '</p>'));
 
     b.appendChild(el('<p class="ph-sec">Pagos</p>'));
     var fitems = SF.finItems(p), ftot = SF.finTotals(p);
