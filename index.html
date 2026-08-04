@@ -151,7 +151,8 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px}
 .pcard{text-align:left;font-family:inherit;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:0;overflow:hidden;cursor:pointer;transition:.15s;display:block}
 .pcard:hover{border-color:var(--purple-2);transform:translateY(-2px)}
-.pcard-photo{height:120px;background:#EFEDF8;display:flex;align-items:center;justify-content:center;color:var(--purple);font-weight:600;font-size:30px}
+.pcard-photo{height:120px;background:#EFEDF8;display:flex;align-items:center;justify-content:center;color:var(--purple);font-weight:600;font-size:30px;position:relative}
+.pcard-ficha{position:absolute;top:8px;left:8px;background:var(--surface);color:var(--ink-2);border:1px solid var(--line);border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600;letter-spacing:.2px}
 .pcard-body{padding:12px 14px}
 .pcard-name{font-size:14.5px;font-weight:600}
 .pcard-meta{font-size:12px;color:var(--ink-2);margin-top:3px}
@@ -776,9 +777,15 @@ SF.store = (function () {
   }
 
   function seed() {
+    /* Número de ficha: correlativo, permanente y TONTO. No codifica equipo ni
+       categoría a propósito: si lo hiciera, mentiría en cuanto el jugador
+       cambiase de equipo. Sirve para buscar, para hablar por teléfono y como
+       referencia de pago en la transferencia. */
+    var seedPlayers = JSON.parse(JSON.stringify(SF.SEED_PLAYERS));
+    seedPlayers.forEach(function (p, i) { if (p.ficha == null) p.ficha = i + 1; });
     return {
       academy: JSON.parse(JSON.stringify(SF.ACADEMY)),
-      players: JSON.parse(JSON.stringify(SF.SEED_PLAYERS)),
+      players: seedPlayers,
       teams: JSON.parse(JSON.stringify(SF.TEAMS || [])),
       expenses: JSON.parse(JSON.stringify(SF.EXPENSES || [])),
       role: 'director',
@@ -792,6 +799,13 @@ SF.store = (function () {
     if (!d.teams) { d.teams = JSON.parse(JSON.stringify(SF.TEAMS || [])); d.teamSeq = (SF.TEAMS ? SF.TEAMS.length + 1 : 1); write(d); }
     if (!d.expenses) { d.expenses = JSON.parse(JSON.stringify(SF.EXPENSES || [])); write(d); }
     if (!d.academy.economy && SF.ACADEMY.economy) { d.academy.economy = JSON.parse(JSON.stringify(SF.ACADEMY.economy)); write(d); }
+    /* Migración: asigna número de ficha a quien no lo tenga, sin borrar datos.
+       Así no hay que subir la versión del almacén y nadie pierde su trabajo. */
+    if (d.players && d.players.some(function (p) { return p.ficha == null; })) {
+      var max = d.players.reduce(function (m, p) { return Math.max(m, p.ficha || 0); }, 0);
+      d.players.forEach(function (p) { if (p.ficha == null) p.ficha = ++max; });
+      write(d);
+    }
     return d;
   }
 
@@ -835,6 +849,8 @@ SF.store = (function () {
       var n = d.seq++;
       obj.id = 'p' + n;
       obj.scoutflow_id = 'SF-2026-' + String(n).padStart(4, '0');
+      // Número de ficha correlativo: el siguiente libre, nunca se reutiliza.
+      obj.ficha = d.players.reduce(function (m, x) { return Math.max(m, x.ficha || 0); }, 0) + 1;
       if (!obj.full_name) obj.full_name = ((obj.first_name || '') + ' ' + (obj.last_name || '')).trim();
       if (obj.birth_date && !obj.birth_year) obj.birth_year = new Date(obj.birth_date).getFullYear();
       obj.created_at = new Date().toISOString();
@@ -982,7 +998,8 @@ SF.ui = (function () {
     var score = p.scout_score != null ? p.scout_score : '—';
     var card = el(
       '<button class="pcard" data-id="' + p.id + '">' +
-      '<div class="pcard-photo">' + initials(p.full_name) + '</div>' +
+      '<div class="pcard-photo">' + initials(p.full_name) +
+      (p.ficha != null ? '<span class="pcard-ficha">Nº ' + p.ficha + '</span>' : '') + '</div>' +
       '<div class="pcard-body">' +
       '<div class="pcard-name">' + esc(p.full_name) + '</div>' +
       '<div class="pcard-meta">' + esc(nat || '—') + ' · ' + (p.birth_year || '—') + '</div>' +
@@ -1411,7 +1428,12 @@ window.SF = window.SF || {};
         if (fn && (p.nationality || []).indexOf(fn) < 0) return false;
         if (fs && p.status !== fs) return false;
         if (q) {
-          var hay = (p.full_name + ' ' + (p.primary_position || '') + ' ' + (p.nationality || []).join(' ') + ' ' + (p.birth_year || '')).toLowerCase();
+          /* Se busca también por NÚMERO DE FICHA: escribir "7" encuentra al 7.
+             Si la consulta es solo dígitos, se compara exacta con el número,
+             para que buscar "7" no devuelva a todos los nacidos en 2007. */
+          if (/^\d+$/.test(q)) { if (String(p.ficha) === String(parseInt(q, 10))) return true; }
+          var hay = (p.full_name + ' ' + (p.primary_position || '') + ' ' + (p.nationality || []).join(' ') + ' ' +
+            (p.birth_year || '') + ' ' + (p.scoutflow_id || '') + ' ' + (p.ficha != null ? 'nº' + p.ficha : '')).toLowerCase();
           if (q.indexOf('sin pasaporte') >= 0) return p.documents.pasaporte === 'pendiente';
           if (hay.indexOf(q) < 0) return false;
         }
@@ -1469,7 +1491,7 @@ window.SF = window.SF || {};
     var nat = (p.nationality || []).join(', ');
     fhead.querySelector('.fh-info').innerHTML =
       '<h2>' + esc(p.full_name) + '</h2>' +
-      '<p class="fh-sub">' + esc(p.scoutflow_id) + ' · ' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + (p.height_cm ? ' · ' + (p.height_cm / 100).toFixed(2) + ' m' : '') + '</p>' +
+      '<p class="fh-sub">' + (p.ficha != null ? '<b>Ficha nº ' + p.ficha + '</b> · ' : '') + esc(p.scoutflow_id) + ' · ' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + (p.height_cm ? ' · ' + (p.height_cm / 100).toFixed(2) + ' m' : '') + '</p>' +
       '<div class="fh-tags">' + U.statusTag(p.status) + (r.canSeeScore ? '<span class="tag tag-purple">Score ' + (p.scout_score != null ? p.scout_score : 'pendiente') + '</span>' : '') + '<span class="tag tag-gray">' + esc(nat || '—') + '</span></div>';
     view.appendChild(fhead);
 
@@ -2955,7 +2977,12 @@ SF.router = (function () {
 
     var gs = document.getElementById('gsearch');
     gs.addEventListener('keydown', function (e) {
-      if (e.key === 'Enter' && gs.value.trim()) { SF._jugQuery = gs.value.trim(); location.hash = '#/jugadores'; }
+      if (e.key !== 'Enter' || !gs.value.trim()) return;
+      SF._jugQuery = gs.value.trim();
+      /* Si YA estamos en #/jugadores, cambiar el hash al mismo valor no dispara
+         'hashchange' y la búsqueda se perdía en silencio. Hay que repintar. */
+      if (location.hash === '#/jugadores') render();
+      else location.hash = '#/jugadores';
     });
     var tnew = document.getElementById('tnew');
     if (tnew) tnew.onclick = function () { location.hash = '#/jugadores'; setTimeout(function () { var b = document.getElementById('nuevo'); if (b) b.click(); }, 60); };
