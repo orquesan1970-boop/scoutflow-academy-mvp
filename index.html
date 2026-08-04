@@ -250,6 +250,16 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .ph-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-top:1px solid var(--line);font-size:13.5px}
 .ph-row:first-of-type{border-top:none}
 .ph-btn{border:1px solid var(--line-2);background:var(--surface);color:var(--ink);border-radius:8px;padding:7px 12px;font-family:inherit;font-size:12.5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
+.ph-consent{border:1px solid var(--line);border-radius:var(--r);padding:12px;margin:8px 0;background:var(--surface)}
+.ph-consent>b{display:block;margin-bottom:5px;font-size:13px}
+.ph-consent>p{font-size:12px;color:var(--ink-2);margin:0 0 9px;line-height:1.45}
+.ph-yn{display:flex;gap:8px}
+.ph-btn.yn{flex:1;justify-content:center;font-weight:600}
+.ph-btn.yn.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+.ph-report{border:1px solid var(--line);border-radius:var(--r);padding:12px;margin:8px 0;background:var(--surface)}
+.ph-report>b{display:block;font-size:13px}
+.ph-report>span{display:block;font-size:11.5px;margin-bottom:6px}
+.ph-report>p{font-size:12.5px;color:var(--ink-2);margin:0;line-height:1.5}
 .ph-btn .ic{width:14px;height:14px}
 .ph-btn.pay{background:var(--purple);color:#fff;border-color:var(--purple)}
 
@@ -531,6 +541,12 @@ SF.ROLES = {
     nav: ['portal-family'],
     tabs: ['perfil', 'documentos', 'informes', 'finanzas'],
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: false, segments: 'all'
+  },
+  jugador: {
+    label: 'Jugador',
+    nav: ['portal-jugador'],
+    tabs: ['perfil'],
+    canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: false, segments: 'all'
   }
 };
 
@@ -665,6 +681,18 @@ SF.SEED_PLAYERS = [
     eval_log: [{ by: 'Carlos Gorosito', role: 'Entrenador', date: '2026-06-10' }], team_id: 't1',
     measure_log: [{ by: 'Diego Sosa', role: 'Preparador Físico', date: '2025-09-01', height_cm: 189, weight_kg: 75, wingspan_cm: 196, torso_height_cm: 95, foot_length_cm: 30, hand_length_cm: 22 }],
     family_active: true, family: { contact: 'Ana Ríos', relation: 'Madre', phone: '+34 600 111 222', email: 'ana@example.com' },
+    consents: { imagen_publica: true, comunicaciones: true },
+    reports: [
+      { id: 'r1', kind: 'Deportivo', title: 'Informe deportivo · 2º trimestre', date: '2026-06-15',
+        author: 'Carlos Gorosito · Entrenador', published: true,
+        body: 'Martín ha crecido mucho en la lectura de juego y en la toma de decisiones en transición. Muy buena disposición defensiva y trabajo constante en los entrenamientos. A mejorar: el tiro exterior con oposición y la continuidad en los partidos largos. Sigue con el plan de tiro individual dos días por semana.' },
+      { id: 'r2', kind: 'Deportivo', title: 'Informe deportivo · 1er trimestre', date: '2026-03-10',
+        author: 'Carlos Gorosito · Entrenador', published: true,
+        body: 'Adaptación al equipo muy buena. Destaca por su actitud y por el trabajo sin balón. Debe ganar fuerza en el tren inferior para aguantar el contacto.' },
+      { id: 'r3', kind: 'Deportivo', title: 'Valoración interna de scouting', date: '2026-06-20',
+        author: 'Laura Pérez · Scout', published: false,
+        body: 'Borrador interno. No visible para la familia.' }
+    ],
     documents: { pasaporte: 'validado', expediente: 'recibido', video_highlights: 'validado', seguro_medico: 'pendiente' },
     finance: { items: [
       { id: 'm-ins', type: 'inscripcion', label: 'Inscripción', month: '', amount: 150, status: 'pagado', method: 'Transferencia' },
@@ -2343,6 +2371,27 @@ window.SF = window.SF || {};
     var b = phone.querySelector('.phone-body');
     b.appendChild(el('<div class="ph-hero"><div class="ph-photo">' + U.initials(p.full_name) + '</div><div><div class="ph-name">' + esc(p.full_name) + '</div><div class="ph-sub">' + (p.birth_year || '') + ' · ' + esc(p.primary_position || '') + '</div></div></div>'));
 
+    /* Perfil del hijo/a. La familia debe poder revisar los datos que el club
+       guarda de su hijo: es la base del derecho de acceso y rectificación. */
+    function dline(lab, val) {
+      return val ? '<div class="ph-row"><span class="hint">' + lab + '</span><span>' + esc(String(val)) + '</span></div>' : '';
+    }
+    var pteam = p.team_id ? SF.store.teamGet(p.team_id) : null;
+    var pfam = p.family || {};
+    b.appendChild(el('<p class="ph-sec">Sus datos</p>'));
+    b.appendChild(el('<div>' +
+      dline('Nombre', p.full_name) +
+      dline('Año de nacimiento', p.birth_year) +
+      dline('Nacionalidad', (p.nationality || []).join(' / ')) +
+      dline('Equipo', pteam ? pteam.name : '') +
+      dline('Posición', p.primary_position) +
+      dline('Altura', p.height_cm ? (p.height_cm / 100).toFixed(2) + ' m' : '') +
+      dline('Contacto familiar', pfam.contact ? pfam.contact + (pfam.relation ? ' (' + pfam.relation + ')' : '') : '') +
+      dline('Teléfono', pfam.phone) +
+      dline('Email', pfam.email) +
+      '</div>'));
+    b.appendChild(el('<p class="hint">¿Hay algún dato mal? Avisa al club y lo corrigen.</p>'));
+
     if (p.team_id) {
       var ptt = SF.store.teamGet(p.team_id);
       if (ptt) {
@@ -2404,8 +2453,116 @@ window.SF = window.SF || {};
     bb.onclick = function () { U.modal('Datos bancarios', smallForm([{ name: 'iban', label: 'IBAN' }, { name: 'method', label: 'Forma de pago', type: 'select', options: ['Recibo domiciliado', 'Pago con tarjeta'] }], { iban: bk.iban, method: bk.method }, function (d) { SF.store.update(p.id, { bank: { iban: d.iban, method: d.method } }); U.toast('Datos actualizados'); SF.router.render(); })); };
     b.appendChild(bb);
 
+    /* Informes: SOLO los que el staff haya publicado. Un informe escrito no
+       aparece hasta que alguien lo publica a propósito. (Decisión de producto) */
     b.appendChild(el('<p class="ph-sec">Informes</p>'));
-    b.appendChild(el('<p class="hint">El club aún no ha publicado informes visibles.</p>'));
+    var reps = (p.reports || []).filter(function (r) { return r.published; });
+    if (!reps.length) {
+      b.appendChild(el('<p class="hint">El club aún no ha publicado ningún informe.</p>'));
+    } else {
+      reps.slice().sort(function (a, c) { return (c.date || '').localeCompare(a.date || ''); }).forEach(function (r) {
+        var card = el('<div class="ph-report"><b>' + esc(r.title) + '</b>' +
+          '<span class="hint">' + fmtDate(r.date) + ' · ' + esc(r.author || '') + '</span>' +
+          '<p>' + esc(r.body) + '</p></div>');
+        b.appendChild(card);
+      });
+    }
+
+    /* Mis autorizaciones (RGPD). Hay que RESPONDER, no hay que ACEPTAR:
+       el "no" es una respuesta válida y no bloquea nada. Revocable siempre. */
+    b.appendChild(el('<p class="ph-sec">Mis autorizaciones</p>'));
+    var cs = p.consents || {};
+    [
+      { k: 'imagen_publica', label: 'Uso de imagen',
+        desc: 'El club puede publicar imágenes y vídeos donde aparezca ' + esc(p.first_name || p.full_name) +
+              ' en su página web, sus redes sociales y en medios de comunicación, para difundir la actividad deportiva del club.' },
+      { k: 'comunicaciones', label: 'Comunicaciones del club',
+        desc: 'Recibir avisos de entrenamientos, horarios, partidos y convocatorias.' }
+    ].forEach(function (c) {
+      var v = cs[c.k];
+      var box = el('<div class="ph-consent"><b>' + c.label + '</b><p>' + c.desc + '</p></div>');
+      var row = el('<div class="ph-yn"></div>');
+      [['si', 'SÍ autorizo', true], ['no', 'NO autorizo', false]].forEach(function (o) {
+        var on = (v === o[2]);
+        var btn = el('<button class="ph-btn yn' + (on ? ' on' : '') + '">' + o[1] + '</button>');
+        btn.onclick = function () {
+          var nc = Object.assign({}, p.consents || {}); nc[c.k] = o[2];
+          SF.store.update(p.id, { consents: nc });
+          U.toast(o[2] ? 'Autorización registrada' : 'Registrado: no autorizas');
+          SF.router.render();
+        };
+        row.appendChild(btn);
+      });
+      box.appendChild(row);
+      box.appendChild(el('<p class="hint">' + (v === undefined || v === null
+        ? 'Sin responder. Es obligatorio contestar, pero puedes decir que no: tu respuesta no afecta a la inscripción ni a la participación.'
+        : 'Puedes cambiar esta decisión cuando quieras, sin dar explicaciones.') + '</p>'));
+      b.appendChild(box);
+    });
+
+    view.appendChild(phone);
+  };
+
+  /* ===================== PORTAL JUGADOR (mobile) =====================
+     La edad se CALCULA, no se guarda: cambia sola el día del cumpleaños.
+     - MENOR: vista corta. Sus datos, su equipo, citas y avisos. Nada más:
+       ni pagos, ni documentación, ni informes, ni valoraciones.
+     - MAYOR de 18: ve lo mismo que su familia, pero sobre sí mismo.
+     Sin fecha de nacimiento se trata como menor (opción protectora). */
+  function playerAge(p) {
+    if (!p.birth_date) return null;
+    var b = new Date(p.birth_date), t = new Date();
+    var a = t.getFullYear() - b.getFullYear();
+    var m = t.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && t.getDate() < b.getDate())) a--;
+    return a;
+  }
+  function playerIsAdult(p) { var a = playerAge(p); return a != null && a >= 18; }
+
+  pages['portal-jugador'] = function (view, id) {
+    var ps = SF.store.players();
+    var p = id ? SF.store.get(id) : ps.filter(function (x) { return x.team_id; })[0] || ps[0];
+    if (!p) { view.innerHTML = head('Portal Jugador', '') + '<div class="empty-panel"><p>Sin jugadores.</p></div>'; return; }
+
+    /* Mayor de edad: mismo portal que la familia, pero sobre sí mismo. */
+    if (playerIsAdult(p)) {
+      pages['portal-family'](view, p.id);
+      var h = view.querySelector('h1, .page-title');
+      view.insertBefore(el('<div class="empty-panel" style="margin-bottom:14px"><p><b>' +
+        esc(p.full_name) + ' · ' + playerAge(p) + ' años · mayor de edad.</b><br>' +
+        'Sus datos son suyos: ve y gestiona lo mismo que su familia, y firma él sus autorizaciones.</p></div>'), view.children[1] || null);
+      return;
+    }
+
+    view.innerHTML = head('Portal Jugador', 'Vista del jugador menor de edad (mobile-first).');
+    var sel = el('<div class="empty-panel" style="margin-bottom:14px"><p><b>' + esc(p.full_name) + ' · ' +
+      (playerAge(p) != null ? playerAge(p) + ' años · menor' : 'sin fecha de nacimiento · se trata como menor') + '.</b><br>' +
+      'Ve lo justo para ir a entrenar y jugar. No ve pagos, ni documentación, ni informes, ni su valoración.</p></div>');
+    view.appendChild(sel);
+
+    var phone = el('<div class="phone"><div class="phone-top"><img src="' + SF.LOGO + '" alt="" class="ph-logo"><span>ScoutFlow</span></div><div class="phone-body"></div></div>');
+    var b = phone.querySelector('.phone-body');
+    var t = p.team_id ? SF.store.teamGet(p.team_id) : null;
+
+    b.appendChild(el('<div class="ph-hero"><div class="ph-photo">' + U.initials(p.full_name) + '</div><div><div class="ph-name">' + esc(p.full_name) + '</div><div class="ph-sub">' + (t ? esc(t.name) : 'Sin equipo') + '</div></div></div>'));
+
+    b.appendChild(el('<p class="ph-sec">Próximas citas</p>'));
+    if (t) {
+      var nm = teamUpcoming(t, 'partido')[0], nt = teamUpcoming(t, 'entrenamiento')[0];
+      if (!nm && !nt) b.appendChild(el('<p class="hint">Sin citas próximas.</p>'));
+      if (nt) b.appendChild(el('<div class="ph-pay"><b>Entrenamiento</b><span>' + fmtDate(nt.date) + (nt.time ? ' · ' + nt.time : '') + (nt.place ? ' · ' + esc(nt.place) : '') + '</span></div>'));
+      if (nm) b.appendChild(el('<div class="ph-pay"><b>Partido · ' + esc(nm.opponent || 'rival') + '</b><span>' + fmtDate(nm.date) + (nm.time ? ' · ' + nm.time : '') + (nm.place ? ' · ' + esc(nm.place) : '') + '</span></div>'));
+    } else b.appendChild(el('<p class="hint">Sin equipo asignado.</p>'));
+
+    /* Avisos del club: en un solo sentido. No es un chat y no ve a nadie más. */
+    b.appendChild(el('<p class="ph-sec">Avisos del club</p>'));
+    var wall = (t && t.wall) ? t.wall.slice().reverse() : [];
+    if (!wall.length) b.appendChild(el('<p class="hint">No tienes avisos.</p>'));
+    wall.slice(0, 5).forEach(function (w) {
+      b.appendChild(el('<div class="ph-report"><b>Aviso del club</b><span>' + fmtDate(w.date) + ' · ' + esc(w.by || '') + '</span><p>' + esc(w.text) + '</p></div>'));
+    });
+    b.appendChild(el('<p class="hint">Los avisos que te llegan los reciben también tus padres o tutores.</p>'));
+
     view.appendChild(phone);
   };
 
@@ -2715,12 +2872,14 @@ SF.router = (function () {
     ['inicio', 'Inicio', 'home'], ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'], ['importar', 'Importar con IA', 'ai'],
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
-    ['config', 'Configuración', 'cog']
+    ['config', 'Configuración', 'cog'],
+    ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
   var ROUTE_PAGE = {
     inicio: 'inicio', jugadores: 'jugadores', jugador: 'jugador', equipos: 'equipos', equipo: 'equipo',
     importar: 'importar', captacion: 'captacion', documentos: 'documentos', informes: 'informes',
-    family: 'family', finanzas: 'finanzas', economia: 'economia', permisos: 'permisos', config: 'config', 'portal-family': 'portal-family'
+    family: 'family', finanzas: 'finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
+    'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family' };
@@ -2731,7 +2890,12 @@ SF.router = (function () {
     return { route: parts[0] || '', param: parts[1] || null };
   }
 
-  function defaultRoute() { return SF.store.role() === 'padre' ? '#/portal-family' : '#/inicio'; }
+  function defaultRoute() {
+    var r = SF.store.role();
+    if (r === 'padre') return '#/portal-family';
+    if (r === 'jugador') return '#/portal-jugador';
+    return '#/inicio';
+  }
 
   /* ¿El rol actual puede acceder a esta ruta? */
   function canAccess(route, r) {
