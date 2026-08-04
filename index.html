@@ -45,6 +45,9 @@ h1,h2,h3{font-weight:600;margin:0}
 .topbar{display:flex;gap:14px;align-items:center;padding:16px 28px;border-bottom:0.5px solid var(--line);background:var(--surface);position:sticky;top:0;z-index:5}
 .search{flex:1;display:flex;align-items:center;gap:10px;background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);padding:9px 14px}
 .search .ic{color:var(--ink-3)}
+.search-go{border:0;background:none;padding:0;margin:0;display:flex;align-items:center;cursor:pointer;border-radius:6px;transition:color .15s}
+.search-go:hover .ic{color:var(--purple)}
+.search-go:focus-visible{outline:2px solid var(--purple);outline-offset:2px}
 .search input{flex:1;border:0;outline:0;background:transparent;font-family:inherit;font-size:14px;color:var(--ink)}
 .search input::placeholder{color:var(--ink-3)}
 .top-right{display:flex;align-items:center;gap:12px}
@@ -2955,7 +2958,7 @@ SF.router = (function () {
       '</aside>' +
       '<main class="main">' +
       '<header class="topbar">' +
-      '<div class="search"><svg class="ic"><use href="#i-search"/></svg><input id="gsearch" placeholder="Buscar: pívots 2009, jugadores sin pasaporte, Pablo…"></div>' +
+      '<div class="search"><button class="search-go" id="gsearch-go" aria-label="Buscar" title="Buscar"><svg class="ic"><use href="#i-search"/></svg></button><input id="gsearch" placeholder="Buscar: nombre, J-0007, 2009, pívot…"></div>' +
       '<div class="top-right">' +
       '<label class="role-switch">Rol <select id="role"></select></label>' +
       (SF.store.role() === 'padre' ? '' : '<button class="btn btn-primary" id="tnew">' + ico('plus') + 'Nuevo jugador</button>') +
@@ -2986,13 +2989,30 @@ SF.router = (function () {
     sel.onchange = function () { SF.store.setRole(sel.value); renderShell(); location.hash = defaultRoute(); render(); };
 
     var gs = document.getElementById('gsearch');
-    gs.addEventListener('keydown', function (e) {
-      if (e.key !== 'Enter' || !gs.value.trim()) return;
-      SF._jugQuery = gs.value.trim();
+    /* El buscador tiene que responder a las TRES formas de usarlo: pulsar
+       Enter, hacer clic en la lupa, y simplemente escribir. Antes solo
+       funcionaba el Enter, y la lupa era un dibujo sin acción. */
+    function goSearch() {
+      var q = gs.value.trim();
+      if (!q) { gs.focus(); return; }
+      SF._jugQuery = q;
       /* Si YA estamos en #/jugadores, cambiar el hash al mismo valor no dispara
          'hashchange' y la búsqueda se perdía en silencio. Hay que repintar. */
       if (location.hash === '#/jugadores') render();
       else location.hash = '#/jugadores';
+    }
+    gs.addEventListener('keydown', function (e) { if (e.key === 'Enter') goSearch(); });
+
+    var gsGo = document.getElementById('gsearch-go');
+    if (gsGo) gsGo.onclick = goSearch;
+
+    /* Búsqueda al escribir: si ya estás en Jugadores, filtra solo, sin Enter.
+       Con un respiro de 250 ms para no repintar en cada tecla. */
+    var gsT = null;
+    gs.addEventListener('input', function () {
+      if (location.hash !== '#/jugadores') return;
+      clearTimeout(gsT);
+      gsT = setTimeout(function () { SF._jugQuery = gs.value.trim(); render(); }, 250);
     });
     var tnew = document.getElementById('tnew');
     if (tnew) tnew.onclick = function () { location.hash = '#/jugadores'; setTimeout(function () { var b = document.getElementById('nuevo'); if (b) b.click(); }, 60); };
