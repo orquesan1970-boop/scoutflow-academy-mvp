@@ -648,14 +648,26 @@ SF.STAFF = [
       { club: 'CBJA Academy', role: 'Entrenador', category: 'Cadete', from: '2024/25', to: '' }
     ],
     training: [{ title: 'Clinic FEB de dirección de equipo', entity: 'FEB', year: 2024 }],
-    cv_file: '' },
+    cv_file: 'CV_Carlos_Gorosito.pdf',
+    lock: { state: 'confirmada', confirmed_at: '2026-09-05', confirmed_by: 'Carlos Gorosito' },
+    history: [
+      { at: '2026-09-03T10:12:00', by: 'Carlos Gorosito', role: 'Entrenador', action: 'Ficha creada y rellenada' },
+      { at: '2026-09-05T18:40:00', by: 'Carlos Gorosito', role: 'Entrenador', action: 'Ficha confirmada y bloqueada por el interesado' },
+      { at: '2026-09-06T09:05:00', by: 'Marta Soler', role: 'Administrativo', action: 'Habilitación 2026/2027: puede trabajar con jugadores' }
+    ] },
   { id: 's2', num: 2, full_name: 'Laura Méndez', role: 'entrenador',
     email: 'laura@cbja.es', phone: '+34 600 100 002', team_ids: ['t2'],
     bio: '', qualification: 'TD1 Baloncesto', qual_entity: 'FBM', qual_year: 2022, qual_number: 'TD1-0761',
     languages: 'Español',
     licence: { season: '2026/2027', number: 'FBM-24902', category: 'Infantil', valid_until: '2027-06-30', status: 'vigente' },
     clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-02', checked_by: 'Marta Soler' },
-    experience: [], training: [], cv_file: '' },
+    experience: [], training: [], cv_file: '',
+    lock: { state: 'confirmada', confirmed_at: '2026-09-04', confirmed_by: 'Laura Méndez' },
+    unlock_request: { at: '2026-09-20T17:22:00', by: 'Laura Méndez', reason: 'He terminado el TD2 y quiero actualizar la titulación' },
+    history: [
+      { at: '2026-09-04T12:00:00', by: 'Laura Méndez', role: 'Entrenador', action: 'Ficha confirmada y bloqueada por el interesado' },
+      { at: '2026-09-20T17:22:00', by: 'Laura Méndez', role: 'Entrenador', action: 'Solicita autorización para modificar: He terminado el TD2 y quiero actualizar la titulación' }
+    ] },
   { id: 's3', num: 3, full_name: 'Diego Pérez', role: 'entrenador',
     email: 'diegop@cbja.es', phone: '+34 600 100 003', team_ids: ['t3'],
     bio: '', qualification: 'Nivel 1', qual_entity: 'FBM', qual_year: 2023, qual_number: 'N1-3320',
@@ -971,9 +983,21 @@ SF.store = (function () {
       var r = db().role;
       return db().staff.filter(function (s) { return s.role === r; })[0] || null;
     },
-    staffUpdate: function (id, patch) {
+    /* Toda modificación queda registrada: quién, cuándo y qué.
+       Sin historial, una ficha bloqueada no acredita nada. */
+    staffUpdate: function (id, patch, action) {
       var d = db();
-      d.staff = d.staff.map(function (s) { return s.id === id ? Object.assign({}, s, patch) : s; });
+      var who = (SF.USERS || {})[d.role] || d.role;
+      var lab = (SF.ROLES[d.role] || {}).label || d.role;
+      d.staff = d.staff.map(function (s) {
+        if (s.id !== id) return s;
+        var next = Object.assign({}, s, patch);
+        next.history = (s.history || []).concat([{
+          at: new Date().toISOString(), by: who, role: lab,
+          action: action || 'Modificación de la ficha'
+        }]);
+        return next;
+      });
       save(d);
       return d.staff.filter(function (s) { return s.id === id; })[0];
     },
@@ -2703,6 +2727,21 @@ window.SF = window.SF || {};
     /* Aviso arriba: lo que hay que resolver, no la lista entera. */
     var bad = all.filter(function (s) { return SF.staffStatus(s).level === 'bad'; });
     var warn = all.filter(function (s) { return SF.staffStatus(s).level === 'warn'; });
+
+    /* Solicitudes de cambio pendientes: administración tiene que verlas
+       nada más entrar, o el interesado se queda esperando sin saberlo. */
+    var reqs = all.filter(function (s) { return !!s.unlock_request; });
+    if (reqs.length && isAdminRole()) {
+      var rq = el('<div class="empty-panel" style="text-align:left"></div>');
+      rq.appendChild(el('<p class="sec-label" style="margin-top:0">Solicitudes de cambio de ficha</p>'));
+      reqs.forEach(function (s) {
+        var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> · <i>"' + esc(s.unlock_request.reason || '') + '"</i></span><span class="row-actions"><button class="lnk">Revisar</button></span></div>');
+        row.querySelector('button').onclick = function () { location.hash = '#/staff/' + s.id; };
+        rq.appendChild(row);
+      });
+      view.appendChild(rq);
+    }
+
     if (bad.length || warn.length) {
       var al = el('<div class="empty-panel" style="text-align:left"></div>');
       al.appendChild(el('<p class="sec-label" style="margin-top:0">Habilitación del staff</p>'));
@@ -2716,7 +2755,10 @@ window.SF = window.SF || {};
     var tb = t.querySelector('tbody');
     all.forEach(function (s) {
       var teams = (s.team_ids || []).map(function (id) { var x = SF.store.teamGet(id); return x ? x.name : ''; }).filter(Boolean).join(', ');
-      var tr = el('<tr><td>' + SF.staffCode(s.num) + '</td><td><div class="tcell"><span class="av-sm">' + U.initials(s.full_name) + '</span>' + esc(s.full_name) + '</div></td><td>' + esc(roleLabel(s.role)) + '</td><td>' + esc(s.qualification || '—') + '</td><td>' + esc(teams || '—') + '</td><td>' + staffBadge(s) + '</td></tr>');
+      var lkS = (s.lock || {}).state || 'borrador';
+      var lkTag = lkS === 'confirmada' ? '<span class="tag tag-gray">bloqueada</span>'
+        : (lkS === 'desbloqueada' ? '<span class="tag tag-warn">desbloqueada</span>' : '<span class="tag tag-info">borrador</span>');
+      var tr = el('<tr><td>' + SF.staffCode(s.num) + '</td><td><div class="tcell"><span class="av-sm">' + U.initials(s.full_name) + '</span>' + esc(s.full_name) + '</div></td><td>' + esc(roleLabel(s.role)) + '</td><td>' + esc(s.qualification || '—') + '</td><td>' + esc(teams || '—') + '</td><td>' + staffBadge(s) + ' ' + lkTag + '</td></tr>');
       tr.onclick = function () { location.hash = '#/staff/' + s.id; };
       tb.appendChild(tr);
     });
@@ -2735,8 +2777,29 @@ window.SF = window.SF || {};
     var st = SF.staffStatus(s);
     var me = SF.store.staffMe();
     var isMine = mine || (me && me.id === s.id);
-    var canEditPro = isMine || isAdminRole();      // currículum y titulación
     var canEditOfficial = isAdminRole();           // licencia y habilitación
+
+    /* CANDADO DE LA FICHA.
+       borrador     -> el interesado la rellena libremente
+       confirmada   -> la ha dado por buena: queda bloqueada
+       desbloqueada -> administración ha autorizado un cambio puntual;
+                       al guardar se vuelve a bloquear sola.
+       Administración y dirección pueden editar siempre, y queda registrado. */
+    var lk = s.lock || { state: 'borrador' };
+    var bloqueada = lk.state === 'confirmada';
+    var canEditPro = isAdminRole() || (isMine && !bloqueada);
+
+    /* Guardar del interesado: si estaba desbloqueada, se vuelve a cerrar. */
+    function saveProfile(patch, action) {
+      if (!isAdminRole() && lk.state === 'desbloqueada') {
+        patch = Object.assign({}, patch, {
+          lock: { state: 'confirmada', confirmed_at: new Date().toISOString().slice(0, 10), confirmed_by: s.full_name }
+        });
+        action = (action || 'Cambio') + ' · la ficha se vuelve a bloquear';
+      }
+      SF.store.staffUpdate(s.id, patch, action);
+      U.toast('Guardado'); SF.router.render();
+    }
 
     view.innerHTML = head(mine ? 'Mi ficha' : 'Ficha de staff', SF.staffCode(s.num) + ' · ' + roleLabel(s.role));
 
@@ -2747,6 +2810,56 @@ window.SF = window.SF || {};
       '<p class="fh-sub"><b>' + SF.staffCode(s.num) + '</b> · ' + esc(roleLabel(s.role)) + (s.email ? ' · ' + esc(s.email) : '') + (s.phone ? ' · ' + esc(s.phone) : '') + '</p>' +
       '<p>' + staffBadge(s) + (st.why ? ' <span class="hint">' + esc(st.why) + '</span>' : '') + '</p>';
     view.appendChild(hd);
+
+    /* ---- Estado del candado y sus acciones ---- */
+    var lockBox = el('<div class="empty-panel" style="text-align:left"></div>');
+    if (lk.state === 'borrador') {
+      lockBox.appendChild(el('<p class="hint"><b>Ficha en borrador.</b> Puedes rellenarla y modificarla libremente. Cuando esté completa, confírmala: a partir de ahí quedará bloqueada y cualquier cambio necesitará autorización del club.</p>'));
+      if (isMine) {
+        var bconf = el('<button class="btn btn-primary btn-sm">' + ico('shield') + 'Confirmar ficha y bloquear</button>');
+        bconf.onclick = function () {
+          if (!confirm('Al confirmar, la ficha queda bloqueada. Para cambiar algo tendrás que pedir autorización a administración. ¿Confirmas?')) return;
+          SF.store.staffUpdate(s.id, { lock: { state: 'confirmada', confirmed_at: new Date().toISOString().slice(0, 10), confirmed_by: s.full_name } }, 'Ficha confirmada y bloqueada por el interesado');
+          U.toast('Ficha confirmada'); SF.router.render();
+        };
+        lockBox.appendChild(bconf);
+      }
+    } else if (bloqueada) {
+      lockBox.appendChild(el('<p class="hint"><b>Ficha confirmada y bloqueada</b> el ' + (lk.confirmed_at ? fmtDate(lk.confirmed_at) : '—') + '. Cualquier cambio requiere autorización de administración o dirección.</p>'));
+      if (s.unlock_request) {
+        lockBox.appendChild(el('<p class="hint">Solicitud de cambio pendiente · ' + fmtDate((s.unlock_request.at || '').slice(0, 10)) + ' · <i>"' + esc(s.unlock_request.reason || '') + '"</i></p>'));
+      }
+      if (isMine && !s.unlock_request) {
+        var breq = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Solicitar autorización para cambiar</button>');
+        breq.onclick = function () {
+          U.modal('Solicitar cambio', smallForm([{ name: 'reason', label: '¿Qué necesitas cambiar y por qué?', type: 'textarea' }], {},
+            function (d) {
+              SF.store.staffUpdate(s.id, { unlock_request: { at: new Date().toISOString(), by: s.full_name, reason: d.reason } }, 'Solicita autorización para modificar: ' + (d.reason || ''));
+              U.toast('Solicitud enviada al club'); SF.router.render();
+            }));
+        };
+        lockBox.appendChild(breq);
+      }
+      if (isAdminRole()) {
+        var bunl = el('<button class="btn btn-primary btn-sm">' + ico('shield') + (s.unlock_request ? 'Autorizar el cambio' : 'Desbloquear para edición') + '</button>');
+        bunl.onclick = function () {
+          SF.store.staffUpdate(s.id, {
+            lock: { state: 'desbloqueada', unlocked_at: new Date().toISOString().slice(0, 10), unlocked_by: SF.store.me().name, reason: (s.unlock_request || {}).reason || '' },
+            unlock_request: null
+          }, 'Autorizado un cambio' + ((s.unlock_request || {}).reason ? ': ' + s.unlock_request.reason : ''));
+          U.toast('Ficha desbloqueada'); SF.router.render();
+        };
+        lockBox.appendChild(bunl);
+        if (s.unlock_request) {
+          var brej = el('<button class="btn btn-light btn-sm">Rechazar</button>');
+          brej.onclick = function () { SF.store.staffUpdate(s.id, { unlock_request: null }, 'Solicitud de cambio rechazada'); U.toast('Solicitud rechazada'); SF.router.render(); };
+          lockBox.appendChild(brej);
+        }
+      }
+    } else if (lk.state === 'desbloqueada') {
+      lockBox.appendChild(el('<p class="hint"><b>Desbloqueada</b> por ' + esc(lk.unlocked_by || 'el club') + ' el ' + (lk.unlocked_at ? fmtDate(lk.unlocked_at) : '—') + (lk.reason ? ' · <i>"' + esc(lk.reason) + '"</i>' : '') + '.<br>Al guardar un cambio, la ficha se volverá a bloquear automáticamente.</p>'));
+    }
+    view.appendChild(lockBox);
 
     if (canEditPro) {
       var bph = el('<div class="row-c"><button class="btn btn-light btn-sm">' + ico('camera') + 'Foto de la ficha</button><button class="btn btn-light btn-sm">' + ico('file') + (s.cv_file ? 'Cambiar CV (PDF)' : 'Subir CV (PDF)') + '</button></div>');
@@ -2774,9 +2887,11 @@ window.SF = window.SF || {};
           { name: 'qualification', label: 'Titulación' }, { name: 'qual_entity', label: 'Entidad' },
           { name: 'qual_year', label: 'Año', type: 'number' }, { name: 'qual_number', label: 'Nº de título' },
           { name: 'languages', label: 'Idiomas' }, { name: 'bio', label: 'Presentación', type: 'textarea' }
-        ], s, function (d) { SF.store.staffUpdate(s.id, d); U.toast('Ficha actualizada'); SF.router.render(); }));
+        ], s, function (d) { saveProfile(d, 'Editada la titulación / currículum'); }));
       };
       view.appendChild(be);
+    } else if (isMine) {
+      view.appendChild(el('<p class="hint">Ficha bloqueada: para cambiar estos datos, pide autorización arriba.</p>'));
     }
 
     // --- Experiencia
@@ -2788,7 +2903,7 @@ window.SF = window.SF || {};
       var row = el('<div class="mini-row"><span><b>' + esc(e.club) + '</b> · ' + esc(e.role || '') + (e.category ? ' · ' + esc(e.category) : '') + '</span><span class="hint">' + esc(e.from || '') + (e.to ? ' — ' + esc(e.to) : ' — actualidad') + '</span></div>');
       if (canEditPro) {
         var del = el('<button class="lnk-del">' + ico('x') + '</button>');
-        del.onclick = function () { var a = ex.slice(); a.splice(i, 1); SF.store.staffUpdate(s.id, { experience: a }); SF.router.render(); };
+        del.onclick = function () { var a = ex.slice(); a.splice(i, 1); saveProfile({ experience: a }, 'Eliminada una etapa de experiencia: ' + (e.club || '')); };
         row.appendChild(del);
       }
       exl.appendChild(row);
@@ -2800,7 +2915,7 @@ window.SF = window.SF || {};
         U.modal('Añadir experiencia', smallForm([
           { name: 'club', label: 'Club o entidad' }, { name: 'role', label: 'Cargo' },
           { name: 'category', label: 'Categoría' }, { name: 'from', label: 'Desde (temporada)' }, { name: 'to', label: 'Hasta (temporada)' }
-        ], {}, function (d) { SF.store.staffUpdate(s.id, { experience: (s.experience || []).concat([d]) }); U.toast('Etapa añadida'); SF.router.render(); }));
+        ], {}, function (d) { saveProfile({ experience: (s.experience || []).concat([d]) }, 'Añadida experiencia: ' + (d.club || '')); }));
       };
       view.appendChild(bx);
     }
@@ -2819,7 +2934,7 @@ window.SF = window.SF || {};
           { name: 'number', label: 'Número de licencia' }, { name: 'season', label: 'Temporada' },
           { name: 'category', label: 'Categoría habilitada' }, { name: 'valid_until', label: 'Vigente hasta', type: 'date' },
           { name: 'status', label: 'Estado', type: 'select', options: ['en_tramite', 'vigente', 'caducada', 'no_aplica'] }
-        ], l, function (d) { SF.store.staffUpdate(s.id, { licence: d }); U.toast('Licencia actualizada'); SF.router.render(); }));
+        ], l, function (d) { SF.store.staffUpdate(s.id, { licence: d }, 'Actualizada la licencia federativa'); U.toast('Licencia actualizada'); SF.router.render(); }));
       };
       view.appendChild(bl);
     } else view.appendChild(el('<p class="hint">La licencia la registra administración del club.</p>'));
@@ -2842,7 +2957,8 @@ window.SF = window.SF || {};
           { name: 'checked_by', label: 'Comprobado por' }
         ], { cleared: c.cleared ? 'Sí' : 'No', checked_on: c.checked_on, checked_by: c.checked_by || SF.store.me().name },
           function (d) {
-            SF.store.staffUpdate(s.id, { clearance: { season: SF.SEASON, cleared: d.cleared === 'Sí', checked_on: d.checked_on, checked_by: d.checked_by } });
+            SF.store.staffUpdate(s.id, { clearance: { season: SF.SEASON, cleared: d.cleared === 'Sí', checked_on: d.checked_on, checked_by: d.checked_by } },
+              'Habilitación ' + SF.SEASON + ': ' + (d.cleared === 'Sí' ? 'puede trabajar con jugadores' : 'NO habilitado'));
             U.toast('Habilitación registrada'); SF.router.render();
           }));
       };
@@ -2882,6 +2998,21 @@ window.SF = window.SF || {};
         view.appendChild(ba);
       }
     } else view.appendChild(el('<p class="hint">La asignación a equipos la hace la dirección técnica.</p>'));
+
+    /* --- Historial de cambios.
+       Es lo que da valor al candado: una ficha bloqueada sin registro de
+       quién la tocó y cuándo no acredita nada. No se puede borrar. */
+    sec('Historial de cambios');
+    var hist = (s.history || []).slice().reverse();
+    if (!hist.length) view.appendChild(el('<p class="hint">Sin cambios registrados todavía.</p>'));
+    var hl = el('<div class="mini-list"></div>');
+    hist.slice(0, 30).forEach(function (h) {
+      var f = (h.at || '').slice(0, 10), hora = (h.at || '').slice(11, 16);
+      hl.appendChild(el('<div class="mini-row"><span>' + esc(h.action || '') + '</span><span class="hint">' +
+        fmtDate(f) + (hora ? ' · ' + hora : '') + ' · ' + esc(h.by || '') + (h.role ? ' (' + esc(h.role) + ')' : '') + '</span></div>'));
+    });
+    view.appendChild(hl);
+    if (hist.length > 30) view.appendChild(el('<p class="hint">Mostrando los 30 cambios más recientes de ' + hist.length + '.</p>'));
   };
 
   /* ===================== PORTAL JUGADOR (mobile) =====================
