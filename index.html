@@ -530,9 +530,9 @@ SF.ROLES = {
   },
   entrenador: {
     label: 'Entrenador',
-    nav: ['inicio', 'jugadores', 'equipos', 'informes', 'economia', 'mi-ficha'],
+    nav: ['mi-equipo', 'jugadores', 'equipos', 'informes', 'economia', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, team_scope: true, segments: 'all', staff: true
+    canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, team_scope: true, segments: 'all', staff: true
   },
   administrativo: {
     label: 'Administrativo',
@@ -1096,6 +1096,55 @@ SF.store = (function () {
         });
       });
       return { total: tot, present: pres, pct: tot ? Math.round(pres / tot * 100) : null };
+    },
+
+    /* ---- AVISOS ----
+       NO es un chat: va en un solo sentido. Un aviso se escribe una vez y se
+       generan destinos independientes, uno por jugador. Nadie ve a los demás
+       destinatarios. El "visto" se guarda separado (jugador / tutores) porque
+       que lo abra la madre no significa que se haya enterado el chaval. */
+    announcements: function (teamId) {
+      var d = db();
+      return (d.announcements || []).filter(function (a) { return !teamId || a.team_id === teamId; })
+        .sort(function (x, y) { return (y.created_at || '').localeCompare(x.created_at || ''); });
+    },
+    annGet: function (id) { return (db().announcements || []).filter(function (a) { return a.id === id; })[0] || null; },
+    annCreate: function (teamId, data, playerIds) {
+      var d = db(); d.announcements = d.announcements || [];
+      var u = (SF.USERS || {})[d.role] || d.role;
+      var a = {
+        id: 'a' + Date.now(), team_id: teamId, author: u,
+        author_role: (SF.ROLES[d.role] || {}).label || d.role,
+        kind: data.kind || 'aviso', title: data.title, body: data.body,
+        needs_rsvp: !!data.needs_rsvp, created_at: new Date().toISOString(),
+        targets: (playerIds || []).map(function (pid) {
+          return { player_id: pid, read_player: null, read_family: null, rsvp: null, rsvp_by: null };
+        })
+      };
+      d.announcements.push(a); save(d); return a;
+    },
+    annRsvp: function (annId, playerId, value, by) {
+      var d = db();
+      (d.announcements || []).forEach(function (a) {
+        if (a.id !== annId) return;
+        a.targets.forEach(function (t) {
+          if (t.player_id !== playerId) return;
+          t.rsvp = value; t.rsvp_by = by; t.rsvp_at = new Date().toISOString();
+        });
+      });
+      save(d);
+    },
+    annMarkRead: function (annId, playerId, who) {
+      var d = db();
+      (d.announcements || []).forEach(function (a) {
+        if (a.id !== annId) return;
+        a.targets.forEach(function (t) {
+          if (t.player_id !== playerId) return;
+          if (who === 'player') t.read_player = t.read_player || new Date().toISOString();
+          else t.read_family = t.read_family || new Date().toISOString();
+        });
+      });
+      save(d);
     },
 
     exportJSON: function () { return JSON.stringify(db(), null, 2); },
@@ -3240,7 +3289,22 @@ window.SF = window.SF || {};
     U.modal('Pasar lista — ' + esc(t.name), box);
   }
 
-  function canManageThisTeam(t) { var r = role(); if (r.canManageTeams) return true; if (r.team_scope) return (t.coaches || []).indexOf(SF.store.currentUser().name) >= 0; return false; }
+  function canManageThisTeam(t) {
+    var r = role(); if (r.canManageTeams) return true;
+    if (!r.team_scope) return false;
+    // Desde que existen fichas de staff, el vínculo con el equipo sale de ahí.
+    var me = SF.store.staffMe();
+    if (me && (me.team_ids || []).indexOf(t.id) >= 0) return true;
+    return (t.coaches || []).indexOf(SF.store.currentUser().name) >= 0;   // compatibilidad
+  }
+  /* Equipos del staff que ha iniciado sesión */
+  function myTeams() {
+    var me = SF.store.staffMe();
+    var all = SF.store.teams();
+    if (role().canManageTeams) return all;
+    if (!me) return [];
+    return all.filter(function (t) { return (me.team_ids || []).indexOf(t.id) >= 0; });
+  }
 
   function trainingModal(t, refresh) {
     var f = el('<div class="form-grid">' +
@@ -3280,6 +3344,160 @@ window.SF = window.SF || {};
     };
     var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot); U.modal('Añadir partido', w);
   }
+
+  /* ===================== MI EQUIPO (portada del entrenador) =====================
+     Una sola pantalla con lo del día: la próxima cita y quién falta por
+     confirmar, quién no puede jugar, pasar lista y avisar. Sin menús.
+     Si el entrenador tiene que buscar dónde está cada cosa, vuelve a WhatsApp. */
+  function annComposer(t, roster, preset) {
+    var sel = {};                                   // player_id -> true
+    (preset && preset.players || []).forEach(function (id) { sel[id] = true; });
+    var box = el('<div></div>');
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>Título</label><input id="ti" placeholder="Cambio de horario del sábado"></div>' +
+      '<div class="frow"><label>Mensaje</label><textarea id="bo" rows="3" placeholder="El partido se adelanta a las 10:00."></textarea></div>' +
+      '<div class="frow"><label><input type="checkbox" id="rs"' + (preset && preset.rsvp ? ' checked' : '') + '> Pedir confirmación de asistencia</label></div></div>');
+    if (preset && preset.title) f.querySelector('#ti').value = preset.title;
+    box.appendChild(f);
+
+    box.appendChild(el('<p class="sec-label">¿A quién?</p>'));
+    var tabs = el('<div class="row-c"></div>');
+    var bAll = el('<button class="btn btn-light btn-sm">Todo el equipo</button>');
+    var bNone = el('<button class="btn btn-light btn-sm">Ninguno</button>');
+    tabs.appendChild(bAll); tabs.appendChild(bNone); box.appendChild(tabs);
+
+    var list = el('<div class="att-list"></div>');
+    function paint() {
+      list.innerHTML = '';
+      roster.forEach(function (p) {
+        var on = !!sel[p.id];
+        var row = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span>' +
+          (on ? '☑ ' : '☐ ') + '<b>' + esc(p.full_name) + '</b> · ' + (p.birth_year || '') + '</span></button>');
+        row.onclick = function () { sel[p.id] = !sel[p.id]; paint(); };
+        list.appendChild(row);
+      });
+      cnt.innerHTML = '<b>' + Object.keys(sel).filter(function (k) { return sel[k]; }).length + '</b> de ' + roster.length + ' destinatarios';
+    }
+    var cnt = el('<p class="hint"></p>');
+    box.appendChild(list); box.appendChild(cnt);
+    bAll.onclick = function () { roster.forEach(function (p) { sel[p.id] = true; }); paint(); };
+    bNone.onclick = function () { sel = {}; paint(); };
+    paint();
+
+    box.appendChild(el('<p class="hint">Los avisos dirigidos a jugadores menores <b>los reciben también sus tutores</b>. Esto no se puede desactivar: protege al menor y te protege a ti.</p>'));
+
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Enviar aviso</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var ids = Object.keys(sel).filter(function (k) { return sel[k]; });
+      var title = f.querySelector('#ti').value.trim();
+      if (!title) { U.toast('Ponle un título al aviso'); return; }
+      if (!ids.length) { U.toast('Elige al menos un destinatario'); return; }
+      SF.store.annCreate(t.id, { title: title, body: f.querySelector('#bo').value.trim(), needs_rsvp: f.querySelector('#rs').checked }, ids);
+      U.closeModal(); U.toast('Aviso enviado a ' + ids.length); SF.router.render();
+    };
+    var w = el('<div></div>'); w.appendChild(box); w.appendChild(foot);
+    return w;
+  }
+
+  function annResponses(a, roster) {
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint">' + esc(a.body || '') + '</p>'));
+    var list = el('<div class="mini-list"></div>');
+    a.targets.forEach(function (tg) {
+      var p = SF.store.get(tg.player_id); if (!p) return;
+      var vJ = tg.read_player ? '<span class="tag tag-green">jugador ✓</span>' : '<span class="tag tag-gray">jugador —</span>';
+      var vF = tg.read_family ? '<span class="tag tag-green">tutores ✓</span>' : '<span class="tag tag-gray">tutores —</span>';
+      var r = tg.rsvp === 'ire' ? '<span class="tag tag-green">Iré</span>'
+        : (tg.rsvp === 'no_puedo' ? '<span class="tag tag-danger">No puedo</span>' : '<span class="tag tag-warn">sin responder</span>');
+      list.appendChild(el('<div class="mini-row"><span><b>' + esc(p.full_name) + '</b></span><span class="row-actions">' + vJ + ' ' + vF + (a.needs_rsvp ? ' ' + r : '') + '</span></div>'));
+    });
+    box.appendChild(list);
+    box.appendChild(el('<p class="hint">Nadie ve a los demás destinatarios: cada uno recibe solo el suyo.</p>'));
+    return box;
+  }
+
+  pages['mi-equipo'] = function (view) {
+    var mine = myTeams();
+    var u = SF.store.currentUser();
+    view.innerHTML = head('Mi equipo', 'Lo del día: citas, asistencia y avisos.');
+    if (!mine.length) { view.appendChild(el('<div class="empty-panel"><p>Todavía no tienes ningún equipo asignado. La dirección técnica lo hace desde tu ficha.</p></div>')); return; }
+
+    mine.forEach(function (t) {
+      var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
+      var nextEv = teamUpcoming(t)[0];
+      var anns = SF.store.announcements(t.id);
+
+      view.appendChild(el('<p class="sec-label">' + esc(t.name) + ' · ' + roster.length + ' jugadores</p>'));
+
+      /* --- Lo urgente arriba --- */
+      var top = el('<div class="empty-panel" style="text-align:left"></div>');
+      if (nextEv) {
+        var lbl = nextEv.type === 'partido' ? 'Partido vs ' + esc(nextEv.opponent || 'rival') : 'Entrenamiento';
+        top.appendChild(el('<p><b>' + lbl + '</b> · ' + fmtDate(nextEv.date) + (nextEv.time ? ' · ' + nextEv.time : '') + (nextEv.place ? ' · ' + esc(nextEv.place) : '') + '</p>'));
+        var conv = anns.filter(function (a) { return a.needs_rsvp; })[0];
+        if (conv) {
+          var si = conv.targets.filter(function (x) { return x.rsvp === 'ire'; }).length;
+          var pend = conv.targets.filter(function (x) { return !x.rsvp; }).length;
+          top.appendChild(el('<p class="hint"><b>' + si + '</b> confirmados · <b>' + pend + '</b> sin responder</p>'));
+        } else top.appendChild(el('<p class="hint">Sin convocatoria enviada todavía.</p>'));
+      } else top.appendChild(el('<p class="hint">Sin citas próximas. Añade un entrenamiento o un partido.</p>'));
+
+      var sinApto = roster.filter(function (p) { return (p.documents || {}).seguro_medico !== 'validado'; });
+      if (sinApto.length) top.appendChild(el('<p class="hint">' + sinApto.length + ' jugador' + (sinApto.length === 1 ? '' : 'es') + ' con el seguro médico pendiente: ' + esc(sinApto.map(function (p) { return p.full_name; }).join(', ')) + '</p>'));
+      view.appendChild(top);
+
+      /* --- Cuatro botones, y ya --- */
+      var acts = el('<div class="row-c"></div>');
+      var b1 = el('<button class="btn btn-primary btn-sm">' + ico('ai') + 'Enviar aviso</button>');
+      b1.onclick = function () { U.modal('Aviso a ' + t.name, annComposer(t, roster, null)); };
+      var b2 = el('<button class="btn btn-light btn-sm">' + ico('users') + 'Convocar</button>');
+      b2.onclick = function () {
+        U.modal('Convocatoria · ' + t.name, annComposer(t, roster, {
+          title: nextEv ? ((nextEv.type === 'partido' ? 'Convocatoria partido ' : 'Convocatoria ') + fmtDate(nextEv.date) + (nextEv.time ? ' · ' + nextEv.time : '')) : 'Convocatoria',
+          rsvp: true, players: roster.map(function (p) { return p.id; })
+        }));
+      };
+      var b3 = el('<button class="btn btn-light btn-sm">' + ico('list') + 'Pasar lista</button>');
+      b3.onclick = function () {
+        if (!nextEv) { U.toast('No hay ninguna cita próxima'); return; }
+        attendanceModal(t, nextEv, function () { SF.router.render(); });
+      };
+      var b4 = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir cita</button>');
+      b4.onclick = function () { trainingModal(t, function () { SF.router.render(); }); };
+      acts.appendChild(b1); acts.appendChild(b2); acts.appendChild(b3); acts.appendChild(b4);
+      view.appendChild(acts);
+
+      /* --- Plantilla con asistencia --- */
+      view.appendChild(el('<p class="sec-label">Plantilla y asistencia</p>'));
+      var rl = el('<div class="mini-list"></div>');
+      if (!roster.length) rl.appendChild(el('<p class="hint">Sin jugadores en la plantilla.</p>'));
+      roster.forEach(function (p) {
+        var st = SF.store.attendanceStats ? SF.store.attendanceStats(p.id) : null;
+        var pct = st && st.pct != null ? st.pct : null;
+        var tag = pct == null ? '<span class="hint">sin datos</span>'
+          : '<span class="tag ' + (pct >= 80 ? 'tag-green' : (pct >= 60 ? 'tag-warn' : 'tag-danger')) + '">' + pct + '% asistencia</span>';
+        var row = el('<div class="mini-row"><span><b>' + esc(p.full_name) + '</b> · ' + (p.birth_year || '') + ' · ' + esc(p.primary_position || '') + '</span><span class="row-actions">' + tag + '<button class="lnk" data-o>Ficha</button></span></div>');
+        row.querySelector('[data-o]').onclick = function () { location.hash = '#/jugador/' + p.id; };
+        rl.appendChild(row);
+      });
+      view.appendChild(rl);
+
+      /* --- Avisos enviados y sus respuestas --- */
+      view.appendChild(el('<p class="sec-label">Avisos enviados</p>'));
+      if (!anns.length) view.appendChild(el('<p class="hint">Todavía no has enviado ningún aviso.</p>'));
+      var al = el('<div class="mini-list"></div>');
+      anns.slice(0, 8).forEach(function (a) {
+        var vistos = a.targets.filter(function (x) { return x.read_player || x.read_family; }).length;
+        var conf = a.targets.filter(function (x) { return x.rsvp === 'ire'; }).length;
+        var resume = vistos + '/' + a.targets.length + ' visto' + (a.needs_rsvp ? ' · ' + conf + ' confirmados' : '');
+        var row = el('<div class="mini-row"><span><b>' + esc(a.title) + '</b> <span class="hint">' + fmtDate((a.created_at || '').slice(0, 10)) + '</span></span><span class="row-actions"><span class="hint">' + resume + '</span><button class="lnk" data-v>Ver respuestas</button></span></div>');
+        row.querySelector('[data-v]').onclick = function () { U.modal(a.title, annResponses(a, roster)); };
+        al.appendChild(row);
+      });
+      view.appendChild(al);
+    });
+  };
 
   pages.equipo = function (view, id) {
     var t = SF.store.teamGet(id);
@@ -3414,7 +3632,7 @@ SF.router = (function () {
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
-    ['staff', 'Staff', 'shield'], ['mi-ficha', 'Mi ficha', 'file'],
+    ['mi-equipo', 'Mi equipo', 'grid'], ['staff', 'Staff', 'shield'], ['mi-ficha', 'Mi ficha', 'file'],
     ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
   var ROUTE_PAGE = {
@@ -3422,7 +3640,7 @@ SF.router = (function () {
     importar: 'importar', captacion: 'captacion', documentos: 'documentos', informes: 'informes',
     family: 'family', finanzas: 'finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
-    staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha'
+    staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff' };
@@ -3437,6 +3655,7 @@ SF.router = (function () {
     var r = SF.store.role();
     if (r === 'padre') return '#/portal-family';
     if (r === 'jugador') return '#/portal-jugador';
+    if (r === 'entrenador') return '#/mi-equipo';
     return '#/inicio';
   }
 
