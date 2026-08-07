@@ -482,12 +482,12 @@ SF.COACHES = ['Carlos Gorosito', 'Laura Méndez', 'Diego Pérez'];
 SF.ROLES = {
   director: {
     label: 'Director',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'importar', 'captacion', 'documentos', 'informes', 'family', 'finanzas', 'economia', 'permisos', 'config'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'captacion', 'documentos', 'informes', 'family', 'finanzas', 'economia', 'permisos', 'config'],
     tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, segments: 'all'
   },
   dt_general: {
     label: 'Dirección Técnica General',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, segments: 'all', staff: true
   },
@@ -501,25 +501,25 @@ SF.ROLES = {
   },
   dt_femenino: {
     label: 'Dirección Técnica Femenino',
-    nav: ['inicio', 'jugadores', 'equipos', 'documentos', 'informes', 'economia', 'family'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['femenino']
   },
   dt_masculino: {
     label: 'Dirección Técnica Masculino',
-    nav: ['inicio', 'jugadores', 'equipos', 'documentos', 'informes', 'economia', 'family'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['masculino']
   },
   dt_escuelas: {
     label: 'Dirección Técnica Escuelas',
-    nav: ['inicio', 'jugadores', 'equipos', 'documentos', 'informes', 'economia', 'family'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['escuelas']
   },
   dt_minis: {
     label: 'Dirección Técnica Minis',
-    nav: ['inicio', 'jugadores', 'equipos', 'documentos', 'informes', 'economia', 'family'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['minis']
   },
@@ -537,7 +537,7 @@ SF.ROLES = {
   },
   administrativo: {
     label: 'Administrativo',
-    nav: ['inicio', 'jugadores', 'staff', 'documentos', 'finanzas', 'economia', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'staff', 'comunicados', 'documentos', 'finanzas', 'economia', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all'
   },
@@ -1143,6 +1143,51 @@ SF.store = (function () {
           if (t.player_id !== playerId) return;
           if (who === 'player') t.read_player = t.read_player || new Date().toISOString();
           else t.read_family = t.read_family || new Date().toISOString();
+        });
+      });
+      save(d);
+    },
+
+    /* ---- COMUNICADOS DEL CLUB ----
+       Dirección / administración -> entrenadores (o directo a las familias).
+       Dos modos:
+         'reenviar' -> el entrenador lo recibe y lo manda a SU equipo cuando
+                       quiera, añadiendo contexto. Dirección ve quién lo ha
+                       reenviado: sin eso, una cascada se pierde en silencio.
+         'directo'  -> va a las familias sin pasar por el entrenador.
+       El alcance lo pone el rol: la DT de femenino solo ve equipos femeninos. */
+    comms: function () {
+      var d = db();
+      return (d.comms || []).slice().sort(function (x, y) { return (y.created_at || '').localeCompare(x.created_at || ''); });
+    },
+    commGet: function (id) { return (db().comms || []).filter(function (c) { return c.id === id; })[0] || null; },
+    commCreate: function (data, staffTargets) {
+      var d = db(); d.comms = d.comms || [];
+      var u = (SF.USERS || {})[d.role] || d.role;
+      var c = {
+        id: 'c' + Date.now(), mode: data.mode || 'reenviar',
+        author: u, author_role: (SF.ROLES[d.role] || {}).label || d.role,
+        title: data.title, body: data.body, created_at: new Date().toISOString(),
+        staff_targets: (staffTargets || []).map(function (s) {
+          return { staff_id: s.staff_id, team_id: s.team_id, read_at: null, relayed_at: null };
+        })
+      };
+      d.comms.push(c); save(d); return c;
+    },
+    commMarkRead: function (id, staffId) {
+      var d = db();
+      (d.comms || []).forEach(function (c) {
+        if (c.id !== id) return;
+        c.staff_targets.forEach(function (t) { if (t.staff_id === staffId && !t.read_at) t.read_at = new Date().toISOString(); });
+      });
+      save(d);
+    },
+    commMarkRelayed: function (id, staffId, teamId) {
+      var d = db();
+      (d.comms || []).forEach(function (c) {
+        if (c.id !== id) return;
+        c.staff_targets.forEach(function (t) {
+          if (t.staff_id === staffId && t.team_id === teamId) t.relayed_at = new Date().toISOString();
         });
       });
       save(d);
@@ -3350,7 +3395,7 @@ window.SF = window.SF || {};
      Una sola pantalla con lo del día: la próxima cita y quién falta por
      confirmar, quién no puede jugar, pasar lista y avisar. Sin menús.
      Si el entrenador tiene que buscar dónde está cada cosa, vuelve a WhatsApp. */
-  function annComposer(t, roster, preset) {
+  function annComposer(t, roster, preset, onSent) {
     var sel = {};                                   // player_id -> true
     (preset && preset.players || []).forEach(function (id) { sel[id] = true; });
     var box = el('<div></div>');
@@ -3359,6 +3404,7 @@ window.SF = window.SF || {};
       '<div class="frow"><label>Mensaje</label><textarea id="bo" rows="3" placeholder="El partido se adelanta a las 10:00."></textarea></div>' +
       '<div class="frow"><label><input type="checkbox" id="rs"' + (preset && preset.rsvp ? ' checked' : '') + '> Pedir confirmación de asistencia</label></div></div>');
     if (preset && preset.title) f.querySelector('#ti').value = preset.title;
+    if (preset && preset.body) f.querySelector('#bo').value = preset.body;
     box.appendChild(f);
 
     box.appendChild(el('<p class="sec-label">¿A quién?</p>'));
@@ -3395,6 +3441,7 @@ window.SF = window.SF || {};
       if (!title) { U.toast('Ponle un título al aviso'); return; }
       if (!ids.length) { U.toast('Elige al menos un destinatario'); return; }
       SF.store.annCreate(t.id, { title: title, body: f.querySelector('#bo').value.trim(), needs_rsvp: f.querySelector('#rs').checked }, ids);
+      if (typeof onSent === 'function') onSent();
       U.closeModal(); U.toast('Aviso enviado a ' + ids.length); SF.router.render();
     };
     var w = el('<div></div>'); w.appendChild(box); w.appendChild(foot);
@@ -3418,6 +3465,127 @@ window.SF = window.SF || {};
     return box;
   }
 
+  /* Equipos que este rol puede dirigirse. El alcance sale del rol:
+     la DT de femenino solo alcanza equipos femeninos, y se detecta sola. */
+  function scopeTeams() {
+    var r = SF.store.role(), all = SF.store.teams();
+    if (['director', 'dt_general', 'administrativo'].indexOf(r) >= 0) return all;
+    var seg = { dt_femenino: 'femenino', dt_masculino: 'masculino', dt_escuelas: 'escuelas', dt_minis: 'minis' }[r];
+    if (seg) return all.filter(function (t) { return t.segment === seg; });
+    return myTeams();
+  }
+
+  /* ===================== COMUNICADOS DEL CLUB ===================== */
+  pages.comunicados = function (view) {
+    var teams = scopeTeams();
+    var r = SF.store.role();
+    view.innerHTML = head('Comunicados', 'Del club a los entrenadores, o directo a las familias.');
+
+    var alcance = (['director', 'dt_general', 'administrativo'].indexOf(r) >= 0)
+      ? 'Alcanzas a todo el club.'
+      : 'Tu alcance: ' + (teams.length ? teams.map(function (t) { return t.name; }).join(', ') : 'ningún equipo') + '.';
+    view.appendChild(el('<p class="hint">' + alcance + '</p>'));
+
+    var bNew = el('<button class="btn btn-primary btn-sm">' + ico('ai') + 'Nuevo comunicado</button>');
+    bNew.onclick = function () {
+      var sel = {}; teams.forEach(function (t) { sel[t.id] = true; });
+      var box = el('<div></div>');
+      var f = el('<div class="form-grid">' +
+        '<div class="frow"><label>Título</label><input id="ti" placeholder="Torneo de Navidad"></div>' +
+        '<div class="frow"><label>Mensaje</label><textarea id="bo" rows="3"></textarea></div>' +
+        '<div class="frow"><label>¿Cómo se envía?</label><select id="md">' +
+        '<option value="reenviar">Al entrenador, para que lo reenvíe a su equipo</option>' +
+        '<option value="directo">Directo a las familias, sin pasar por el entrenador</option>' +
+        '</select></div></div>');
+      box.appendChild(f);
+      box.appendChild(el('<p class="hint" id="expl">El entrenador lo recibe y decide cuándo mandarlo a su equipo. Tú verás quién lo ha reenviado y quién no.</p>'));
+      f.querySelector('#md').onchange = function () {
+        box.querySelector('#expl').innerHTML = this.value === 'directo'
+          ? 'Va directamente a las familias de los equipos elegidos. Úsalo para avisos administrativos: equipación, plazos, pagos.'
+          : 'El entrenador lo recibe y decide cuándo mandarlo a su equipo. Tú verás quién lo ha reenviado y quién no.';
+      };
+
+      box.appendChild(el('<p class="sec-label">¿A qué equipos?</p>'));
+      var list = el('<div class="att-list"></div>');
+      function paint() {
+        list.innerHTML = '';
+        teams.forEach(function (t) {
+          var on = !!sel[t.id];
+          var row = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span>' + (on ? '☑ ' : '☐ ') +
+            '<b>' + esc(t.name) + '</b> · ' + esc(SF.SEGMENTS[t.segment] || t.segment || '') + '</span></button>');
+          row.onclick = function () { sel[t.id] = !sel[t.id]; paint(); };
+          list.appendChild(row);
+        });
+      }
+      paint(); box.appendChild(list);
+
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Enviar</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        var title = f.querySelector('#ti').value.trim();
+        if (!title) { U.toast('Ponle un título'); return; }
+        var ids = Object.keys(sel).filter(function (k) { return sel[k]; });
+        if (!ids.length) { U.toast('Elige al menos un equipo'); return; }
+        var mode = f.querySelector('#md').value;
+        var body = f.querySelector('#bo').value.trim();
+
+        if (mode === 'directo') {
+          // Sin intermediario: un aviso por equipo, a todos sus jugadores.
+          var tot = 0;
+          ids.forEach(function (tid) {
+            var roster = SF.store.players().filter(function (p) { return p.team_id === tid; });
+            if (!roster.length) return;
+            SF.store.annCreate(tid, { title: title, body: body, kind: 'club' }, roster.map(function (p) { return p.id; }));
+            tot += roster.length;
+          });
+          SF.store.commCreate({ mode: 'directo', title: title, body: body }, []);
+          U.closeModal(); U.toast('Enviado a ' + tot + ' familias'); SF.router.render();
+        } else {
+          // Cascada: llega a cada entrenador de esos equipos.
+          var tg = [];
+          ids.forEach(function (tid) {
+            SF.store.staffOfTeam(tid).filter(function (s) { return s.role === 'entrenador'; })
+              .forEach(function (s) { tg.push({ staff_id: s.id, team_id: tid }); });
+          });
+          if (!tg.length) { U.toast('Esos equipos no tienen entrenador asignado'); return; }
+          SF.store.commCreate({ mode: 'reenviar', title: title, body: body }, tg);
+          U.closeModal(); U.toast('Enviado a ' + tg.length + ' entrenadores'); SF.router.render();
+        }
+      };
+      var w = el('<div></div>'); w.appendChild(box); w.appendChild(foot);
+      U.modal('Nuevo comunicado', w);
+    };
+    view.appendChild(bNew);
+
+    /* Enviados, con el estado del reenvío: es lo que hace útil la cascada */
+    view.appendChild(el('<p class="sec-label">Enviados</p>'));
+    var cs = SF.store.comms();
+    if (!cs.length) view.appendChild(el('<p class="hint">Todavía no has enviado ningún comunicado.</p>'));
+    cs.forEach(function (c) {
+      var box = el('<div class="empty-panel" style="text-align:left;margin-bottom:10px"></div>');
+      box.appendChild(el('<p><b>' + esc(c.title) + '</b> <span class="hint">' + fmtDate((c.created_at || '').slice(0, 10)) + ' · ' + esc(c.author) + '</span></p>'));
+      if (c.body) box.appendChild(el('<p class="hint">' + esc(c.body) + '</p>'));
+      if (c.mode === 'directo') {
+        box.appendChild(el('<p class="hint"><span class="tag tag-purple">directo a familias</span></p>'));
+      } else {
+        var rel = c.staff_targets.filter(function (t) { return t.relayed_at; }).length;
+        var leidos = c.staff_targets.filter(function (t) { return t.read_at; }).length;
+        box.appendChild(el('<p class="hint"><span class="tag ' + (rel === c.staff_targets.length ? 'tag-green' : 'tag-warn') + '">' +
+          rel + ' de ' + c.staff_targets.length + ' reenviado</span> · ' + leidos + ' lo han leído</p>'));
+        var ul = el('<div class="mini-list"></div>');
+        c.staff_targets.forEach(function (t) {
+          var s = SF.store.staffGet(t.staff_id), tm = SF.store.teamGet(t.team_id);
+          if (!s) return;
+          ul.appendChild(el('<div class="mini-row"><span>' + esc(s.full_name) + ' <span class="hint">' + esc(tm ? tm.name : '') + '</span></span>' +
+            '<span class="row-actions">' + (t.relayed_at ? '<span class="tag tag-green">reenviado</span>' :
+              (t.read_at ? '<span class="tag tag-warn">leído, sin reenviar</span>' : '<span class="tag tag-gray">sin leer</span>')) + '</span></div>'));
+        });
+        box.appendChild(ul);
+      }
+      view.appendChild(box);
+    });
+  };
+
   pages['mi-equipo'] = function (view) {
     var mine = myTeams();
     var u = SF.store.currentUser();
@@ -3430,6 +3598,29 @@ window.SF = window.SF || {};
       var anns = SF.store.announcements(t.id);
 
       view.appendChild(el('<p class="sec-label">' + esc(t.name) + ' · ' + roster.length + ' jugadores</p>'));
+
+      /* --- Comunicados del club pendientes de reenviar --- */
+      var meS = SF.store.staffMe();
+      if (meS) {
+        var pend = SF.store.comms().filter(function (c) {
+          return c.mode === 'reenviar' && c.staff_targets.some(function (x) { return x.staff_id === meS.id && x.team_id === t.id && !x.relayed_at; });
+        });
+        pend.forEach(function (c) {
+          SF.store.commMarkRead(c.id, meS.id);
+          var cb = el('<div class="empty-panel" style="text-align:left;border-left:3px solid var(--purple)"></div>');
+          cb.appendChild(el('<p><span class="tag tag-purple">Del club</span> <b>' + esc(c.title) + '</b></p>'));
+          if (c.body) cb.appendChild(el('<p class="hint">' + esc(c.body) + '</p>'));
+          cb.appendChild(el('<p class="hint">' + esc(c.author) + ' · ' + esc(c.author_role) + ' · ' + fmtDate((c.created_at || '').slice(0, 10)) + '</p>'));
+          var br = el('<button class="btn btn-primary btn-sm">' + ico('ai') + 'Reenviar a mi equipo</button>');
+          br.onclick = function () {
+            U.modal('Reenviar: ' + c.title, annComposer(t, roster, {
+              title: c.title, body: c.body, players: roster.map(function (p) { return p.id; })
+            }, function () { SF.store.commMarkRelayed(c.id, meS.id, t.id); }));
+          };
+          cb.appendChild(br);
+          view.appendChild(cb);
+        });
+      }
 
       /* --- Lo urgente arriba --- */
       var top = el('<div class="empty-panel" style="text-align:left"></div>');
@@ -3633,7 +3824,7 @@ SF.router = (function () {
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
-    ['mi-equipo', 'Mi equipo', 'grid'], ['staff', 'Staff', 'shield'], ['mi-ficha', 'Mi ficha', 'file'],
+    ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'], ['mi-ficha', 'Mi ficha', 'file'],
     ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
   var ROUTE_PAGE = {
@@ -3641,7 +3832,8 @@ SF.router = (function () {
     importar: 'importar', captacion: 'captacion', documentos: 'documentos', informes: 'informes',
     family: 'family', finanzas: 'finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
-    staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo'
+    staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo',
+    comunicados: 'comunicados'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff' };
