@@ -482,12 +482,12 @@ SF.COACHES = ['Carlos Gorosito', 'Laura Méndez', 'Diego Pérez'];
 SF.ROLES = {
   director: {
     label: 'Director',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'captacion', 'documentos', 'informes', 'family', 'finanzas', 'economia', 'permisos', 'config'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'informes', 'family', 'finanzas', 'economia', 'permisos', 'config'],
     tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, segments: 'all'
   },
   dt_general: {
     label: 'Dirección Técnica General',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, segments: 'all', staff: true
   },
@@ -1799,6 +1799,32 @@ window.SF = window.SF || {};
           var bteam = el('<button class="btn btn-light btn-sm">' + ico('grid') + 'Asignar / cambiar equipo</button>');
           bteam.onclick = function () { U.modal('Asignar equipo — ' + esc(p.full_name), assignTeam(p, function () { p = SF.store.get(p.id); paint(); })); };
           body.appendChild(bteam);
+        }
+
+        /* Estadísticas de partido importadas. Solo unas pocas métricas
+           acordadas: el análisis profundo vive en su herramienta, no aquí. */
+        var gs = (p.stats_games || []).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+        if (gs.length) {
+          body.appendChild(el('<p class="sec-label">Estadísticas de partido</p>'));
+          var keys = Object.keys(gs[0].metrics || {});
+          // Medias de la temporada
+          var med = {};
+          keys.forEach(function (k) {
+            var vals = gs.map(function (g) { return g.metrics[k]; }).filter(function (v) { return typeof v === 'number'; });
+            if (vals.length) med[k] = Math.round(vals.reduce(function (a, b) { return a + b; }, 0) / vals.length * 10) / 10;
+          });
+          var mk = Object.keys(med);
+          if (mk.length) body.appendChild(el('<div class="field-grid">' + mk.map(function (k) {
+            return '<div class="field"><span class="f-lab">' + esc(k) + ' · media</span><span class="f-val">' + med[k] + '</span></div>';
+          }).join('') + '</div>'));
+          var gt = el('<table class="tbl"><thead><tr><th>Fecha</th><th>Rival</th>' + keys.map(function (k) { return '<th>' + esc(k) + '</th>'; }).join('') + '</tr></thead><tbody></tbody></table>');
+          var gtb = gt.querySelector('tbody');
+          gs.slice(0, 10).forEach(function (g) {
+            gtb.appendChild(el('<tr><td>' + esc(g.date || '') + '</td><td>' + esc(g.opponent || '') + '</td>' +
+              keys.map(function (k) { return '<td>' + esc(String(g.metrics[k] != null ? g.metrics[k] : '—')) + '</td>'; }).join('') + '</tr>'));
+          });
+          body.appendChild(gt);
+          body.appendChild(el('<p class="hint">' + gs.length + ' partido' + (gs.length === 1 ? '' : 's') + ' importado' + (gs.length === 1 ? '' : 's') + ' · origen: CSV</p>'));
         }
 
         if (p.team_id) {
@@ -3475,6 +3501,120 @@ window.SF = window.SF || {};
     return myTeams();
   }
 
+  /* ===================== IMPORTAR DATOS DE PARTIDO =====================
+     Power BI NO es la fuente: es el final del recorrido. Se importa lo que
+     hay detrás (el Excel o la exportación de la app de anotación) en CSV.
+     La clave de cruce es el NÚMERO DE FICHA: con dos "Diego Romero" en el
+     club, cruzar por nombre falla el primer día. */
+  function parseCSV(text) {
+    var lines = text.replace(/\r/g, '').split('\n').filter(function (l) { return l.trim(); });
+    if (!lines.length) return { head: [], rows: [] };
+    function split(l) {
+      var out = [], cur = '', q = false;
+      for (var i = 0; i < l.length; i++) {
+        var ch = l[i];
+        if (ch === '"') { q = !q; continue; }
+        if ((ch === ',' || ch === ';') && !q) { out.push(cur.trim()); cur = ''; continue; }
+        cur += ch;
+      }
+      out.push(cur.trim()); return out;
+    }
+    var head = split(lines[0]).map(function (h) { return h.toLowerCase(); });
+    return { head: head, rows: lines.slice(1).map(split) };
+  }
+
+  var CSV_EJEMPLO = 'ficha,fecha,rival,competicion,minutos,puntos,rebotes,asistencias\n' +
+    'J-0002,2026-11-15,CB Estudiantes,Liga Cadete FBM,24,14,7,3\n' +
+    'J-0003,2026-11-15,CB Estudiantes,Liga Cadete FBM,18,9,2,5\n' +
+    'J-0004,2026-11-15,CB Estudiantes,Liga Cadete FBM,27,21,11,1';
+
+  pages['importar-datos'] = function (view) {
+    view.innerHTML = head('Importar datos de partido', 'Desde Excel o desde la app de anotación. Power BI no es la fuente: se importa lo que hay detrás.');
+
+    view.appendChild(el('<p class="hint">El archivo debe llevar una columna <b>ficha</b> con el número del jugador (J-0002). Es lo que permite asignar cada fila sin equivocarse de persona. Las demás columnas se guardan tal cual, así que puedes medir lo que quieras.</p>'));
+
+    var ta = el('<textarea rows="7" placeholder="Pega aquí el contenido del CSV…" style="width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"></textarea>');
+    view.appendChild(ta);
+
+    var tools = el('<div class="row-c"></div>');
+    var bEj = el('<button class="btn btn-light btn-sm">Usar un ejemplo</button>');
+    bEj.onclick = function () { ta.value = CSV_EJEMPLO; ta.dispatchEvent(new Event('input')); };
+    var fileWrap = el('<label class="btn btn-light btn-sm" style="cursor:pointer">' + ico('upload') + 'Abrir archivo CSV<input type="file" accept=".csv,text/csv" style="display:none"></label>');
+    fileWrap.querySelector('input').onchange = function (e) {
+      var f = e.target.files[0]; if (!f) return;
+      var r = new FileReader();
+      r.onload = function () { ta.value = r.result; ta.dispatchEvent(new Event('input')); };
+      r.readAsText(f);
+    };
+    tools.appendChild(bEj); tools.appendChild(fileWrap);
+    view.appendChild(tools);
+
+    var out = el('<div></div>'); view.appendChild(out);
+
+    ta.addEventListener('input', function () {
+      out.innerHTML = '';
+      var txt = ta.value.trim(); if (!txt) return;
+      var csv = parseCSV(txt);
+      var iF = csv.head.indexOf('ficha');
+      if (iF < 0) { out.appendChild(el('<div class="empty-panel"><p>Falta la columna <b>ficha</b>. Sin ella no se puede saber a qué jugador corresponde cada fila.</p></div>')); return; }
+
+      var players = SF.store.players();
+      var ok = [], bad = [];
+      csv.rows.forEach(function (r, n) {
+        var raw = (r[iF] || '').toLowerCase().replace(/^j-?/, '').replace(/^0+(?=\d)/, '');
+        var p = players.filter(function (x) { return String(x.ficha) === raw; })[0];
+        var metrics = {}, meta = {};
+        csv.head.forEach(function (h, i) {
+          if (h === 'ficha') return;
+          var v = r[i];
+          if (['fecha', 'rival', 'competicion', 'competición'].indexOf(h) >= 0) { meta[h] = v; return; }
+          var num = parseFloat(String(v).replace(',', '.'));
+          metrics[h] = isNaN(num) ? v : num;
+        });
+        if (p) ok.push({ p: p, meta: meta, metrics: metrics });
+        else bad.push({ line: n + 2, ficha: r[iF] });
+      });
+
+      out.appendChild(el('<p class="sec-label">Vista previa</p>'));
+      out.appendChild(el('<p class="hint"><b>' + ok.length + '</b> fila' + (ok.length === 1 ? '' : 's') + ' se importará' + (ok.length === 1 ? '' : 'n') +
+        (bad.length ? ' · <b>' + bad.length + '</b> con ficha desconocida, se descartan' : '') + '</p>'));
+
+      if (bad.length) {
+        var bl = el('<div class="mini-list"></div>');
+        bad.slice(0, 8).forEach(function (b) { bl.appendChild(el('<div class="mini-row"><span>Línea ' + b.line + ' · ficha "' + esc(b.ficha) + '"</span><span class="tag tag-danger">no existe</span></div>')); });
+        out.appendChild(bl);
+      }
+
+      if (ok.length) {
+        var cols = Object.keys(ok[0].metrics);
+        var t = el('<table class="tbl"><thead><tr><th>Jugador</th><th>Fecha</th><th>Rival</th>' +
+          cols.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody></tbody></table>');
+        var tb = t.querySelector('tbody');
+        ok.slice(0, 12).forEach(function (o) {
+          tb.appendChild(el('<tr><td>' + SF.fichaCode(o.p.ficha) + ' · ' + esc(o.p.full_name) + '</td><td>' + esc(o.meta.fecha || '') + '</td><td>' + esc(o.meta.rival || '') + '</td>' +
+            cols.map(function (c) { return '<td>' + esc(String(o.metrics[c])) + '</td>'; }).join('') + '</tr>'));
+        });
+        out.appendChild(t);
+
+        var bImp = el('<button class="btn btn-primary btn-sm">' + ico('download') + 'Importar ' + ok.length + ' filas</button>');
+        bImp.onclick = function () {
+          ok.forEach(function (o) {
+            var prev = (o.p.stats_games || []).slice();
+            prev.push({
+              id: 'g' + Date.now() + Math.random().toString(16).slice(2, 6),
+              season: SF.SEASON, date: o.meta.fecha || '', opponent: o.meta.rival || '',
+              competition: o.meta.competicion || o.meta['competición'] || '',
+              source: 'csv', metrics: o.metrics
+            });
+            SF.store.update(o.p.id, { stats_games: prev });
+          });
+          U.toast(ok.length + ' filas importadas'); ta.value = ''; out.innerHTML = '';
+        };
+        out.appendChild(bImp);
+      }
+    });
+  };
+
   /* ===================== COMUNICADOS DEL CLUB ===================== */
   pages.comunicados = function (view) {
     var teams = scopeTeams();
@@ -3824,7 +3964,8 @@ SF.router = (function () {
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
-    ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'], ['mi-ficha', 'Mi ficha', 'file'],
+    ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'],
+    ['importar-datos', 'Importar datos', 'chart'], ['mi-ficha', 'Mi ficha', 'file'],
     ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
   var ROUTE_PAGE = {
@@ -3833,7 +3974,7 @@ SF.router = (function () {
     family: 'family', finanzas: 'finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
     staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo',
-    comunicados: 'comunicados'
+    comunicados: 'comunicados', 'importar-datos': 'importar-datos'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff' };
