@@ -4074,7 +4074,8 @@ window.SF = window.SF || {};
     });
     view.appendChild(gl);
 
-    if (canEv) {
+    // canManageThisTeam() aquí y no canEv: esa variable se define más abajo.
+    if (canManageThisTeam(t)) {
       var bStats = el('<button class="btn btn-light btn-sm">' + ico('chart') + 'Cargar acta / estadísticas</button>');
       bStats.onclick = function () {
         var box = el('<div></div>');
