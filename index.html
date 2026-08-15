@@ -751,6 +751,11 @@ function P(o) {
   return Object.assign({
     photo: null, secondary_position: '', residence_country: '', city: '', phone: '', email: '',
     instagram: '', facebook: '', dni: '', address: '', emergency_phone: '',
+    /* dorsal: con lo que el scout identifica al jugador en la grada.
+       height_est_cm: altura ESTIMADA a ojo por el scout. No se mezcla con
+       height_cm, que es la MEDIDA por el preparador físico: si una pisara a
+       la otra, se estropearía el dato bueno. */
+    dorsal: '', height_est_cm: null,
     languages: [], weight_kg: null, wingspan_cm: null, torso_height_cm: null,
     foot_length_cm: null, hand_length_cm: null, dominant_hand: '', uses_both_hands: '',
     vertical_reach_stand: null, vertical_reach_run: null,
@@ -1271,7 +1276,9 @@ SF.ui = (function () {
       '<div class="pcard-body">' +
       '<div class="pcard-name">' + esc(p.full_name) + '</div>' +
       '<div class="pcard-meta">' + esc(nat || '—') + ' · ' + (p.birth_year || '—') + '</div>' +
-      '<div class="pcard-meta">' + esc(p.primary_position || '—') + ' · ' + (p.height_cm ? (p.height_cm / 100).toFixed(2) + ' m' : '—') + '</div>' +
+      '<div class="pcard-meta">' + esc(p.primary_position || '—') + ' · ' +
+      (p.height_cm ? (p.height_cm / 100).toFixed(2) + ' m' : (p.height_est_cm ? '~' + (p.height_est_cm / 100).toFixed(2) + ' m' : '—')) +
+      (p.dorsal ? ' · dorsal ' + esc(p.dorsal) : '') + '</div>' +
       '<div class="pcard-row">' + statusTag(p.status) + '<span class="pcard-score">' + ico('star') + ' ' + score + '</span></div>' +
       '</div></button>'
     );
@@ -1761,7 +1768,7 @@ window.SF = window.SF || {};
     var nat = (p.nationality || []).join(', ');
     fhead.querySelector('.fh-info').innerHTML =
       '<h2>' + esc(p.full_name) + '</h2>' +
-      '<p class="fh-sub">' + (p.ficha != null ? '<b>' + SF.fichaCode(p.ficha) + '</b> · ' : '') + esc(p.scoutflow_id) + ' · ' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + (p.height_cm ? ' · ' + (p.height_cm / 100).toFixed(2) + ' m' : '') + '</p>' +
+      '<p class="fh-sub">' + (p.ficha != null ? '<b>' + SF.fichaCode(p.ficha) + '</b> · ' : '') + (p.dorsal ? 'dorsal ' + esc(p.dorsal) + ' · ' : '') + esc(p.scoutflow_id) + ' · ' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + (p.height_cm ? ' · ' + (p.height_cm / 100).toFixed(2) + ' m' : '') + '</p>' +
       '<div class="fh-tags">' + U.statusTag(p.status) + (r.canSeeScore ? '<span class="tag tag-purple">Score ' + (p.scout_score != null ? p.scout_score : 'pendiente') + '</span>' : '') + '<span class="tag tag-gray">' + esc(nat || '—') + '</span></div>';
     view.appendChild(fhead);
 
@@ -1794,7 +1801,16 @@ window.SF = window.SF || {};
         body.appendChild(g);
       } else if (cur === 'deportivo') {
         var sp = SF.SPORTS[p.sport];
-        body.appendChild(el('<div class="field-grid">' + fld('Club', p.club) + fld('Liga', p.league) + fld('Categoría', p.category) + fld('Equipo', teamName(p)) + fld('Edad de inicio', p.start_age ? p.start_age + ' años' : '') + '</div>'));
+        body.appendChild(el('<div class="field-grid">' + fld('Club', p.club) + fld('Liga', p.league) + fld('Categoría', p.category) + fld('Equipo', teamName(p)) +
+          fld('Dorsal', p.dorsal) + fld('Edad de inicio', p.start_age ? p.start_age + ' años' : '') + '</div>'));
+        /* Altura: se distingue la medida de la estimada a ojo por el scout.
+           Nunca se pisan: la del preparador físico manda. */
+        if (p.height_cm || p.height_est_cm) {
+          body.appendChild(el('<p class="hint">Altura: ' +
+            (p.height_cm ? '<b>' + (p.height_cm / 100).toFixed(2) + ' m</b> medida' : '') +
+            (p.height_cm && p.height_est_cm ? ' · ' : '') +
+            (p.height_est_cm ? '~' + (p.height_est_cm / 100).toFixed(2) + ' m estimada por scouting' : '') + '</p>'));
+        }
         if (role().canManageTeams) {
           var bteam = el('<button class="btn btn-light btn-sm">' + ico('grid') + 'Asignar / cambiar equipo</button>');
           bteam.onclick = function () { U.modal('Asignar equipo — ' + esc(p.full_name), assignTeam(p, function () { p = SF.store.get(p.id); paint(); })); };
@@ -1817,10 +1833,32 @@ window.SF = window.SF || {};
           if (mk.length) body.appendChild(el('<div class="field-grid">' + mk.map(function (k) {
             return '<div class="field"><span class="f-lab">' + esc(k) + ' · media</span><span class="f-val">' + med[k] + '</span></div>';
           }).join('') + '</div>'));
-          var gt = el('<table class="tbl"><thead><tr><th>Fecha</th><th>Rival</th>' + keys.map(function (k) { return '<th>' + esc(k) + '</th>'; }).join('') + '</tr></thead><tbody></tbody></table>');
+
+          /* REGULARIDAD y CASA/FUERA: no se piden al staff, se calculan.
+             Regularidad = cuánto se desvía de su media. 14-13-15 es regular;
+             4-28-6 no. Se mide sobre la métrica principal disponible. */
+          var kRef = ['puntos', 'valoracion', 'valoración'].filter(function (k) { return keys.indexOf(k) >= 0; })[0];
+          if (kRef && gs.length >= 3) {
+            var vs = gs.map(function (g) { return g.metrics[kRef]; }).filter(function (v) { return typeof v === 'number'; });
+            var m = vs.reduce(function (a, b) { return a + b; }, 0) / vs.length;
+            var sd = Math.sqrt(vs.reduce(function (a, b) { return a + Math.pow(b - m, 2); }, 0) / vs.length);
+            var cv = m ? sd / m : 0;   // coeficiente de variación
+            var lab = cv < 0.25 ? 'muy regular' : (cv < 0.45 ? 'regular' : 'irregular');
+            var cls = cv < 0.25 ? 'tag-green' : (cv < 0.45 ? 'tag-warn' : 'tag-danger');
+            body.appendChild(el('<p class="hint">Regularidad en <b>' + esc(kRef) + '</b>: <span class="tag ' + cls + '">' + lab + '</span> ' +
+              '<span class="hint">(media ' + Math.round(m * 10) / 10 + ', desviación ' + Math.round(sd * 10) / 10 + ')</span></p>'));
+          }
+          var casa = gs.filter(function (g) { return g.home === true; }), fuera = gs.filter(function (g) { return g.home === false; });
+          if (kRef && casa.length && fuera.length) {
+            function prom(arr) { var v = arr.map(function (g) { return g.metrics[kRef]; }).filter(function (x) { return typeof x === 'number'; }); return v.length ? Math.round(v.reduce(function (a, b) { return a + b; }, 0) / v.length * 10) / 10 : '—'; }
+            body.appendChild(el('<p class="hint">' + esc(kRef) + ' en casa: <b>' + prom(casa) + '</b> (' + casa.length + ') · fuera: <b>' + prom(fuera) + '</b> (' + fuera.length + ')</p>'));
+          }
+
+          var gt = el('<table class="tbl"><thead><tr><th>Fecha</th><th>Rival</th><th></th>' + keys.map(function (k) { return '<th>' + esc(k) + '</th>'; }).join('') + '</tr></thead><tbody></tbody></table>');
           var gtb = gt.querySelector('tbody');
           gs.slice(0, 10).forEach(function (g) {
-            gtb.appendChild(el('<tr><td>' + esc(g.date || '') + '</td><td>' + esc(g.opponent || '') + '</td>' +
+            var hl = g.home === true ? '<span class="tag tag-gray">casa</span>' : (g.home === false ? '<span class="tag tag-gray">fuera</span>' : '');
+            gtb.appendChild(el('<tr><td>' + esc(g.date || '') + '</td><td>' + esc(g.opponent || '') + '</td><td>' + hl + '</td>' +
               keys.map(function (k) { return '<td>' + esc(String(g.metrics[k] != null ? g.metrics[k] : '—')) + '</td>'; }).join('') + '</tr>'));
           });
           body.appendChild(gt);
@@ -3523,10 +3561,13 @@ window.SF = window.SF || {};
     return { head: head, rows: lines.slice(1).map(split) };
   }
 
-  var CSV_EJEMPLO = 'ficha,fecha,rival,competicion,minutos,puntos,rebotes,asistencias\n' +
-    'J-0002,2026-11-15,CB Estudiantes,Liga Cadete FBM,24,14,7,3\n' +
-    'J-0003,2026-11-15,CB Estudiantes,Liga Cadete FBM,18,9,2,5\n' +
-    'J-0004,2026-11-15,CB Estudiantes,Liga Cadete FBM,27,21,11,1';
+  /* 'local' permite el rendimiento en casa / fuera que pide el staff.
+     Se guarda SIEMPRE por partido, nunca la media: con la media se pierde
+     para siempre la posibilidad de filtrar por rival, casa o competición. */
+  var CSV_EJEMPLO = 'ficha,fecha,rival,competicion,local,dorsal,minutos,puntos,rebotes,asistencias,valoracion\n' +
+    'J-0002,2026-11-15,CB Estudiantes,Liga Cadete FBM,si,7,24,14,7,3,18\n' +
+    'J-0003,2026-11-15,CB Estudiantes,Liga Cadete FBM,si,4,18,9,2,5,11\n' +
+    'J-0004,2026-11-22,Real Canoe,Liga Cadete FBM,no,12,27,21,11,1,26';
 
   pages['importar-datos'] = function (view) {
     view.innerHTML = head('Importar datos de partido', 'Desde Excel o desde la app de anotación. Power BI no es la fuente: se importa lo que hay detrás.');
@@ -3567,7 +3608,8 @@ window.SF = window.SF || {};
         csv.head.forEach(function (h, i) {
           if (h === 'ficha') return;
           var v = r[i];
-          if (['fecha', 'rival', 'competicion', 'competición'].indexOf(h) >= 0) { meta[h] = v; return; }
+          // Contexto del partido: no son métricas, son el "dónde y contra quién"
+          if (['fecha', 'rival', 'competicion', 'competición', 'local', 'dorsal'].indexOf(h) >= 0) { meta[h] = v; return; }
           var num = parseFloat(String(v).replace(',', '.'));
           metrics[h] = isNaN(num) ? v : num;
         });
@@ -3600,13 +3642,18 @@ window.SF = window.SF || {};
         bImp.onclick = function () {
           ok.forEach(function (o) {
             var prev = (o.p.stats_games || []).slice();
+            var loc = String(o.meta.local || '').toLowerCase();
             prev.push({
               id: 'g' + Date.now() + Math.random().toString(16).slice(2, 6),
               season: SF.SEASON, date: o.meta.fecha || '', opponent: o.meta.rival || '',
               competition: o.meta.competicion || o.meta['competición'] || '',
+              home: ['si', 'sí', 's', 'true', '1', 'local'].indexOf(loc) >= 0 ? true : (loc ? false : null),
               source: 'csv', metrics: o.metrics
             });
-            SF.store.update(o.p.id, { stats_games: prev });
+            var patch = { stats_games: prev };
+            // El dorsal viene en el acta: si el club no lo tenía, se rellena solo.
+            if (o.meta.dorsal && !o.p.dorsal) patch.dorsal = o.meta.dorsal;
+            SF.store.update(o.p.id, patch);
           });
           U.toast(ok.length + ' filas importadas'); ta.value = ''; out.innerHTML = '';
         };
