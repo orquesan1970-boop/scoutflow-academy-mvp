@@ -1198,6 +1198,15 @@ SF.store = (function () {
       save(d);
     },
 
+    /* Equivalencias aprendidas al importar: "RIOS, MARTIN" del acta de la
+       federación -> nuestro jugador p2. Se asigna a mano una vez y ya entra
+       solo el resto de la temporada. */
+    importAliases: function () { return db().import_aliases || {}; },
+    importAliasSet: function (key, playerId) {
+      var d = db(); d.import_aliases = d.import_aliases || {};
+      d.import_aliases[key] = playerId; save(d);
+    },
+
     exportJSON: function () { return JSON.stringify(db(), null, 2); },
     importJSON: function (text) {
       var parsed = JSON.parse(text);
@@ -3552,7 +3561,10 @@ window.SF = window.SF || {};
       for (var i = 0; i < l.length; i++) {
         var ch = l[i];
         if (ch === '"') { q = !q; continue; }
-        if ((ch === ',' || ch === ';') && !q) { out.push(cur.trim()); cur = ''; continue; }
+        /* Tabulador incluido: al copiar una tabla de una web (la de la
+           federación, por ejemplo) el texto llega separado por tabuladores.
+           Así se puede pegar directamente sin pasar por Excel. */
+        if ((ch === ',' || ch === ';' || ch === '\t') && !q) { out.push(cur.trim()); cur = ''; continue; }
         cur += ch;
       }
       out.push(cur.trim()); return out;
@@ -3572,9 +3584,15 @@ window.SF = window.SF || {};
   pages['importar-datos'] = function (view) {
     view.innerHTML = head('Importar datos de partido', 'Desde Excel o desde la app de anotación. Power BI no es la fuente: se importa lo que hay detrás.');
 
-    view.appendChild(el('<p class="hint">El archivo debe llevar una columna <b>ficha</b> con el número del jugador (J-0002). Es lo que permite asignar cada fila sin equivocarse de persona. Las demás columnas se guardan tal cual, así que puedes medir lo que quieras.</p>'));
+    view.appendChild(el('<p class="hint">Puedes pegar una tabla <b>copiada de una web</b> (la de la federación, por ejemplo), un CSV o algo copiado de Excel. Para identificar a cada jugador vale la columna <b>ficha</b>, el <b>nombre</b> o el <b>dorsal</b> —eligiendo el equipo—. Las demás columnas se guardan tal cual, así que podéis medir lo que queráis.</p>'));
 
-    var ta = el('<textarea rows="7" placeholder="Pega aquí el contenido del CSV…" style="width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"></textarea>');
+    /* Equipo de referencia: permite identificar por DORSAL, que es lo que trae
+       el acta de la federación. Sin equipo, el dorsal 7 es ambiguo. */
+    var teamSel = el('<div class="frow" style="max-width:420px"><label>¿De qué equipo son estos datos?</label><select id="tsel"><option value="">— sin equipo (identificar por ficha o nombre) —</option>' +
+      SF.store.teams().map(function (t) { return '<option value="' + t.id + '">' + esc(t.name) + '</option>'; }).join('') + '</select></div>');
+    view.appendChild(teamSel);
+
+    var ta = el('<textarea rows="7" placeholder="Pega aquí la tabla: copiada de una web, exportada a CSV o pegada desde Excel…" style="width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"></textarea>');
     view.appendChild(ta);
 
     var tools = el('<div class="row-c"></div>');
@@ -3596,14 +3614,69 @@ window.SF = window.SF || {};
       out.innerHTML = '';
       var txt = ta.value.trim(); if (!txt) return;
       var csv = parseCSV(txt);
-      var iF = csv.head.indexOf('ficha');
-      if (iF < 0) { out.appendChild(el('<div class="empty-panel"><p>Falta la columna <b>ficha</b>. Sin ella no se puede saber a qué jugador corresponde cada fila.</p></div>')); return; }
+      var teamId = teamSel.querySelector('#tsel').value;
 
+      /* IDENTIFICACIÓN EN CASCADA. El acta de la federación no trae nuestro
+         número de ficha, así que hay que reconocer al jugador por lo que sí
+         trae: dorsal dentro de su equipo, o nombre.
+           1. ficha          -> exacto, sin ambigüedad
+           2. alias guardado -> lo que ya asignaste a mano una vez
+           3. dorsal + equipo
+           4. nombre normalizado (sin tildes y sin importar el orden) */
+      var iF = csv.head.indexOf('ficha');
+      var iN = ['nombre', 'jugador', 'jugadora', 'apellidos'].map(function (k) { return csv.head.indexOf(k); }).filter(function (i) { return i >= 0; })[0];
+      var iD = csv.head.indexOf('dorsal');
+      if (iF < 0 && iN == null && iD < 0) {
+        out.appendChild(el('<div class="empty-panel"><p>No encuentro cómo identificar a los jugadores. La tabla debe traer al menos una columna <b>ficha</b>, <b>nombre</b> o <b>dorsal</b>.</p></div>'));
+        return;
+      }
+      if (iD >= 0 && iF < 0 && iN == null && !teamId) {
+        out.appendChild(el('<div class="empty-panel"><p>Con solo el dorsal hay que decir <b>de qué equipo</b> son los datos: el dorsal 7 existe en todos los equipos.</p></div>'));
+        return;
+      }
+
+      function norm(s) {
+        return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+          .replace(/[^a-z0-9 ]/g, ' ').split(/\s+/).filter(Boolean).sort().join(' ');
+      }
       var players = SF.store.players();
+      var aliases = SF.store.importAliases();
+      var pool = teamId ? players.filter(function (p) { return p.team_id === teamId; }) : players;
+
+      function findPlayer(r) {
+        if (iF >= 0) {
+          var raw = (r[iF] || '').toLowerCase().replace(/^j-?/, '').replace(/^0+(?=\d)/, '');
+          var byF = players.filter(function (x) { return String(x.ficha) === raw; })[0];
+          if (byF) return byF;
+        }
+        var nameRaw = iN != null ? r[iN] : '';
+        if (nameRaw) {
+          var key = (teamId ? teamId + '|' : '') + norm(nameRaw);
+          if (aliases[key]) { var al = SF.store.get(aliases[key]); if (al) return al; }
+        }
+        if (iD >= 0 && teamId) {
+          var d = String(r[iD] || '').trim();
+          var byD = pool.filter(function (x) { return String(x.dorsal || '') === d && d !== ''; })[0];
+          if (byD) return byD;
+        }
+        if (nameRaw) {
+          var nn = norm(nameRaw);
+          var byN = pool.filter(function (x) { return norm(x.full_name) === nn; })[0];
+          if (byN) return byN;
+          // Coincidencia parcial: todos los trozos del nombre del acta están en la ficha
+          var parts = nn.split(' ');
+          var cand = pool.filter(function (x) {
+            var t = norm(x.full_name).split(' ');
+            return parts.length >= 2 && parts.every(function (w) { return t.indexOf(w) >= 0; });
+          });
+          if (cand.length === 1) return cand[0];
+        }
+        return null;
+      }
+
       var ok = [], bad = [];
       csv.rows.forEach(function (r, n) {
-        var raw = (r[iF] || '').toLowerCase().replace(/^j-?/, '').replace(/^0+(?=\d)/, '');
-        var p = players.filter(function (x) { return String(x.ficha) === raw; })[0];
+        var p = findPlayer(r);
         var metrics = {}, meta = {};
         csv.head.forEach(function (h, i) {
           if (h === 'ficha') return;
@@ -3614,16 +3687,33 @@ window.SF = window.SF || {};
           metrics[h] = isNaN(num) ? v : num;
         });
         if (p) ok.push({ p: p, meta: meta, metrics: metrics });
-        else bad.push({ line: n + 2, ficha: r[iF] });
+        else bad.push({ line: n + 2, row: r, etiqueta: (iN != null ? r[iN] : '') || (iF >= 0 ? r[iF] : '') || ('dorsal ' + (iD >= 0 ? r[iD] : '?')), meta: meta, metrics: metrics });
       });
 
       out.appendChild(el('<p class="sec-label">Vista previa</p>'));
       out.appendChild(el('<p class="hint"><b>' + ok.length + '</b> fila' + (ok.length === 1 ? '' : 's') + ' se importará' + (ok.length === 1 ? '' : 'n') +
         (bad.length ? ' · <b>' + bad.length + '</b> con ficha desconocida, se descartan' : '') + '</p>'));
 
+      /* Filas sin reconocer: en vez de descartarlas, se asignan a mano UNA vez.
+         La app recuerda la equivalencia y en las siguientes jornadas ya entra
+         sola. Es lo que hace que importar el acta cada semana cueste segundos. */
       if (bad.length) {
+        out.appendChild(el('<p class="sec-label">Sin identificar — asígnalos y los recordaré</p>'));
         var bl = el('<div class="mini-list"></div>');
-        bad.slice(0, 8).forEach(function (b) { bl.appendChild(el('<div class="mini-row"><span>Línea ' + b.line + ' · ficha "' + esc(b.ficha) + '"</span><span class="tag tag-danger">no existe</span></div>')); });
+        bad.forEach(function (b) {
+          var row = el('<div class="mini-row"><span><b>' + esc(b.etiqueta) + '</b> <span class="hint">línea ' + b.line + '</span></span></div>');
+          var sel = el('<select style="max-width:260px"><option value="">— ¿quién es? —</option>' +
+            pool.map(function (p) { return '<option value="' + p.id + '">' + SF.fichaCode(p.ficha) + ' · ' + esc(p.full_name) + (p.dorsal ? ' (' + esc(p.dorsal) + ')' : '') + '</option>'; }).join('') + '</select>');
+          sel.onchange = function () {
+            if (!sel.value) return;
+            var nameRaw = iN != null ? b.row[iN] : '';
+            if (nameRaw) SF.store.importAliasSet((teamId ? teamId + '|' : '') + norm(nameRaw), sel.value);
+            U.toast('Recordado para las próximas veces');
+            ta.dispatchEvent(new Event('input'));
+          };
+          row.appendChild(sel);
+          bl.appendChild(row);
+        });
         out.appendChild(bl);
       }
 
