@@ -1820,11 +1820,28 @@ window.SF = window.SF || {};
             (p.height_cm && p.height_est_cm ? ' · ' : '') +
             (p.height_est_cm ? '~' + (p.height_est_cm / 100).toFixed(2) + ' m estimada por scouting' : '') + '</p>'));
         }
+        var bRow = el('<div class="row-c"></div>');
         if (role().canManageTeams) {
           var bteam = el('<button class="btn btn-light btn-sm">' + ico('grid') + 'Asignar / cambiar equipo</button>');
           bteam.onclick = function () { U.modal('Asignar equipo — ' + esc(p.full_name), assignTeam(p, function () { p = SF.store.get(p.id); paint(); })); };
-          body.appendChild(bteam);
+          bRow.appendChild(bteam);
         }
+        /* El dorsal se asigna a principio de temporada: es la llave con la que
+           el acta de la federación se cruza con esta ficha. */
+        if (role().canManageTeams || role().canEvaluate) {
+          var bDor = el('<button class="btn btn-light btn-sm">' + ico('edit') + (p.dorsal ? 'Cambiar dorsal' : 'Asignar dorsal') + '</button>');
+          bDor.onclick = function () {
+            U.modal('Dorsal — ' + esc(p.full_name), smallForm([
+              { name: 'dorsal', label: 'Dorsal' },
+              { name: 'height_est_cm', label: 'Altura estimada por scouting (cm)', type: 'number' }
+            ], p, function (d) {
+              SF.store.update(p.id, { dorsal: d.dorsal, height_est_cm: d.height_est_cm || null });
+              U.toast('Guardado'); p = SF.store.get(p.id); paint();
+            }));
+          };
+          bRow.appendChild(bDor);
+        }
+        if (bRow.children.length) body.appendChild(bRow);
 
         /* Estadísticas de partido importadas. Solo unas pocas métricas
            acordadas: el análisis profundo vive en su herramienta, no aquí. */
@@ -3586,15 +3603,21 @@ window.SF = window.SF || {};
     'J-0003,2026-11-15,CB Estudiantes,Liga Cadete FBM,si,4,18,9,2,5,11\n' +
     'J-0004,2026-11-22,Real Canoe,Liga Cadete FBM,no,12,27,21,11,1,26';
 
-  pages['importar-datos'] = function (view) {
-    view.innerHTML = head('Importar datos de partido', 'Desde Excel o desde la app de anotación. Power BI no es la fuente: se importa lo que hay detrás.');
-
-    view.appendChild(el('<p class="hint">Puedes pegar una tabla <b>copiada de una web</b> (la de la federación, por ejemplo), un CSV o algo copiado de Excel. Para identificar a cada jugador vale la columna <b>ficha</b>, el <b>nombre</b> o el <b>dorsal</b> —eligiendo el equipo—. Las demás columnas se guardan tal cual, así que podéis medir lo que queráis.</p>'));
+  /* Importador reutilizable. Se usa en dos sitios:
+       - Menú "Importar datos": hay que elegir equipo (o ninguno)
+       - Dentro de un equipo: el equipo ya se sabe, así que el DORSAL basta
+         para identificar a cada jugador sin elegir nada. */
+  function statsImport(view, presetTeam) {
+    view.appendChild(el('<p class="hint">Puedes pegar una tabla <b>copiada de una web</b> (la de la federación, por ejemplo), un CSV o algo copiado de Excel.' +
+      (presetTeam
+        ? ' Se identifica a cada jugador por su <b>dorsal</b> dentro de este equipo, así que basta con pegar el acta.'
+        : ' Para identificar a cada jugador vale la columna <b>ficha</b>, el <b>nombre</b> o el <b>dorsal</b> —eligiendo el equipo—.') +
+      ' Las demás columnas se guardan tal cual, así que podéis medir lo que queráis.</p>'));
 
     /* Equipo de referencia: permite identificar por DORSAL, que es lo que trae
        el acta de la federación. Sin equipo, el dorsal 7 es ambiguo. */
-    var teamSel = el('<div class="frow" style="max-width:420px"><label>¿De qué equipo son estos datos?</label><select id="tsel"><option value="">— sin equipo (identificar por ficha o nombre) —</option>' +
-      SF.store.teams().map(function (t) { return '<option value="' + t.id + '">' + esc(t.name) + '</option>'; }).join('') + '</select></div>');
+    var teamSel = el('<div class="frow" style="max-width:420px' + (presetTeam ? ';display:none' : '') + '"><label>¿De qué equipo son estos datos?</label><select id="tsel"><option value="">— sin equipo (identificar por ficha o nombre) —</option>' +
+      SF.store.teams().map(function (t) { return '<option value="' + t.id + '"' + (t.id === presetTeam ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</select></div>');
     view.appendChild(teamSel);
 
     var ta = el('<textarea rows="7" placeholder="Pega aquí la tabla: copiada de una web, exportada a CSV o pegada desde Excel…" style="width:100%;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px"></textarea>');
@@ -3756,10 +3779,16 @@ window.SF = window.SF || {};
             SF.store.update(o.p.id, patch);
           });
           U.toast(ok.length + ' filas importadas'); ta.value = ''; out.innerHTML = '';
+          if (presetTeam) SF.router.render();   // refresca la ficha del equipo
         };
         out.appendChild(bImp);
       }
     });
+  }
+
+  pages['importar-datos'] = function (view) {
+    view.innerHTML = head('Importar datos de partido', 'Desde Excel o desde la app de anotación. Power BI no es la fuente: se importa lo que hay detrás.');
+    statsImport(view, null);
   };
 
   /* ===================== COMUNICADOS DEL CLUB ===================== */
@@ -4006,6 +4035,60 @@ window.SF = window.SF || {};
     });
     view.appendChild(rl);
     if (can) { var addP = el('<button class="btn btn-light btn-sm">' + ico('search') + 'Buscar y añadir jugadores</button>'); addP.onclick = function () { openAddPlayers(t); }; view.appendChild(addP); }
+
+    /* Partidos y estadísticas del equipo.
+       Se pega el acta y cada fila va a la ficha de SU jugador, identificado
+       por el dorsal que tiene asignado desde principio de temporada. */
+    view.appendChild(el('<p class="sec-label">Partidos y estadísticas</p>'));
+    var statsRoster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
+    var allGames = [];
+    statsRoster.forEach(function (p) {
+      (p.stats_games || []).forEach(function (g) { allGames.push({ p: p, g: g }); });
+    });
+    // Agrupadas por partido (misma fecha y rival)
+    var byGame = {};
+    allGames.forEach(function (x) {
+      var k = (x.g.date || '') + '|' + (x.g.opponent || '');
+      (byGame[k] = byGame[k] || { date: x.g.date, opponent: x.g.opponent, home: x.g.home, rows: [] }).rows.push(x);
+    });
+    var gameKeys = Object.keys(byGame).sort(function (a, b) { return (byGame[b].date || '').localeCompare(byGame[a].date || ''); });
+
+    if (!gameKeys.length) view.appendChild(el('<p class="hint">Todavía no hay estadísticas cargadas para este equipo.</p>'));
+    var gl = el('<div class="mini-list"></div>');
+    gameKeys.slice(0, 10).forEach(function (k) {
+      var G = byGame[k];
+      var hl = G.home === true ? '<span class="tag tag-gray">casa</span>' : (G.home === false ? '<span class="tag tag-gray">fuera</span>' : '');
+      var row = el('<div class="mini-row"><span><b>' + esc(G.opponent || 'rival') + '</b> · ' + fmtDate(G.date) + ' ' + hl + '</span>' +
+        '<span class="row-actions"><span class="hint">' + G.rows.length + ' jugador' + (G.rows.length === 1 ? '' : 'es') + '</span><button class="lnk" data-v>Ver</button></span></div>');
+      row.querySelector('[data-v]').onclick = function () {
+        var keys = Object.keys(G.rows[0].g.metrics || {});
+        var tb = el('<table class="tbl"><thead><tr><th>Dorsal</th><th>Jugador</th>' + keys.map(function (c) { return '<th>' + esc(c) + '</th>'; }).join('') + '</tr></thead><tbody></tbody></table>');
+        var body2 = tb.querySelector('tbody');
+        G.rows.sort(function (a, b) { return (parseInt(a.p.dorsal, 10) || 99) - (parseInt(b.p.dorsal, 10) || 99); }).forEach(function (x) {
+          body2.appendChild(el('<tr><td>' + esc(x.p.dorsal || '—') + '</td><td>' + SF.fichaCode(x.p.ficha) + ' · ' + esc(x.p.full_name) + '</td>' +
+            keys.map(function (c) { return '<td>' + esc(String(x.g.metrics[c] != null ? x.g.metrics[c] : '—')) + '</td>'; }).join('') + '</tr>'));
+        });
+        U.modal(esc(G.opponent || 'Partido') + ' · ' + fmtDate(G.date), tb);
+      };
+      gl.appendChild(row);
+    });
+    view.appendChild(gl);
+
+    if (canEv) {
+      var bStats = el('<button class="btn btn-light btn-sm">' + ico('chart') + 'Cargar acta / estadísticas</button>');
+      bStats.onclick = function () {
+        var box = el('<div></div>');
+        statsImport(box, t.id);
+        U.modal('Cargar estadísticas · ' + t.name, box);
+      };
+      view.appendChild(bStats);
+      /* Sin dorsal no hay forma de cruzar el acta: se avisa aquí, que es
+         donde el entrenador lo va a resolver. */
+      var sinDorsal = statsRoster.filter(function (p) { return !p.dorsal; });
+      if (sinDorsal.length) view.appendChild(el('<p class="hint">' + sinDorsal.length + ' jugador' + (sinDorsal.length === 1 ? '' : 'es') +
+        ' sin dorsal asignado: ' + esc(sinDorsal.map(function (p) { return p.full_name; }).join(', ')) +
+        '. Sin dorsal no se les puede cruzar con el acta.</p>'));
+    }
 
     // Cuerpo técnico — desde las fichas de staff asignadas a este equipo.
     // Con distintivo de habilitación: quien no puede trabajar con jugadores
