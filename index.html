@@ -3641,7 +3641,12 @@ window.SF = window.SF || {};
         var bImp = el('<button class="btn btn-primary btn-sm">' + ico('download') + 'Importar ' + ok.length + ' filas</button>');
         bImp.onclick = function () {
           ok.forEach(function (o) {
-            var prev = (o.p.stats_games || []).slice();
+            /* Hay que releer al jugador en cada vuelta: si el CSV trae varios
+               partidos del mismo, la referencia capturada al analizar el
+               archivo está obsoleta y cada fila pisaría a la anterior.
+               Con 5 partidos de un jugador solo entraba el último. */
+            var actual = SF.store.get(o.p.id) || o.p;
+            var prev = (actual.stats_games || []).slice();
             var loc = String(o.meta.local || '').toLowerCase();
             prev.push({
               id: 'g' + Date.now() + Math.random().toString(16).slice(2, 6),
@@ -3652,7 +3657,7 @@ window.SF = window.SF || {};
             });
             var patch = { stats_games: prev };
             // El dorsal viene en el acta: si el club no lo tenía, se rellena solo.
-            if (o.meta.dorsal && !o.p.dorsal) patch.dorsal = o.meta.dorsal;
+            if (o.meta.dorsal && !actual.dorsal) patch.dorsal = o.meta.dorsal;
             SF.store.update(o.p.id, patch);
           });
           U.toast(ok.length + ' filas importadas'); ta.value = ''; out.innerHTML = '';
