@@ -3556,15 +3556,20 @@ window.SF = window.SF || {};
   function parseCSV(text) {
     var lines = text.replace(/\r/g, '').split('\n').filter(function (l) { return l.trim(); });
     if (!lines.length) return { head: [], rows: [] };
+
+    /* Se detecta UN separador y se usa solo ese. Es clave: las actas de la
+       federación traen los nombres como "RÍOS, MARTÍN", y si se partiera
+       también por comas, el nombre se rompería en dos y descuadraría toda
+       la fila. Prioridad: tabulador (copiado de web/Excel) > ; > , */
+    var h0 = lines[0];
+    var sep = h0.indexOf('\t') >= 0 ? '\t' : (h0.indexOf(';') >= 0 ? ';' : ',');
+
     function split(l) {
       var out = [], cur = '', q = false;
       for (var i = 0; i < l.length; i++) {
         var ch = l[i];
         if (ch === '"') { q = !q; continue; }
-        /* Tabulador incluido: al copiar una tabla de una web (la de la
-           federación, por ejemplo) el texto llega separado por tabuladores.
-           Así se puede pegar directamente sin pasar por Excel. */
-        if ((ch === ',' || ch === ';' || ch === '\t') && !q) { out.push(cur.trim()); cur = ''; continue; }
+        if (ch === sep && !q) { out.push(cur.trim()); cur = ''; continue; }
         cur += ch;
       }
       out.push(cur.trim()); return out;
