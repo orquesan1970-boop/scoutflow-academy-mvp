@@ -2301,20 +2301,122 @@ window.SF = window.SF || {};
   };
 
   /* ===================== DOCUMENTOS ===================== */
-  pages.documentos = function (view) {
-    view.innerHTML = head('Documentos', 'Documentación pendiente o sin validar en toda la academia.');
-    var labels = { pasaporte: 'Pasaporte', expediente: 'Expediente', video_highlights: 'Vídeo', seguro_medico: 'Seguro médico' };
-    var ps = SF.store.players();
-    var t = el('<table class="tbl"><thead><tr><th>Jugador</th><th>Pendientes</th></tr></thead><tbody></tbody></table>');
-    var tb = t.querySelector('tbody'), any = false;
-    ps.forEach(function (p) {
-      var pend = Object.keys(labels).filter(function (k) { return p.documents[k] !== 'validado'; });
-      if (!pend.length) return; any = true;
-      var tr = el('<tr><td><div class="tcell"><span class="av-sm">' + U.initials(p.full_name) + '</span>' + esc(p.full_name) + '</div></td><td>' + pend.map(function (k) { return '<span class="tag tag-warn">' + labels[k] + '</span>'; }).join(' ') + '</td></tr>');
-      tr.onclick = function () { location.hash = '#/jugador/' + p.id; };
-      tb.appendChild(tr);
+  /* ===================== DOCUMENTOS =====================
+     Esta pantalla NO repite lo que ya está en cada ficha: enseña solo
+     LO QUE FALTA, en jugadores y en staff, y sirve para pedirlo.
+     El recordatorio se manda uno a uno: cada familia recibe solo lo suyo,
+     nunca una lista con los nombres de los demás. */
+  var DOC_LABELS = { pasaporte: 'Pasaporte o DNI', expediente: 'Expediente académico', seguro_medico: 'Seguro médico', video_highlights: 'Vídeo' };
+
+  function docsPendientes(p) {
+    return Object.keys(DOC_LABELS).filter(function (k) {
+      var st = (p.documents || {})[k];
+      return st !== 'validado' && st !== 'recibido';
     });
-    view.appendChild(any ? t : el('<div class="empty-panel"><p>Toda la documentación está validada. </p></div>'));
+  }
+
+  pages.documentos = function (view) {
+    view.innerHTML = head('Documentos', 'Solo lo que falta. Desde aquí se pide.');
+    var puedeAvisar = ['director', 'administrativo'].indexOf(SF.store.role()) >= 0;
+
+    /* ---------- filtro por equipo ---------- */
+    var teams = SF.store.teams();
+    var bar = el('<div class="filters"><select id="ft"><option value="">Todos los equipos</option>' +
+      teams.map(function (t) { return '<option value="' + t.id + '">' + esc(t.name) + '</option>'; }).join('') +
+      '<option value="__sin">Sin equipo</option></select></div>');
+    view.appendChild(bar);
+
+    var out = el('<div></div>'); view.appendChild(out);
+
+    function paint() {
+      out.innerHTML = '';
+      var ft = bar.querySelector('#ft').value;
+      var ps = SF.store.players().filter(function (p) {
+        if (ft === '__sin') return !p.team_id;
+        return !ft || p.team_id === ft;
+      });
+      var faltan = ps.map(function (p) { return { p: p, pend: docsPendientes(p) }; })
+        .filter(function (x) { return x.pend.length; });
+
+      /* ---------- resumen y envío masivo ---------- */
+      var top = el('<div class="empty-panel" style="text-align:left"></div>');
+      if (!faltan.length) {
+        top.appendChild(el('<p><b>Nada pendiente.</b> Toda la documentación de jugadores está entregada.</p>'));
+      } else {
+        var totalDocs = faltan.reduce(function (a, x) { return a + x.pend.length; }, 0);
+        top.appendChild(el('<p><b>' + faltan.length + ' jugador' + (faltan.length === 1 ? '' : 'es') + '</b> con documentación pendiente · ' + totalDocs + ' documento' + (totalDocs === 1 ? '' : 's') + ' en total</p>'));
+        if (puedeAvisar) {
+          var bAll = el('<button class="btn btn-primary btn-sm">' + ico('ai') + 'Enviar recordatorio a los ' + faltan.length + '</button>');
+          bAll.onclick = function () {
+            if (!confirm('Se enviará un aviso a cada familia con SU documentación pendiente. Nadie ve la de los demás. ¿Continuar?')) return;
+            var n = 0;
+            faltan.forEach(function (x) { if (enviarRecordatorio(x.p, x.pend)) n++; });
+            U.toast(n + ' recordatorios enviados'); SF.router.render();
+          };
+          top.appendChild(bAll);
+          top.appendChild(el('<p class="hint">Cada familia recibe un aviso propio, solo con lo que le falta a su hijo/a.</p>'));
+        } else {
+          top.appendChild(el('<p class="hint">Los recordatorios los envía dirección o administración.</p>'));
+        }
+      }
+      out.appendChild(top);
+
+      /* ---------- jugadores ---------- */
+      if (faltan.length) {
+        out.appendChild(el('<p class="sec-label">Jugadores</p>'));
+        var l = el('<div class="mini-list"></div>');
+        faltan.forEach(function (x) {
+          var tName = x.p.team_id ? (SF.store.teamGet(x.p.team_id) || {}).name : 'Sin equipo';
+          var av = x.p.doc_reminder_at ? '<span class="hint">avisado ' + fmtDate(x.p.doc_reminder_at) + '</span>' : '';
+          var row = el('<div class="mini-row"><span><b>' + esc(x.p.full_name) + '</b> <span class="hint">' + SF.fichaCode(x.p.ficha) + ' · ' + esc(tName || '') + '</span><br>' +
+            x.pend.map(function (k) { return '<span class="tag tag-warn">' + DOC_LABELS[k] + '</span>'; }).join(' ') + '</span>' +
+            '<span class="row-actions">' + av + '<button class="lnk" data-f>Ficha</button></span></div>');
+          row.querySelector('[data-f]').onclick = function () { location.hash = '#/jugador/' + x.p.id; };
+          if (puedeAvisar) {
+            var b1 = el('<button class="lnk" data-r>Recordar</button>');
+            b1.onclick = function () {
+              if (enviarRecordatorio(x.p, x.pend)) { U.toast('Recordatorio enviado a ' + x.p.full_name); SF.router.render(); }
+            };
+            row.querySelector('.row-actions').insertBefore(b1, row.querySelector('[data-f]'));
+          }
+          l.appendChild(row);
+        });
+        out.appendChild(l);
+      }
+
+      /* ---------- staff ---------- */
+      var staffMal = SF.store.staff().filter(function (s) { return SF.staffStatus(s).level !== 'ok'; });
+      out.appendChild(el('<p class="sec-label">Staff</p>'));
+      if (!staffMal.length) out.appendChild(el('<p class="hint">Todo el staff está al día.</p>'));
+      var sl = el('<div class="mini-list"></div>');
+      staffMal.forEach(function (s) {
+        var st = SF.staffStatus(s);
+        var cls = st.level === 'warn' ? 'tag-warn' : 'tag-danger';
+        var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> <span class="hint">' + SF.staffCode(s.num) + ' · ' + esc(roleLabel(s.role)) + '</span><br>' +
+          '<span class="tag ' + cls + '">' + st.label + '</span> <span class="hint">' + esc(st.why) + '</span></span>' +
+          '<span class="row-actions"><button class="lnk" data-f>Ficha</button></span></div>');
+        row.querySelector('[data-f]').onclick = function () { location.hash = '#/staff/' + s.id; };
+        sl.appendChild(row);
+      });
+      out.appendChild(sl);
+      if (staffMal.length) out.appendChild(el('<p class="hint">El staff todavía no recibe recordatorios por la app: la comunicación con el personal está sin construir. De momento se avisa por correo desde administración.</p>'));
+    }
+
+    /* Envía un aviso individual a la familia con SU documentación pendiente */
+    function enviarRecordatorio(p, pend) {
+      if (!p.team_id) { U.toast(p.full_name + ' no tiene equipo: no se le puede avisar todavía'); return false; }
+      var lista = pend.map(function (k) { return '· ' + DOC_LABELS[k]; }).join('\n');
+      SF.store.annCreate(p.team_id, {
+        kind: 'documentacion',
+        title: 'Documentación pendiente',
+        body: 'Todavía falta por entregar:\n' + lista + '\n\nPuedes entregarlo por correo a secretaría o en el pabellón. El club lo marca al recibirlo.'
+      }, [p.id]);
+      SF.store.update(p.id, { doc_reminder_at: new Date().toISOString().slice(0, 10) });
+      return true;
+    }
+
+    bar.querySelector('#ft').addEventListener('change', paint);
+    paint();
   };
 
   /* ===================== INFORMES ===================== */
