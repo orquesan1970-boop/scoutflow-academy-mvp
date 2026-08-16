@@ -131,7 +131,8 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
    modal de asistencia, que usa .att-list y .att-name para otra cosa. */
 .dash-hero{margin-bottom:18px}
 .dash-hi{font-size:23px;font-weight:600;letter-spacing:-.2px}
-.dash-date{font-size:13px;color:var(--ink-3);margin:4px 0 0;text-transform:capitalize}
+.dash-date{font-size:13px;color:var(--ink-3);margin:4px 0 0}
+.dash-date::first-letter{text-transform:uppercase}   /* "Domingo, 16 de agosto", no "16 De Agosto" */
 
 /* La tarjeta de foco: lo único importante de la pantalla. */
 .foco{display:flex;align-items:center;gap:16px;background:var(--surface);
@@ -1489,7 +1490,7 @@ SF.ui = (function () {
 
   function el(html) { var t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
-  var ICO_NAME = { x: 'Quitar', trash: 'Eliminar', edit: 'Editar', plus: 'Añadir', camera: 'Cámara', download: 'Descargar', upload: 'Subir', search: 'Buscar', star: 'Watchlist', back: 'Volver', arrow: 'Enviar', alert: 'Aviso', cog: 'Configuración', shield: 'Permisos', coins: 'Economía', card: 'Finanzas', check: 'Correcto' };
+  var ICO_NAME = { x: 'Quitar', trash: 'Eliminar', edit: 'Editar', plus: 'Añadir', camera: 'Cámara', download: 'Descargar', upload: 'Subir', search: 'Buscar', star: 'Watchlist', back: 'Volver', arrow: 'Enviar', alert: 'Aviso', cog: 'Configuración', shield: 'Permisos', coins: 'Economía', card: 'Finanzas', check: 'Correcto', cal: 'Calendario' };
   function ico(name, cls) { var t = ICO_NAME[name]; return '<svg class="ic ' + (cls || '') + '">' + (t ? '<title>' + esc(t) + '</title>' : '') + '<use href="#i-' + name + '"/></svg>'; }
   function initials(name) { return (name || '?').split(' ').filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase(); }
 
@@ -1560,6 +1561,7 @@ SF.SPRITE = '<svg width="0" height="0" style="position:absolute" aria-hidden="tr
   '<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>' +
   '<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></symbol>' +
   '<symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2 20h20z"/><path d="M12 10v4"/><path d="M12 18h.01"/></symbol>' +
+  '<symbol id="i-cal" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>' +
   '<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-4.9"/></symbol>' +
   '<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></symbol>' +
   '<symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.2"/></symbol>' +
@@ -1971,18 +1973,30 @@ window.SF = window.SF || {};
 
     var att = el('<div class="card"><h3>Necesita tu atención</h3><p class="hint">Lo parado o lo que vence. Toca para abrir la ficha.</p><div class="at-list"></div></div>');
     var list = att.querySelector('.at-list');
-    var items = [];
-    venc.forEach(function (p) { items.push({ p: p, d: 'Cuota vencida', t: 'danger', tt: 'Pago', tab: 'finanzas' }); });
-    incom.forEach(function (p) { items.push({ p: p, d: 'Faltan datos clave', t: 'warn', tt: 'Incompleto' }); });
-    enti.forEach(function (p) { items.push({ p: p, d: 'Entrevista pendiente', t: 'purple', tt: 'Agenda' }); });
-    if (r.canEditPhysical) sinMed.forEach(function (p) { items.push({ p: p, d: 'Sin altura o peso', t: 'gray', tt: 'Medidas' }); });
+    /* Una fila por jugador, no una por problema. Si Diego debe la cuota, tiene
+       la ficha a medias y le faltan medidas, es UNA persona a la que atender,
+       no tres líneas de lista que empujan a los demás fuera de la pantalla. */
+    var bruto = [];
+    venc.forEach(function (p) { bruto.push({ p: p, d: 'Cuota vencida', t: 'danger', tt: 'Pago', tab: 'finanzas' }); });
+    incom.forEach(function (p) { bruto.push({ p: p, d: 'Faltan datos clave', t: 'warn', tt: 'Incompleto' }); });
+    enti.forEach(function (p) { bruto.push({ p: p, d: 'Entrevista pendiente', t: 'purple', tt: 'Agenda' }); });
+    if (r.canEditPhysical) sinMed.forEach(function (p) { bruto.push({ p: p, d: 'Sin altura o peso', t: 'gray', tt: 'Medidas' }); });
+
+    var porJug = {}, items = [];
+    bruto.forEach(function (x) {                      // el primero que llega es el más urgente
+      if (porJug[x.p.id]) { porJug[x.p.id].mas++; return; }
+      x.mas = 0; porJug[x.p.id] = x; items.push(x);
+    });
+
     items.slice(0, 7).forEach(function (it) {
       var b = el('<button class="at-item"><div class="av av-purple">' + U.initials(it.p.full_name) + '</div>' +
-        '<div class="at-body"><p class="at-name">' + esc(it.p.full_name) + '</p><p class="at-desc">' + esc(it.d) + '</p></div>' +
+        '<div class="at-body"><p class="at-name">' + esc(it.p.full_name) + '</p><p class="at-desc">' + esc(it.d) +
+        (it.mas ? ' · y ' + it.mas + (it.mas === 1 ? ' cosa más' : ' cosas más') : '') + '</p></div>' +
         '<span class="tag tag-' + it.t + '">' + it.tt + '</span></button>');
       b.onclick = function () { if (it.tab) SF._openTab = it.tab; location.hash = '#/jugador/' + it.p.id; };
       list.appendChild(b);
     });
+    if (items.length > 7) list.appendChild(el('<p class="hint" style="padding-top:10px">y ' + (items.length - 7) + ' jugadores más.</p>'));
     if (!items.length) list.appendChild(el('<div class="at-empty">' + ico('check') + '<span>Nada pendiente. Buen momento para adelantar trabajo.</span></div>'));
     cols.appendChild(att);
 
@@ -1997,7 +2011,15 @@ window.SF = window.SF || {};
     });
     citas.sort(function (a, b) { return (a.e.date || '') < (b.e.date || '') ? -1 : 1; });
     var ag = el('<div class="card"><h3>Lo que viene</h3><p class="hint">Próximos partidos y entrenamientos.</p></div>');
-    if (!citas.length) ag.appendChild(el('<p class="hint">Sin citas programadas.</p>'));
+    if (!citas.length) {
+      var vacio = el('<div class="at-empty" style="color:var(--ink-3)">' + ico('cal') + '<span>Nada en el calendario.</span></div>');
+      ag.appendChild(vacio);
+      if (r.nav.indexOf('equipos') >= 0) {
+        var bag = el('<button class="btn btn-light btn-sm">Programar en un equipo</button>');
+        bag.onclick = function () { location.hash = '#/equipos'; };
+        ag.appendChild(bag);
+      }
+    }
     citas.slice(0, 4).forEach(function (c) {
       var d = new Date(c.e.date + 'T00:00:00');
       var row = el('<div class="ag-item"><div class="ag-day"><div class="d">' + (isNaN(d) ? '—' : d.getDate()) + '</div>' +
