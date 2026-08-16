@@ -126,6 +126,64 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .rec-name{font-size:13.5px;font-weight:500;margin:0}
 .rec-meta{font-size:12px;color:var(--ink-3);margin:2px 0 0}
 
+/* ===== Inicio =====
+   Clases propias (dash-*, foco-*, at-*, ag-*) para no chocar con las del
+   modal de asistencia, que usa .att-list y .att-name para otra cosa. */
+.dash-hero{margin-bottom:18px}
+.dash-hi{font-size:23px;font-weight:600;letter-spacing:-.2px}
+.dash-date{font-size:13px;color:var(--ink-3);margin:4px 0 0;text-transform:capitalize}
+
+/* La tarjeta de foco: lo único importante de la pantalla. */
+.foco{display:flex;align-items:center;gap:16px;background:var(--surface);
+  border:1px solid var(--line);border-left:4px solid var(--purple);
+  border-radius:var(--r-lg);padding:16px 18px;margin-bottom:18px}
+.foco.is-danger{border-left-color:var(--danger);background:linear-gradient(90deg,var(--danger-bg) 0%,var(--surface) 42%)}
+.foco.is-warn{border-left-color:var(--warn);background:linear-gradient(90deg,var(--warn-bg) 0%,var(--surface) 42%)}
+.foco.is-ok{border-left-color:var(--ok);background:linear-gradient(90deg,var(--ok-bg) 0%,var(--surface) 42%)}
+.foco-ic{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;background:#EFEDF8;color:var(--purple-d)}
+.foco.is-danger .foco-ic{background:#F8DCDA;color:var(--danger-ink)}
+.foco.is-warn .foco-ic{background:#F5E4C4;color:var(--warn-ink)}
+.foco.is-ok .foco-ic{background:#CFEBE0;color:var(--ok-ink)}
+.foco-ic .ic{width:21px;height:21px}
+.foco-body{flex:1;min-width:0}
+.foco-t{font-size:15.5px;font-weight:600;margin:0}
+.foco-s{font-size:13px;color:var(--ink-2);margin:3px 0 0}
+
+/* KPI como botón de verdad */
+.kpi.is-btn{cursor:pointer;transition:border-color .15s,box-shadow .15s,transform .15s}
+.kpi.is-btn:hover{border-color:var(--line-2);box-shadow:0 6px 18px rgba(31,36,48,.07);transform:translateY(-2px)}
+.kpi.is-btn:focus-visible{outline:2px solid var(--purple);outline-offset:2px}
+.kpi.ok .kpi-num{color:var(--ok)}
+.kpi-foot{font-size:11.5px;color:var(--ink-3);margin-top:3px}
+
+/* Necesita tu atención */
+.at-list{display:flex;flex-direction:column}
+.at-item{display:flex;align-items:center;gap:12px;padding:11px 0;border-top:1px solid var(--line);
+  background:none;border-left:0;border-right:0;border-bottom:0;width:100%;text-align:left;
+  font-family:inherit;cursor:pointer}
+.at-item:first-child{border-top:none}
+.at-item:hover .at-name{color:var(--purple-d)}
+.at-body{flex:1;min-width:0}
+.at-name{font-size:14px;font-weight:500;margin:0;color:var(--ink)}
+.at-desc{font-size:12.5px;color:var(--ink-2);margin:2px 0 0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.at-empty{display:flex;align-items:center;gap:10px;padding:16px 0;color:var(--ok-ink);font-size:13.5px}
+.at-empty .ic{width:18px;height:18px;color:var(--ok)}
+
+/* Agenda */
+.ag-item{display:flex;align-items:center;gap:11px;padding:11px 0;border-top:1px solid var(--line);cursor:pointer}
+.ag-item:first-of-type{border-top:none}
+.ag-day{width:44px;flex-shrink:0;text-align:center;background:#F4F2FC;border-radius:9px;padding:5px 0}
+.ag-day .d{font-size:16px;font-weight:600;line-height:1;color:var(--purple-d)}
+.ag-day .m{font-size:10px;text-transform:uppercase;color:var(--ink-3);margin-top:1px}
+.ag-t{font-size:13.5px;font-weight:500;margin:0}
+.ag-s{font-size:12px;color:var(--ink-3);margin:2px 0 0}
+
+@media(max-width:900px){
+  .cols{grid-template-columns:1fr}
+  .foco{flex-wrap:wrap}
+  .dash-hi{font-size:20px}
+}
+
 /* Tags */
 .tag{font-size:11px;padding:3px 9px;border-radius:7px;white-space:nowrap;font-weight:500;display:inline-block}
 .tag-gray{background:#F0EFF4;color:var(--ink-2)}
@@ -483,13 +541,13 @@ SF.ROLES = {
   director: {
     label: 'Director',
     nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'informes', 'family', 'finanzas', 'economia', 'permisos', 'config'],
-    tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, segments: 'all'
+    tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, segments: 'all', canCreatePlayers: true
   },
   dt_general: {
     label: 'Dirección Técnica General',
     nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, segments: 'all', staff: true
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, segments: 'all', staff: true, canCreatePlayers: true
   },
   preparador_fisico: {
     label: 'Preparador Físico',
@@ -503,31 +561,31 @@ SF.ROLES = {
     label: 'Dirección Técnica Femenino',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['femenino']
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['femenino'], canCreatePlayers: true
   },
   dt_masculino: {
     label: 'Dirección Técnica Masculino',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['masculino']
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['masculino'], canCreatePlayers: true
   },
   dt_escuelas: {
     label: 'Dirección Técnica Escuelas',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['escuelas']
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['escuelas'], canCreatePlayers: true
   },
   dt_minis: {
     label: 'Dirección Técnica Minis',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['minis']
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['minis'], canCreatePlayers: true
   },
   scout: {
     label: 'Scout',
     nav: ['inicio', 'jugadores', 'importar', 'captacion', 'documentos', 'economia'],
     tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, segments: 'all'
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, segments: 'all', canCreatePlayers: true
   },
   entrenador: {
     label: 'Entrenador',
@@ -539,7 +597,7 @@ SF.ROLES = {
     label: 'Administrativo',
     nav: ['inicio', 'jugadores', 'staff', 'comunicados', 'documentos', 'finanzas', 'economia', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
-    canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all'
+    canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all', canCreatePlayers: true
   },
   padre: {
     label: 'Padre / Tutor',
@@ -854,7 +912,8 @@ SF.PERM_KEYS = [
   { key: 'canDocs', label: 'Gestionar documentación y enviar recordatorios', nav: ['documentos'] },
   { key: 'canAnnounce', label: 'Enviar comunicados del club', nav: ['comunicados'] },
   { key: 'canImportData', label: 'Importar datos de partido', nav: ['importar-datos'] },
-  { key: 'canSeeStaff', label: 'Ver el listado de staff', nav: ['staff'] }
+  { key: 'canSeeStaff', label: 'Ver el listado de staff', nav: ['staff'] },
+  { key: 'canCreatePlayers', label: 'Dar de alta jugadores' }
 ];
 
 /* Nunca delegables. Notas internas incluye presupuesto y situación económica
@@ -1430,7 +1489,7 @@ SF.ui = (function () {
 
   function el(html) { var t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstChild; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
-  var ICO_NAME = { x: 'Quitar', trash: 'Eliminar', edit: 'Editar', plus: 'Añadir', camera: 'Cámara', download: 'Descargar', upload: 'Subir', search: 'Buscar', star: 'Watchlist', back: 'Volver', arrow: 'Enviar', alert: 'Aviso', cog: 'Configuración', shield: 'Permisos', coins: 'Economía', card: 'Finanzas' };
+  var ICO_NAME = { x: 'Quitar', trash: 'Eliminar', edit: 'Editar', plus: 'Añadir', camera: 'Cámara', download: 'Descargar', upload: 'Subir', search: 'Buscar', star: 'Watchlist', back: 'Volver', arrow: 'Enviar', alert: 'Aviso', cog: 'Configuración', shield: 'Permisos', coins: 'Economía', card: 'Finanzas', check: 'Correcto' };
   function ico(name, cls) { var t = ICO_NAME[name]; return '<svg class="ic ' + (cls || '') + '">' + (t ? '<title>' + esc(t) + '</title>' : '') + '<use href="#i-' + name + '"/></svg>'; }
   function initials(name) { return (name || '?').split(' ').filter(Boolean).slice(0, 2).map(function (w) { return w[0]; }).join('').toUpperCase(); }
 
@@ -1501,6 +1560,7 @@ SF.SPRITE = '<svg width="0" height="0" style="position:absolute" aria-hidden="tr
   '<symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></symbol>' +
   '<symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 17 17 7"/><path d="M8 7h9v9"/></symbol>' +
   '<symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4 2 20h20z"/><path d="M12 10v4"/><path d="M12 18h.01"/></symbol>' +
+  '<symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M8.5 12.3l2.4 2.4 4.6-4.9"/></symbol>' +
   '<symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></symbol>' +
   '<symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.2"/></symbol>' +
   '<symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></symbol>' +
@@ -1821,58 +1881,160 @@ window.SF = window.SF || {};
       view.querySelector('#e2').onclick = function () { location.hash = '#/importar'; };
       return;
     }
-    var priority = 'Hoy: <b class="c-danger">' + m.overdue.length + ' pagos vencidos</b> · <b class="c-warn">' + m.incomplete.length + ' fichas incompletas</b> · ' + m.evaluating.length + ' en evaluación';
-    view.innerHTML = head('Buenos días, Jorge', '<span class="priority">' + ico('alert') + priority + '</span>', '');
+    var r = role(), u = SF.store.currentUser();
+    var mios = scopedPlayers();                 // solo los jugadores de su ámbito
+    var soloMios = mios.length !== ps.length;   // ¿ve una parte del club?
 
-    var kpis = [
-      { cls: 'danger', n: m.overdue.length, l: 'Pagos vencidos', f: function (p) { return SF.finHas(p, 'vencido'); } },
-      { cls: 'warn', n: m.incomplete.length, l: 'Datos incompletos', f: function (p) { return p.status === 'Datos incompletos'; } },
-      { cls: 'warn', n: m.noVideo.length, l: 'Pendiente de vídeo', f: function (p) { return p.documents.video_highlights === 'pendiente'; } },
-      { cls: 'purple', n: ps.filter(function (p) { return p.status === 'Entrevista'; }).length, l: 'Entrevistas', f: function (p) { return p.status === 'Entrevista'; } }
-    ];
+    /* --- Cabecera: saludo real, no uno fijo --- */
+    view.innerHTML = '<div class="dash-hero"><div class="dash-hi">' + saludo() + ', ' + esc(u.name.split(' ')[0]) + '</div>' +
+      '<p class="dash-date">' + fechaLarga() + ' · ' + esc(u.label) + (soloMios ? ' · ' + mios.length + ' jugadores a tu cargo' : '') + '</p></div>';
+
+    /* --- Recuento de lo pendiente, cada cosa filtrada por lo que este rol ve --- */
+    var enti = mios.filter(function (p) { return p.status === 'Entrevista'; });
+    var incom = mios.filter(function (p) { return p.status === 'Datos incompletos'; });
+    var sinVid = mios.filter(function (p) { return p.documents && p.documents.video_highlights === 'pendiente'; });
+    var venc = r.canSeeFinance ? mios.filter(function (p) { return SF.finHas(p, 'vencido'); }) : [];
+    var sinMed = mios.filter(function (p) { return !p.height_cm || !p.weight_kg; });
+    var sinEval = mios.filter(function (p) { return !(p.eval_log || []).length; });
+
+    /* --- FOCO: una sola cosa, la más urgente, con su botón.
+       Un panel de inicio tiene que responder "¿qué hago ahora?", no
+       "¿cuántas cosas hay?". Por eso hay una tarjeta y no cuatro. --- */
+    var foco = null;
+    if (venc.length) {
+      foco = { cls: 'is-danger', ic: 'card', t: venc.length + (venc.length === 1 ? ' cuota vencida' : ' cuotas vencidas'),
+        s: 'Lo más antiguo lleva tiempo esperando. Conviene reclamarlo hoy.', btn: 'Ver impagos',
+        go: function () { SF._jugQuery = '@Pagos vencidos'; location.hash = '#/jugadores'; } };
+    } else if (incom.length) {
+      foco = { cls: 'is-warn', ic: 'alert', t: incom.length + (incom.length === 1 ? ' ficha incompleta' : ' fichas incompletas'),
+        s: 'Sin datos clave no se puede inscribir ni federar.', btn: 'Completar',
+        go: function () { SF._jugQuery = '@Datos incompletos'; location.hash = '#/jugadores'; } };
+    } else if (enti.length) {
+      foco = { cls: '', ic: 'users', t: enti.length + (enti.length === 1 ? ' entrevista pendiente' : ' entrevistas pendientes'),
+        s: 'Están esperando respuesta del club.', btn: 'Ver quiénes',
+        go: function () { SF._jugQuery = '@Entrevistas'; location.hash = '#/jugadores'; } };
+    } else if (r.canEditPhysical && sinMed.length) {
+      foco = { cls: 'is-warn', ic: 'users', t: sinMed.length + ' sin medidas',
+        s: 'Les falta altura o peso para poder seguir su crecimiento.', btn: 'Ver jugadores',
+        go: function () { location.hash = '#/jugadores'; } };
+    } else {
+      foco = { cls: 'is-ok', ic: 'check', t: 'Todo al día',
+        s: 'No hay nada urgente' + (soloMios ? ' en tus jugadores' : ' en el club') + ' ahora mismo.', btn: null };
+    }
+    var fc = el('<div class="foco ' + foco.cls + '"><div class="foco-ic">' + ico(foco.ic) + '</div>' +
+      '<div class="foco-body"><p class="foco-t">' + esc(foco.t) + '</p><p class="foco-s">' + esc(foco.s) + '</p></div></div>');
+    if (foco.btn) {
+      var fb = el('<button class="btn btn-primary btn-sm">' + esc(foco.btn) + '</button>');
+      fb.onclick = foco.go; fc.appendChild(fb);
+    }
+    view.appendChild(fc);
+
+    /* --- Indicadores: solo los que este rol puede ver Y hacer algo con ellos.
+       Un preparador físico no tiene por qué ver el dinero de las familias. --- */
+    var kpis = [];
+    if (r.canSeeFinance) kpis.push({ cls: 'danger', n: venc.length, l: 'Pagos vencidos', q: '@Pagos vencidos', foot: venc.length ? 'requiere gestión' : 'todo cobrado' });
+    kpis.push({ cls: 'warn', n: incom.length, l: 'Datos incompletos', q: '@Datos incompletos', foot: 'faltan datos clave' });
+    if (r.canEvaluate) kpis.push({ cls: '', n: sinEval.length, l: 'Sin evaluar', q: '', foot: 'ninguna evaluación aún' });
+    if (r.canEditPhysical) kpis.push({ cls: 'warn', n: sinMed.length, l: 'Sin medidas', q: '', foot: 'sin altura o peso' });
+    kpis.push({ cls: 'warn', n: sinVid.length, l: 'Pendiente de vídeo', q: '@Pendiente de vídeo', foot: 'sin highlights' });
+    kpis.push({ cls: 'purple', n: enti.length, l: 'Entrevistas', q: '@Entrevistas', foot: 'por hacer' });
+
     var kwrap = el('<div class="kpis"></div>');
-    kpis.forEach(function (k) {
-      var b = el('<button class="kpi ' + k.cls + '"><div class="kpi-top"><span>' + k.l + '</span>' + ico('arrow') + '</div><div class="kpi-num">' + k.n + '</div></button>');
-      b.onclick = function () { SF._jugQuery = '@' + k.l; location.hash = '#/jugadores'; };
+    kpis.slice(0, 4).forEach(function (k) {
+      var cero = k.n === 0;
+      var b = el('<button class="kpi is-btn ' + (cero ? 'ok' : k.cls) + '">' +
+        '<div class="kpi-top"><span>' + esc(k.l) + '</span>' + ico('arrow') + '</div>' +
+        '<div class="kpi-num">' + k.n + '</div>' +
+        '<div class="kpi-foot">' + esc(cero ? 'al día' : k.foot) + '</div></button>');
+      b.onclick = function () { if (k.q) SF._jugQuery = k.q; location.hash = '#/jugadores'; };
       kwrap.appendChild(b);
     });
     view.appendChild(kwrap);
-    view.appendChild(el('<p class="stat-line">' + m.total + ' jugadores · ' + m.evaluating.length + ' en evaluación · ' + m.family.length + ' familias con Family activo</p>'));
 
-    view.appendChild(el('<p class="sec-label">Captación · de prospecto a jugador</p>'));
-    var funnel = el('<div class="funnel"></div>');
-    var fc = { 'Nuevo': 'gray', 'Datos incompletos': 'warn', 'En evaluación': 'info', 'Entrevista': 'purple', 'Oferta enviada': 'teal', 'Inscrito': 'green' };
-    SF.PIPELINE.forEach(function (s) {
-      var b = el('<button class="stage st-' + fc[s] + '"><div class="n">' + m.byStatus[s] + '</div><div class="l">' + esc(s.replace('Datos incompletos', 'Incompleto').replace('Oferta enviada', 'Oferta')) + '</div></button>');
-      b.onclick = function () { location.hash = '#/captacion'; };
-      funnel.appendChild(b);
-    });
-    view.appendChild(funnel);
+    /* --- Captación: solo para quien capta. Un fisio no mira el embudo. --- */
+    if (r.nav.indexOf('captacion') >= 0) {
+      view.appendChild(el('<p class="sec-label">Captación · de prospecto a jugador</p>'));
+      var funnel = el('<div class="funnel"></div>');
+      var fcol = { 'Nuevo': 'gray', 'Datos incompletos': 'warn', 'En evaluación': 'info', 'Entrevista': 'purple', 'Oferta enviada': 'teal', 'Inscrito': 'green' };
+      SF.PIPELINE.forEach(function (s) {
+        var n = mios.filter(function (p) { return p.status === s; }).length;
+        var b = el('<button class="stage st-' + fcol[s] + '"><div class="n">' + n + '</div><div class="l">' +
+          esc(s.replace('Datos incompletos', 'Incompleto').replace('Oferta enviada', 'Oferta')) + '</div></button>');
+        b.onclick = function () { location.hash = '#/captacion'; };
+        funnel.appendChild(b);
+      });
+      view.appendChild(funnel);
+    }
 
+    /* --- Dos columnas: lo que hay que resolver, y lo que viene --- */
     var cols = el('<div class="cols"></div>');
-    var att = el('<div class="card"><h3>Necesita tu atención</h3><p class="hint">Lo parado o que vence. Toca para abrir la ficha.</p><div class="att-list"></div></div>');
-    var list = att.querySelector('.att-list');
-    var attItems = [];
-    m.overdue.forEach(function (p) { attItems.push({ p: p, d: 'Cuota vencida', t: 'danger', tt: 'Pago' }); });
-    m.incomplete.forEach(function (p) { attItems.push({ p: p, d: 'Faltan datos clave', t: 'warn', tt: 'Incompleto' }); });
-    ps.filter(function (p) { return p.status === 'Entrevista'; }).forEach(function (p) { attItems.push({ p: p, d: 'Entrevista pendiente', t: 'purple', tt: 'Hoy' }); });
-    attItems.slice(0, 6).forEach(function (it) {
-      var r = el('<div class="att"><div class="av av-purple">' + U.initials(it.p.full_name) + '</div><div class="att-body"><p class="att-name">' + esc(it.p.full_name) + '</p><p class="att-desc">' + it.d + '</p></div><span class="tag tag-' + it.t + '">' + it.tt + '</span></div>');
-      r.onclick = function () { location.hash = '#/jugador/' + it.p.id; };
-      list.appendChild(r);
+
+    var att = el('<div class="card"><h3>Necesita tu atención</h3><p class="hint">Lo parado o lo que vence. Toca para abrir la ficha.</p><div class="at-list"></div></div>');
+    var list = att.querySelector('.at-list');
+    var items = [];
+    venc.forEach(function (p) { items.push({ p: p, d: 'Cuota vencida', t: 'danger', tt: 'Pago', tab: 'finanzas' }); });
+    incom.forEach(function (p) { items.push({ p: p, d: 'Faltan datos clave', t: 'warn', tt: 'Incompleto' }); });
+    enti.forEach(function (p) { items.push({ p: p, d: 'Entrevista pendiente', t: 'purple', tt: 'Agenda' }); });
+    if (r.canEditPhysical) sinMed.forEach(function (p) { items.push({ p: p, d: 'Sin altura o peso', t: 'gray', tt: 'Medidas' }); });
+    items.slice(0, 7).forEach(function (it) {
+      var b = el('<button class="at-item"><div class="av av-purple">' + U.initials(it.p.full_name) + '</div>' +
+        '<div class="at-body"><p class="at-name">' + esc(it.p.full_name) + '</p><p class="at-desc">' + esc(it.d) + '</p></div>' +
+        '<span class="tag tag-' + it.t + '">' + it.tt + '</span></button>');
+      b.onclick = function () { if (it.tab) SF._openTab = it.tab; location.hash = '#/jugador/' + it.p.id; };
+      list.appendChild(b);
     });
-    if (!attItems.length) list.appendChild(el('<p class="hint">Nada urgente ahora mismo. </p>'));
+    if (!items.length) list.appendChild(el('<div class="at-empty">' + ico('check') + '<span>Nada pendiente. Buen momento para adelantar trabajo.</span></div>'));
     cols.appendChild(att);
 
-    var rec = el('<div class="card"><h3>Últimos jugadores</h3><p class="hint">Recién añadidos.</p><div class="rec-list"></div></div>');
-    ps.slice(0, 4).forEach(function (p) {
-      var r = el('<div class="recent"><div class="rec-photo">' + U.initials(p.full_name) + '</div><div><p class="rec-name">' + esc(p.full_name) + '</p><p class="rec-meta">' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + '</p></div></div>');
-      r.onclick = function () { location.hash = '#/jugador/' + p.id; };
-      rec.querySelector('.rec-list').appendChild(r);
+    var lado = el('<div></div>');
+
+    /* Agenda: lo que viene es más útil que lo que pasó. */
+    var citas = [];
+    SF.store.teams().forEach(function (t) {
+      if (r.segments !== 'all' && r.segments && r.segments.indexOf(t.segment) < 0) return;
+      (teamUpcoming(t, 'partido') || []).slice(0, 2).forEach(function (e) { citas.push({ t: t, e: e, k: 'Partido' }); });
+      (teamUpcoming(t, 'entrenamiento') || []).slice(0, 1).forEach(function (e) { citas.push({ t: t, e: e, k: 'Entreno' }); });
     });
-    cols.appendChild(rec);
+    citas.sort(function (a, b) { return (a.e.date || '') < (b.e.date || '') ? -1 : 1; });
+    var ag = el('<div class="card"><h3>Lo que viene</h3><p class="hint">Próximos partidos y entrenamientos.</p></div>');
+    if (!citas.length) ag.appendChild(el('<p class="hint">Sin citas programadas.</p>'));
+    citas.slice(0, 4).forEach(function (c) {
+      var d = new Date(c.e.date + 'T00:00:00');
+      var row = el('<div class="ag-item"><div class="ag-day"><div class="d">' + (isNaN(d) ? '—' : d.getDate()) + '</div>' +
+        '<div class="m">' + (isNaN(d) ? '' : SF_MON[d.getMonth()]) + '</div></div>' +
+        '<div><p class="ag-t">' + esc(c.k === 'Partido' ? 'vs ' + (c.e.opponent || '—') : 'Entrenamiento') + '</p>' +
+        '<p class="ag-s">' + esc(c.t.name) + (c.e.time ? ' · ' + esc(c.e.time) : '') + '</p></div></div>');
+      row.onclick = function () { location.hash = '#/equipo/' + c.t.id; };
+      ag.appendChild(row);
+    });
+    lado.appendChild(ag);
+
+    var rec = el('<div class="card"><h3>Últimos jugadores</h3><p class="hint">Recién añadidos.</p><div class="rec-list"></div></div>');
+    mios.slice(0, 4).forEach(function (p) {
+      var row = el('<div class="recent"><div class="rec-photo">' + U.initials(p.full_name) + '</div><div>' +
+        '<p class="rec-name">' + esc(p.full_name) + '</p><p class="rec-meta">' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + '</p></div></div>');
+      row.onclick = function () { location.hash = '#/jugador/' + p.id; };
+      rec.querySelector('.rec-list').appendChild(row);
+    });
+    if (!mios.length) rec.querySelector('.rec-list').appendChild(el('<p class="hint">Aún no tienes jugadores asignados.</p>'));
+    lado.appendChild(rec);
+
+    cols.appendChild(lado);
     view.appendChild(cols);
   };
+
+  /* Saludo según la hora real, no uno fijo: a las nueve de la noche
+     "buenos días" hace que la app parezca una maqueta. */
+  function saludo() {
+    var h = new Date().getHours();
+    return h < 6 ? 'Buenas noches' : h < 13 ? 'Buenos días' : h < 21 ? 'Buenas tardes' : 'Buenas noches';
+  }
+  var SF_MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+  var SF_DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+  function fechaLarga() {
+    var d = new Date();
+    return SF_DIAS[d.getDay()] + ', ' + d.getDate() + ' de ' + SF_MESES[d.getMonth()];
+  }
 
   /* ===================== JUGADORES ===================== */
   function openCreate() {
@@ -4835,7 +4997,7 @@ SF.router = (function () {
       '<div class="search"><button class="search-go" id="gsearch-go" aria-label="Buscar" title="Buscar"><svg class="ic"><use href="#i-search"/></svg></button><input id="gsearch" placeholder="Buscar: nombre, J-0007, 2009, pívot…"></div>' +
       '<div class="top-right">' +
       '<label class="role-switch">Rol <select id="role"></select></label>' +
-      (SF.store.role() === 'padre' ? '' : '<button class="btn btn-primary" id="tnew">' + ico('plus') + 'Nuevo jugador</button>') +
+      (r.canCreatePlayers ? '<button class="btn btn-primary" id="tnew">' + ico('plus') + 'Nuevo jugador</button>' : '') +
       '</div></header>' +
       '<div id="view" class="view"></div>' +
       '</main></div>' +
