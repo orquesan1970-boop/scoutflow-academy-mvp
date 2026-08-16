@@ -713,6 +713,57 @@ SF.staffStatus = function (s) {
   return { level: 'ok', label: 'Al día', why: '' };
 };
 
+/* ===================== CATÁLOGO DE DOCUMENTOS =====================
+   La documentación NO es la misma para todos. Un mini del club necesita
+   cuatro papeles; un jugador internacional en seguimiento necesita visado,
+   tutela legal, matrícula y homologación, y cada uno con su fecha límite.
+   Por eso la lista se compone por jugador a partir de este catálogo. */
+SF.DOC_CATALOG = [
+  { key: 'ficha_inscripcion', label: 'Ficha de inscripción firmada', group: 'Básicos', owner: 'Familia' },
+  { key: 'dni', label: 'DNI o pasaporte', group: 'Básicos', owner: 'Familia' },
+  { key: 'seguro_medico', label: 'Seguro médico', group: 'Básicos', owner: 'Familia' },
+  { key: 'expediente', label: 'Expediente académico', group: 'Básicos', owner: 'Familia' },
+  { key: 'autorizacion_imagen', label: 'Autorización de imagen', group: 'Básicos', owner: 'Familia' },
+
+  { key: 'reconocimiento_medico', label: 'Reconocimiento médico', group: 'Federativos', owner: 'Familia' },
+  { key: 'licencia_federativa', label: 'Licencia federativa', group: 'Federativos', owner: 'Club' },
+  { key: 'transfer', label: 'Carta de baja / transfer', group: 'Federativos', owner: 'Club' },
+
+  { key: 'pasaporte_vigente', label: 'Pasaporte en vigor', group: 'Internacional', owner: 'Familia' },
+  { key: 'visado', label: 'Visado de estudiante', group: 'Internacional', owner: 'Club' },
+  { key: 'tutela_legal', label: 'Tutela legal firmada por los padres', group: 'Internacional', owner: 'Familia' },
+  { key: 'autorizacion_viaje', label: 'Autorización de viaje de menor', group: 'Internacional', owner: 'Familia' },
+  { key: 'matricula_escolar', label: 'Matrícula escolar', group: 'Internacional', owner: 'Club' },
+  { key: 'homologacion', label: 'Homologación de estudios', group: 'Internacional', owner: 'Club' },
+  { key: 'seguro_internacional', label: 'Seguro médico internacional', group: 'Internacional', owner: 'Club' },
+  { key: 'empadronamiento', label: 'Empadronamiento', group: 'Internacional', owner: 'Club' },
+  { key: 'alojamiento', label: 'Justificante de alojamiento', group: 'Internacional', owner: 'Club' },
+
+  { key: 'video_highlights', label: 'Vídeo highlights', group: 'Scouting', owner: 'Jugador' },
+  { key: 'informe_club_origen', label: 'Informe del club de origen', group: 'Scouting', owner: 'Club' }
+];
+
+SF.docCat = function (key) {
+  return SF.DOC_CATALOG.filter(function (d) { return d.key === key; })[0] || { key: key, label: key, group: 'Otros', owner: 'Familia' };
+};
+
+/* Lista efectiva de documentos de un jugador. Si tiene expediente propio
+   (docs_req) manda ese; si no, se deriva del formato antiguo para no perder
+   nada de lo que ya estaba cargado. */
+SF.docsOf = function (p) {
+  if (p.docs_req && p.docs_req.length) return p.docs_req;
+  var legacy = { pasaporte: 'dni', expediente: 'expediente', seguro_medico: 'seguro_medico', video_highlights: 'video_highlights' };
+  return Object.keys(legacy).map(function (old) {
+    var st = (p.documents || {})[old];
+    var c = SF.docCat(legacy[old]);
+    return { key: c.key, label: c.label, group: c.group, owner: c.owner, due: '',
+             delivered: (st === 'validado' || st === 'recibido'), delivered_at: '' };
+  });
+};
+
+SF.docsPend = function (p) { return SF.docsOf(p).filter(function (d) { return !d.delivered; }); };
+SF.docVencido = function (d) { return !!(d.due && !d.delivered && d.due < new Date().toISOString().slice(0, 10)); };
+
 SF.EXPENSE_CATEGORIES =['Material deportivo', 'Viajes / desplazamientos', 'Arbitrajes', 'Instalaciones / pabellón', 'Equipación', 'Supermercado', 'Comidas / catering', 'Administración', 'Otros'];
 SF.EXPENSES = [
   { id: 'g1', date: '2026-06-10', concept: 'Balones de entrenamiento', category: 'Material deportivo', amount: 240, by: 'Carlos Gorosito', role: 'Entrenador', status: 'aprobado', note: '', ticket: 'ticket-balones.jpg' },
@@ -1115,6 +1166,13 @@ SF.store = (function () {
         .sort(function (x, y) { return (y.created_at || '').localeCompare(x.created_at || ''); });
     },
     annGet: function (id) { return (db().announcements || []).filter(function (a) { return a.id === id; })[0] || null; },
+    /* Avisos de UN jugador, tenga equipo o no. Un jugador en seguimiento
+       todavía no pertenece a ningún equipo y también hay que poder avisarle. */
+    annForPlayer: function (pid) {
+      return (db().announcements || [])
+        .filter(function (a) { return !a.retracted_at && (a.targets || []).some(function (t) { return t.player_id === pid; }); })
+        .sort(function (x, y) { return (y.created_at || '').localeCompare(x.created_at || ''); });
+    },
     annCreate: function (teamId, data, playerIds) {
       var d = db(); d.announcements = d.announcements || [];
       var u = (SF.USERS || {})[d.role] || d.role;
@@ -2065,17 +2123,91 @@ window.SF = window.SF || {};
         var fam = p.family || {};
         body.appendChild(el('<div class="field-grid">' + fld('Contacto', fam.contact) + fld('Relación', fam.relation) + fld('Teléfono', fam.phone) + fld('Email', fam.email) + fld('Family activo', p.family_active ? 'Sí' : 'No') + '</div>'));
       } else if (cur === 'documentos') {
-        var labels = { pasaporte: 'Pasaporte', expediente: 'Expediente académico', video_highlights: 'Vídeo highlights', seguro_medico: 'Seguro médico' };
-        var next = { pendiente: 'recibido', recibido: 'validado', validado: 'pendiente' };
-        var dl = el('<div class="doc-list"></div>');
-        Object.keys(labels).forEach(function (k) {
-          var st = p.documents[k];
-          var row = el('<div class="doc-row"><span>' + labels[k] + '</span><button class="doc-st st-' + st + '">' + st + '</button></div>');
-          row.querySelector('button').onclick = function () { var np = {}; np.documents = Object.assign({}, p.documents); np.documents[k] = next[st]; SF.store.update(p.id, np); p = SF.store.get(p.id); paint(); };
-          dl.appendChild(row);
+        /* Expediente de documentación, compuesto por jugador.
+           Cada línea lleva quién la aporta y para cuándo: un visado sin fecha
+           no es un pendiente, es un problema que se descubre tarde. */
+        var docs = SF.docsOf(p).slice();
+        var puedeGestionar = ['director', 'administrativo'].indexOf(SF.store.role()) >= 0;
+
+        function guardar(lista, accion) {
+          SF.store.update(p.id, { docs_req: lista });
+          p = SF.store.get(p.id); paint();
+          if (accion) U.toast(accion);
+        }
+
+        var grupos = {};
+        docs.forEach(function (d) { (grupos[d.group || 'Otros'] = grupos[d.group || 'Otros'] || []).push(d); });
+
+        var pend = docs.filter(function (d) { return !d.delivered; });
+        var venc = docs.filter(SF.docVencido);
+        var resumen = el('<div class="empty-panel" style="text-align:left"></div>');
+        resumen.appendChild(el('<p><b>' + (docs.length - pend.length) + ' de ' + docs.length + '</b> entregados' +
+          (venc.length ? ' · <span class="tag tag-danger">' + venc.length + ' fuera de plazo</span>' : '') + '</p>'));
+        body.appendChild(resumen);
+
+        Object.keys(grupos).forEach(function (g) {
+          body.appendChild(el('<p class="sec-label">' + esc(g) + '</p>'));
+          var dl = el('<div class="mini-list"></div>');
+          grupos[g].forEach(function (d) {
+            var i = docs.indexOf(d);
+            var estado = d.delivered
+              ? '<span class="tag tag-green">entregado' + (d.delivered_at ? ' ' + fmtDate(d.delivered_at) : '') + '</span>'
+              : (SF.docVencido(d) ? '<span class="tag tag-danger">fuera de plazo</span>' : '<span class="tag tag-warn">pendiente</span>');
+            var plazo = d.due ? '<span class="hint">límite ' + fmtDate(d.due) + '</span>' : '';
+            var row = el('<div class="mini-row"><span><b>' + esc(d.label) + '</b> <span class="hint">· lo aporta ' + esc(d.owner || 'Familia') + '</span><br>' +
+              estado + ' ' + plazo + (d.note ? ' <span class="hint">' + esc(d.note) + '</span>' : '') + '</span><span class="row-actions"></span></div>');
+            var acts = row.querySelector('.row-actions');
+            if (puedeGestionar) {
+              var bt = el('<button class="lnk">' + (d.delivered ? 'Marcar pendiente' : 'Marcar entregado') + '</button>');
+              bt.onclick = function () {
+                var l = docs.slice();
+                l[i] = Object.assign({}, d, { delivered: !d.delivered, delivered_at: d.delivered ? '' : new Date().toISOString().slice(0, 10) });
+                guardar(l, 'Actualizado');
+              };
+              var be2 = el('<button class="lnk">Plazo</button>');
+              be2.onclick = function () {
+                U.modal('Plazo y responsable — ' + d.label, smallForm([
+                  { name: 'due', label: 'Fecha límite', type: 'date' },
+                  { name: 'owner', label: 'Quién lo aporta', type: 'select', options: ['Familia', 'Club', 'Jugador'] },
+                  { name: 'note', label: 'Nota', }
+                ], d, function (v) {
+                  var l = docs.slice(); l[i] = Object.assign({}, d, v); guardar(l, 'Guardado');
+                }));
+              };
+              var bx = el('<button class="lnk-del">' + ico('x') + '</button>');
+              bx.onclick = function () { var l = docs.slice(); l.splice(i, 1); guardar(l, 'Quitado del expediente'); };
+              acts.appendChild(bt); acts.appendChild(be2); acts.appendChild(bx);
+            }
+            dl.appendChild(row);
+          });
+          body.appendChild(dl);
         });
-        body.appendChild(dl);
-        body.appendChild(el('<p class="hint">Toca un estado para cambiarlo: pendiente → recibido → validado.</p>'));
+
+        if (puedeGestionar) {
+          var bAdd = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir documento</button>');
+          bAdd.onclick = function () {
+            var yaKeys = docs.map(function (d) { return d.key; });
+            var libres = SF.DOC_CATALOG.filter(function (c) { return yaKeys.indexOf(c.key) < 0; });
+            var box = el('<div class="mini-list"></div>');
+            if (!libres.length) box.appendChild(el('<p class="hint">Ya están todos los del catálogo.</p>'));
+            var porGrupo = {};
+            libres.forEach(function (c) { (porGrupo[c.group] = porGrupo[c.group] || []).push(c); });
+            Object.keys(porGrupo).forEach(function (g) {
+              box.appendChild(el('<p class="sec-label">' + esc(g) + '</p>'));
+              porGrupo[g].forEach(function (c) {
+                var r = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span>' + esc(c.label) + ' <span class="hint">· ' + esc(c.owner) + '</span></span></button>');
+                r.onclick = function () {
+                  guardar(docs.concat([{ key: c.key, label: c.label, group: c.group, owner: c.owner, due: '', delivered: false }]), c.label + ' añadido');
+                  U.closeModal();
+                };
+                box.appendChild(r);
+              });
+            });
+            U.modal('Añadir al expediente de ' + p.full_name, box);
+          };
+          body.appendChild(bAdd);
+          body.appendChild(el('<p class="hint">El expediente se compone por jugador: un jugador internacional en seguimiento necesita papeles que un jugador local no.</p>'));
+        }
 
         if (SF.store.role() !== 'padre') {
           body.appendChild(el('<p class="sec-label">Antecedentes médicos</p>'));
@@ -2306,15 +2438,6 @@ window.SF = window.SF || {};
      LO QUE FALTA, en jugadores y en staff, y sirve para pedirlo.
      El recordatorio se manda uno a uno: cada familia recibe solo lo suyo,
      nunca una lista con los nombres de los demás. */
-  var DOC_LABELS = { pasaporte: 'Pasaporte o DNI', expediente: 'Expediente académico', seguro_medico: 'Seguro médico', video_highlights: 'Vídeo' };
-
-  function docsPendientes(p) {
-    return Object.keys(DOC_LABELS).filter(function (k) {
-      var st = (p.documents || {})[k];
-      return st !== 'validado' && st !== 'recibido';
-    });
-  }
-
   pages.documentos = function (view) {
     view.innerHTML = head('Documentos', 'Solo lo que falta. Desde aquí se pide.');
     var puedeAvisar = ['director', 'administrativo'].indexOf(SF.store.role()) >= 0;
@@ -2335,8 +2458,12 @@ window.SF = window.SF || {};
         if (ft === '__sin') return !p.team_id;
         return !ft || p.team_id === ft;
       });
-      var faltan = ps.map(function (p) { return { p: p, pend: docsPendientes(p) }; })
+      var faltan = ps.map(function (p) { return { p: p, pend: SF.docsPend(p) }; })
         .filter(function (x) { return x.pend.length; });
+      // Lo que está fuera de plazo va primero: es lo que urge.
+      faltan.sort(function (a, b) {
+        return b.pend.filter(SF.docVencido).length - a.pend.filter(SF.docVencido).length;
+      });
 
       /* ---------- resumen y envío masivo ---------- */
       var top = el('<div class="empty-panel" style="text-align:left"></div>');
@@ -2366,10 +2493,13 @@ window.SF = window.SF || {};
         out.appendChild(el('<p class="sec-label">Jugadores</p>'));
         var l = el('<div class="mini-list"></div>');
         faltan.forEach(function (x) {
-          var tName = x.p.team_id ? (SF.store.teamGet(x.p.team_id) || {}).name : 'Sin equipo';
+          var tName = x.p.team_id ? (SF.store.teamGet(x.p.team_id) || {}).name : 'En seguimiento · sin equipo';
           var av = x.p.doc_reminder_at ? '<span class="hint">avisado ' + fmtDate(x.p.doc_reminder_at) + '</span>' : '';
           var row = el('<div class="mini-row"><span><b>' + esc(x.p.full_name) + '</b> <span class="hint">' + SF.fichaCode(x.p.ficha) + ' · ' + esc(tName || '') + '</span><br>' +
-            x.pend.map(function (k) { return '<span class="tag tag-warn">' + DOC_LABELS[k] + '</span>'; }).join(' ') + '</span>' +
+            x.pend.map(function (d) {
+              return '<span class="tag ' + (SF.docVencido(d) ? 'tag-danger' : 'tag-warn') + '">' + esc(d.label) +
+                (d.due ? ' · ' + fmtDate(d.due) : '') + '</span>';
+            }).join(' ') + '</span>' +
             '<span class="row-actions">' + av + '<button class="lnk" data-f>Ficha</button></span></div>');
           row.querySelector('[data-f]').onclick = function () { location.hash = '#/jugador/' + x.p.id; };
           if (puedeAvisar) {
@@ -2404,9 +2534,14 @@ window.SF = window.SF || {};
 
     /* Envía un aviso individual a la familia con SU documentación pendiente */
     function enviarRecordatorio(p, pend) {
-      if (!p.team_id) { U.toast(p.full_name + ' no tiene equipo: no se le puede avisar todavía'); return false; }
-      var lista = pend.map(function (k) { return '· ' + DOC_LABELS[k]; }).join('\n');
-      SF.store.annCreate(p.team_id, {
+      /* Funciona con o sin equipo: un jugador en seguimiento todavía no
+         pertenece a ninguno y es justo al que más papeles le faltan. */
+      var soloFamilia = pend.filter(function (d) { return (d.owner || 'Familia') !== 'Club'; });
+      if (!soloFamilia.length) return false;   // si todo lo tramita el club, no se molesta a la familia
+      var lista = soloFamilia.map(function (d) {
+        return '· ' + d.label + (d.due ? '  (antes del ' + fmtDate(d.due) + ')' : '');
+      }).join('\n');
+      SF.store.annCreate(p.team_id || null, {
         kind: 'documentacion',
         title: 'Documentación pendiente',
         body: 'Todavía falta por entregar:\n' + lista + '\n\nPuedes entregarlo por correo a secretaría o en el pabellón. El club lo marca al recibirlo.'
@@ -2893,9 +3028,7 @@ window.SF = window.SF || {};
     /* Avisos del club dirigidos a este jugador. Va en un solo sentido: la
        familia lee y, si el aviso lo pide, confirma asistencia. No escribe. */
     b.appendChild(el('<p class="ph-sec">Avisos del club</p>'));
-    var famAnns = (p.team_id ? SF.store.announcements(p.team_id) : []).filter(function (a) {
-      return !a.retracted_at && (a.targets || []).some(function (t) { return t.player_id === p.id; });
-    });
+    var famAnns = SF.store.annForPlayer(p.id);
     if (!famAnns.length) b.appendChild(el('<p class="hint">No tienes avisos.</p>'));
     famAnns.slice(0, 6).forEach(function (a) {
       SF.store.annMarkRead(a.id, p.id, 'family');       // al abrirlo, queda visto
@@ -3386,9 +3519,7 @@ window.SF = window.SF || {};
     /* Avisos del club: en un solo sentido. No es un chat y no ve a nadie más.
        Salen del tablón real, no del muro del equipo. */
     b.appendChild(el('<p class="ph-sec">Avisos del club</p>'));
-    var jAnns = (p.team_id ? SF.store.announcements(p.team_id) : []).filter(function (a) {
-      return !a.retracted_at && (a.targets || []).some(function (x) { return x.player_id === p.id; });
-    });
+    var jAnns = SF.store.annForPlayer(p.id);
     if (!jAnns.length) b.appendChild(el('<p class="hint">No tienes avisos.</p>'));
     jAnns.slice(0, 6).forEach(function (a) {
       SF.store.annMarkRead(a.id, p.id, 'player');
