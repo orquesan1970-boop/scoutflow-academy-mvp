@@ -5026,7 +5026,9 @@ window.SF = window.SF || {};
         : '<p class="wel-lead">Esto es lo que te espera hoy</p><div class="wel-chips">' +
           chips.map(function (c) { return '<span class="wel-chip ' + c.c + '"><span class="dot"></span><b>' + esc(c.t) + '</b></span>'; }).join('') +
           '</div>') +
-      '<button class="wel-go">Entrar' + ico('arrow') + '</button>' +
+      /* La flecha es decoración: sin <title>, o un lector de pantalla
+         anunciaría "Entrar Enviar". */
+      '<button class="wel-go">Entrar<svg class="ic" aria-hidden="true"><use href="#i-arrow"/></svg></button>' +
       '<p class="wel-foot">FROM PROSPECT TO PLAYER</p>' +
       '</div></div>');
 
