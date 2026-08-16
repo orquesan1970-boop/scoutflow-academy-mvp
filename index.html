@@ -2890,6 +2890,36 @@ window.SF = window.SF || {};
       }
     }
 
+    /* Avisos del club dirigidos a este jugador. Va en un solo sentido: la
+       familia lee y, si el aviso lo pide, confirma asistencia. No escribe. */
+    b.appendChild(el('<p class="ph-sec">Avisos del club</p>'));
+    var famAnns = (p.team_id ? SF.store.announcements(p.team_id) : []).filter(function (a) {
+      return !a.retracted_at && (a.targets || []).some(function (t) { return t.player_id === p.id; });
+    });
+    if (!famAnns.length) b.appendChild(el('<p class="hint">No tienes avisos.</p>'));
+    famAnns.slice(0, 6).forEach(function (a) {
+      SF.store.annMarkRead(a.id, p.id, 'family');       // al abrirlo, queda visto
+      var tg = (a.targets || []).filter(function (t) { return t.player_id === p.id; })[0] || {};
+      var card = el('<div class="ph-report"><b>' + esc(a.title) + '</b>' +
+        '<span class="hint">' + fmtDate((a.created_at || '').slice(0, 10)) + ' · ' + esc(a.author || 'El club') + '</span>' +
+        '<p>' + esc(a.body || '').replace(/\n/g, '<br>') + '</p></div>');
+      if (a.needs_rsvp) {
+        var yn = el('<div class="ph-yn" style="margin-top:10px"></div>');
+        [['ire', 'Iré', true], ['no_puedo', 'No puedo', false]].forEach(function (o) {
+          var on = tg.rsvp === o[0];
+          var btn = el('<button class="ph-btn yn' + (on ? ' on' : '') + '">' + o[1] + '</button>');
+          btn.onclick = function () {
+            SF.store.annRsvp(a.id, p.id, o[0], (p.family || {}).contact || 'Familia');
+            U.toast('Respuesta enviada'); SF.router.render();
+          };
+          yn.appendChild(btn);
+        });
+        card.appendChild(yn);
+        if (tg.rsvp_by) card.appendChild(el('<p class="hint">Respondió ' + esc(tg.rsvp_by) + '</p>'));
+      }
+      b.appendChild(card);
+    });
+
     /* Documentación = CHECKLIST. La app no guarda documentos: solo lleva la
        cuenta de qué se ha entregado. Los papeles van por correo o en mano, y
        solo el club marca la recepción. (Decisión 2026-08-02) */
@@ -3353,12 +3383,29 @@ window.SF = window.SF || {};
       if (nm) b.appendChild(el('<div class="ph-pay"><b>Partido · ' + esc(nm.opponent || 'rival') + '</b><span>' + fmtDate(nm.date) + (nm.time ? ' · ' + nm.time : '') + (nm.place ? ' · ' + esc(nm.place) : '') + '</span></div>'));
     } else b.appendChild(el('<p class="hint">Sin equipo asignado.</p>'));
 
-    /* Avisos del club: en un solo sentido. No es un chat y no ve a nadie más. */
+    /* Avisos del club: en un solo sentido. No es un chat y no ve a nadie más.
+       Salen del tablón real, no del muro del equipo. */
     b.appendChild(el('<p class="ph-sec">Avisos del club</p>'));
-    var wall = (t && t.wall) ? t.wall.slice().reverse() : [];
-    if (!wall.length) b.appendChild(el('<p class="hint">No tienes avisos.</p>'));
-    wall.slice(0, 5).forEach(function (w) {
-      b.appendChild(el('<div class="ph-report"><b>Aviso del club</b><span>' + fmtDate(w.date) + ' · ' + esc(w.by || '') + '</span><p>' + esc(w.text) + '</p></div>'));
+    var jAnns = (p.team_id ? SF.store.announcements(p.team_id) : []).filter(function (a) {
+      return !a.retracted_at && (a.targets || []).some(function (x) { return x.player_id === p.id; });
+    });
+    if (!jAnns.length) b.appendChild(el('<p class="hint">No tienes avisos.</p>'));
+    jAnns.slice(0, 6).forEach(function (a) {
+      SF.store.annMarkRead(a.id, p.id, 'player');
+      var tg = (a.targets || []).filter(function (x) { return x.player_id === p.id; })[0] || {};
+      var card = el('<div class="ph-report"><b>' + esc(a.title) + '</b>' +
+        '<span class="hint">' + fmtDate((a.created_at || '').slice(0, 10)) + ' · ' + esc(a.author || 'El club') + '</span>' +
+        '<p>' + esc(a.body || '').replace(/\n/g, '<br>') + '</p></div>');
+      if (a.needs_rsvp) {
+        var yn = el('<div class="ph-yn" style="margin-top:10px"></div>');
+        [['ire', 'Iré'], ['no_puedo', 'No puedo']].forEach(function (o) {
+          var btn = el('<button class="ph-btn yn' + (tg.rsvp === o[0] ? ' on' : '') + '">' + o[1] + '</button>');
+          btn.onclick = function () { SF.store.annRsvp(a.id, p.id, o[0], p.full_name); U.toast('Respuesta enviada'); SF.router.render(); };
+          yn.appendChild(btn);
+        });
+        card.appendChild(yn);
+      }
+      b.appendChild(card);
     });
     b.appendChild(el('<p class="hint">Los avisos que te llegan los reciben también tus padres o tutores.</p>'));
 
