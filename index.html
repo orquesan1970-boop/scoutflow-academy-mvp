@@ -718,6 +718,11 @@ SF.staffStatus = function (s) {
    cuatro papeles; un jugador internacional en seguimiento necesita visado,
    tutela legal, matrícula y homologación, y cada uno con su fecha límite.
    Por eso la lista se compone por jugador a partir de este catálogo. */
+/* Tres cosas que aprendimos del expediente real de un menor internacional y
+   que hacen que el trámite se caiga si no se controlan:
+     apostilla  -> sin la Apostilla de La Haya, España no acepta el documento
+     requisito  -> el consulado exige un texto o formato literal
+     vigencia   -> el pasaporte debe cubrir TODO el curso, no basta con existir */
 SF.DOC_CATALOG = [
   { key: 'ficha_inscripcion', label: 'Ficha de inscripción firmada', group: 'Básicos', owner: 'Familia' },
   { key: 'dni', label: 'DNI o pasaporte', group: 'Básicos', owner: 'Familia' },
@@ -729,19 +734,79 @@ SF.DOC_CATALOG = [
   { key: 'licencia_federativa', label: 'Licencia federativa', group: 'Federativos', owner: 'Club' },
   { key: 'transfer', label: 'Carta de baja / transfer', group: 'Federativos', owner: 'Club' },
 
-  { key: 'pasaporte_vigente', label: 'Pasaporte en vigor', group: 'Internacional', owner: 'Familia' },
-  { key: 'visado', label: 'Visado de estudiante', group: 'Internacional', owner: 'Club' },
-  { key: 'tutela_legal', label: 'Tutela legal firmada por los padres', group: 'Internacional', owner: 'Familia' },
-  { key: 'autorizacion_viaje', label: 'Autorización de viaje de menor', group: 'Internacional', owner: 'Familia' },
-  { key: 'matricula_escolar', label: 'Matrícula escolar', group: 'Internacional', owner: 'Club' },
-  { key: 'homologacion', label: 'Homologación de estudios', group: 'Internacional', owner: 'Club' },
-  { key: 'seguro_internacional', label: 'Seguro médico internacional', group: 'Internacional', owner: 'Club' },
-  { key: 'empadronamiento', label: 'Empadronamiento', group: 'Internacional', owner: 'Club' },
-  { key: 'alojamiento', label: 'Justificante de alojamiento', group: 'Internacional', owner: 'Club' },
+  /* --- Identidad (expediente internacional) --- */
+  { key: 'pasaporte_menor', label: 'Pasaporte del menor', group: 'Identidad', owner: 'Familia', vigencia: true,
+    requisito: 'Copia en color de TODAS las páginas. Debe estar vigente durante todo el periodo del curso en España.' },
+  { key: 'dni_padres', label: 'DNI o pasaporte de ambos padres o tutores', group: 'Identidad', owner: 'Familia',
+    requisito: 'De los dos progenitores o tutores legales en su país.' },
+  { key: 'partida_nacimiento', label: 'Partida de nacimiento del menor', group: 'Identidad', owner: 'Familia', apostilla: true,
+    requisito: 'Copia certificada que demuestre la filiación de los padres.' },
+  { key: 'tutela_legal', label: 'Tutela legal firmada por los padres', group: 'Identidad', owner: 'Familia', apostilla: true },
+  { key: 'autorizacion_viaje', label: 'Autorización de viaje de menor', group: 'Identidad', owner: 'Familia', apostilla: true },
+
+  /* --- Académica --- */
+  { key: 'notas_dos_cursos', label: 'Certificados de notas de los dos últimos cursos', group: 'Académica', owner: 'Familia', apostilla: true,
+    requisito: 'Calificaciones oficiales de los dos últimos cursos superados en el país de origen.' },
+  { key: 'certificado_matricula_origen', label: 'Certificado de matriculación actual', group: 'Académica', owner: 'Familia',
+    requisito: 'Documento del colegio actual que certifique el curso que está realizando ahora.' },
+  { key: 'homologacion', label: 'Homologación de estudios', group: 'Académica', owner: 'Club' },
+  { key: 'plaza_escolar', label: 'Plaza escolar en España', group: 'Académica', owner: 'Club',
+    requisito: 'Obligatoria antes de poder solicitar el visado.' },
+
+  /* --- Sanitaria --- */
+  { key: 'certificado_medico_oficial', label: 'Certificado médico oficial', group: 'Sanitaria', owner: 'Familia',
+    requisito: 'Expedido por un médico colegiado, con este texto literal: «El alumno no padece ninguna de las enfermedades que puedan tener repercusiones de salud pública graves de conformidad con el Reglamento Sanitario Internacional de 2005».' },
+  { key: 'seguro_internacional', label: 'Seguro médico internacional', group: 'Sanitaria', owner: 'Club' },
+
+  /* --- Solicitud del visado --- */
+  { key: 'formulario_visado', label: 'Formulario oficial de solicitud de visado', group: 'Solicitud del visado', owner: 'Familia',
+    requisito: 'Impreso del Consulado, cumplimentado y firmado. Original y una fotocopia.' },
+  { key: 'fotos_carnet', label: 'Dos fotografías tamaño carnet', group: 'Solicitud del visado', owner: 'Familia',
+    requisito: 'Recientes, en color, fondo blanco, tamaño 3x4.' },
+  { key: 'autorizacion_notarial_padres', label: 'Autorización notarial de los padres para viajar', group: 'Solicitud del visado', owner: 'Familia', apostilla: true,
+    requisito: 'Ante notario. Debe indicar la conformidad con el viaje a España Y los datos de la persona responsable del menor durante su estancia. Apostillada y con copia notarial.' },
+  { key: 'medios_economicos', label: 'Acreditación de medios económicos', group: 'Solicitud del visado', owner: 'Familia',
+    requisito: 'Justificante de que se dispone de medios para la estancia del menor.' },
+
+  /* --- Persona que acoge al menor en España ---
+     Este bloque suele olvidarse y es el que más retrasa el trámite: no son
+     papeles de la familia, son de quien recibe al menor aquí. */
+  { key: 'acta_notarial_acogida', label: 'Acta notarial de la persona que acoge', group: 'Persona de acogida', owner: 'Club',
+    requisito: 'Acta de manifestación ante notario ESPAÑOL de quien acogerá al menor durante su estancia.' },
+  { key: 'dni_acogida', label: 'DNI de la persona que acoge', group: 'Persona de acogida', owner: 'Club' },
+  { key: 'antecedentes_acogida', label: 'Consulta de antecedentes de la persona que acoge', group: 'Persona de acogida', owner: 'Club',
+    requisito: 'Autorización para consultar sus datos en el Registro Central de Delincuentes Sexuales. Obligatorio por tratarse de un menor.' },
+
+  /* --- Trámite en España --- */
+  { key: 'visado_estudios', label: 'Visado de estudios de menor', group: 'Trámite en España', owner: 'Club',
+    requisito: 'Se solicita en el Consulado de España del país de origen, DESPUÉS de tener la plaza escolar. Puede haber entrevista consular del menor y de los padres.' },
+  { key: 'empadronamiento', label: 'Empadronamiento', group: 'Trámite en España', owner: 'Club' },
+  { key: 'alojamiento', label: 'Justificante de alojamiento', group: 'Trámite en España', owner: 'Club' },
 
   { key: 'video_highlights', label: 'Vídeo highlights', group: 'Scouting', owner: 'Jugador' },
   { key: 'informe_club_origen', label: 'Informe del club de origen', group: 'Scouting', owner: 'Club' }
 ];
+
+/* Plantillas: cargan un expediente entero de una vez, en vez de ir
+   añadiendo documento a documento. */
+SF.DOC_PRESETS = {
+  'Incorporación internacional (visado de estudios)': [
+    'pasaporte_menor', 'dni_padres', 'partida_nacimiento', 'autorizacion_notarial_padres',
+    'notas_dos_cursos', 'certificado_matricula_origen', 'plaza_escolar', 'homologacion',
+    'certificado_medico_oficial', 'seguro_internacional', 'medios_economicos',
+    'formulario_visado', 'fotos_carnet',
+    'acta_notarial_acogida', 'dni_acogida', 'antecedentes_acogida',
+    'visado_estudios', 'empadronamiento', 'alojamiento'
+  ],
+  'Jugador del club (temporada)': [
+    'ficha_inscripcion', 'dni', 'seguro_medico', 'autorizacion_imagen', 'reconocimiento_medico'
+  ],
+  'Seguimiento de scouting': ['video_highlights', 'informe_club_origen']
+};
+
+/* Formato exigido por el consulado. Se repite en cada aviso porque es el
+   motivo más habitual de que devuelvan un expediente. */
+SF.DOC_FORMATO = 'Escanea en alta calidad y en PDF (no valen fotos hechas con el móvil).';
 
 SF.docCat = function (key) {
   return SF.DOC_CATALOG.filter(function (d) { return d.key === key; })[0] || { key: key, label: key, group: 'Otros', owner: 'Familia' };
@@ -757,12 +822,16 @@ SF.docsOf = function (p) {
     var st = (p.documents || {})[old];
     var c = SF.docCat(legacy[old]);
     return { key: c.key, label: c.label, group: c.group, owner: c.owner, due: '',
+             apostilla: !!c.apostilla, apostillado: false, requisito: c.requisito || '',
              delivered: (st === 'validado' || st === 'recibido'), delivered_at: '' };
   });
 };
 
-SF.docsPend = function (p) { return SF.docsOf(p).filter(function (d) { return !d.delivered; }); };
-SF.docVencido = function (d) { return !!(d.due && !d.delivered && d.due < new Date().toISOString().slice(0, 10)); };
+/* Un documento entregado pero SIN apostillar no sirve: España lo rechaza.
+   Por eso cuenta como pendiente aunque el papel ya esté en el club. */
+SF.docListo = function (d) { return !!d.delivered && !(d.apostilla && !d.apostillado); };
+SF.docsPend = function (p) { return SF.docsOf(p).filter(function (d) { return !SF.docListo(d); }); };
+SF.docVencido = function (d) { return !!(d.due && !SF.docListo(d) && d.due < new Date().toISOString().slice(0, 10)); };
 
 SF.EXPENSE_CATEGORIES =['Material deportivo', 'Viajes / desplazamientos', 'Arbitrajes', 'Instalaciones / pabellón', 'Equipación', 'Supermercado', 'Comidas / catering', 'Administración', 'Otros'];
 SF.EXPENSES = [
@@ -2153,9 +2222,17 @@ window.SF = window.SF || {};
             var estado = d.delivered
               ? '<span class="tag tag-green">entregado' + (d.delivered_at ? ' ' + fmtDate(d.delivered_at) : '') + '</span>'
               : (SF.docVencido(d) ? '<span class="tag tag-danger">fuera de plazo</span>' : '<span class="tag tag-warn">pendiente</span>');
+            /* La apostilla se controla aparte: un documento puede estar
+               entregado y aun así no valer porque le falta el sello. */
+            var apo = d.apostilla
+              ? (d.apostillado ? ' <span class="tag tag-green">apostillado</span>'
+                               : ' <span class="tag tag-danger">falta apostilla</span>')
+              : '';
             var plazo = d.due ? '<span class="hint">límite ' + fmtDate(d.due) + '</span>' : '';
             var row = el('<div class="mini-row"><span><b>' + esc(d.label) + '</b> <span class="hint">· lo aporta ' + esc(d.owner || 'Familia') + '</span><br>' +
-              estado + ' ' + plazo + (d.note ? ' <span class="hint">' + esc(d.note) + '</span>' : '') + '</span><span class="row-actions"></span></div>');
+              estado + apo + ' ' + plazo +
+              (d.requisito ? '<br><span class="hint">' + esc(d.requisito) + '</span>' : '') +
+              (d.note ? ' <span class="hint">' + esc(d.note) + '</span>' : '') + '</span><span class="row-actions"></span></div>');
             var acts = row.querySelector('.row-actions');
             if (puedeGestionar) {
               var bt = el('<button class="lnk">' + (d.delivered ? 'Marcar pendiente' : 'Marcar entregado') + '</button>');
@@ -2164,6 +2241,11 @@ window.SF = window.SF || {};
                 l[i] = Object.assign({}, d, { delivered: !d.delivered, delivered_at: d.delivered ? '' : new Date().toISOString().slice(0, 10) });
                 guardar(l, 'Actualizado');
               };
+              if (d.apostilla) {
+                var bap = el('<button class="lnk">' + (d.apostillado ? 'Quitar apostilla' : 'Apostillado') + '</button>');
+                bap.onclick = function () { var l = docs.slice(); l[i] = Object.assign({}, d, { apostillado: !d.apostillado }); guardar(l, 'Actualizado'); };
+                acts.appendChild(bap);
+              }
               var be2 = el('<button class="lnk">Plazo</button>');
               be2.onclick = function () {
                 U.modal('Plazo y responsable — ' + d.label, smallForm([
@@ -2206,7 +2288,32 @@ window.SF = window.SF || {};
             U.modal('Añadir al expediente de ' + p.full_name, box);
           };
           body.appendChild(bAdd);
-          body.appendChild(el('<p class="hint">El expediente se compone por jugador: un jugador internacional en seguimiento necesita papeles que un jugador local no.</p>'));
+
+          /* Plantillas: cargar el expediente entero de golpe. Componerlo a
+             mano documento a documento es lento y se olvida alguno. */
+          var bPre = el('<button class="btn btn-light btn-sm">' + ico('file') + 'Cargar plantilla</button>');
+          bPre.onclick = function () {
+            var box = el('<div class="mini-list"></div>');
+            Object.keys(SF.DOC_PRESETS).forEach(function (nombre) {
+              var keys = SF.DOC_PRESETS[nombre];
+              var r = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span><b>' + esc(nombre) + '</b><br><span class="hint">' + keys.length + ' documentos</span></span></button>');
+              r.onclick = function () {
+                var ya = docs.map(function (d) { return d.key; });
+                var nuevos = keys.filter(function (k) { return ya.indexOf(k) < 0; }).map(function (k) {
+                  var c = SF.docCat(k);
+                  return { key: c.key, label: c.label, group: c.group, owner: c.owner, due: '',
+                           apostilla: !!c.apostilla, apostillado: false, requisito: c.requisito || '', delivered: false };
+                });
+                U.closeModal();
+                guardar(docs.concat(nuevos), nuevos.length + ' documentos añadidos');
+              };
+              box.appendChild(r);
+            });
+            U.modal('Plantillas de expediente', box);
+          };
+          body.appendChild(bPre);
+
+          body.appendChild(el('<p class="hint">El expediente se compone por jugador: un jugador internacional en seguimiento necesita papeles que un jugador local no. <b>' + SF.DOC_FORMATO + '</b></p>'));
         }
 
         if (SF.store.role() !== 'padre') {
@@ -2538,13 +2645,24 @@ window.SF = window.SF || {};
          pertenece a ninguno y es justo al que más papeles le faltan. */
       var soloFamilia = pend.filter(function (d) { return (d.owner || 'Familia') !== 'Club'; });
       if (!soloFamilia.length) return false;   // si todo lo tramita el club, no se molesta a la familia
+
+      /* El aviso arrastra el requisito y la apostilla de cada documento.
+         Es justo lo que hoy se escribe a mano en un WhatsApp larguísimo, y
+         donde se cuela el error que hace que el consulado lo devuelva. */
       var lista = soloFamilia.map(function (d) {
-        return '· ' + d.label + (d.due ? '  (antes del ' + fmtDate(d.due) + ')' : '');
-      }).join('\n');
+        var t = '· ' + d.label + (d.due ? '  — antes del ' + fmtDate(d.due) : '');
+        if (d.apostilla) t += '\n    ⚠ Debe llevar la Apostilla de La Haya. Sin ese sello no se acepta en España.';
+        if (d.requisito) t += '\n    ' + d.requisito;
+        if (d.delivered && d.apostilla && !d.apostillado) t += '\n    (Ya lo tenemos, pero falta apostillarlo.)';
+        return t;
+      }).join('\n\n');
+
       SF.store.annCreate(p.team_id || null, {
         kind: 'documentacion',
         title: 'Documentación pendiente',
-        body: 'Todavía falta por entregar:\n' + lista + '\n\nPuedes entregarlo por correo a secretaría o en el pabellón. El club lo marca al recibirlo.'
+        body: 'Todavía falta por reunir:\n\n' + lista +
+              '\n\n' + SF.DOC_FORMATO +
+              '\n\nPuedes enviarlo por correo a secretaría o entregarlo en el club. Lo marcamos al recibirlo.'
       }, [p.id]);
       SF.store.update(p.id, { doc_reminder_at: new Date().toISOString().slice(0, 10) });
       return true;
