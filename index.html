@@ -5034,14 +5034,18 @@ window.SF = window.SF || {};
       w.classList.add('out');
       setTimeout(function () { if (w.parentNode) w.parentNode.removeChild(w); }, 450);
       document.removeEventListener('keydown', tecla);
+      document.body.style.overflow = prevOverflow;   // devolvemos el scroll
       if (onEnter) onEnter();
     }
+    /* Enter, Escape o espacio entran igual: nadie debería quedarse atrapado
+       aquí buscando dónde hacer clic. */
     function tecla(e) { if (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ') { e.preventDefault(); entrar(); } }
 
     w.querySelector('.wel-go').onclick = entrar;
     document.addEventListener('keydown', tecla);
+    var prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';   // sin barra de scroll de fondo
     document.body.appendChild(w);
-    setTimeout(function () { var b = w.querySelector('.wel-go'); if (b) b.focus(); }, 60);
   };
 
   SF.pages = pages;
