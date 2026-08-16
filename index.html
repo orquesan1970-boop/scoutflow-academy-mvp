@@ -185,6 +185,49 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
   .dash-hi{font-size:20px}
 }
 
+/* ===== Recepción =====
+   La entrada a la plataforma. No es una pantalla de carga (eso sería un peaje
+   diario): se ve UNA vez por sesión y por rol, y se sale con un clic o Enter. */
+.wel{position:fixed;inset:0;z-index:60;display:flex;align-items:center;justify-content:center;
+  background:var(--sidebar);color:#fff;padding:28px;
+  animation:wel-in .5s ease both}
+.wel.out{animation:wel-out .45s ease both;pointer-events:none}
+@keyframes wel-in{from{opacity:0}to{opacity:1}}
+@keyframes wel-out{from{opacity:1}to{opacity:0;visibility:hidden}}
+/* Ambiente: dos focos de luz, nada figurativo — el logo no va ligado a un deporte */
+.wel::before{content:'';position:absolute;inset:0;
+  background:radial-gradient(760px 420px at 22% 18%,rgba(111,90,239,.42),transparent 62%),
+             radial-gradient(620px 520px at 82% 88%,rgba(141,124,255,.24),transparent 60%)}
+.wel-lines{position:absolute;inset:0;opacity:.10;pointer-events:none}
+.wel-in{position:relative;width:100%;max-width:660px;text-align:center;
+  animation:wel-rise .7s cubic-bezier(.2,.8,.25,1) both .06s}
+@keyframes wel-rise{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+.wel-logo{width:76px;height:76px;object-fit:contain;margin:0 auto 22px;display:block;
+  filter:drop-shadow(0 12px 34px rgba(111,90,239,.6))}
+.wel-eyebrow{font-size:11.5px;letter-spacing:2.4px;text-transform:uppercase;color:#A79FD8;margin:0 0 12px}
+.wel-h{font-size:37px;font-weight:600;letter-spacing:-.6px;margin:0;line-height:1.12}
+.wel-role{font-size:14.5px;color:#BFB8E6;margin:11px 0 0}
+.wel-rule{width:52px;height:2px;background:linear-gradient(90deg,var(--purple),transparent);margin:26px auto;border-radius:2px}
+.wel-lead{font-size:13px;color:#A79FD8;margin:0 0 13px}
+.wel-chips{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:32px}
+.wel-chip{border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.06);
+  border-radius:999px;padding:8px 15px;font-size:13px;display:inline-flex;align-items:center;gap:8px}
+.wel-chip b{font-weight:600}
+.wel-chip .dot{width:7px;height:7px;border-radius:50%;background:var(--purple-2);flex:none}
+.wel-chip.is-danger .dot{background:#FF7A70} .wel-chip.is-warn .dot{background:#F0B45A}
+.wel-chip.is-ok .dot{background:#4FD3A5}
+.wel-go{background:#fff;color:#241C44;border:0;border-radius:12px;padding:14px 34px;
+  font-family:inherit;font-size:15px;font-weight:600;cursor:pointer;
+  display:inline-flex;align-items:center;gap:10px;transition:transform .15s,box-shadow .15s}
+.wel-go:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(0,0,0,.34)}
+.wel-go:focus-visible{outline:3px solid var(--purple-2);outline-offset:3px}
+.wel-go .ic{width:17px;height:17px}
+.wel-foot{margin:26px 0 0;font-size:11.5px;color:#7D77A6;letter-spacing:.4px}
+@media(max-width:600px){ .wel-h{font-size:27px} .wel-logo{width:60px;height:60px} }
+@media(prefers-reduced-motion:reduce){
+  .wel,.wel-in,.wel.out{animation:none}
+}
+
 /* Tags */
 .tag{font-size:11px;padding:3px 9px;border-radius:7px;white-space:nowrap;font-weight:500;display:inline-block}
 .tag-gray{background:#F0EFF4;color:var(--ink-2)}
@@ -4941,6 +4984,66 @@ window.SF = window.SF || {};
     };
   };
 
+  /* ===================== RECEPCIÓN =====================
+     La entrada a la plataforma. Se ve una vez por sesión y por rol: da
+     contexto (quién eres, qué club, qué temporada, qué te espera) y entrega
+     el mando. Repetirla en cada navegación la convertiría en un estorbo. */
+  SF.welcome = function (onEnter) {
+    var r = role(), u = SF.store.currentUser(), a = SF.store.academy();
+    var esFamilia = u.role === 'padre' || u.role === 'jugador';
+
+    /* Los avisos de la entrada salen de las mismas reglas que el Inicio:
+       una familia NO ve recuentos del club, y quien no tiene permiso de
+       finanzas no ve dinero tampoco aquí. */
+    var chips = [];
+    if (!esFamilia) {
+      var mios = scopedPlayers();
+      var venc = r.canSeeFinance ? mios.filter(function (p) { return SF.finHas(p, 'vencido'); }) : [];
+      var inc = mios.filter(function (p) { return p.status === 'Datos incompletos'; });
+      var ent = mios.filter(function (p) { return p.status === 'Entrevista'; });
+      var med = r.canEditPhysical ? mios.filter(function (p) { return !p.height_cm || !p.weight_kg; }) : [];
+      if (venc.length) chips.push({ c: 'is-danger', t: venc.length + (venc.length === 1 ? ' cuota vencida' : ' cuotas vencidas') });
+      if (inc.length) chips.push({ c: 'is-warn', t: inc.length + (inc.length === 1 ? ' ficha incompleta' : ' fichas incompletas') });
+      if (ent.length) chips.push({ c: '', t: ent.length + (ent.length === 1 ? ' entrevista' : ' entrevistas') });
+      if (med.length && chips.length < 3) chips.push({ c: 'is-warn', t: med.length + ' sin medidas' });
+      if (!chips.length) chips.push({ c: 'is-ok', t: 'Todo al día' });
+      chips = chips.slice(0, 3);
+    }
+
+    var w = el('<div class="wel" role="dialog" aria-label="Bienvenida a ScoutFlow Academy">' +
+      '<svg class="wel-lines" viewBox="0 0 1200 700" preserveAspectRatio="xMidYMid slice" aria-hidden="true">' +
+      '<circle cx="600" cy="350" r="250" fill="none" stroke="#fff" stroke-width="1"/>' +
+      '<circle cx="600" cy="350" r="410" fill="none" stroke="#fff" stroke-width="1"/>' +
+      '<path d="M0 350h1200M600 0v700" stroke="#fff" stroke-width="1"/></svg>' +
+      '<div class="wel-in">' +
+      '<img class="wel-logo" src="' + SF.LOGO + '" alt="">' +
+      '<p class="wel-eyebrow">' + esc(a.name) + ' · Temporada ' + esc(SF.SEASON) + '</p>' +
+      '<h1 class="wel-h">' + saludo() + ',<br>' + esc(u.name) + '</h1>' +
+      '<p class="wel-role">' + esc(u.label) + ' · ' + fechaLarga() + '</p>' +
+      '<div class="wel-rule"></div>' +
+      (esFamilia
+        ? '<p class="wel-lead">Aquí tienes al día los documentos, los informes y los pagos.</p>'
+        : '<p class="wel-lead">Esto es lo que te espera hoy</p><div class="wel-chips">' +
+          chips.map(function (c) { return '<span class="wel-chip ' + c.c + '"><span class="dot"></span><b>' + esc(c.t) + '</b></span>'; }).join('') +
+          '</div>') +
+      '<button class="wel-go">Entrar' + ico('arrow') + '</button>' +
+      '<p class="wel-foot">FROM PROSPECT TO PLAYER</p>' +
+      '</div></div>');
+
+    function entrar() {
+      w.classList.add('out');
+      setTimeout(function () { if (w.parentNode) w.parentNode.removeChild(w); }, 450);
+      document.removeEventListener('keydown', tecla);
+      if (onEnter) onEnter();
+    }
+    function tecla(e) { if (e.key === 'Enter' || e.key === 'Escape' || e.key === ' ') { e.preventDefault(); entrar(); } }
+
+    w.querySelector('.wel-go').onclick = entrar;
+    document.addEventListener('keydown', tecla);
+    document.body.appendChild(w);
+    setTimeout(function () { var b = w.querySelector('.wel-go'); if (b) b.focus(); }, 60);
+  };
+
   SF.pages = pages;
   /* Permisos efectivos (rol + excepciones vigentes). Se publica porque el
      router está en otro bloque y también los necesita: el menú y el control
@@ -5044,7 +5147,9 @@ SF.router = (function () {
     // selector de rol
     var sel = document.getElementById('role');
     Object.keys(SF.ROLES).forEach(function (k) { sel.appendChild(el('<option value="' + k + '"' + (k === SF.store.role() ? ' selected' : '') + '>' + SF.ROLES[k].label + '</option>')); });
-    sel.onchange = function () { SF.store.setRole(sel.value); renderShell(); location.hash = defaultRoute(); render(); };
+    /* Cambiar de rol es entrar como otra persona: pasa por recepción otra vez,
+       y así se ve la entrada de cada rol al enseñar la plataforma. */
+    sel.onchange = function () { SF.store.setRole(sel.value); renderShell(); location.hash = defaultRoute(); render(); recepcion(); };
 
     var gs = document.getElementById('gsearch');
     /* El buscador tiene que responder a las TRES formas de usarlo: pulsar
@@ -5082,7 +5187,7 @@ SF.router = (function () {
     if (!view) return;
     var p = parse();
     if (!p.route) { location.hash = defaultRoute(); return; }
-    var r = SF.ROLES[SF.store.role()];
+    var r = SF.perms();   // permisos efectivos, no solo los del rol
     var navKey = NAV_OF[p.route] || p.route;
     // control de acceso por rol
     if (!canAccess(p.route, r)) {
@@ -5104,11 +5209,30 @@ SF.router = (function () {
     view.scrollTop = 0;
   }
 
+  /* ¿Ya ha pasado por recepción en esta sesión con este rol?
+     sessionStorage, no localStorage: queremos "una vez cada vez que abre la
+     plataforma", no "una vez en la vida". Si el navegador lo bloquea,
+     tiramos de memoria y como mucho se ve una vez de más. */
+  var welMem = {};
+  function welVisto(k) {
+    try { return sessionStorage.getItem('sf_wel_' + k) === '1'; } catch (e) { return !!welMem[k]; }
+  }
+  function welMarcar(k) {
+    try { sessionStorage.setItem('sf_wel_' + k, '1'); } catch (e) { welMem[k] = true; }
+  }
+  function recepcion() {
+    var k = SF.store.role();
+    if (welVisto(k) || typeof SF.welcome !== 'function') return;
+    welMarcar(k);
+    SF.welcome(function () { render(); });   // repinta al entrar, con datos frescos
+  }
+
   function start(mount) {
     root = mount;
     window.addEventListener('hashchange', render);
     renderShell();
     if (!location.hash) location.hash = defaultRoute();
+    recepcion();
   }
 
   return { start: start, render: render, renderShell: renderShell };
