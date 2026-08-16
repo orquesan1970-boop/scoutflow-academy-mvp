@@ -4758,6 +4758,10 @@ window.SF = window.SF || {};
   };
 
   SF.pages = pages;
+  /* Permisos efectivos (rol + excepciones vigentes). Se publica porque el
+     router está en otro bloque y también los necesita: el menú y el control
+     de rutas tienen que ver exactamente lo mismo que las pantallas. */
+  SF.perms = role;
 })();
 
 </script>
@@ -4805,7 +4809,7 @@ SF.router = (function () {
 
   /* ¿El rol actual puede acceder a esta ruta? */
   function canAccess(route, r) {
-    r = r || role();   // y también puede entrar por la URL, no solo por el menú
+    r = r || SF.perms();   // y también puede entrar por la URL, no solo por el menú
     if (route === 'jugador') return r.nav.indexOf('jugadores') >= 0;        // solo roles con Jugadores
     if (route === 'equipo') return r.nav.indexOf('equipos') >= 0;            // detalle de equipo
     if (route === 'portal-family') {                                         // padre (su portal) o staff que lo previsualiza
@@ -4817,7 +4821,7 @@ SF.router = (function () {
   }
 
   function renderShell() {
-    var r = role();   // rol + permisos particulares: si le dan una sección, sale en el menú
+    var r = SF.perms();   // rol + permisos particulares: si le dan una sección, sale en el menú
     var a = SF.store.academy();
     root.innerHTML =
       '<div class="app">' +
