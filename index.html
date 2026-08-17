@@ -633,7 +633,7 @@ SF.ROLES = {
   dt_general: {
     label: 'Dirección Técnica General',
     nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, segments: 'all', staff: true, canCreatePlayers: true
   },
   preparador_fisico: {
@@ -647,31 +647,31 @@ SF.ROLES = {
   dt_femenino: {
     label: 'Dirección Técnica Femenino',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['femenino'], canCreatePlayers: true
   },
   dt_masculino: {
     label: 'Dirección Técnica Masculino',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['masculino'], canCreatePlayers: true
   },
   dt_escuelas: {
     label: 'Dirección Técnica Escuelas',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['escuelas'], canCreatePlayers: true
   },
   dt_minis: {
     label: 'Dirección Técnica Minis',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['minis'], canCreatePlayers: true
   },
   scout: {
     label: 'Scout',
     nav: ['inicio', 'jugadores', 'importar', 'captacion', 'documentos', 'economia', 'mis-avisos'],
-    tabs: ['perfil', 'deportivo', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, segments: 'all', canCreatePlayers: true
   },
   entrenador: {
@@ -2335,7 +2335,7 @@ window.SF = window.SF || {};
 
   /* ===================== FICHA MAESTRA ===================== */
   var TABS = [
-    ['perfil', 'Perfil'], ['deportivo', 'Deportivo'], ['academico', 'Académico'], ['familia', 'Familia'],
+    ['perfil', 'Perfil'], ['deportivo', 'Deportivo'], ['trayectoria', 'Trayectoria'], ['academico', 'Académico'], ['familia', 'Familia'],
     ['documentos', 'Documentos'], ['videos', 'Vídeos'], ['captacion', 'Captación'], ['seguimiento', 'Seguimiento'],
     ['informes', 'Informes'], ['finanzas', 'Finanzas'], ['portal', 'Portal Family'], ['notas', 'Notas internas']
   ];
@@ -2590,6 +2590,41 @@ window.SF = window.SF || {};
           body.appendChild(hl);
         }
 
+
+        // Selecciones
+        var sel = p.selections || {};
+        body.appendChild(el('<p class="sec-label">Selecciones</p>'));
+        body.appendChild(el('<div class="field-grid">' + fld('Local / colegio', sel.local) + fld('Provincial', sel.provincial) + fld('Regional', sel.regional) + fld('Nacional', sel.national) + '</div>'));
+        var edSel = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Editar selecciones</button>');
+        edSel.onclick = function () {
+          U.modal('Selecciones', smallForm(
+            [{ name: 'local', label: 'Local / colegio' }, { name: 'provincial', label: 'Provincial' }, { name: 'regional', label: 'Regional' }, { name: 'national', label: 'Nacional' }],
+            sel, function (d) { SF.store.update(p.id, { selections: d }); p = SF.store.get(p.id); paint(); }));
+        };
+        body.appendChild(edSel);
+
+        // Competencias
+        body.appendChild(el('<p class="sec-label">Competencias</p>'));
+        var comps = p.competitions || [];
+        var cWrap = el('<div class="mini-list"></div>');
+        if (!comps.length) cWrap.appendChild(el('<p class="hint">Sin competencias registradas.</p>'));
+        comps.forEach(function (c, i) {
+          var meta = [c.place, c.ranking, c.result].filter(Boolean).join(' · ');
+          var row = el('<div class="mini-row"><div><b>' + esc(c.name || '—') + '</b> <span class="hint">' + esc(c.date || '') + '</span>' + (meta ? '<br><span class="hint">' + esc(meta) + '</span>' : '') + '</div><button class="lnk-del">' + ico('trash') + '</button></div>');
+          row.querySelector('.lnk-del').onclick = function () { var arr = comps.slice(); arr.splice(i, 1); SF.store.update(p.id, { competitions: arr }); p = SF.store.get(p.id); paint(); };
+          cWrap.appendChild(row);
+        });
+        body.appendChild(cWrap);
+        var addComp = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir competencia</button>');
+        addComp.onclick = function () {
+          U.modal('Añadir competencia', smallForm(
+            [{ name: 'name', label: 'Nombre' }, { name: 'date', label: 'Fecha' }, { name: 'place', label: 'Lugar' }, { name: 'ranking', label: 'Ranking / puesto' }, { name: 'result', label: 'Marcas / resultado' }], {},
+            function (d) { if (!d.name) return; var arr = (p.competitions || []).slice(); arr.push(d); SF.store.update(p.id, { competitions: arr }); p = SF.store.get(p.id); paint(); }));
+        };
+        body.appendChild(addComp);
+      } else if (cur === 'trayectoria') {
+        /* Pestaña propia: por dónde ha pasado. Estaba al final de
+           Deportivo, debajo de las evaluaciones, y no se veía. */
         // Trayectoria de clubes: cada club es una carpeta con sus temporadas
         body.appendChild(el('<p class="sec-label">Trayectoria deportiva</p>'));
         var ch = SF.careerNorm(p.career_history);
@@ -2669,38 +2704,6 @@ window.SF = window.SF || {};
             }));
         };
         body.appendChild(addClub);
-
-        // Selecciones
-        var sel = p.selections || {};
-        body.appendChild(el('<p class="sec-label">Selecciones</p>'));
-        body.appendChild(el('<div class="field-grid">' + fld('Local / colegio', sel.local) + fld('Provincial', sel.provincial) + fld('Regional', sel.regional) + fld('Nacional', sel.national) + '</div>'));
-        var edSel = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Editar selecciones</button>');
-        edSel.onclick = function () {
-          U.modal('Selecciones', smallForm(
-            [{ name: 'local', label: 'Local / colegio' }, { name: 'provincial', label: 'Provincial' }, { name: 'regional', label: 'Regional' }, { name: 'national', label: 'Nacional' }],
-            sel, function (d) { SF.store.update(p.id, { selections: d }); p = SF.store.get(p.id); paint(); }));
-        };
-        body.appendChild(edSel);
-
-        // Competencias
-        body.appendChild(el('<p class="sec-label">Competencias</p>'));
-        var comps = p.competitions || [];
-        var cWrap = el('<div class="mini-list"></div>');
-        if (!comps.length) cWrap.appendChild(el('<p class="hint">Sin competencias registradas.</p>'));
-        comps.forEach(function (c, i) {
-          var meta = [c.place, c.ranking, c.result].filter(Boolean).join(' · ');
-          var row = el('<div class="mini-row"><div><b>' + esc(c.name || '—') + '</b> <span class="hint">' + esc(c.date || '') + '</span>' + (meta ? '<br><span class="hint">' + esc(meta) + '</span>' : '') + '</div><button class="lnk-del">' + ico('trash') + '</button></div>');
-          row.querySelector('.lnk-del').onclick = function () { var arr = comps.slice(); arr.splice(i, 1); SF.store.update(p.id, { competitions: arr }); p = SF.store.get(p.id); paint(); };
-          cWrap.appendChild(row);
-        });
-        body.appendChild(cWrap);
-        var addComp = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir competencia</button>');
-        addComp.onclick = function () {
-          U.modal('Añadir competencia', smallForm(
-            [{ name: 'name', label: 'Nombre' }, { name: 'date', label: 'Fecha' }, { name: 'place', label: 'Lugar' }, { name: 'ranking', label: 'Ranking / puesto' }, { name: 'result', label: 'Marcas / resultado' }], {},
-            function (d) { if (!d.name) return; var arr = (p.competitions || []).slice(); arr.push(d); SF.store.update(p.id, { competitions: arr }); p = SF.store.get(p.id); paint(); }));
-        };
-        body.appendChild(addComp);
       } else if (cur === 'academico') {
         body.appendChild(el('<div class="field-grid">' + fld('Centro', p.school) + fld('Curso', p.course) +
           fld('Promedio de notas', p.gpa) + fld('Nivel de inglés', p.english) + fld('Otros idiomas', p.other_languages) +
