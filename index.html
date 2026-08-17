@@ -815,6 +815,46 @@ SF.staffStatus = function (s) {
   return { level: 'ok', label: 'Al día', why: '' };
 };
 
+/* Qué le falta a una persona del staff.
+   Ojo con el certificado de delitos sexuales: la app NO lo guarda ni lo
+   pide subido. Es un dato penal (RGPD art. 10). El club lo comprueba y
+   anota únicamente que se ha comprobado, cuándo y quién. Por eso el
+   recordatorio dice "preséntalo", nunca "súbelo". */
+SF.staffPend = function (s) {
+  var out = [], c = s.clearance || {}, l = s.licence || {}, lock = s.lock || {};
+
+  if (!(c.cleared && c.season === SF.SEASON)) out.push({
+    key: 'antecedentes', grave: true,
+    label: 'Certificado de delitos de naturaleza sexual',
+    nota: 'Obligatorio cada temporada para cualquier persona con contacto habitual con menores, también voluntarios (LOPIVI).',
+    como: 'NO lo subas a la app ni lo mandes por WhatsApp. Solicítalo en el Registro Central de Delincuentes Sexuales y preséntalo en administración: el club solo anota que se ha comprobado, no guarda el documento.'
+  });
+
+  var licAplica = l.status && l.status !== 'no_aplica';
+  if (licAplica && !(l.status === 'vigente' && l.season === SF.SEASON)) out.push({
+    key: 'licencia', grave: false,
+    label: 'Licencia federativa ' + SF.SEASON,
+    nota: l.season ? 'La que consta es de ' + l.season + '.' : 'No consta ninguna licencia.',
+    como: 'Tramítala con la federación y pásale el número a administración.'
+  });
+
+  if (!s.qualification) out.push({
+    key: 'titulacion', grave: false,
+    label: 'Titulación deportiva',
+    nota: 'No consta ninguna titulación en tu ficha.',
+    como: 'Añádela desde tu ficha, con la entidad, el año y el número de título.'
+  });
+
+  if (lock.state !== 'confirmada') out.push({
+    key: 'ficha', grave: false,
+    label: 'Ficha sin confirmar',
+    nota: 'Tu ficha sigue en borrador.',
+    como: 'Revísala y confírmala desde "Mi ficha".'
+  });
+
+  return out;
+};
+
 /* ===================== CATÁLOGO DE DOCUMENTOS =====================
    La documentación NO es la misma para todos. Un mini del club necesita
    cuatro papeles; un jugador internacional en seguimiento necesita visado,
@@ -2933,21 +2973,42 @@ window.SF = window.SF || {};
       }
 
       /* ---------- staff ---------- */
-      var staffMal = SF.store.staff().filter(function (s) { return SF.staffStatus(s).level !== 'ok'; });
+      var staffMal = SF.store.staff().map(function (s) { return { s: s, pend: SF.staffPend(s) }; })
+        .filter(function (x) { return x.pend.length; });
       out.appendChild(el('<p class="sec-label">Staff</p>'));
       if (!staffMal.length) out.appendChild(el('<p class="hint">Todo el staff está al día.</p>'));
       var sl = el('<div class="mini-list"></div>');
-      staffMal.forEach(function (s) {
-        var st = SF.staffStatus(s);
-        var cls = st.level === 'warn' ? 'tag-warn' : 'tag-danger';
+      staffMal.forEach(function (x) {
+        var s = x.s;
+        var av = s.doc_reminder_at ? '<span class="hint">avisado ' + fmtDate(s.doc_reminder_at) + '</span> ' : '';
         var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> <span class="hint">' + SF.staffCode(s.num) + ' · ' + esc(roleLabel(s.role)) + '</span><br>' +
-          '<span class="tag ' + cls + '">' + st.label + '</span> <span class="hint">' + esc(st.why) + '</span></span>' +
-          '<span class="row-actions"><button class="lnk" data-f>Ficha</button></span></div>');
+          x.pend.map(function (d) {
+            return '<span class="tag ' + (d.grave ? 'tag-danger' : 'tag-warn') + '">' + esc(d.label) + '</span>';
+          }).join(' ') + '</span>' +
+          '<span class="row-actions">' + av + '<button class="lnk" data-f>Ficha</button></span></div>');
         row.querySelector('[data-f]').onclick = function () { location.hash = '#/staff/' + s.id; };
+        if (puedeAvisar) {
+          var br = el('<button class="lnk" data-r>Recordar</button>');
+          br.onclick = function () {
+            enviarRecordatorioStaff(s, x.pend);
+            U.toast('Recordatorio enviado a ' + s.full_name); SF.router.render();
+          };
+          row.querySelector('.row-actions').insertBefore(br, row.querySelector('[data-f]'));
+        }
         sl.appendChild(row);
       });
       out.appendChild(sl);
-      if (staffMal.length) out.appendChild(el('<p class="hint">El staff todavía no recibe recordatorios por la app: la comunicación con el personal está sin construir. De momento se avisa por correo desde administración.</p>'));
+
+      if (staffMal.length && puedeAvisar) {
+        var bTodos = el('<button class="btn btn-light btn-sm">' + ico('arrow') + 'Avisar a los ' + staffMal.length + ' del staff</button>');
+        bTodos.onclick = function () {
+          if (!confirm('Se enviará a cada persona un aviso con lo suyo, solo lo suyo. ¿Seguimos?')) return;
+          staffMal.forEach(function (x) { enviarRecordatorioStaff(x.s, x.pend); });
+          U.toast(staffMal.length + ' recordatorios enviados'); SF.router.render();
+        };
+        out.appendChild(bTodos);
+        out.appendChild(el('<p class="hint">Cada persona recibe únicamente lo que le falta a ella. El certificado de delitos sexuales <b>no se sube a la app</b>: se presenta en administración y el club solo anota que se ha comprobado.</p>'));
+      }
     }
 
     /* Envía un aviso individual a la familia con SU documentación pendiente */
@@ -2976,6 +3037,26 @@ window.SF = window.SF || {};
               '\n\nPuedes enviarlo por correo a secretaría o entregarlo en el club. Lo marcamos al recibirlo.'
       }, [p.id]);
       SF.store.update(p.id, { doc_reminder_at: new Date().toISOString().slice(0, 10) });
+      return true;
+    }
+
+    /* El aviso al staff va por el canal de comunicaciones que ya existe, y
+       queda registrado en su historial de ficha: si mañana hay que demostrar
+       que se pidió el certificado, consta quién avisó y cuándo. */
+    function enviarRecordatorioStaff(s, pend) {
+      var lista = pend.map(function (d) {
+        return '· ' + d.label + '\n    ' + d.nota + '\n    ' + d.como;
+      }).join('\n\n');
+
+      SF.store.commCreate({
+        mode: 'directo',
+        title: 'Documentación pendiente',
+        body: 'Hola ' + s.full_name.split(' ')[0] + ':\n\nPara poder estar habilitado esta temporada (' + SF.SEASON + ') falta esto:\n\n' + lista +
+              '\n\nSi ya lo has entregado, avisa a administración y lo revisamos.'
+      }, [{ staff_id: s.id, team_id: null }]);
+
+      SF.store.staffUpdate(s.id, { doc_reminder_at: new Date().toISOString().slice(0, 10) },
+        'Recordatorio de documentación enviado: ' + pend.map(function (d) { return d.label; }).join(', '));
       return true;
     }
 
@@ -3832,6 +3913,66 @@ window.SF = window.SF || {};
 
     function sec(label) { view.appendChild(el('<p class="sec-label">' + label + '</p>')); }
     function fld(l, v) { return '<div class="field"><span class="f-lab">' + l + '</span><span class="f-val">' + (v ? esc(String(v)) : '—') + '</span></div>'; }
+
+    /* --- Lo que le falta. Va lo primero y no en un rincón: un entrenador no
+       tiene "Comunicados" en su menú, así que si el aviso no aparece aquí,
+       no lo ve nadie. Con lo que hay que hacer en cada caso. */
+    var pend = SF.staffPend(s);
+    if (pend.length) {
+      var box = el('<div class="foco is-warn" style="align-items:flex-start"><div class="foco-ic">' + ico('alert') + '</div>' +
+        '<div class="foco-body"><p class="foco-t">' + (isMine ? 'Te falta' : 'Le falta') + ' ' + pend.length +
+        (pend.length === 1 ? ' cosa para estar al día' : ' cosas para estar al día') + '</p>' +
+        '<p class="foco-s">Temporada ' + esc(SF.SEASON) + '.' +
+        (s.doc_reminder_at ? ' Último aviso del club: ' + fmtDate(s.doc_reminder_at) + '.' : '') + '</p></div></div>');
+      view.appendChild(box);
+
+      var pl = el('<div class="mini-list"></div>');
+      pend.forEach(function (d) {
+        pl.appendChild(el('<div class="mini-row"><span><span class="tag ' + (d.grave ? 'tag-danger' : 'tag-warn') + '">' +
+          esc(d.label) + '</span><br><span class="hint">' + esc(d.nota) + '<br><b>' + esc(d.como) + '</b></span></span></div>'));
+      });
+      view.appendChild(pl);
+
+      /* Quien gestiona documentación puede reclamárselo desde aquí mismo,
+         sin tener que ir a buscarlo a la pantalla de Documentos. */
+      if (!isMine && (role().canDocs || ['director', 'administrativo'].indexOf(SF.store.role()) >= 0)) {
+        var brem = el('<button class="btn btn-light btn-sm">' + ico('arrow') + 'Enviarle un recordatorio</button>');
+        brem.onclick = function () {
+          var lista = pend.map(function (d) { return '· ' + d.label + '\n    ' + d.nota + '\n    ' + d.como; }).join('\n\n');
+          SF.store.commCreate({
+            mode: 'directo', title: 'Documentación pendiente',
+            body: 'Hola ' + s.full_name.split(' ')[0] + ':\n\nPara poder estar habilitado esta temporada (' + SF.SEASON + ') falta esto:\n\n' + lista +
+                  '\n\nSi ya lo has entregado, avisa a administración y lo revisamos.'
+          }, [{ staff_id: s.id, team_id: null }]);
+          SF.store.staffUpdate(s.id, { doc_reminder_at: new Date().toISOString().slice(0, 10) },
+            'Recordatorio de documentación enviado: ' + pend.map(function (d) { return d.label; }).join(', '));
+          U.toast('Recordatorio enviado a ' + s.full_name); SF.router.render();
+        };
+        view.appendChild(brem);
+      }
+    }
+
+    /* --- Avisos que ha recibido esta persona --- */
+    var misAvisos = SF.store.comms().filter(function (c) {
+      return (c.staff_targets || []).some(function (t) { return t.staff_id === s.id; });
+    });
+    if (misAvisos.length && (isMine || role().canDocs || ['director', 'administrativo'].indexOf(SF.store.role()) >= 0)) {
+      sec('Avisos del club');
+      var al = el('<div class="mini-list"></div>');
+      misAvisos.slice(0, 5).forEach(function (c) {
+        var t = (c.staff_targets || []).filter(function (t) { return t.staff_id === s.id; })[0] || {};
+        var row = el('<div class="mini-row"><span><b>' + esc(c.title) + '</b> <span class="hint">' +
+          fmtDate((c.created_at || '').slice(0, 10)) + ' · ' + esc(c.author) + '</span>' +
+          (t.read_at ? ' <span class="tag tag-green">leído</span>' : ' <span class="tag tag-warn">sin leer</span>') +
+          '</span><span class="row-actions"><button class="lnk" data-v>ver</button></span></div>');
+        row.querySelector('[data-v]').onclick = function () {
+          if (isMine && !t.read_at) SF.store.commMarkRead(c.id, s.id);
+          U.modal(c.title, el('<div><p style="white-space:pre-wrap;font-size:13.5px;line-height:1.6">' + esc(c.body) + '</p></div>'));
+        };
+        al.appendChild(row);
+      });
+      view.appendChild(al);
+    }
 
     /* --- Permisos particulares de esta persona.
        Nadie debe tener un permiso extra sin saber que lo tiene, ni hasta cuándo. */
