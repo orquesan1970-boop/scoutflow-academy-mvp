@@ -5293,6 +5293,132 @@ window.SF = window.SF || {};
     };
   };
 
+  /* ===================== BUSCADOR UNIVERSAL =====================
+     Una sola caja para jugadores y para personal. Lo que se busca de cada
+     ficha está declarado aquí a propósito: NO entran las notas internas, ni
+     el presupuesto, ni el estado de pagos. Un buscador que encuentra por un
+     dato es un buscador que enseña ese dato. */
+
+  function textoJugador(p) {
+    var t = [p.full_name, SF.fichaCode(p.ficha), p.scoutflow_id, p.birth_year,
+      p.primary_position, p.secondary_position, (p.nationality || []).join(' '),
+      p.club, p.league, p.category, p.city, p.residence_country, p.status, p.school];
+    return t.filter(Boolean).join(' ').toLowerCase();
+  }
+  /* La trayectoria va aparte para poder decir POR QUÉ ha salido:
+     si buscas "EBA" quieres saber que ha coincidido ahí, no adivinarlo. */
+  function textoTrayectoria(p) {
+    var t = [];
+    SF.careerNorm(p.career_history).forEach(function (c) {
+      t.push(c.club);
+      c.seasons.forEach(function (s) { t.push(s.season, s.category, s.competition, s.finish); });
+    });
+    return t.filter(Boolean).join(' ').toLowerCase();
+  }
+  function trayectoriaResumen(p, terms) {
+    var out = [];
+    SF.careerNorm(p.career_history).forEach(function (c) {
+      c.seasons.forEach(function (s) {
+        var linea = [c.club, s.season, s.category, s.competition, s.finish].filter(Boolean).join(' · ');
+        if (terms.some(function (q) { return linea.toLowerCase().indexOf(q) >= 0; })) out.push(linea);
+      });
+    });
+    return out;
+  }
+  function textoStaff(s) {
+    var eq = (s.team_ids || []).map(function (id) { return (SF.store.teamGet(id) || {}).name; });
+    var l = s.licence || {};
+    return [s.full_name, SF.staffCode(s.num), roleLabel(s.role), s.qualification, s.qual_entity,
+      s.qual_number, l.category, l.number, s.languages, s.email, eq.join(' ')]
+      .filter(Boolean).join(' ').toLowerCase();
+  }
+  /* Todos los términos tienen que aparecer: "cadete 2009" busca las dos cosas,
+     no una o la otra. */
+  function casa(texto, terms) { return terms.every(function (q) { return texto.indexOf(q) >= 0; }); }
+
+  pages.buscar = function (view) {
+    var q = (SF._q || '').trim();
+    var terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+    var r = role();
+
+    view.innerHTML = head('Resultados', q ? 'Buscando «' + esc(q) + '»' : 'Escribe algo en la barra de búsqueda.');
+    if (!terms.length) return;
+
+    /* Jugadores: solo los de su ámbito. Un entrenador no busca en todo el club. */
+    var ps = scopedPlayers().map(function (p) {
+      var base = textoJugador(p), tray = textoTrayectoria(p);
+      if (!casa(base + ' ' + tray, terms)) return null;
+      return { p: p, porTray: !casa(base, terms), lineas: trayectoriaResumen(p, terms) };
+    }).filter(Boolean);
+
+    /* Personal: solo para quien tiene acceso al listado de staff. */
+    var verStaff = r.nav.indexOf('staff') >= 0;
+    var ss = verStaff ? SF.store.staff().filter(function (s) { return casa(textoStaff(s), terms); }) : [];
+
+    var eqs = r.nav.indexOf('equipos') >= 0
+      ? SF.store.teams().filter(function (t) { return casa((t.name + ' ' + t.category + ' ' + (t.coaches || []).join(' ')).toLowerCase(), terms); })
+      : [];
+
+    if (!ps.length && !ss.length && !eqs.length) {
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('search') + '</div>' +
+        '<h3>Nada con «' + esc(q) + '»</h3><p>Puedes buscar por nombre, número de ficha, año, posición, nacionalidad, ' +
+        'club de la trayectoria, categoría o competición. Y por personal: nombre, rol, titulación o equipo.</p></div>'));
+      return;
+    }
+
+    if (ps.length) {
+      view.appendChild(el('<p class="sec-label">Jugadores · ' + ps.length + '</p>'));
+      var lp = el('<div class="mini-list"></div>');
+      ps.slice(0, 25).forEach(function (x) {
+        var p = x.p;
+        var meta = [p.birth_year, p.primary_position, (p.nationality || [])[0]].filter(Boolean).join(' · ');
+        var row = el('<div class="mini-row"><span><b>' + esc(p.full_name) + '</b> <span class="hint">' +
+          SF.fichaCode(p.ficha) + (meta ? ' · ' + esc(meta) : '') + '</span>' +
+          (x.lineas.length ? '<br><span class="hint">' + ico('star') + ' En su trayectoria: ' +
+            esc(x.lineas.slice(0, 3).join('  |  ')) + '</span>' : '') +
+          '</span><span class="row-actions"><button class="lnk" data-v>abrir ficha</button></span></div>');
+        row.querySelector('[data-v]').onclick = function () { location.hash = '#/jugador/' + p.id; };
+        lp.appendChild(row);
+      });
+      view.appendChild(lp);
+      if (ps.length > 25) view.appendChild(el('<p class="hint">y ' + (ps.length - 25) + ' más.</p>'));
+    }
+
+    if (ss.length) {
+      view.appendChild(el('<p class="sec-label">Personal del club · ' + ss.length + '</p>'));
+      var ls = el('<div class="mini-list"></div>');
+      ss.forEach(function (s) {
+        var st = SF.staffStatus(s);
+        var eq = (s.team_ids || []).map(function (id) { return (SF.store.teamGet(id) || {}).name; }).filter(Boolean);
+        var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> <span class="hint">' +
+          SF.staffCode(s.num) + ' · ' + esc(roleLabel(s.role)) + (s.qualification ? ' · ' + esc(s.qualification) : '') + '</span><br>' +
+          '<span class="tag ' + (st.level === 'ok' ? 'tag-green' : st.level === 'warn' ? 'tag-warn' : 'tag-danger') + '">' + st.label + '</span> ' +
+          (eq.length ? '<span class="hint">' + esc(eq.join(', ')) + '</span>' : '<span class="hint">sin equipo asignado</span>') +
+          '</span><span class="row-actions"><button class="lnk" data-v>abrir ficha</button></span></div>');
+        row.querySelector('[data-v]').onclick = function () { location.hash = '#/staff/' + s.id; };
+        ls.appendChild(row);
+      });
+      view.appendChild(ls);
+    }
+
+    if (eqs.length) {
+      view.appendChild(el('<p class="sec-label">Equipos · ' + eqs.length + '</p>'));
+      var le = el('<div class="mini-list"></div>');
+      eqs.forEach(function (t) {
+        var row = el('<div class="mini-row"><span><b>' + esc(t.name) + '</b> <span class="hint">' +
+          esc(t.category || '') + (t.coaches && t.coaches.length ? ' · ' + esc(t.coaches.join(', ')) : '') + '</span></span>' +
+          '<span class="row-actions"><button class="lnk" data-v>abrir</button></span></div>');
+        row.querySelector('[data-v]').onclick = function () { location.hash = '#/equipo/' + t.id; };
+        le.appendChild(row);
+      });
+      view.appendChild(le);
+    }
+
+    if (!verStaff && SF.store.staff().some(function (s) { return casa(textoStaff(s), terms); })) {
+      view.appendChild(el('<p class="hint">Hay personal del club que coincide, pero tu rol no tiene acceso al listado de staff.</p>'));
+    }
+  };
+
   /* ===================== MIS AVISOS =====================
      El buzón de cada persona del staff. Existe porque un entrenador no tiene
      "Comunicados" (esa pantalla es la del que envía, no la del que recibe):
@@ -5442,7 +5568,8 @@ SF.router = (function () {
     family: 'family', finanzas: 'finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
     staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo',
-    comunicados: 'comunicados', 'importar-datos': 'importar-datos', 'mis-avisos': 'mis-avisos'
+    comunicados: 'comunicados', 'importar-datos': 'importar-datos', 'mis-avisos': 'mis-avisos',
+    buscar: 'buscar'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff' };
@@ -5464,6 +5591,8 @@ SF.router = (function () {
   /* ¿El rol actual puede acceder a esta ruta? */
   function canAccess(route, r) {
     r = r || SF.perms();   // y también puede entrar por la URL, no solo por el menú
+    // Los resultados de búsqueda: quien puede ver jugadores o personal
+    if (route === 'buscar') return r.nav.indexOf('jugadores') >= 0 || r.nav.indexOf('staff') >= 0;
     if (route === 'jugador') return r.nav.indexOf('jugadores') >= 0;        // solo roles con Jugadores
     if (route === 'equipo') return r.nav.indexOf('equipos') >= 0;            // detalle de equipo
     if (route === 'portal-family') {                                         // padre (su portal) o staff que lo previsualiza
@@ -5499,7 +5628,10 @@ SF.router = (function () {
       '</aside>' +
       '<main class="main">' +
       '<header class="topbar">' +
-      '<div class="search"><button class="search-go" id="gsearch-go" aria-label="Buscar" title="Buscar"><svg class="ic"><use href="#i-search"/></svg></button><input id="gsearch" placeholder="Buscar: nombre, J-0007, 2009, pívot…"></div>' +
+      /* Familia y jugador no buscan en el club: solo tienen su portal. */
+      (r.nav.indexOf('jugadores') >= 0 || r.nav.indexOf('staff') >= 0
+        ? '<div class="search"><button class="search-go" id="gsearch-go" aria-label="Buscar" title="Buscar"><svg class="ic"><use href="#i-search"/></svg></button><input id="gsearch" placeholder="Buscar jugador, entrenador, club de su trayectoria, categoría…"></div>'
+        : '<div class="search-none"></div>') +
       '<div class="top-right">' +
       campana(r) +
       '<label class="role-switch">Rol <select id="role"></select></label>' +
@@ -5537,27 +5669,29 @@ SF.router = (function () {
        Enter, hacer clic en la lupa, y simplemente escribir. Antes solo
        funcionaba el Enter, y la lupa era un dibujo sin acción. */
     function goSearch() {
+      if (!gs) return;
       var q = gs.value.trim();
       if (!q) { gs.focus(); return; }
-      SF._jugQuery = q;
-      /* Si YA estamos en #/jugadores, cambiar el hash al mismo valor no dispara
-         'hashchange' y la búsqueda se perdía en silencio. Hay que repintar. */
-      if (location.hash === '#/jugadores') render();
-      else location.hash = '#/jugadores';
+      SF._q = q;
+      /* Cambiar el hash al mismo valor no dispara 'hashchange', así que si ya
+         estamos en resultados hay que repintar a mano o la búsqueda se pierde. */
+      if (location.hash === '#/buscar') render();
+      else location.hash = '#/buscar';
     }
-    gs.addEventListener('keydown', function (e) { if (e.key === 'Enter') goSearch(); });
+    if (gs) {
+      gs.addEventListener('keydown', function (e) { if (e.key === 'Enter') goSearch(); });
+      /* Al escribir, si ya estás viendo resultados, se van afinando solos.
+         Con un respiro de 250 ms para no repintar en cada tecla. */
+      var gsT = null;
+      gs.addEventListener('input', function () {
+        if (location.hash !== '#/buscar') return;
+        clearTimeout(gsT);
+        gsT = setTimeout(function () { SF._q = gs.value.trim(); render(); }, 250);
+      });
+    }
 
     var gsGo = document.getElementById('gsearch-go');
     if (gsGo) gsGo.onclick = goSearch;
-
-    /* Búsqueda al escribir: si ya estás en Jugadores, filtra solo, sin Enter.
-       Con un respiro de 250 ms para no repintar en cada tecla. */
-    var gsT = null;
-    gs.addEventListener('input', function () {
-      if (location.hash !== '#/jugadores') return;
-      clearTimeout(gsT);
-      gsT = setTimeout(function () { SF._jugQuery = gs.value.trim(); render(); }, 250);
-    });
     var bell = document.getElementById('bell');
     if (bell) bell.onclick = function () { location.hash = '#/mis-avisos'; };
 
