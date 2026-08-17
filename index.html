@@ -2591,37 +2591,6 @@ window.SF = window.SF || {};
         }
 
 
-        // Selecciones
-        var sel = p.selections || {};
-        body.appendChild(el('<p class="sec-label">Selecciones</p>'));
-        body.appendChild(el('<div class="field-grid">' + fld('Local / colegio', sel.local) + fld('Provincial', sel.provincial) + fld('Regional', sel.regional) + fld('Nacional', sel.national) + '</div>'));
-        var edSel = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Editar selecciones</button>');
-        edSel.onclick = function () {
-          U.modal('Selecciones', smallForm(
-            [{ name: 'local', label: 'Local / colegio' }, { name: 'provincial', label: 'Provincial' }, { name: 'regional', label: 'Regional' }, { name: 'national', label: 'Nacional' }],
-            sel, function (d) { SF.store.update(p.id, { selections: d }); p = SF.store.get(p.id); paint(); }));
-        };
-        body.appendChild(edSel);
-
-        // Competencias
-        body.appendChild(el('<p class="sec-label">Competencias</p>'));
-        var comps = p.competitions || [];
-        var cWrap = el('<div class="mini-list"></div>');
-        if (!comps.length) cWrap.appendChild(el('<p class="hint">Sin competencias registradas.</p>'));
-        comps.forEach(function (c, i) {
-          var meta = [c.place, c.ranking, c.result].filter(Boolean).join(' · ');
-          var row = el('<div class="mini-row"><div><b>' + esc(c.name || '—') + '</b> <span class="hint">' + esc(c.date || '') + '</span>' + (meta ? '<br><span class="hint">' + esc(meta) + '</span>' : '') + '</div><button class="lnk-del">' + ico('trash') + '</button></div>');
-          row.querySelector('.lnk-del').onclick = function () { var arr = comps.slice(); arr.splice(i, 1); SF.store.update(p.id, { competitions: arr }); p = SF.store.get(p.id); paint(); };
-          cWrap.appendChild(row);
-        });
-        body.appendChild(cWrap);
-        var addComp = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir competencia</button>');
-        addComp.onclick = function () {
-          U.modal('Añadir competencia', smallForm(
-            [{ name: 'name', label: 'Nombre' }, { name: 'date', label: 'Fecha' }, { name: 'place', label: 'Lugar' }, { name: 'ranking', label: 'Ranking / puesto' }, { name: 'result', label: 'Marcas / resultado' }], {},
-            function (d) { if (!d.name) return; var arr = (p.competitions || []).slice(); arr.push(d); SF.store.update(p.id, { competitions: arr }); p = SF.store.get(p.id); paint(); }));
-        };
-        body.appendChild(addComp);
       } else if (cur === 'trayectoria') {
         /* Pestaña propia: por dónde ha pasado. Estaba al final de
            Deportivo, debajo de las evaluaciones, y no se veía. */
@@ -2704,6 +2673,38 @@ window.SF = window.SF || {};
             }));
         };
         body.appendChild(addClub);
+
+        // Selecciones
+        var sel = p.selections || {};
+        body.appendChild(el('<p class="sec-label">Selecciones</p>'));
+        body.appendChild(el('<div class="field-grid">' + fld('Local / colegio', sel.local) + fld('Provincial', sel.provincial) + fld('Regional', sel.regional) + fld('Nacional', sel.national) + '</div>'));
+        var edSel = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Editar selecciones</button>');
+        edSel.onclick = function () {
+          U.modal('Selecciones', smallForm(
+            [{ name: 'local', label: 'Local / colegio' }, { name: 'provincial', label: 'Provincial' }, { name: 'regional', label: 'Regional' }, { name: 'national', label: 'Nacional' }],
+            sel, function (d) { SF.store.update(p.id, { selections: d }); p = SF.store.get(p.id); paint(); }));
+        };
+        body.appendChild(edSel);
+
+        // Competencias
+        body.appendChild(el('<p class="sec-label">Competencias</p>'));
+        var comps = p.competitions || [];
+        var cWrap = el('<div class="mini-list"></div>');
+        if (!comps.length) cWrap.appendChild(el('<p class="hint">Sin competencias registradas.</p>'));
+        comps.forEach(function (c, i) {
+          var meta = [c.place, c.ranking, c.result].filter(Boolean).join(' · ');
+          var row = el('<div class="mini-row"><div><b>' + esc(c.name || '—') + '</b> <span class="hint">' + esc(c.date || '') + '</span>' + (meta ? '<br><span class="hint">' + esc(meta) + '</span>' : '') + '</div><button class="lnk-del">' + ico('trash') + '</button></div>');
+          row.querySelector('.lnk-del').onclick = function () { var arr = comps.slice(); arr.splice(i, 1); SF.store.update(p.id, { competitions: arr }); p = SF.store.get(p.id); paint(); };
+          cWrap.appendChild(row);
+        });
+        body.appendChild(cWrap);
+        var addComp = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir competencia</button>');
+        addComp.onclick = function () {
+          U.modal('Añadir competencia', smallForm(
+            [{ name: 'name', label: 'Nombre' }, { name: 'date', label: 'Fecha' }, { name: 'place', label: 'Lugar' }, { name: 'ranking', label: 'Ranking / puesto' }, { name: 'result', label: 'Marcas / resultado' }], {},
+            function (d) { if (!d.name) return; var arr = (p.competitions || []).slice(); arr.push(d); SF.store.update(p.id, { competitions: arr }); p = SF.store.get(p.id); paint(); }));
+        };
+        body.appendChild(addComp);
       } else if (cur === 'academico') {
         body.appendChild(el('<div class="field-grid">' + fld('Centro', p.school) + fld('Curso', p.course) +
           fld('Promedio de notas', p.gpa) + fld('Nivel de inglés', p.english) + fld('Otros idiomas', p.other_languages) +
