@@ -185,6 +185,19 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
   .dash-hi{font-size:20px}
 }
 
+/* ===== Trayectoria: el club es la carpeta, las temporadas van dentro ===== */
+.car-club{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);margin-bottom:10px;overflow:hidden}
+.car-head{display:flex;align-items:center;gap:10px;padding:12px 15px;background:#FAF9FE;border-bottom:1px solid var(--line)}
+.car-name{font-size:14.5px;font-weight:600;flex:1;min-width:0}
+.car-n{font-size:11.5px;color:var(--ink-3);font-weight:400}
+.car-season{display:flex;align-items:center;gap:10px;padding:10px 15px;border-top:1px solid var(--line)}
+.car-season:first-of-type{border-top:none}
+.car-y{font-size:13px;font-weight:600;min-width:66px;flex:none;color:var(--purple-d)}
+.car-d{flex:1;min-width:0;font-size:13px;color:var(--ink-2)}
+.car-fin{font-size:12px;color:var(--ink-2);background:#F4F2FC;border-radius:7px;padding:3px 9px;white-space:nowrap}
+.car-add{padding:10px 15px;border-top:1px dashed var(--line-2)}
+.car-vacio{padding:12px 15px;font-size:12.5px;color:var(--ink-3)}
+
 /* ===== Campana de avisos ===== */
 .bell{position:relative;border:1px solid var(--line);background:var(--surface);border-radius:10px;
   width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;
@@ -576,7 +589,8 @@ SF.SPORTS = {
       'Física': ['Fuerza explosiva', 'Velocidad', 'Velocidad de reacción', 'Potencia', 'Flexibilidad', 'Coordinación', 'Resistencia aeróbica', 'Resistencia anaeróbica'],
       'Mental': ['Liderazgo', 'Competitividad', 'Disciplina', 'Adaptación']
     },
-    extra: ['Envergadura', 'Mano dominante']
+    extra: ['Envergadura', 'Mano dominante'],
+    categories: ['Babybasket', 'Premini', 'Mini', 'Preinfantil', 'Infantil', 'Cadete', 'Junior', 'Sub-22', 'Senior']
   },
   futbol: {
     label: 'Fútbol',
@@ -842,6 +856,58 @@ SF.staffStatus = function (s) {
   if (!okClear) return { level: 'bad', label: 'Sin habilitar', why: 'Falta la comprobación de esta temporada' };
   if (!okLic) return { level: 'warn', label: 'Licencia caducada', why: 'La licencia federativa no es de ' + SF.SEASON };
   return { level: 'ok', label: 'Al día', why: '' };
+};
+
+/* ===================== TRAYECTORIA DEPORTIVA =====================
+   Un jugador no "estuvo en un club entre 2021 y 2023": jugó tres temporadas,
+   cada una en una categoría, y a veces recuerda en qué puesto quedaron.
+   Por eso el club es la carpeta y las temporadas van dentro.
+
+   Estructura: [{ club, seasons: [{ season, category, competition, finish }] }] */
+
+/* Temporadas para elegir, de la actual hacia atrás. Un desplegable en vez de
+   texto libre evita acabar con "21-22", "2021/2022" y "2021-22" mezclados,
+   que es lo que hace imposible filtrar después. */
+SF.seasonOptions = function (n) {
+  var y = new Date().getFullYear() + 1, out = [];
+  for (var i = 0; i < (n || 20); i++) {
+    var a = y - i - 1;
+    out.push(a + '/' + String(a + 1).slice(2));
+  }
+  return out;
+};
+
+SF.sportCategories = function (sport) {
+  return (SF.SPORTS[sport || 'baloncesto'] || {}).categories || [];
+};
+
+/* Normaliza y migra. Lo de antes era { club, from, to }: NO inventamos las
+   temporadas intermedias (sería meter datos que nadie ha dicho), se conserva
+   tal cual se escribió y ya se detalla a mano si hace falta.
+   También junta en una sola carpeta los clubes repetidos. */
+SF.careerNorm = function (ch) {
+  var out = [], idx = {};
+  (ch || []).forEach(function (c) {
+    var nombre = (c.club || '').trim();
+    if (!nombre) return;
+    var k = nombre.toLowerCase();
+    if (!idx[k]) { idx[k] = { club: nombre, seasons: [] }; out.push(idx[k]); }
+    if (c.seasons && c.seasons.length) {
+      c.seasons.forEach(function (t) { idx[k].seasons.push(t); });
+    } else if (c.from || c.to) {
+      idx[k].seasons.push({
+        season: (c.from || '') + (c.to ? '–' + c.to : ''),
+        category: c.category || '', competition: c.competition || '', finish: c.finish || ''
+      });
+    }
+  });
+  out.forEach(function (c) {
+    c.seasons.sort(function (a, b) { return (b.season || '').localeCompare(a.season || ''); });
+  });
+  out.sort(function (a, b) {
+    return ((b.seasons[0] || {}).season || '').localeCompare((a.seasons[0] || {}).season || '');
+  });
+  return out;
 };
 
 /* Qué le falta a una persona del staff.
@@ -2524,23 +2590,83 @@ window.SF = window.SF || {};
           body.appendChild(hl);
         }
 
-        // Trayectoria de clubes
-        body.appendChild(el('<p class="sec-label">Trayectoria de clubes</p>'));
-        var ch = p.career_history || [];
-        var chWrap = el('<div class="mini-list"></div>');
+        // Trayectoria de clubes: cada club es una carpeta con sus temporadas
+        body.appendChild(el('<p class="sec-label">Trayectoria deportiva</p>'));
+        var ch = SF.careerNorm(p.career_history);
+        var cats = SF.sportCategories(p.sport || SF.store.academy().primary_sport);
+
+        function guardaCarrera(arr) {
+          SF.store.update(p.id, { career_history: arr });
+          p = SF.store.get(p.id); paint();
+        }
+        function campos(actual) {
+          return [
+            { name: 'season', label: 'Temporada', type: 'select', options: SF.seasonOptions() },
+            { name: 'category', label: 'Categoría', type: 'select', options: cats },
+            { name: 'competition', label: 'Competición o liga (opcional)' },
+            { name: 'finish', label: 'Puesto final (opcional)' }
+          ];
+        }
+
+        var chWrap = el('<div></div>');
         if (!ch.length) chWrap.appendChild(el('<p class="hint">Sin trayectoria registrada.</p>'));
-        ch.forEach(function (c, i) {
-          var per = (c.from || '') + (c.to ? '–' + c.to : '');
-          var row = el('<div class="mini-row"><span>' + esc(c.club) + (per ? ' · ' + esc(per) : '') + '</span><button class="lnk-del">' + ico('trash') + '</button></div>');
-          row.querySelector('.lnk-del').onclick = function () { var arr = (p.career_history || []).slice(); arr.splice(i, 1); SF.store.update(p.id, { career_history: arr }); p = SF.store.get(p.id); paint(); };
-          chWrap.appendChild(row);
+
+        ch.forEach(function (c, ci) {
+          var n = c.seasons.length;
+          var card = el('<div class="car-club"><div class="car-head">' +
+            '<span class="car-name">' + esc(c.club) + ' <span class="car-n">· ' + n +
+            (n === 1 ? ' temporada' : ' temporadas') + '</span></span>' +
+            '<button class="lnk-del" title="Quitar el club y sus temporadas">' + ico('trash') + '</button></div></div>');
+
+          card.querySelector('.lnk-del').onclick = function () {
+            if (!confirm('¿Quitar ' + c.club + ' y sus ' + n + (n === 1 ? ' temporada?' : ' temporadas?'))) return;
+            var arr = ch.slice(); arr.splice(ci, 1); guardaCarrera(arr);
+          };
+
+          if (!n) card.appendChild(el('<p class="car-vacio">Sin temporadas todavía.</p>'));
+          c.seasons.forEach(function (t, ti) {
+            var det = [t.category, t.competition].filter(Boolean).join(' · ');
+            var row = el('<div class="car-season">' +
+              '<span class="car-y">' + esc(t.season || '—') + '</span>' +
+              '<span class="car-d">' + (det ? esc(det) : '<span class="hint">sin categoría</span>') + '</span>' +
+              (t.finish ? '<span class="car-fin">' + esc(t.finish) + '</span>' : '') +
+              '<button class="lnk" data-e>editar</button><button class="lnk-del">' + ico('trash') + '</button></div>');
+            row.querySelector('[data-e]').onclick = function () {
+              U.modal('Temporada en ' + c.club, smallForm(campos(), t, function (d) {
+                var arr = ch.slice(); arr[ci].seasons[ti] = d; guardaCarrera(arr);
+              }));
+            };
+            row.querySelector('.lnk-del').onclick = function () {
+              var arr = ch.slice(); arr[ci].seasons.splice(ti, 1); guardaCarrera(arr);
+            };
+            card.appendChild(row);
+          });
+
+          /* Añadir temporada DENTRO del club: es el caso normal, tres años
+             en el mismo sitio subiendo de categoría. */
+          var pie = el('<div class="car-add"></div>');
+          var bt = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir temporada en ' + esc(c.club) + '</button>');
+          bt.onclick = function () {
+            U.modal('Nueva temporada en ' + c.club, smallForm(campos(), {}, function (d) {
+              if (!d.season) { U.toast('Elige la temporada'); return false; }
+              var arr = ch.slice(); arr[ci].seasons.push(d); guardaCarrera(arr);
+            }));
+          };
+          pie.appendChild(bt); card.appendChild(pie);
+          chWrap.appendChild(card);
         });
         body.appendChild(chWrap);
+
         var addClub = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir club</button>');
         addClub.onclick = function () {
           U.modal('Añadir club a la trayectoria', smallForm(
-            [{ name: 'club', label: 'Club' }, { name: 'from', label: 'Desde (año)' }, { name: 'to', label: 'Hasta (año)' }], {},
-            function (d) { if (!d.club) return; var arr = (p.career_history || []).slice(); arr.push(d); SF.store.update(p.id, { career_history: arr }); p = SF.store.get(p.id); paint(); }));
+            [{ name: 'club', label: 'Club' }].concat(campos()), {},
+            function (d) {
+              if (!d.club) { U.toast('Falta el nombre del club'); return false; }
+              var arr = ch.slice();
+              arr.push({ club: d.club, seasons: d.season ? [{ season: d.season, category: d.category, competition: d.competition, finish: d.finish }] : [] });
+              guardaCarrera(arr);
+            }));
         };
         body.appendChild(addClub);
 
