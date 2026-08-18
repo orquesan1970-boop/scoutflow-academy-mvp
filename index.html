@@ -185,6 +185,36 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
   .dash-hi{font-size:20px}
 }
 
+/* ===== Presupuesto ===== */
+.pre-grupo{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);margin-bottom:12px;overflow:hidden}
+.pre-head{display:flex;align-items:center;gap:10px;padding:11px 15px;background:#FAF9FE;border-bottom:1px solid var(--line);font-size:13px;font-weight:600}
+.pre-head .tot{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink-2);font-weight:600}
+.pre-row{display:grid;grid-template-columns:1fr 118px 118px 108px;gap:10px;align-items:center;
+  padding:9px 15px;border-top:1px solid var(--line)}
+.pre-row:first-of-type{border-top:none}
+.pre-lab{font-size:13.5px;min-width:0}
+.pre-lab .q{border:0;background:none;cursor:help;color:var(--ink-3);padding:0 0 0 5px;font-size:12px}
+.pre-in{width:100%;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;
+  border:1px solid var(--line);border-radius:8px;padding:6px 9px;font-family:inherit;background:var(--surface)}
+.pre-in:focus{outline:2px solid var(--purple);outline-offset:-1px;border-color:var(--purple)}
+.pre-real{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;color:var(--ink-2);padding-right:9px}
+.pre-real.auto{color:var(--purple-d);font-weight:600}
+.pre-dev{text-align:right;font-size:12.5px;font-variant-numeric:tabular-nums}
+.pre-dev.mal{color:var(--danger)} .pre-dev.bien{color:var(--ok)}
+.pre-cab{display:grid;grid-template-columns:1fr 118px 118px 108px;gap:10px;padding:0 15px 6px;
+  font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-3)}
+.pre-cab span:not(:first-child){text-align:right}
+.pre-riesgo{font-size:11px;color:var(--warn-ink);background:var(--warn-bg);border-radius:6px;padding:2px 7px;margin-left:6px;white-space:nowrap}
+.pre-chk{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;color:var(--ink-2);margin-left:6px}
+.pre-chk input{width:auto;margin:0}
+.pre-tot{display:grid;grid-template-columns:1fr 118px 118px 108px;gap:10px;padding:13px 15px;
+  border-top:2px solid var(--line-2);font-weight:600;font-size:14px;background:#FAF9FE}
+.pre-tot span:not(:first-child){text-align:right;font-variant-numeric:tabular-nums}
+@media(max-width:760px){
+  .pre-row,.pre-cab,.pre-tot{grid-template-columns:1fr 90px 90px;font-size:12.5px}
+  .pre-row>*:nth-child(4),.pre-cab>*:nth-child(4),.pre-tot>*:nth-child(4){display:none}
+}
+
 /* ===== Trayectoria: el club es la carpeta, las temporadas van dentro ===== */
 .car-club{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);margin-bottom:10px;overflow:hidden}
 .car-head{display:flex;align-items:center;gap:10px;padding:12px 15px;background:#FAF9FE;border-bottom:1px solid var(--line)}
@@ -627,7 +657,7 @@ SF.COACHES = ['Carlos Gorosito', 'Laura Méndez', 'Diego Pérez'];
 SF.ROLES = {
   director: {
     label: 'Director',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'informes', 'family', 'finanzas', 'economia', 'permisos', 'mis-avisos', 'config'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'informes', 'family', 'finanzas', 'economia', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
     tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, segments: 'all', canCreatePlayers: true
   },
   dt_general: {
@@ -682,7 +712,7 @@ SF.ROLES = {
   },
   administrativo: {
     label: 'Administrativo',
-    nav: ['inicio', 'jugadores', 'staff', 'comunicados', 'documentos', 'finanzas', 'economia', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'staff', 'comunicados', 'documentos', 'finanzas', 'economia', 'presupuesto', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all', canCreatePlayers: true
   },
@@ -1106,6 +1136,86 @@ SF.permLabel = function (k) {
 };
 
 SF.EXPENSE_CATEGORIES =['Material deportivo', 'Viajes / desplazamientos', 'Arbitrajes', 'Instalaciones / pabellón', 'Equipación', 'Supermercado', 'Comidas / catering', 'Administración', 'Otros'];
+
+/* ===================== PRESUPUESTO DE LA TEMPORADA =====================
+   Antes el presupuesto eran tres casillas: ingresos estimados, gasto estimado
+   y saldo anterior. Eso dice "cuánto" pero no "en qué", y sin el "en qué" no
+   se puede ver qué partida se ha ido de las manos, ni justificar una
+   subvención, ni explicarle a una familia en qué se gasta su cuota.
+
+   Cada partida lleva:
+     grupo    · para agrupar en pantalla
+     tipo     · ingreso o gasto
+     auto     · de dónde saca la app el importe REAL, si lo sabe
+     riesgo   · true en lo que puede no llegar (subvenciones)
+     nota     · para qué es, en una frase */
+SF.BUDGET_PLAN = [
+  /* ---- INGRESOS ---- */
+  { key: 'cuotas', tipo: 'ingreso', grupo: 'Familias', label: 'Cuotas de jugadores',
+    auto: 'cuotas', nota: 'En clubes pequeños son entre el 40 % y el 70 % del presupuesto. Conviene revisarlas cada temporada.' },
+  { key: 'matricula', tipo: 'ingreso', grupo: 'Familias', label: 'Matrículas',
+    auto: 'matricula', nota: 'Pago de inicio. Cubre federación, seguro y gestión. No es la cuota mensual.' },
+  { key: 'fed_repercutida', tipo: 'ingreso', grupo: 'Familias', label: 'Cuota federativa repercutida',
+    nota: 'Lo que el club paga a la federación por jugador y traslada a la familia.' },
+  { key: 'equipacion_ing', tipo: 'ingreso', grupo: 'Familias', label: 'Equipación',
+    nota: 'Solo si se cobra aparte. Hay que decidirlo antes de comunicarlo.' },
+  { key: 'campus', tipo: 'ingreso', grupo: 'Familias', label: 'Campus, torneos y actividades',
+    auto: 'torneo', nota: 'Campus de Navidad y verano, clinics, torneos.' },
+
+  { key: 'sub_ayto', tipo: 'ingreso', grupo: 'Subvenciones', label: 'Subvención municipal', riesgo: true,
+    nota: 'Ayuntamiento. Suele ser la más accesible para clubes pequeños.' },
+  { key: 'sub_ccaa', tipo: 'ingreso', grupo: 'Subvenciones', label: 'Subvención autonómica', riesgo: true,
+    nota: 'Comunidad autónoma. Donde está el grueso de las ayudas.' },
+  { key: 'sub_dip', tipo: 'ingreso', grupo: 'Subvenciones', label: 'Subvención provincial', riesgo: true,
+    nota: 'Diputación.' },
+  { key: 'sub_fed', tipo: 'ingreso', grupo: 'Subvenciones', label: 'Ayudas federativas', riesgo: true,
+    nota: 'La federación reparte parte de lo que recibe entre sus clubes.' },
+
+  { key: 'patrocinios', tipo: 'ingreso', grupo: 'Patrocinio y actividad', label: 'Patrocinios',
+    nota: 'Negocios locales y de las familias. Es la fuente que más se desaprovecha; no hace falta que sea grande.' },
+  { key: 'convenios', tipo: 'ingreso', grupo: 'Patrocinio y actividad', label: 'Convenios de colaboración' },
+  { key: 'eventos', tipo: 'ingreso', grupo: 'Patrocinio y actividad', label: 'Eventos, torneo propio y sorteos' },
+  { key: 'tienda', tipo: 'ingreso', grupo: 'Patrocinio y actividad', label: 'Tienda y merchandising' },
+  { key: 'socios', tipo: 'ingreso', grupo: 'Patrocinio y actividad', label: 'Cuotas de socio y donaciones' },
+
+  /* ---- GASTOS ---- */
+  { key: 'fichas', tipo: 'gasto', grupo: 'Competición', label: 'Fichas federativas',
+    nota: 'Varía por comunidad y categoría. Hay que saberlo ANTES de abrir inscripciones.' },
+  { key: 'inscripciones', tipo: 'gasto', grupo: 'Competición', label: 'Inscripción a competiciones' },
+  { key: 'arbitrajes', tipo: 'gasto', grupo: 'Competición', label: 'Arbitrajes',
+    auto: 'cat:Arbitrajes', nota: 'Se calcula con los partidos como local de cada equipo.' },
+
+  { key: 'pabellon', tipo: 'gasto', grupo: 'Instalaciones', label: 'Pabellón: alquiler o canon',
+    auto: 'cat:Instalaciones / pabellón', nota: 'El gasto más grande y el menos negociable. Conviene tenerlo documentado con el ayuntamiento.' },
+  { key: 'suministros', tipo: 'gasto', grupo: 'Instalaciones', label: 'Suministros' },
+  { key: 'mantenimiento', tipo: 'gasto', grupo: 'Instalaciones', label: 'Mantenimiento y reparaciones' },
+
+  { key: 'tecnicos', tipo: 'gasto', grupo: 'Personal', label: 'Entrenadores y staff técnico' },
+  { key: 'ss', tipo: 'gasto', grupo: 'Personal', label: 'Seguridad Social y nóminas' },
+  { key: 'externos', tipo: 'gasto', grupo: 'Personal', label: 'Servicios externos (asesoría, limpieza)' },
+
+  { key: 'seg_accidentes', tipo: 'gasto', grupo: 'Seguros', label: 'Seguro de accidentes',
+    nota: 'Obligatorio en la mayoría de federaciones. No es una partida donde recortar.' },
+  { key: 'seg_rc', tipo: 'gasto', grupo: 'Seguros', label: 'Responsabilidad civil',
+    nota: 'Cubre desde una lesión en un entrenamiento hasta un espectador que resbala en la grada.' },
+
+  { key: 'material', tipo: 'gasto', grupo: 'Material y desplazamientos', label: 'Material deportivo',
+    auto: 'cat:Material deportivo', nota: 'Balones, petos, conos. Se diluye durante el año pero suma.' },
+  { key: 'equipacion_gas', tipo: 'gasto', grupo: 'Material y desplazamientos', label: 'Equipaciones',
+    auto: 'cat:Equipación' },
+  { key: 'viajes', tipo: 'gasto', grupo: 'Material y desplazamientos', label: 'Desplazamientos y dietas',
+    auto: 'cat:Viajes / desplazamientos', nota: 'Variable y peligroso: conviene presupuestarlo con margen amplio.' },
+
+  { key: 'admin', tipo: 'gasto', grupo: 'Administración', label: 'Administración, banco y plataforma',
+    auto: 'cat:Administración' },
+  { key: 'impuestos', tipo: 'gasto', grupo: 'Administración', label: 'Impuestos' },
+  { key: 'imprevistos', tipo: 'gasto', grupo: 'Administración', label: 'Imprevistos',
+    nota: 'Siempre se rompe algo o aparece un arbitraje extra. Sin esta partida el club se queda sin margen. Un 3–5 % del gasto total es razonable.' }
+];
+
+SF.budgetLine = function (k) {
+  return SF.BUDGET_PLAN.filter(function (x) { return x.key === k; })[0] || null;
+};
 SF.EXPENSES = [
   { id: 'g1', date: '2026-06-10', concept: 'Balones de entrenamiento', category: 'Material deportivo', amount: 240, by: 'Carlos Gorosito', role: 'Entrenador', status: 'aprobado', note: '', ticket: 'ticket-balones.jpg' },
   { id: 'g2', date: '2026-06-12', concept: 'Autobús desplazamiento Alcalá', category: 'Viajes / desplazamientos', amount: 380, by: 'Jorge Andrés', role: 'Director', status: 'aprobado', note: '', ticket: '' },
@@ -1356,6 +1466,28 @@ SF.store = (function () {
     academy: function () { return db().academy; },
     saveAcademy: function (patch) { var d = db(); Object.assign(d.academy, patch); save(d); },
     saveEconomy: function (patch) { var d = db(); d.academy.economy = Object.assign({}, d.academy.economy || {}, patch); save(d); },
+
+    /* ---- PRESUPUESTO, por temporada ----
+       Se guarda por temporada para poder comparar con la anterior: la
+       pregunta de la reunión de julio es "¿qué partidas se desviaron?". */
+    budget: function (season) {
+      var b = ((db().academy.budgets || {})[season || SF.SEASON]) || {};
+      return { lines: b.lines || {}, prev_balance: b.prev_balance || 0, closed: !!b.closed };
+    },
+    budgetSetLine: function (season, key, patch) {
+      var d = db(), s = season || SF.SEASON;
+      d.academy.budgets = d.academy.budgets || {};
+      var b = d.academy.budgets[s] = d.academy.budgets[s] || { lines: {}, prev_balance: 0 };
+      b.lines[key] = Object.assign({}, b.lines[key] || {}, patch);
+      save(d);
+    },
+    budgetSetMeta: function (season, patch) {
+      var d = db(), s = season || SF.SEASON;
+      d.academy.budgets = d.academy.budgets || {};
+      d.academy.budgets[s] = Object.assign({ lines: {}, prev_balance: 0 }, d.academy.budgets[s] || {}, patch);
+      save(d);
+    },
+    budgetSeasons: function () { return Object.keys(db().academy.budgets || {}); },
 
     expenses: function () { return (db().expenses || []).slice(); },
     expenseAdd: function (e) { var d = db(); if (!d.expenses) d.expenses = []; d.expenses.push(e); save(d); return e; },
@@ -3703,19 +3835,35 @@ window.SF = window.SF || {};
       });
       view.appendChild(k);
 
+      /* El presupuesto detallado vive en su propia pantalla: aquí solo el
+         resumen y la puerta. Economía es el día a día; el presupuesto es la
+         previsión de toda la temporada. */
       view.appendChild(el('<p class="sec-label">Presupuesto de la temporada</p>'));
-      view.appendChild(el('<div class="field-grid">' +
-        fld('Ingresos estimados', eur(s.est_income)) + fld('Ingresos cobrados', eur(s.income)) + fld('Pendiente de cobro', eur(s.pending)) +
-        fld('Gasto estimado', eur(s.est_expense)) + fld('Gasto real', eur(s.spent)) + fld('Resultado previsto', eur(s.est_income - s.est_expense)) + '</div>'));
-      var be = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Editar presupuesto</button>');
+      var pb = SF.store.budget(SF.SEASON), pl = pb.lines || {};
+      var pIng = 0, pGas = 0;
+      SF.BUDGET_PLAN.forEach(function (x) {
+        var v = +((pl[x.key] || {}).previsto) || 0;
+        if (x.tipo === 'ingreso') pIng += v; else pGas += v;
+      });
+      if (!pIng && !pGas) {
+        view.appendChild(el('<p class="hint">Todavía no hay presupuesto para ' + SF.SEASON + '. Son unas 30 partidas, con lo que ya ' +
+          'sabe la app rellenando sola la columna de lo real.</p>'));
+      } else {
+        view.appendChild(el('<div class="field-grid">' +
+          fld('Ingresos previstos', eur(pIng)) + fld('Gastos previstos', eur(pGas)) + fld('Resultado previsto', eur(pIng - pGas)) +
+          fld('Ingresos cobrados', eur(s.income)) + fld('Pendiente de cobro', eur(s.pending)) + fld('Gasto real', eur(s.spent)) + '</div>'));
+      }
+      var bp = el('<button class="btn btn-light btn-sm">' + ico('chart') + (pIng || pGas ? 'Abrir el presupuesto' : 'Preparar el presupuesto') + '</button>');
+      bp.onclick = function () { location.hash = '#/presupuesto'; };
+      view.appendChild(bp);
+
+      var be = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Saldo de la temporada anterior</button>');
       be.onclick = function () {
         var ec = SF.store.academy().economy || {};
-        U.modal('Presupuesto de la temporada', smallForm([
-          { name: 'prev_balance', label: 'Saldo temporada anterior (€)', type: 'number' },
-          { name: 'est_income', label: 'Ingresos estimados (€)', type: 'number' },
-          { name: 'est_expense', label: 'Gasto estimado (€)', type: 'number' }
-        ], { prev_balance: ec.prev_balance, est_income: ec.est_income, est_expense: ec.est_expense }, function (d) {
-          SF.store.saveEconomy({ prev_balance: +d.prev_balance || 0, est_income: +d.est_income || 0, est_expense: +d.est_expense || 0 }); U.toast('Presupuesto guardado'); refresh();
+        U.modal('Saldo inicial', smallForm([
+          { name: 'prev_balance', label: 'Saldo con el que empieza la temporada (€)', type: 'number' }
+        ], { prev_balance: ec.prev_balance }, function (d) {
+          SF.store.saveEconomy({ prev_balance: +d.prev_balance || 0 }); U.toast('Guardado'); refresh();
         }));
       };
       view.appendChild(be);
@@ -5297,6 +5445,164 @@ window.SF = window.SF || {};
     };
   };
 
+  /* ===================== PRESUPUESTO =====================
+     El "real" de cada partida se saca de lo que la app ya sabe: lo cobrado a
+     los jugadores y los gastos aprobados. Eso es lo que una hoja de cálculo
+     no puede hacer, y por lo que merece la pena que esto viva aquí. */
+  function budgetReal(auto) {
+    if (!auto) return null;
+    if (auto.indexOf('cat:') === 0) {
+      var c = auto.slice(4);
+      return SF.store.expenses().filter(function (e) { return e.status === 'aprobado' && e.category === c; })
+        .reduce(function (s, e) { return s + (+e.amount || 0); }, 0);
+    }
+    var tipo = { cuotas: 'cuota', matricula: 'inscripcion', torneo: 'torneo' }[auto];
+    if (!tipo) return null;
+    var t = 0;
+    SF.store.players().forEach(function (p) {
+      SF.finItems(p).forEach(function (i) { if (i.type === tipo && i.status === 'pagado') t += (+i.amount || 0); });
+    });
+    return t;
+  }
+
+  pages.presupuesto = function (view) {
+    var r = role();
+    if (!r.canManageFinance) {
+      view.innerHTML = head('Presupuesto', '') + '<div class="empty-panel"><p>Tu rol no gestiona el presupuesto del club.</p></div>';
+      return;
+    }
+    var temp = SF._presTemp || SF.SEASON;
+    var b = SF.store.budget(temp);
+
+    view.innerHTML = head('Presupuesto ' + esc(temp), 'Lo que prevés ingresar y gastar, partida a partida. La columna «real» se rellena sola con lo cobrado y los gastos aprobados.');
+
+    function linea(k) { return b.lines[k] || {}; }
+    function previsto(k) { return +linea(k).previsto || 0; }
+    function real(x) {
+      var a = budgetReal(x.auto);
+      return a != null ? a : (+linea(x.key).real || 0);
+    }
+    function cuenta(x) {   // ¿entra en el total prudente?
+      return !(x.riesgo && !linea(x.key).confirmado);
+    }
+
+    var ing = SF.BUDGET_PLAN.filter(function (x) { return x.tipo === 'ingreso'; });
+    var gas = SF.BUDGET_PLAN.filter(function (x) { return x.tipo === 'gasto'; });
+    var sum = function (arr, f) { return arr.reduce(function (s, x) { return s + f(x); }, 0); };
+
+    var totIngP = sum(ing, function (x) { return previsto(x.key); });
+    var totIngPrud = sum(ing, function (x) { return cuenta(x) ? previsto(x.key) : 0; });
+    var totIngR = sum(ing, real);
+    var totGasP = sum(gas, function (x) { return previsto(x.key); });
+    var totGasR = sum(gas, real);
+    var enRiesgo = totIngP - totIngPrud;
+
+    /* --- Cabecera de resultados --- */
+    var k = el('<div class="kpis"></div>');
+    [['Ingresos previstos', totIngP, ''],
+     ['Gastos previstos', totGasP, ''],
+     ['Resultado previsto', totIngP - totGasP, (totIngP - totGasP) >= 0 ? 'ok' : 'danger'],
+     ['Resultado real hasta hoy', totIngR - totGasR, (totIngR - totGasR) >= 0 ? 'ok' : 'danger']
+    ].forEach(function (x) {
+      k.appendChild(el('<div class="kpi ' + x[2] + '"><div class="kpi-top"><span>' + x[0] + '</span></div>' +
+        '<div class="kpi-num" style="font-size:23px">' + eur(x[1]) + '</div></div>'));
+    });
+    view.appendChild(k);
+
+    /* --- El aviso que da todo el sentido a separar las subvenciones ---
+       Un club que solo cuadra gracias a ayudas que pueden no llegar es un
+       club frágil, aunque su presupuesto sume. */
+    if (enRiesgo > 0) {
+      var prudente = totIngPrud - totGasP;
+      var malo = prudente < 0;
+      view.appendChild(el('<div class="foco ' + (malo ? 'is-danger' : 'is-warn') + '">' +
+        '<div class="foco-ic">' + ico('alert') + '</div><div class="foco-body">' +
+        '<p class="foco-t">' + eur(enRiesgo) + ' dependen de ayudas sin confirmar</p>' +
+        '<p class="foco-s">' + (malo
+          ? 'Sin ellas el resultado sería <b>' + eur(prudente) + '</b>. El club estaría pagando su funcionamiento con dinero que puede no llegar, y suele llegar tarde.'
+          : 'Sin ellas el resultado sigue siendo ' + eur(prudente) + '. El club se sostiene solo, que es como debe ser.') +
+        '</p></div></div>'));
+    }
+
+    /* --- Las partidas --- */
+    function bloque(titulo, lista) {
+      view.appendChild(el('<p class="sec-label">' + titulo + '</p>'));
+      view.appendChild(el('<div class="pre-cab"><span>Partida</span><span>Previsto</span><span>Real</span><span>Desviación</span></div>'));
+
+      var grupos = [];
+      lista.forEach(function (x) { if (grupos.indexOf(x.grupo) < 0) grupos.push(x.grupo); });
+
+      grupos.forEach(function (g) {
+        var deG = lista.filter(function (x) { return x.grupo === g; });
+        var card = el('<div class="pre-grupo"><div class="pre-head"><span>' + esc(g) + '</span>' +
+          '<span class="tot">' + eur(sum(deG, function (x) { return previsto(x.key); })) + '</span></div></div>');
+
+        deG.forEach(function (x) {
+          var auto = budgetReal(x.auto), rv = real(x), pv = previsto(x.key);
+          /* Desviación: en ingresos es buena si supera lo previsto; en gastos,
+             al revés. Un número rojo tiene que significar siempre "mal". */
+          var dif = rv - pv;
+          var buena = x.tipo === 'ingreso' ? dif >= 0 : dif <= 0;
+          var pct = pv ? Math.round(Math.abs(dif) / pv * 100) : null;
+
+          var row = el('<div class="pre-row">' +
+            '<span class="pre-lab">' + esc(x.label) +
+              (x.nota ? '<button class="q" title="' + esc(x.nota) + '">?</button>' : '') +
+              (x.riesgo ? '<span class="pre-riesgo">puede no llegar</span>' : '') + '</span>' +
+            '<span><input class="pre-in" type="number" min="0" step="10" value="' + (pv || '') + '" placeholder="0"></span>' +
+            (auto != null
+              ? '<span class="pre-real auto" title="Calculado por la app">' + eur(auto) + '</span>'
+              : '<span><input class="pre-in real" type="number" min="0" step="10" value="' + (+linea(x.key).real || '') + '" placeholder="0"></span>') +
+            '<span class="pre-dev ' + (pv || rv ? (buena ? 'bien' : 'mal') : '') + '">' +
+              (pv || rv ? (dif >= 0 ? '+' : '−') + eur(Math.abs(dif)) + (pct != null ? ' · ' + pct + '%' : '') : '—') +
+            '</span></div>');
+
+          if (x.riesgo) {
+            var chk = el('<label class="pre-chk"><input type="checkbox"' + (linea(x.key).confirmado ? ' checked' : '') + '> concedida</label>');
+            chk.querySelector('input').onchange = function () {
+              SF.store.budgetSetLine(temp, x.key, { confirmado: this.checked }); SF.router.render();
+            };
+            row.querySelector('.pre-lab').appendChild(chk);
+          }
+
+          var inp = row.querySelector('.pre-in');
+          inp.onchange = function () { SF.store.budgetSetLine(temp, x.key, { previsto: +this.value || 0 }); SF.router.render(); };
+          var inr = row.querySelector('.pre-in.real');
+          if (inr) inr.onchange = function () { SF.store.budgetSetLine(temp, x.key, { real: +this.value || 0 }); SF.router.render(); };
+
+          card.appendChild(row);
+        });
+        view.appendChild(card);
+      });
+
+      var tp = sum(lista, function (x) { return previsto(x.key); }), tr = sum(lista, real);
+      var td = tr - tp, tb = titulo.indexOf('Ingresos') === 0 ? td >= 0 : td <= 0;
+      view.appendChild(el('<div class="pre-tot"><span>Total ' + esc(titulo.toLowerCase()) + '</span>' +
+        '<span>' + eur(tp) + '</span><span>' + eur(tr) + '</span>' +
+        '<span class="pre-dev ' + (tb ? 'bien' : 'mal') + '">' + (td >= 0 ? '+' : '−') + eur(Math.abs(td)) + '</span></div>'));
+    }
+
+    bloque('Ingresos previstos', ing);
+    bloque('Gastos previstos', gas);
+
+    /* --- Sugerencia de imprevistos: es la partida que todo el mundo olvida --- */
+    var imp = previsto('imprevistos'), baseGasto = totGasP - imp;
+    if (baseGasto > 0) {
+      var reco = Math.round(baseGasto * 0.04 / 10) * 10;
+      if (imp === 0) {
+        view.appendChild(el('<p class="hint" style="margin-top:12px">No has reservado nada para <b>imprevistos</b>. ' +
+          'Siempre se rompe algo o aparece un arbitraje de un partido aplazado. Con tus gastos, un 4 % serían unos <b>' + eur(reco) + '</b>.</p>'));
+      } else {
+        var pc = Math.round(imp / baseGasto * 100);
+        view.appendChild(el('<p class="hint" style="margin-top:12px">Imprevistos: ' + eur(imp) + ' · un ' + pc + ' % de los gastos' +
+          (pc < 3 ? ' (lo habitual es entre un 3 % y un 5 %)' : '') + '.</p>'));
+      }
+    }
+
+    view.appendChild(el('<p class="hint">La columna <b>real</b> en morado la calcula la app sola: las cuotas y matrículas cobradas ' +
+      'de las fichas de jugadores, y los gastos <b>aprobados</b> de Economía. Las demás se escriben a mano.</p>'));
+  };
+
   /* ===================== BUSCADOR UNIVERSAL =====================
      Una sola caja para jugadores y para personal. Lo que se busca de cada
      ficha está declarado aquí a propósito: NO entran las notas internas, ni
@@ -5563,6 +5869,7 @@ SF.router = (function () {
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
     ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'],
+    ['presupuesto', 'Presupuesto', 'chart'],
     ['importar-datos', 'Importar datos', 'chart'], ['mis-avisos', 'Mis avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
     ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
@@ -5573,7 +5880,7 @@ SF.router = (function () {
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
     staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo',
     comunicados: 'comunicados', 'importar-datos': 'importar-datos', 'mis-avisos': 'mis-avisos',
-    buscar: 'buscar'
+    buscar: 'buscar', presupuesto: 'presupuesto'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff' };
