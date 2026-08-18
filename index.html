@@ -185,6 +185,43 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
   .dash-hi{font-size:20px}
 }
 
+/* ===== La caja: lo primero que se ve en Economía =====
+   Un solo número grande y, debajo, la cuenta en lenguaje llano. Si hay que
+   explicar de dónde sale el saldo, la pantalla no está terminada. */
+.caja{background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--ok);
+  border-radius:var(--r-lg);padding:20px 22px;margin-bottom:12px}
+.caja.mal{border-left-color:var(--danger)}
+.caja-top{font-size:12.5px;color:var(--ink-2)}
+.caja-num{font-size:40px;font-weight:600;letter-spacing:-1px;line-height:1.1;margin:2px 0 14px;color:var(--ok-ink)}
+.caja.mal .caja-num{color:var(--danger)}
+.caja-cta{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.caja-cta .cq{display:flex;flex-direction:column;font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+.caja-cta .cq b{font-weight:400;font-size:11.5px;color:var(--ink-3);margin-top:2px}
+.caja-cta .cq.ent{color:var(--ok-ink)} .caja-cta .cq.sal{color:var(--danger-ink)}
+.caja-cta .op{font-size:17px;color:var(--ink-3);padding-bottom:14px}
+
+/* ===== Mes a mes ===== */
+.mes-wrap{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);overflow:hidden}
+.mes-row{display:grid;grid-template-columns:44px 1fr 96px 96px 104px;gap:10px;align-items:center;
+  padding:8px 15px;border-top:1px solid var(--line);font-size:12.5px}
+.mes-row:first-child{border-top:none}
+.mes-row.mal{background:var(--danger-bg)}
+.mes-n{font-weight:600;text-transform:capitalize;color:var(--ink-2)}
+.mes-bar{display:flex;flex-direction:column;gap:3px;min-width:0}
+.mes-e,.mes-s{height:7px;border-radius:4px;min-width:2px}
+.mes-e{background:var(--ok)} .mes-s{background:var(--danger)}
+.mes-v{text-align:right;font-variant-numeric:tabular-nums}
+.mes-v.ent{color:var(--ok-ink)} .mes-v.sal{color:var(--danger-ink)}
+.mes-ac{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+.mes-row.mal .mes-ac{color:var(--danger)}
+.leg{display:inline-block;width:9px;height:9px;border-radius:3px;vertical-align:middle}
+.leg.e{background:var(--ok)} .leg.s{background:var(--danger)}
+@media(max-width:700px){
+  .mes-row{grid-template-columns:38px 1fr 84px;font-size:12px}
+  .mes-row>.mes-v.sal{display:none}
+  .caja-num{font-size:32px}
+}
+
 /* ===== Presupuesto ===== */
 .pre-grupo{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);margin-bottom:12px;overflow:hidden}
 .pre-head{display:flex;align-items:center;gap:10px;padding:11px 15px;background:#FAF9FE;border-bottom:1px solid var(--line);font-size:13px;font-weight:600}
@@ -1217,8 +1254,8 @@ SF.budgetLine = function (k) {
   return SF.BUDGET_PLAN.filter(function (x) { return x.key === k; })[0] || null;
 };
 SF.EXPENSES = [
-  { id: 'g1', date: '2026-06-10', concept: 'Balones de entrenamiento', category: 'Material deportivo', amount: 240, by: 'Carlos Gorosito', role: 'Entrenador', status: 'aprobado', note: '', ticket: 'ticket-balones.jpg' },
-  { id: 'g2', date: '2026-06-12', concept: 'Autobús desplazamiento Alcalá', category: 'Viajes / desplazamientos', amount: 380, by: 'Jorge Andrés', role: 'Director', status: 'aprobado', note: '', ticket: '' },
+  { id: 'g1', date: '2026-06-10', concept: 'Balones de entrenamiento', category: 'Material deportivo', amount: 240, by: 'Carlos Gorosito', role: 'Entrenador', status: 'pagado', paid_on: '2026-06-14', note: '', ticket: 'ticket-balones.jpg' },
+  { id: 'g2', date: '2026-06-12', concept: 'Autobús desplazamiento Alcalá', category: 'Viajes / desplazamientos', amount: 380, by: 'Jorge Andrés', role: 'Director', status: 'pagado', paid_on: '2026-06-15', note: '', ticket: '' },
   { id: 'g3', date: '2026-06-18', concept: 'Arbitrajes jornada 5', category: 'Arbitrajes', amount: 120, by: 'Marta Soler', role: 'Administrativo', status: 'aprobado', note: '', ticket: '' },
   { id: 'g4', date: '2026-06-20', concept: 'Alquiler pabellón junio', category: 'Instalaciones / pabellón', amount: 650, by: 'Marta Soler', role: 'Administrativo', status: 'pendiente', note: '', ticket: 'recibo-pabellon.pdf' },
   { id: 'g5', date: '2026-06-22', concept: 'Conos y petos', category: 'Material deportivo', amount: 75, by: 'Diego Sosa', role: 'Preparador Físico', status: 'pendiente', note: '', ticket: 'ticket-conos.jpg' }
@@ -3762,17 +3799,49 @@ window.SF = window.SF || {};
 
   /* ===================== PORTAL FAMILY (mobile) ===================== */
   /* ===================== ECONOMÍA DE LA ACADEMIA ===================== */
+  /* ===================== LA CAJA =====================
+     Regla, y es la que pidió Jorge: del saldo solo se resta el dinero que YA
+     HA SALIDO (gastos pagados) y solo se suma el que YA HA ENTRADO (cuotas
+     cobradas). Un gasto aprobado está comprometido, pero sigue en la cuenta;
+     una cuota pendiente no es dinero, es una promesa.
+
+     Tres estados de gasto, y cada uno cuenta distinto:
+       pendiente  · alguien lo ha pasado, sin aprobar     → no toca la caja
+       aprobado   · aprobado, aún sin pagar               → comprometido
+       pagado     · el dinero salió de la cuenta          → resta del saldo */
   function econSummary() {
-    var ps = SF.store.players(), income = 0, pending = 0;
-    ps.forEach(function (p) { var t = SF.finTotals(p); income += t.paid; pending += t.pending + t.overdue; });
+    var ps = SF.store.players(), cobrado = 0, porCobrar = 0, vencido = 0;
+    ps.forEach(function (p) {
+      var t = SF.finTotals(p);
+      cobrado += t.paid; porCobrar += t.pending + t.overdue; vencido += t.overdue;
+    });
     var exps = SF.store.expenses();
-    var spent = exps.filter(function (e) { return e.status === 'aprobado'; }).reduce(function (s, e) { return s + (+e.amount || 0); }, 0);
+    var suma = function (f) { return exps.filter(f).reduce(function (s, e) { return s + (+e.amount || 0); }, 0); };
+    var pagado = suma(function (e) { return e.status === 'pagado'; });
+    var comprometido = suma(function (e) { return e.status === 'aprobado'; });
+    var porAprobar = suma(function (e) { return e.status === 'pendiente'; });
+
     var ec = SF.store.academy().economy || {};
     var prev = +ec.prev_balance || 0;
-    return { income: income, pending: pending, spent: spent, prev: prev, balance: prev + income - spent, est_income: +ec.est_income || 0, est_expense: +ec.est_expense || 0, exps: exps, players: ps };
+    var saldo = prev + cobrado - pagado;                  // dinero real, hoy
+
+    return {
+      prev: prev, cobrado: cobrado, porCobrar: porCobrar, vencido: vencido,
+      pagado: pagado, comprometido: comprometido, porAprobar: porAprobar,
+      saldo: saldo,
+      disponible: saldo - comprometido,                   // lo que queda si pagas lo aprobado
+      proyectado: saldo + porCobrar - comprometido,       // si se cobra todo y se paga lo aprobado
+      exps: exps, players: ps,
+      /* nombres antiguos, para no romper otras pantallas */
+      income: cobrado, pending: porCobrar, spent: pagado, balance: saldo
+    };
   }
   function eur(n) { return Math.round(n).toLocaleString('es-ES') + ' €'; }
-  function expStatusTag(s) { return '<span class="tag tag-' + (s === 'aprobado' ? 'green' : s === 'rechazado' ? 'danger' : 'warn') + '">' + esc(s) + '</span>'; }
+  function expStatusTag(s) {
+    var c = s === 'pagado' ? 'green' : s === 'aprobado' ? 'info' : s === 'rechazado' ? 'danger' : 'warn';
+    var t = s === 'aprobado' ? 'aprobado, sin pagar' : s;
+    return '<span class="tag tag-' + c + '">' + esc(t) + '</span>';
+  }
 
   function expenseModal(refresh) {
     var cats = (SF.EXPENSE_CATEGORIES || []).map(function (c) { return '<option>' + c + '</option>'; }).join('');
@@ -3805,92 +3874,206 @@ window.SF = window.SF || {};
 
   function expenseRow(e, canManage, refresh) {
     var tk = e.ticket ? (e.ticket_data ? '<a class="lnk" data-tk>ver ticket</a>' : '<span class="hint">' + esc(e.ticket) + '</span>') : '';
-    var row = el('<div class="exp-row"><div class="exp-main"><b>' + esc(e.concept) + '</b><span class="hint">' + esc(e.category) + ' · ' + esc(e.by) + ' · ' + esc(e.date) + (tk ? ' · ' + tk : '') + '</span></div>' +
-      '<div class="exp-side">' + eur(+e.amount || 0) + ' ' + expStatusTag(e.status) +
-      (canManage ? ' <button class="lnk" data-ap>' + (e.status === 'aprobado' ? 'rechazar' : 'aprobar') + '</button><button class="lnk-del" data-rm>' + ico('x') + '</button>' : '') + '</div></div>');
+    /* Dos pasos separados a propósito: aprobar es dar el visto bueno, pagar es
+       que el dinero salga. Mientras no se paga, sigue en la cuenta. */
+    var acciones = '';
+    if (canManage) {
+      if (e.status === 'pendiente') acciones = '<button class="lnk" data-ap>aprobar</button>';
+      else if (e.status === 'aprobado') acciones = '<button class="lnk" data-pay>marcar pagado</button><button class="lnk" data-un>volver a pendiente</button>';
+      else if (e.status === 'pagado') acciones = '<button class="lnk" data-un>deshacer pago</button>';
+      acciones += '<button class="lnk-del" data-rm>' + ico('x') + '</button>';
+    }
+    var row = el('<div class="exp-row"><div class="exp-main"><b>' + esc(e.concept) + '</b><span class="hint">' +
+      esc(e.category) + ' · ' + esc(e.by) + ' · ' + esc(e.date) +
+      (e.paid_on ? ' · pagado el ' + esc(e.paid_on) : '') + (tk ? ' · ' + tk : '') + '</span></div>' +
+      '<div class="exp-side">' + eur(+e.amount || 0) + ' ' + expStatusTag(e.status) + acciones + '</div></div>');
+
     if (e.ticket_data) { var a = row.querySelector('[data-tk]'); if (a) a.onclick = function () { U.modal('Ticket — ' + esc(e.concept), el('<div class="tk-prev big"><img src="' + e.ticket_data + '"></div>')); }; }
     if (canManage) {
-      row.querySelector('[data-ap]').onclick = function () { SF.store.expenseUpdate(e.id, { status: e.status === 'aprobado' ? 'pendiente' : 'aprobado' }); refresh(); };
-      row.querySelector('[data-rm]').onclick = function () { SF.store.expenseRemove(e.id); refresh(); };
+      var b;
+      if ((b = row.querySelector('[data-ap]'))) b.onclick = function () { SF.store.expenseUpdate(e.id, { status: 'aprobado' }); U.toast('Aprobado. Aún no ha salido el dinero'); refresh(); };
+      if ((b = row.querySelector('[data-pay]'))) b.onclick = function () { SF.store.expenseUpdate(e.id, { status: 'pagado', paid_on: new Date().toISOString().slice(0, 10) }); U.toast('Pagado. Descontado de la caja'); refresh(); };
+      if ((b = row.querySelector('[data-un]'))) b.onclick = function () { SF.store.expenseUpdate(e.id, { status: e.status === 'pagado' ? 'aprobado' : 'pendiente', paid_on: '' }); refresh(); };
+      if ((b = row.querySelector('[data-rm]'))) b.onclick = function () { SF.store.expenseRemove(e.id); refresh(); };
     }
     return row;
   }
 
+  /* Meses en orden de temporada: empieza en septiembre, que es cuando entra
+     el dinero de las matrículas, y termina en agosto. */
+  var SF_TEMPORADA = [8, 9, 10, 11, 0, 1, 2, 3, 4, 5, 6, 7];
+
   pages.economia = function (view) {
     var r = role(), canManage = r.canManageFinance;
-    view.innerHTML = head('Economía de la academia', 'Cuentas de la temporada: ingresos de jugadores, gastos del club y saldo.');
     var refresh = function () { SF.router.render(); };
-
-    var add = el('<button class="btn btn-primary">' + ico('plus') + 'Nuevo gasto</button>');
-    add.onclick = function () { expenseModal(refresh); };
-    view.appendChild(add);
-    view.appendChild(el('<p class="hint">Pulsa "Nuevo gasto", escribe el concepto (por ejemplo "supermercado"), el importe y, si procede, saca la foto del ticket. Llega a administración para revisarlo.</p>'));
-
     var s = econSummary();
 
-    if (canManage) {
-      var k = el('<div class="kpis"></div>');
-      [['Saldo anterior', s.prev, ''], ['Ingresos cobrados', s.income, 'green'], ['Gastos aprobados', s.spent, 'danger'], ['Saldo actual', s.balance, s.balance >= 0 ? 'green' : 'danger']].forEach(function (x) {
-        k.appendChild(el('<div class="kpi ' + x[2] + '"><div class="kpi-top"><span>' + x[0] + '</span></div><div class="kpi-num">' + eur(x[1]) + '</div></div>'));
-      });
-      view.appendChild(k);
+    view.innerHTML = head('Economía', canManage
+      ? 'El dinero que hay, el que falta por cobrar y el que falta por pagar.'
+      : 'Pasa tus gastos al club y sigue cómo van.');
 
-      /* El presupuesto detallado vive en su propia pantalla: aquí solo el
-         resumen y la puerta. Economía es el día a día; el presupuesto es la
-         previsión de toda la temporada. */
-      view.appendChild(el('<p class="sec-label">Presupuesto de la temporada</p>'));
+    /* ---------- 1. LA CAJA. Lo primero y lo más grande, en una frase ---------- */
+    if (canManage) {
+      var neg = s.saldo < 0;
+      var caja = el('<div class="caja ' + (neg ? 'mal' : '') + '">' +
+        '<div class="caja-top"><span>Dinero en la caja hoy</span></div>' +
+        '<div class="caja-num">' + eur(s.saldo) + '</div>' +
+        '<div class="caja-cta">' +
+          '<span class="cq">' + eur(s.prev) + '<b>con lo que empezaste</b></span>' +
+          '<span class="op">+</span>' +
+          '<span class="cq ent">' + eur(s.cobrado) + '<b>cobrado de verdad</b></span>' +
+          '<span class="op">−</span>' +
+          '<span class="cq sal">' + eur(s.pagado) + '<b>pagado de verdad</b></span>' +
+        '</div></div>');
+      view.appendChild(caja);
+      view.appendChild(el('<p class="hint">Aquí solo entra el dinero que <b>ya se ha movido</b>. Una cuota pendiente no es dinero todavía, ' +
+        'y un gasto aprobado sigue en la cuenta hasta que se paga.</p>'));
+
+      /* ---------- 2. Lo que está comprometido y lo que falta cobrar ---------- */
+      var tar = el('<div class="kpis"></div>');
+      [
+        { l: 'Falta cobrar', v: s.porCobrar, c: 'warn', n: s.vencido ? eur(s.vencido) + ' ya vencido' : 'ninguna vencida', go: 'finanzas' },
+        { l: 'Aprobado sin pagar', v: s.comprometido, c: '', n: 'ya comprometido' },
+        { l: 'Gastos por aprobar', v: s.porAprobar, c: 'purple', n: 'esperan tu visto bueno' },
+        { l: 'Si cobras y pagas todo', v: s.proyectado, c: s.proyectado >= 0 ? 'ok' : 'danger', n: 'quedarías así' }
+      ].forEach(function (x) {
+        var b = el('<' + (x.go ? 'button' : 'div') + ' class="kpi ' + x.c + (x.go ? ' is-btn' : '') + '">' +
+          '<div class="kpi-top"><span>' + x.l + '</span>' + (x.go ? ico('arrow') : '') + '</div>' +
+          '<div class="kpi-num" style="font-size:24px">' + eur(x.v) + '</div>' +
+          '<div class="kpi-foot">' + esc(x.n) + '</div></' + (x.go ? 'button' : 'div') + '>');
+        if (x.go) b.onclick = function () { location.hash = '#/' + x.go; };
+        tar.appendChild(b);
+      });
+      view.appendChild(tar);
+
+      /* ---------- 3. MES A MES: el desfase que no se ve en el presupuesto ----------
+         Un club puede cuadrar la temporada y aun así quedarse sin dinero en
+         febrero, porque los ingresos se concentran en septiembre y los gastos
+         son todos los meses. Esto es lo único que lo enseña. */
+      view.appendChild(el('<p class="sec-label">Mes a mes</p>'));
+      var entradas = {}, salidas = {};
+      s.players.forEach(function (p) {
+        SF.finItems(p).forEach(function (i) {
+          if (i.status !== 'pagado') return;
+          var m = SF.MONTHS.indexOf(i.month);
+          if (m < 0) m = 8;                       // sin mes (matrícula) -> septiembre
+          entradas[m] = (entradas[m] || 0) + (+i.amount || 0);
+        });
+      });
+      s.exps.forEach(function (e) {
+        if (e.status !== 'pagado') return;
+        var d = new Date((e.paid_on || e.date) + 'T00:00:00');
+        if (isNaN(d)) return;
+        salidas[d.getMonth()] = (salidas[d.getMonth()] || 0) + (+e.amount || 0);
+      });
+
+      var acum = s.prev, filas = [], peor = null;
+      SF_TEMPORADA.forEach(function (m) {
+        var ent = entradas[m] || 0, sal = salidas[m] || 0;
+        if (!ent && !sal) { filas.push({ m: m, vacio: true, acum: acum }); return; }
+        acum += ent - sal;
+        filas.push({ m: m, ent: ent, sal: sal, acum: acum });
+        if (acum < 0 && (peor === null || acum < peor.acum)) peor = { m: m, acum: acum };
+      });
+      var conMov = filas.filter(function (f) { return !f.vacio; });
+
+      if (!conMov.length) {
+        view.appendChild(el('<p class="hint">Todavía no hay cobros ni pagos registrados.</p>'));
+      } else {
+        var tope = Math.max.apply(null, conMov.map(function (f) { return Math.max(f.ent, f.sal); })) || 1;
+        var mw = el('<div class="mes-wrap"></div>');
+        conMov.forEach(function (f) {
+          var row = el('<div class="mes-row' + (f.acum < 0 ? ' mal' : '') + '">' +
+            '<span class="mes-n">' + SF.MONTHS[f.m].slice(0, 3) + '</span>' +
+            '<span class="mes-bar"><span class="mes-e" style="width:' + Math.round(f.ent / tope * 100) + '%"></span>' +
+            '<span class="mes-s" style="width:' + Math.round(f.sal / tope * 100) + '%"></span></span>' +
+            '<span class="mes-v ent">' + (f.ent ? '+' + eur(f.ent) : '') + '</span>' +
+            '<span class="mes-v sal">' + (f.sal ? '−' + eur(f.sal) : '') + '</span>' +
+            '<span class="mes-ac">' + eur(f.acum) + '</span></div>');
+          mw.appendChild(row);
+        });
+        view.appendChild(mw);
+        view.appendChild(el('<p class="hint"><span class="leg e"></span> entra &nbsp; <span class="leg s"></span> sale &nbsp;· la última columna es el dinero que te queda ese mes.</p>'));
+        if (peor) {
+          view.appendChild(el('<div class="foco is-danger"><div class="foco-ic">' + ico('alert') + '</div><div class="foco-body">' +
+            '<p class="foco-t">En ' + SF.MONTHS[peor.m].toLowerCase() + ' te quedarías en ' + eur(peor.acum) + '</p>' +
+            '<p class="foco-s">El presupuesto puede cuadrar a final de temporada y aun así faltarte dinero un mes concreto: los ingresos se concentran al principio del curso y los gastos son todos los meses.</p></div></div>'));
+        }
+      }
+
+      /* ---------- 4. Puerta al presupuesto ---------- */
       var pb = SF.store.budget(SF.SEASON), pl = pb.lines || {};
       var pIng = 0, pGas = 0;
       SF.BUDGET_PLAN.forEach(function (x) {
         var v = +((pl[x.key] || {}).previsto) || 0;
         if (x.tipo === 'ingreso') pIng += v; else pGas += v;
       });
+      view.appendChild(el('<p class="sec-label">Lo previsto para la temporada</p>'));
       if (!pIng && !pGas) {
-        view.appendChild(el('<p class="hint">Todavía no hay presupuesto para ' + SF.SEASON + '. Son unas 30 partidas, con lo que ya ' +
-          'sabe la app rellenando sola la columna de lo real.</p>'));
+        view.appendChild(el('<p class="hint">Aún no hay presupuesto para ' + SF.SEASON + '. <b>Lo de arriba es la caja real; el presupuesto es aparte</b>, ' +
+          'y no se mezclan: los gastos pagados se descuentan del dinero que hay, nunca de lo que habías previsto.</p>'));
       } else {
-        view.appendChild(el('<div class="field-grid">' +
-          fld('Ingresos previstos', eur(pIng)) + fld('Gastos previstos', eur(pGas)) + fld('Resultado previsto', eur(pIng - pGas)) +
-          fld('Ingresos cobrados', eur(s.income)) + fld('Pendiente de cobro', eur(s.pending)) + fld('Gasto real', eur(s.spent)) + '</div>'));
+        var mrg = el('<div class="mini-list"></div>');
+        mrg.appendChild(el('<div class="mini-row"><span>Ingresos: previstos ' + eur(pIng) + '</span><span class="hint">cobrados ' + eur(s.cobrado) + ' · faltan ' + eur(Math.max(0, pIng - s.cobrado)) + '</span></div>'));
+        mrg.appendChild(el('<div class="mini-row"><span>Gastos: previstos ' + eur(pGas) + '</span><span class="hint">pagados ' + eur(s.pagado) + ' · margen ' + eur(pGas - s.pagado - s.comprometido) + '</span></div>'));
+        view.appendChild(mrg);
       }
+      var acc = el('<div class="row-c"></div>');
       var bp = el('<button class="btn btn-light btn-sm">' + ico('chart') + (pIng || pGas ? 'Abrir el presupuesto' : 'Preparar el presupuesto') + '</button>');
       bp.onclick = function () { location.hash = '#/presupuesto'; };
-      view.appendChild(bp);
-
-      var be = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Saldo de la temporada anterior</button>');
+      var be = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Saldo inicial</button>');
       be.onclick = function () {
         var ec = SF.store.academy().economy || {};
         U.modal('Saldo inicial', smallForm([
-          { name: 'prev_balance', label: 'Saldo con el que empieza la temporada (€)', type: 'number' }
+          { name: 'prev_balance', label: 'Dinero con el que empieza la temporada (€)', type: 'number' }
         ], { prev_balance: ec.prev_balance }, function (d) {
           SF.store.saveEconomy({ prev_balance: +d.prev_balance || 0 }); U.toast('Guardado'); refresh();
         }));
       };
-      view.appendChild(be);
+      acc.appendChild(bp); acc.appendChild(be); view.appendChild(acc);
     }
 
-    view.appendChild(el('<p class="sec-label">Gastos' + (canManage ? '' : ' (los míos)') + '</p>'));
-    var list = (canManage ? s.exps : s.exps.filter(function (e) { return e.by === SF.store.currentUser().name; })).slice().sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+    /* ---------- 5. Gastos ---------- */
+    view.appendChild(el('<p class="sec-label">Gastos' + (canManage ? '' : ' que he pasado' ) + '</p>'));
+    var add = el('<button class="btn btn-primary btn-sm">' + ico('plus') + 'Pasar un gasto</button>');
+    add.onclick = function () { expenseModal(refresh); };
+    view.appendChild(add);
+    view.appendChild(el('<p class="hint">Escribe el concepto y el importe, y si tienes ticket hazle una foto. Va a administración: primero lo <b>aprueban</b> y luego lo <b>pagan</b>.</p>'));
+
+    var list = (canManage ? s.exps : s.exps.filter(function (e) { return e.by === SF.store.currentUser().name; }))
+      .slice().sort(function (a, b) {
+        /* Lo que espera acción primero: sin aprobar, luego sin pagar, luego el resto. */
+        var ord = { pendiente: 0, aprobado: 1, pagado: 2, rechazado: 3 };
+        var d = (ord[a.status] || 9) - (ord[b.status] || 9);
+        return d !== 0 ? d : (b.date || '').localeCompare(a.date || '');
+      });
     var lw = el('<div class="exp-list"></div>');
-    if (!list.length) lw.appendChild(el('<p class="hint">Sin gastos registrados.</p>'));
+    if (!list.length) lw.appendChild(el('<p class="hint">Sin gastos todavía.</p>'));
     list.forEach(function (e) { lw.appendChild(expenseRow(e, canManage, refresh)); });
     view.appendChild(lw);
 
     if (canManage) {
-      view.appendChild(el('<p class="sec-label">Gastos por categoría</p>'));
+      view.appendChild(el('<p class="sec-label">En qué se ha ido el dinero</p>'));
       var byCat = {};
-      s.exps.filter(function (e) { return e.status === 'aprobado'; }).forEach(function (e) { byCat[e.category] = (byCat[e.category] || 0) + (+e.amount || 0); });
+      s.exps.filter(function (e) { return e.status === 'pagado'; }).forEach(function (e) { byCat[e.category] = (byCat[e.category] || 0) + (+e.amount || 0); });
       var cats = Object.keys(byCat).sort(function (a, b) { return byCat[b] - byCat[a]; }), maxc = cats.length ? byCat[cats[0]] : 1;
-      if (!cats.length) view.appendChild(el('<p class="hint">Aún no hay gastos aprobados.</p>'));
+      if (!cats.length) view.appendChild(el('<p class="hint">Aún no se ha pagado ningún gasto.</p>'));
       var cb = el('<div class="bars"></div>');
       cats.forEach(function (c) { cb.appendChild(el('<div class="bar-row"><span class="bar-label">' + esc(c) + '</span><span class="bar-track"><span class="bar-fill" style="width:' + Math.round(byCat[c] / maxc * 100) + '%"></span></span><span class="bar-val">' + eur(byCat[c]) + '</span></div>')); });
       view.appendChild(cb);
 
-      view.appendChild(el('<p class="sec-label">Cobros pendientes por jugador</p>'));
-      var debt = s.players.map(function (p) { var t = SF.finTotals(p); return { name: p.full_name, due: t.pending + t.overdue, paid: t.paid }; }).filter(function (x) { return x.due > 0; }).sort(function (a, b) { return b.due - a.due; });
+      view.appendChild(el('<p class="sec-label">Quién debe dinero</p>'));
+      var debt = s.players.map(function (p) { var t = SF.finTotals(p); return { p: p, due: t.pending + t.overdue, venc: t.overdue }; })
+        .filter(function (x) { return x.due > 0; }).sort(function (a, b) { return b.venc - a.venc || b.due - a.due; });
       var dl = el('<div class="mini-list"></div>');
-      if (!debt.length) dl.appendChild(el('<p class="hint">Todos los jugadores están al día.</p>'));
-      debt.slice(0, 8).forEach(function (x) { dl.appendChild(el('<div class="mini-row"><span>' + esc(x.name) + '</span><span class="hint">debe ' + eur(x.due) + ' · pagado ' + eur(x.paid) + '</span></div>')); });
+      if (!debt.length) dl.appendChild(el('<p class="hint">Nadie debe nada. Al día.</p>'));
+      debt.slice(0, 8).forEach(function (x) {
+        var row = el('<div class="mini-row"><span>' + esc(x.p.full_name) +
+          (x.venc ? ' <span class="tag tag-danger">vencido</span>' : '') + '</span>' +
+          '<span class="row-actions"><span class="hint">debe ' + eur(x.due) + '</span> <button class="lnk" data-v>ver plan</button></span></div>');
+        row.querySelector('[data-v]').onclick = function () { SF._openTab = 'finanzas'; location.hash = '#/jugador/' + x.p.id; };
+        dl.appendChild(row);
+      });
       view.appendChild(dl);
     }
   };
