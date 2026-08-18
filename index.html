@@ -280,19 +280,20 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 @media(prefers-reduced-motion:reduce){ .bell.has .ic{animation:none} }
 
 /* Buzón */
-.msg{display:flex;gap:13px;align-items:flex-start;padding:15px 16px;border:1px solid var(--line);
+/* Prefijo bz- (buzón) para no chocar con .msg, que ya usa el tablón del equipo */
+.bz{display:flex;gap:13px;align-items:flex-start;padding:15px 16px;border:1px solid var(--line);
   border-radius:var(--r-lg);background:var(--surface);margin-bottom:9px;cursor:pointer;
   width:100%;text-align:left;font-family:inherit;transition:border-color .15s,box-shadow .15s}
-.msg:hover{border-color:var(--line-2);box-shadow:0 5px 16px rgba(31,36,48,.06)}
-.msg.nuevo{border-left:3px solid var(--purple)}
-.msg-ic{width:36px;height:36px;border-radius:10px;background:#EFEDF8;color:var(--purple-d);
+.bz:hover{border-color:var(--line-2);box-shadow:0 5px 16px rgba(31,36,48,.06)}
+.bz.nuevo{border-left:3px solid var(--purple)}
+.bz-ic{width:36px;height:36px;border-radius:10px;background:#EFEDF8;color:var(--purple-d);
   display:flex;align-items:center;justify-content:center;flex:none}
-.msg-b{flex:1;min-width:0}
-.msg-t{font-size:14px;font-weight:600;margin:0;color:var(--ink)}
-.msg-m{font-size:12px;color:var(--ink-3);margin:2px 0 0}
-.msg-p{font-size:13px;color:var(--ink-2);margin:7px 0 0;line-height:1.5;
+.bz-b{flex:1;min-width:0}
+.bz-t{font-size:14px;font-weight:600;margin:0;color:var(--ink)}
+.bz-m{font-size:12px;color:var(--ink-3);margin:2px 0 0}
+.bz-p{font-size:13px;color:var(--ink-2);margin:7px 0 0;line-height:1.5;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.msg-body{white-space:pre-wrap;font-size:13.5px;line-height:1.65;color:var(--ink-2);margin:0}
+.bz-body{white-space:pre-wrap;font-size:13.5px;line-height:1.65;color:var(--ink-2);margin:0}
 
 /* ===== Recepción =====
    La entrada a la plataforma. No es una pantalla de carga (eso sería un peaje
@@ -806,7 +807,12 @@ SF.SPORTS = {
     label: 'Baloncesto',
     positions: ['Base', 'Escolta', 'Alero', 'Ala-pívot', 'Pívot'],
     skills: {
-      'Técnica': ['Tiro', 'Bote', 'Pase', 'Finalización', 'Rebote', 'Defensa', 'Lectura de juego'],
+      /* Orden según la lógica del juego: con balón en ataque, sin balón,
+         rebote, y luego lo defensivo. El robo va aparte de la defensa porque
+         un jugador puede defender bien y no robar nunca, y al revés: quien
+         roba mucho a veces está arriesgando de más. Son cosas distintas. */
+      'Técnica': ['Tiro', 'Bote', 'Pase', 'Finalización', 'Ataque 1x1', 'Juego sin balón',
+        'Rebote', 'Defensa', 'Robo de balón', 'Lectura de juego'],
       'Física': ['Fuerza explosiva', 'Velocidad', 'Velocidad de reacción', 'Potencia', 'Flexibilidad', 'Coordinación', 'Resistencia aeróbica', 'Resistencia anaeróbica'],
       'Mental': ['Liderazgo', 'Competitividad', 'Disciplina', 'Adaptación']
     },
@@ -6419,15 +6425,15 @@ window.SF = window.SF || {};
 
     lista.forEach(function (x) {
       var c = x.c;
-      var b = el('<button class="msg' + (x.leido ? '' : ' nuevo') + '">' +
-        '<div class="msg-ic">' + ico(c.title === 'Documentación pendiente' ? 'file' : 'bell') + '</div>' +
-        '<div class="msg-b"><p class="msg-t">' + esc(c.title) +
+      var b = el('<button class="bz' + (x.leido ? '' : ' nuevo') + '">' +
+        '<div class="bz-ic">' + ico(c.title === 'Documentación pendiente' ? 'file' : 'bell') + '</div>' +
+        '<div class="bz-b"><p class="bz-t">' + esc(c.title) +
         (x.leido ? '' : ' <span class="tag tag-purple">nuevo</span>') + '</p>' +
-        '<p class="msg-m">' + esc(c.author) + ' · ' + esc(c.author_role) + ' · ' + fmtDate((c.created_at || '').slice(0, 10)) + '</p>' +
-        '<p class="msg-p">' + esc(c.body) + '</p></div></button>');
+        '<p class="bz-m">' + esc(c.author) + ' · ' + esc(c.author_role) + ' · ' + fmtDate((c.created_at || '').slice(0, 10)) + '</p>' +
+        '<p class="bz-p">' + esc(c.body) + '</p></div></button>');
       b.onclick = function () {
         if (!x.leido) SF.store.commMarkRead(c.id, me.id);
-        var cuerpo = el('<div><p class="msg-body">' + esc(c.body) + '</p></div>');
+        var cuerpo = el('<div><p class="bz-body">' + esc(c.body) + '</p></div>');
         /* Si el club pide que se traslade a las familias, lo dice aquí y
            queda constancia de quién lo trasladó. */
         if (c.mode === 'reenviar' && x.team_id && !x.relayed) {
