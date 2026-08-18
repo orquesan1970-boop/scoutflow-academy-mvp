@@ -434,6 +434,13 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .kcard:hover{border-color:var(--purple-2)}
 .kc-name{font-size:13.5px;font-weight:500}
 .kc-meta{font-size:12px;color:var(--ink-3);margin:2px 0 8px}
+/* Etiqueta que además es enlace: se nota que se puede pulsar */
+.tag-lnk{border:0;background:none;padding:0;cursor:pointer;font-family:inherit;line-height:1}
+.tag-lnk .tag{display:inline-flex;align-items:center;gap:5px;transition:filter .15s,transform .15s}
+.tag-lnk:hover .tag{filter:brightness(.94);transform:translateY(-1px)}
+.tag-lnk:focus-visible .tag{outline:2px solid var(--purple);outline-offset:2px}
+.tag-lnk .ic{width:13px;height:13px}
+
 .kc-move{font-size:12px;padding:5px 8px;flex:1;min-width:0}
 .bcol{align-self:flex-start}
 .bcol-vacio{font-size:12px;color:var(--ink-3);text-align:center;padding:14px 0;margin:0}
@@ -2641,7 +2648,38 @@ window.SF = window.SF || {};
     fhead.querySelector('.fh-info').innerHTML =
       '<h2>' + esc(p.full_name) + '</h2>' +
       '<p class="fh-sub">' + (p.ficha != null ? '<b>' + SF.fichaCode(p.ficha) + '</b> · ' : '') + (p.dorsal ? 'dorsal ' + esc(p.dorsal) + ' · ' : '') + esc(p.scoutflow_id) + ' · ' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + (p.height_cm ? ' · ' + (p.height_cm / 100).toFixed(2) + ' m' : '') + '</p>' +
-      '<div class="fh-tags">' + U.statusTag(p.status) + (r.canSeeScore ? '<span class="tag tag-purple">Score ' + (p.scout_score != null ? p.scout_score : 'pendiente') + '</span>' : '') + '<span class="tag tag-gray">' + esc(nat || '—') + '</span></div>';
+      '<div class="fh-tags"></div>';
+
+    /* Las etiquetas de la cabecera llevan a donde se gestiona cada cosa: si
+       pone "Entrevista", lo lógico es poder pulsarla y ver cuándo es. */
+    var tags = fhead.querySelector('.fh-tags');
+    var tEstado = el('<button class="tag-lnk">' + U.statusTag(p.status) + '</button>');
+    tEstado.title = 'Ver la captación de este jugador';
+    tEstado.onclick = function () { SF._openTab = 'captacion'; SF.router.render(); };
+    tags.appendChild(tEstado);
+
+    /* Si hay entrevista programada, la fecha se ve aquí sin tener que buscarla. */
+    var cita = SF.nextInterview(p), citaTarde = SF.overdueInterview(p);
+    if (cita || citaTarde) {
+      var c = cita || citaTarde;
+      var hoyF = new Date().toISOString().slice(0, 10);
+      var esHoy = c.date === hoyF;
+      var bCita = el('<button class="tag-lnk"><span class="tag ' + (citaTarde && !cita ? 'tag-warn' : esHoy ? 'tag-purple' : 'tag-info') + '">' +
+        ico('cal') + (esHoy ? 'Entrevista HOY' : 'Entrevista ' + fmtDate(c.date)) + (c.time ? ' · ' + esc(c.time) : '') +
+        (citaTarde && !cita ? ' · sin cerrar' : '') + '</span></button>');
+      bCita.title = 'Ver y editar la entrevista';
+      bCita.onclick = function () { SF._openTab = 'captacion'; SF.router.render(); };
+      tags.appendChild(bCita);
+    }
+
+    if (r.canSeeScore) {
+      var sc = p.scout_score;
+      var bSc = el('<button class="tag-lnk"><span class="tag tag-purple">Score ' + (sc != null ? sc : 'pendiente') + '</span></button>');
+      bSc.title = 'Scout Score: valoración interna del club sobre 100. La pone el staff, no se calcula sola. Nunca la ve la familia.';
+      bSc.onclick = function () { SF._openTab = 'deportivo'; SF.router.render(); };
+      tags.appendChild(bSc);
+    }
+    tags.appendChild(el('<span class="tag tag-gray">' + esc(nat || '—') + '</span>'));
     view.appendChild(fhead);
 
     var tabbar = el('<div class="tabs"></div>');
