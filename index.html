@@ -434,6 +434,30 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .kcard:hover{border-color:var(--purple-2)}
 .kc-name{font-size:13.5px;font-weight:500}
 .kc-meta{font-size:12px;color:var(--ink-3);margin:2px 0 8px}
+/* ===== Evaluación: la nota dice en palabras qué significa ===== */
+.ev-ancla{font-size:11px;color:var(--ink-3);margin-top:3px;display:block;min-height:14px}
+.ev-ancla.n9{color:#0F6E50;font-weight:600} .ev-ancla.n7{color:var(--ok-ink)}
+.ev-ancla.n5{color:var(--ink-2)} .ev-ancla.n3{color:var(--warn-ink)} .ev-ancla.n1{color:var(--danger-ink)}
+.ev-leyenda{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 2px}
+.ev-l{font-size:11px;border-radius:6px;padding:3px 8px;background:#F4F2FC;color:var(--ink-2)}
+.ev-l b{font-weight:600}
+.ev-l.n9{background:#E4F4EE;color:#0F6E50} .ev-l.n7{background:#EAF4DD;color:#3B6D11}
+.ev-l.n5{background:#F0EFF4} .ev-l.n3{background:var(--warn-bg);color:var(--warn-ink)}
+.ev-l.n1{background:var(--danger-bg);color:var(--danger-ink)}
+
+/* ===== Scout Score: se ve de dónde sale ===== */
+.score-box{display:flex;gap:20px;align-items:center;border:1px solid var(--line);border-radius:var(--r-lg);
+  background:var(--surface);padding:16px 18px;flex-wrap:wrap}
+.score-box.flojo{border-style:dashed}
+.score-n{font-size:38px;font-weight:600;color:var(--purple-d);line-height:1;letter-spacing:-1px}
+.score-n span{font-size:14px;color:var(--ink-3);font-weight:400}
+.score-d{flex:1;min-width:220px;display:flex;flex-direction:column;gap:6px}
+.score-g{display:grid;grid-template-columns:130px 1fr 38px;gap:10px;align-items:center;font-size:12.5px}
+.sg-n b{color:var(--ink-3);font-weight:600;font-size:11px}
+.sg-b{height:7px;background:#EFEDF8;border-radius:4px;overflow:hidden}
+.sg-b i{display:block;height:100%;background:var(--purple);border-radius:4px}
+.sg-v{text-align:right;font-weight:600;font-variant-numeric:tabular-nums}
+
 /* Etiqueta que además es enlace: se nota que se puede pulsar */
 .tag-lnk{border:0;background:none;padding:0;cursor:pointer;font-family:inherit;line-height:1}
 .tag-lnk .tag{display:inline-flex;align-items:center;gap:5px;transition:filter .15s,transform .15s}
@@ -652,6 +676,70 @@ SF.STATUSES = [
   'Entrevista', 'Oferta enviada', 'Inscrito', 'Rechazado'
 ];
 SF.PIPELINE = ['Nuevo', 'Datos incompletos', 'En evaluación', 'Entrevista', 'Oferta enviada', 'Inscrito'];
+
+/* ===================== EVALUACIÓN Y SCOUT SCORE =====================
+   Escala de 0 a 10. Se eligió por dos razones:
+     · Una escala de 11 puntos es más fiable que una de 5: hay sitio para
+       matizar y las medias se mueven de forma significativa.
+     · En España todo el mundo lee el 1-10 como las notas del colegio, así
+       que no hay que enseñar a nadie a usarla.
+
+   Pero un número solo es subjetivo: un 5 significa cosas distintas para cada
+   entrenador. Por eso cada tramo lleva su descripción, y la referencia SIEMPRE
+   es su categoría y su año, no el baloncesto en abstracto. Sin eso, dos
+   personas puntúan distinto al mismo jugador y el Score no vale nada. */
+SF.EVAL_MAX = 10;
+SF.EVAL_ANCHORS = [
+  { min: 9, label: 'Referencia', desc: 'Destaca incluso fuera de su categoría' },
+  { min: 7, label: 'Por encima', desc: 'Claramente mejor que la media de su año' },
+  { min: 5, label: 'En la media', desc: 'Lo esperable para su categoría y edad' },
+  { min: 3, label: 'Por debajo', desc: 'Le falta respecto a su año' },
+  { min: 1, label: 'Muy por debajo', desc: 'Es su punto débil, hay que trabajarlo' }
+];
+SF.evalAnchor = function (v) {
+  v = +v || 0;
+  for (var i = 0; i < SF.EVAL_ANCHORS.length; i++) if (v >= SF.EVAL_ANCHORS[i].min) return SF.EVAL_ANCHORS[i];
+  return null;
+};
+
+/* Peso de cada bloque en el Score. Se puede cambiar por academia: no es lo
+   mismo un club de cantera que uno que ficha para competir ya.
+   Por defecto lo mental pesa más que lo físico, porque en formación la
+   actitud predice el desarrollo mejor que el físico de hoy, que además
+   cambia solo con la edad. */
+SF.SCORE_WEIGHTS = { 'Técnica': 40, 'Física': 25, 'Mental': 35 };
+
+/* El Scout Score sale de las evaluaciones. Nadie lo teclea.
+   Devuelve también de cuántos apartados sale: un 84 con 3 notas puestas no
+   vale lo mismo que un 84 con 15, y eso hay que decirlo. */
+SF.scoutScore = function (p) {
+  var sp = SF.SPORTS[p.sport || 'baloncesto'];
+  if (!sp || !sp.skills) return null;
+  var stats = p.stats || {};
+  var pesoTotal = 0, acumulado = 0, puestos = 0, total = 0, porGrupo = {};
+
+  Object.keys(sp.skills).forEach(function (g) {
+    var skills = sp.skills[g], suma = 0, n = 0;
+    skills.forEach(function (sk) {
+      total++;
+      var v = +stats[sk];
+      if (v > 0) { suma += v; n++; puestos++; }
+    });
+    if (!n) { porGrupo[g] = null; return; }               // grupo sin evaluar: no penaliza
+    var media = suma / n;
+    porGrupo[g] = media;
+    var w = SF.SCORE_WEIGHTS[g] != null ? SF.SCORE_WEIGHTS[g] : 100 / Object.keys(sp.skills).length;
+    pesoTotal += w; acumulado += media * w;
+  });
+
+  if (!pesoTotal || !puestos) return null;                // sin nada evaluado, no hay Score
+  return {
+    score: Math.round((acumulado / pesoTotal) * 10),      // media ponderada 0-10 -> 0-100
+    puestos: puestos, total: total,
+    cobertura: Math.round(puestos / total * 100),
+    porGrupo: porGrupo
+  };
+};
 
 /* ===================== ENTREVISTAS =====================
    La etapa del pipeline es UN valor: dice por dónde va el jugador. Pero la
@@ -1547,6 +1635,21 @@ SF.store = (function () {
       d.players.forEach(function (p) { if (p.ficha == null) p.ficha = ++max; });
       write(d);
     }
+    /* Migración de la escala de evaluación: de 0-5 a 0-10.
+       Se multiplica por 2, que conserva exactamente la proporción (un 3 sobre 5
+       es un 6 sobre 10) y no pierde ni inventa nada. Se hace una sola vez y
+       queda marcado, para no volver a doblarlo en cada carga. */
+    if (d.eval_scale !== 10) {
+      (d.players || []).forEach(function (p) {
+        if (!p.stats) return;
+        Object.keys(p.stats).forEach(function (k) {
+          var v = +p.stats[k];
+          if (v > 0 && v <= 5) p.stats[k] = v * 2;
+        });
+      });
+      d.eval_scale = 10;
+      write(d);
+    }
     return d;
   }
 
@@ -1992,7 +2095,8 @@ SF.ui = (function () {
   /* tarjeta de jugador (vista principal) */
   function playerCard(p) {
     var nat = (p.nationality || []).join(' / ');
-    var score = p.scout_score != null ? p.scout_score : '—';
+    var ssc = SF.scoutScore(p);
+    var score = ssc ? ssc.score : '—';
     var card = el(
       '<button class="pcard" data-id="' + p.id + '">' +
       '<div class="pcard-photo">' + initials(p.full_name) +
@@ -2148,11 +2252,30 @@ window.SF = window.SF || {};
       var grid = el('<div class="form-grid"></div>');
       sp.skills[group].forEach(function (sk) {
         var v = stats[sk] != null ? stats[sk] : '';
-        grid.appendChild(el('<div class="frow"><label>' + esc(sk) + '</label><input type="number" min="0" max="5" step="1" data-sk="' + esc(sk) + '" value="' + esc(v) + '"></div>'));
+        var row = el('<div class="frow"><label>' + esc(sk) + '</label>' +
+          '<input type="number" min="0" max="' + SF.EVAL_MAX + '" step="1" data-sk="' + esc(sk) + '" value="' + esc(v) + '">' +
+          '<span class="ev-ancla"></span></div>');
+        var inp = row.querySelector('input'), anc = row.querySelector('.ev-ancla');
+        /* Al teclear la nota se dice en palabras qué significa: así dos
+           entrenadores distintos puntúan parecido al mismo jugador. */
+        function pinta() {
+          var a = SF.evalAnchor(inp.value);
+          anc.textContent = a ? a.label : '';
+          anc.title = a ? a.desc : '';
+          anc.className = 'ev-ancla' + (a ? ' n' + a.min : '');
+        }
+        inp.addEventListener('input', pinta); pinta();
+        grid.appendChild(row);
       });
       bodyEl.appendChild(grid);
     });
-    wrap.appendChild(el('<p class="hint">Puntuación de 0 a 5. Se guardará quién evalúa y la fecha.</p>'));
+    wrap.appendChild(el('<p class="hint"><b>De 0 a ' + SF.EVAL_MAX + ', comparándolo con su categoría y su año</b>, no con el baloncesto en abstracto. ' +
+      'Deja en blanco lo que no hayas visto: no puntuar no resta.</p>'));
+    var esc2 = el('<div class="ev-leyenda"></div>');
+    SF.EVAL_ANCHORS.slice().reverse().forEach(function (a) {
+      esc2.appendChild(el('<span class="ev-l n' + a.min + '"><b>' + a.min + (a.min === 9 ? '-10' : '-' + (a.min + 1)) + '</b> ' + esc(a.label) + '</span>'));
+    });
+    wrap.appendChild(esc2);
     wrap.appendChild(bodyEl);
     var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar evaluación</button></div>');
     foot.children[0].onclick = U.closeModal;
@@ -2606,7 +2729,7 @@ window.SF = window.SF || {};
         var t = el('<table class="tbl"><thead><tr><th>Jugador</th><th>Año</th><th>Posición</th><th>Estado</th><th>Score</th></tr></thead><tbody></tbody></table>');
         var tb = t.querySelector('tbody');
         rows.forEach(function (p) {
-          var tr = el('<tr><td><div class="tcell"><span class="av-sm">' + U.initials(p.full_name) + '</span>' + esc(p.full_name) + '</div></td><td>' + (p.birth_year || '—') + '</td><td>' + esc(p.primary_position || '—') + '</td><td>' + U.statusTag(p.status) + '</td><td>' + (p.scout_score != null ? p.scout_score : '—') + '</td></tr>');
+          var tr = el('<tr><td><div class="tcell"><span class="av-sm">' + U.initials(p.full_name) + '</span>' + esc(p.full_name) + '</div></td><td>' + (p.birth_year || '—') + '</td><td>' + esc(p.primary_position || '—') + '</td><td>' + U.statusTag(p.status) + '</td><td>' + (function () { var x = SF.scoutScore(p); return x ? x.score : '—'; })() + '</td></tr>');
           tr.onclick = function () { location.hash = '#/jugador/' + p.id; };
           tb.appendChild(tr);
         });
@@ -2673,9 +2796,15 @@ window.SF = window.SF || {};
     }
 
     if (r.canSeeScore) {
-      var sc = p.scout_score;
-      var bSc = el('<button class="tag-lnk"><span class="tag tag-purple">Score ' + (sc != null ? sc : 'pendiente') + '</span></button>');
-      bSc.title = 'Scout Score: valoración interna del club sobre 100. La pone el staff, no se calcula sola. Nunca la ve la familia.';
+      var ss = SF.scoutScore(p);
+      var bSc = el('<button class="tag-lnk"><span class="tag tag-purple">Score ' +
+        (ss ? ss.score : 'pendiente') + (ss && ss.cobertura < 60 ? ' ·' : '') + '</span></button>');
+      bSc.title = ss
+        ? 'Scout Score ' + ss.score + '/100. Sale de sus evaluaciones (técnica, física y mental), no lo teclea nadie. ' +
+          'Calculado con ' + ss.puestos + ' de ' + ss.total + ' apartados evaluados.' +
+          (ss.cobertura < 60 ? ' Ojo: falta más de la mitad por evaluar, así que es poco fiable.' : '') +
+          ' Nunca lo ve la familia.'
+        : 'Todavía sin evaluaciones, así que no hay Score. Se calcula solo en cuanto se puntúe.';
       bSc.onclick = function () { SF._openTab = 'deportivo'; SF.router.render(); };
       tags.appendChild(bSc);
     }
@@ -2865,12 +2994,42 @@ window.SF = window.SF || {};
           body.appendChild(ml);
         }
 
+        /* --- Scout Score: de dónde sale, a la vista ---
+           Un número que nadie sabe cómo se calcula es un número que se
+           discute. Aquí se ve la media de cada bloque y cuánto pesa. */
+        if (sp && role().canSeeScore) {
+          var ss = SF.scoutScore(p);
+          body.appendChild(el('<p class="sec-label">Scout Score</p>'));
+          if (!ss) {
+            body.appendChild(el('<p class="hint">Sin evaluaciones todavía. El Score se calcula solo en cuanto se puntúe algo.</p>'));
+          } else {
+            var poco = ss.cobertura < 60;
+            var cajaS = el('<div class="score-box' + (poco ? ' flojo' : '') + '">' +
+              '<div class="score-n">' + ss.score + '<span>/100</span></div>' +
+              '<div class="score-d"></div></div>');
+            var det = cajaS.querySelector('.score-d');
+            Object.keys(sp.skills).forEach(function (g) {
+              var m = ss.porGrupo[g], w = SF.SCORE_WEIGHTS[g];
+              det.appendChild(el('<div class="score-g"><span class="sg-n">' + esc(g) + ' <b>' + (w != null ? w + '%' : '') + '</b></span>' +
+                '<span class="sg-b"><i style="width:' + (m ? Math.round(m * 10) : 0) + '%"></i></span>' +
+                '<span class="sg-v">' + (m ? m.toFixed(1) : '—') + '</span></div>'));
+            });
+            body.appendChild(cajaS);
+            body.appendChild(el('<p class="hint">Media ponderada de sus evaluaciones · <b>' + ss.puestos + ' de ' + ss.total + '</b> apartados evaluados' +
+              (poco ? ' · <b class="c-warn">falta más de la mitad, tómalo con pinzas</b>' : '') +
+              '. Lo calcula la app: no lo escribe nadie.</p>'));
+          }
+        }
+
         if (sp) Object.keys(sp.skills).forEach(function (group) {
           body.appendChild(el('<p class="sec-label">' + group + '</p>'));
           var rows = el('<div class="skills"></div>');
           sp.skills[group].forEach(function (sk) {
             var v = (p.stats && p.stats[sk]) || 0;
-            rows.appendChild(el('<div class="skill"><span>' + sk + '</span><div class="bar"><i style="width:' + (v ? v * 20 : 4) + '%"></i></div><b>' + (v ? v : 'sin evaluar') + '</b></div>'));
+            var a = SF.evalAnchor(v);
+            rows.appendChild(el('<div class="skill"><span>' + sk + '</span><div class="bar"><i style="width:' +
+              (v ? Math.round(v / SF.EVAL_MAX * 100) : 4) + '%"></i></div><b title="' + (a ? esc(a.desc) : '') + '">' +
+              (v ? v + (a ? ' · ' + a.label : '') : 'sin evaluar') + '</b></div>'));
           });
           body.appendChild(rows);
         });
@@ -3364,7 +3523,8 @@ window.SF = window.SF || {};
   function analizarIA(p) {
     var strengths = [], gaps = [];
     if (p.height_cm >= 195) strengths.push('Envergadura física destacada para su posición.');
-    if (p.scout_score >= 80) strengths.push('Scout Score alto (' + p.scout_score + ').');
+    var ssInf = SF.scoutScore(p);
+    if (ssInf && ssInf.score >= 80) strengths.push('Scout Score alto (' + ssInf.score + ' sobre 100, de ' + ssInf.puestos + ' apartados evaluados).');
     if ((p.nationality || []).length > 1) strengths.push('Doble nacionalidad: facilita movilidad internacional.');
     if (!strengths.length) strengths.push('Perfil en evaluación; faltan datos para destacar fortalezas.');
     var missing = [];
