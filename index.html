@@ -434,7 +434,22 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .kcard:hover{border-color:var(--purple-2)}
 .kc-name{font-size:13.5px;font-weight:500}
 .kc-meta{font-size:12px;color:var(--ink-3);margin:2px 0 8px}
-.kc-move{font-size:12px;padding:5px 8px}
+.kc-move{font-size:12px;padding:5px 8px;flex:1;min-width:0}
+.bcol{align-self:flex-start}
+.bcol-vacio{font-size:12px;color:var(--ink-3);text-align:center;padding:14px 0;margin:0}
+/* Lo pendiente va en la tarjeta pase lo que pase: no depende de la etapa */
+.kc-tags{display:flex;flex-wrap:wrap;gap:4px;margin:0 0 8px}
+.kc-tags .tag{font-size:10.5px;padding:2px 7px}
+.kc-cita{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--purple-d);
+  background:#F1EEFC;border-radius:7px;padding:5px 8px;margin-bottom:8px}
+.kc-cita .ic{width:13px;height:13px;flex:none}
+.kc-cita.hoy{background:var(--purple);color:#fff}
+.kc-cita.tarde{background:var(--warn-bg);color:var(--warn-ink)}
+.kc-acc{display:flex;gap:6px;align-items:center}
+.kc-cal{flex:0 0 auto;border:1px solid var(--line);background:var(--surface);border-radius:8px;
+  width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--ink-2)}
+.kc-cal:hover{border-color:var(--purple-2);color:var(--purple-d)}
+.kc-cal .ic{width:15px;height:15px}
 
 /* Modal */
 .modal-back{position:fixed;inset:0;background:rgba(23,19,42,.45);display:flex;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:40;overflow:auto}
@@ -630,6 +645,50 @@ SF.STATUSES = [
   'Entrevista', 'Oferta enviada', 'Inscrito', 'Rechazado'
 ];
 SF.PIPELINE = ['Nuevo', 'Datos incompletos', 'En evaluación', 'Entrevista', 'Oferta enviada', 'Inscrito'];
+
+/* ===================== ENTREVISTAS =====================
+   La etapa del pipeline es UN valor: dice por dónde va el jugador. Pero la
+   realidad no cabe en un valor: alguien puede estar en "Oferta enviada", que
+   le falten papeles Y tener entrevista el jueves, todo a la vez.
+
+   Por eso las entrevistas son cosas con fecha propia, independientes de la
+   etapa: se programan, avisan, y cuando pasan se guardan con lo que se habló.
+   Un club que no recuerda qué se le dijo a una familia en marzo tiene un
+   problema en junio. */
+SF.INTERVIEW_TYPES = ['Con la familia', 'Con el jugador', 'Familia y jugador', 'Videollamada', 'Visita al club', 'Prueba deportiva'];
+
+SF.interviews = function (p) { return (p && p.interviews) || []; };
+
+/* La próxima que aún no se ha celebrado. */
+SF.nextInterview = function (p) {
+  var hoy = new Date().toISOString().slice(0, 10);
+  return SF.interviews(p)
+    .filter(function (e) { return !e.done && e.date; })
+    .sort(function (a, b) { return a.date.localeCompare(b.date); })
+    .filter(function (e) { return e.date >= hoy; })[0] || null;
+};
+/* Programada, con fecha ya pasada y sin cerrar: se quedó en el aire. */
+SF.overdueInterview = function (p) {
+  var hoy = new Date().toISOString().slice(0, 10);
+  return SF.interviews(p).filter(function (e) { return !e.done && e.date && e.date < hoy; })
+    .sort(function (a, b) { return b.date.localeCompare(a.date); })[0] || null;
+};
+SF.pastInterviews = function (p) {
+  return SF.interviews(p).filter(function (e) { return e.done; })
+    .sort(function (a, b) { return (b.date || '').localeCompare(a.date || ''); });
+};
+
+/* Lo que le falta a un jugador, independientemente de su etapa. Esto es lo
+   que antes obligaba a elegir entre "Datos incompletos" y "Oferta enviada". */
+SF.pendientesDe = function (p, opts) {
+  var out = [];
+  if (p.status === 'Datos incompletos') out.push({ k: 'datos', t: 'Faltan datos', c: 'warn' });
+  var dp = (typeof SF.docsPend === 'function') ? SF.docsPend(p) : [];
+  if (dp.length) out.push({ k: 'docs', t: dp.length + (dp.length === 1 ? ' documento' : ' documentos'), c: 'warn' });
+  if (p.documents && p.documents.video_highlights === 'pendiente') out.push({ k: 'video', t: 'Sin vídeo', c: 'gray' });
+  if ((opts || {}).finanzas && SF.finHas(p, 'vencido')) out.push({ k: 'pago', t: 'Pago vencido', c: 'danger' });
+  return out;
+};
 SF.PIPELINE_INFO = {
   'Nuevo': 'Primer contacto registrado con el jugador.',
   'Datos incompletos': 'Faltan datos clave de la ficha por completar.',
@@ -1502,6 +1561,48 @@ SF.store = (function () {
 
     academy: function () { return db().academy; },
     saveAcademy: function (patch) { var d = db(); Object.assign(d.academy, patch); save(d); },
+    /* ---- ENTREVISTAS ---- */
+    interviewAdd: function (playerId, data) {
+      var d = db(), u = (SF.USERS || {})[d.role] || d.role;
+      var e = Object.assign({
+        id: 'e' + Date.now(), date: '', time: '', type: '', place: '', with: u,
+        notes: '', done: false, outcome: '', created_at: new Date().toISOString().slice(0, 10)
+      }, data);
+      d.players = d.players.map(function (p) {
+        return p.id === playerId ? Object.assign({}, p, { interviews: (p.interviews || []).concat([e]) }) : p;
+      });
+      save(d); return e;
+    },
+    interviewUpdate: function (playerId, id, patch) {
+      var d = db();
+      d.players = d.players.map(function (p) {
+        if (p.id !== playerId) return p;
+        return Object.assign({}, p, {
+          interviews: (p.interviews || []).map(function (e) { return e.id === id ? Object.assign({}, e, patch) : e; })
+        });
+      });
+      save(d);
+    },
+    interviewRemove: function (playerId, id) {
+      var d = db();
+      d.players = d.players.map(function (p) {
+        if (p.id !== playerId) return p;
+        return Object.assign({}, p, { interviews: (p.interviews || []).filter(function (e) { return e.id !== id; }) });
+      });
+      save(d);
+    },
+    /* Todas las entrevistas del club que aún no se han celebrado, en orden.
+       Sirve para la agenda de Inicio: lo que viene, no lo que pasó. */
+    interviewsUpcoming: function () {
+      var hoy = new Date().toISOString().slice(0, 10), out = [];
+      db().players.forEach(function (p) {
+        (p.interviews || []).forEach(function (e) {
+          if (!e.done && e.date && e.date >= hoy) out.push({ p: p, e: e });
+        });
+      });
+      return out.sort(function (a, b) { return a.e.date.localeCompare(b.e.date); });
+    },
+
     saveEconomy: function (patch) { var d = db(); d.academy.economy = Object.assign({}, d.academy.economy || {}, patch); save(d); },
 
     /* ---- PRESUPUESTO, por temporada ----
@@ -2369,6 +2470,12 @@ window.SF = window.SF || {};
       (teamUpcoming(t, 'partido') || []).slice(0, 2).forEach(function (e) { citas.push({ t: t, e: e, k: 'Partido' }); });
       (teamUpcoming(t, 'entrenamiento') || []).slice(0, 1).forEach(function (e) { citas.push({ t: t, e: e, k: 'Entreno' }); });
     });
+    /* Las entrevistas también son citas: si están en la agenda del club, se
+       ven donde el club mira la agenda, no escondidas en Captación. */
+    SF.store.interviewsUpcoming().forEach(function (x) {
+      if (!mios.some(function (p) { return p.id === x.p.id; })) return;
+      citas.push({ t: { id: null, name: x.p.full_name }, e: x.e, k: 'Entrevista', jugador: x.p });
+    });
     citas.sort(function (a, b) { return (a.e.date || '') < (b.e.date || '') ? -1 : 1; });
     var ag = el('<div class="card"><h3>Lo que viene</h3><p class="hint">Próximos partidos y entrenamientos.</p></div>');
     if (!citas.length) {
@@ -2384,9 +2491,12 @@ window.SF = window.SF || {};
       var d = new Date(c.e.date + 'T00:00:00');
       var row = el('<div class="ag-item"><div class="ag-day"><div class="d">' + (isNaN(d) ? '—' : d.getDate()) + '</div>' +
         '<div class="m">' + (isNaN(d) ? '' : SF_MON[d.getMonth()]) + '</div></div>' +
-        '<div><p class="ag-t">' + esc(c.k === 'Partido' ? 'vs ' + (c.e.opponent || '—') : 'Entrenamiento') + '</p>' +
+        '<div><p class="ag-t">' + esc(c.k === 'Partido' ? 'vs ' + (c.e.opponent || '—') : c.k === 'Entrevista' ? 'Entrevista' : 'Entrenamiento') + '</p>' +
         '<p class="ag-s">' + esc(c.t.name) + (c.e.time ? ' · ' + esc(c.e.time) : '') + '</p></div></div>');
-      row.onclick = function () { location.hash = '#/equipo/' + c.t.id; };
+      row.onclick = function () {
+        if (c.jugador) { SF._openTab = 'captacion'; location.hash = '#/jugador/' + c.jugador.id; }
+        else location.hash = '#/equipo/' + c.t.id;
+      };
       ag.appendChild(row);
     });
     lado.appendChild(ag);
@@ -3045,6 +3155,77 @@ window.SF = window.SF || {};
         body.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('camera') + '</div><p>Sin vídeos aún. En v0.3 (Supabase) se subirán highlights, partidos y entrenamientos.</p></div>'));
       } else if (cur === 'captacion') {
         body.appendChild(el('<div class="field-grid">' + fld('Canal de origen', p.channel) + fld('Fecha de captación', p.capture_date) + fld('Responsable', p.responsible) + fld('Objetivo', p.objective) + '</div>'));
+
+        /* --- Entrevistas: las que vienen y las que ya se hicieron ---
+           Guardar lo que se habló y cuándo no es burocracia: es lo que te
+           permite en junio saber qué se le prometió a esa familia en marzo. */
+        body.appendChild(el('<p class="sec-label">Entrevistas</p>'));
+        var puedeCitar = SF.store.role() !== 'padre' && SF.store.role() !== 'jugador';
+
+        var prox = SF.interviews(p).filter(function (e) { return !e.done; })
+          .sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
+        var hechas = SF.pastInterviews(p);
+        var hoyS = new Date().toISOString().slice(0, 10);
+
+        if (!prox.length && !hechas.length) body.appendChild(el('<p class="hint">Todavía no hay ninguna entrevista.</p>'));
+
+        if (prox.length) {
+          var lp = el('<div class="mini-list"></div>');
+          prox.forEach(function (e) {
+            var pasada = e.date && e.date < hoyS;
+            var row = el('<div class="mini-row"><span>' +
+              '<b>' + (e.date ? fmtDate(e.date) : 'sin fecha') + (e.time ? ' · ' + esc(e.time) : '') + '</b> ' +
+              (pasada ? '<span class="tag tag-warn">pasó de fecha</span>' : '<span class="tag tag-purple">programada</span>') +
+              '<br><span class="hint">' + esc(e.type || '—') + (e.place ? ' · ' + esc(e.place) : '') +
+              (e.with ? ' · por ' + esc(e.with) : '') + '</span>' +
+              (e.notes ? '<br><span class="hint"><i>' + esc(e.notes) + '</i></span>' : '') +
+              '</span><span class="row-actions"></span></div>');
+            if (puedeCitar) {
+              var ra = row.querySelector('.row-actions');
+              var bh = el('<button class="lnk">anotar lo hablado</button>');
+              bh.onclick = function () {
+                U.modal('¿Cómo fue la entrevista?', smallForm([
+                  { name: 'outcome', label: 'Resultado', type: 'select', options: ['Muy bien', 'Bien', 'Dudas por resolver', 'No sigue adelante'] },
+                  { name: 'notes', label: 'Qué se habló y qué se acordó', type: 'textarea' }
+                ], { notes: e.notes }, function (d) {
+                  SF.store.interviewUpdate(p.id, e.id, { done: true, outcome: d.outcome, notes: d.notes, done_on: hoyS });
+                  U.toast('Entrevista guardada en el historial'); p = SF.store.get(p.id); paint();
+                }));
+              };
+              var be2 = el('<button class="lnk">cambiar fecha</button>');
+              be2.onclick = function () { entrevistaModal(p, e, function () { p = SF.store.get(p.id); paint(); }); };
+              var bd2 = el('<button class="lnk-del">' + ico('trash') + '</button>');
+              bd2.onclick = function () { if (confirm('¿Quitar esta entrevista?')) { SF.store.interviewRemove(p.id, e.id); p = SF.store.get(p.id); paint(); } };
+              ra.appendChild(bh); ra.appendChild(be2); ra.appendChild(bd2);
+            }
+            lp.appendChild(row);
+          });
+          body.appendChild(lp);
+        }
+
+        if (hechas.length) {
+          body.appendChild(el('<p class="hint" style="margin-top:10px">Ya celebradas</p>'));
+          var lh = el('<div class="mini-list"></div>');
+          hechas.forEach(function (e) {
+            var col = e.outcome === 'No sigue adelante' ? 'tag-danger' : e.outcome === 'Dudas por resolver' ? 'tag-warn' : 'tag-green';
+            lh.appendChild(el('<div class="mini-row"><span>' +
+              '<b>' + (e.date ? fmtDate(e.date) : '—') + '</b> ' + (e.outcome ? '<span class="tag ' + col + '">' + esc(e.outcome) + '</span>' : '') +
+              '<br><span class="hint">' + esc(e.type || '') + (e.with ? ' · ' + esc(e.with) : '') + '</span>' +
+              (e.notes ? '<br><span class="hint">' + esc(e.notes) + '</span>' : '') + '</span></div>'));
+          });
+          body.appendChild(lh);
+        }
+
+        if (puedeCitar) {
+          var bnew = el('<button class="btn btn-light btn-sm">' + ico('cal') + 'Programar entrevista</button>');
+          bnew.onclick = function () {
+            entrevistaModal(p, null, function (d) {
+              if (confirm('¿Aviso a la familia con la fecha?')) { avisarEntrevista(p, d); U.toast('Aviso enviado'); }
+              p = SF.store.get(p.id); paint();
+            });
+          };
+          body.appendChild(bnew);
+        }
       } else if (cur === 'seguimiento') {
         var tr = p.tracking || { steps: {}, log: [], next: {} };
         var canT = SF.store.role() !== 'padre';
@@ -3207,26 +3388,121 @@ window.SF = window.SF || {};
   };
 
   /* ===================== CAPTACIÓN (pipeline) ===================== */
+  /* Formulario de entrevista, reutilizado desde el tablero y desde la ficha. */
+  function entrevistaModal(p, ev, onSave) {
+    var esNueva = !ev;
+    ev = ev || {};
+    var f = smallForm([
+      { name: 'date', label: 'Fecha', type: 'date' },
+      { name: 'time', label: 'Hora' },
+      { name: 'type', label: '¿Con quién?', type: 'select', options: SF.INTERVIEW_TYPES },
+      { name: 'place', label: 'Dónde (o enlace de la videollamada)' },
+      { name: 'with', label: 'Por parte del club' },
+      { name: 'notes', label: 'Notas', type: 'textarea' }
+    ], ev, function (d) {
+      if (!d.date) { U.toast('Ponle fecha, que si no no hay recordatorio'); return false; }
+      if (esNueva) SF.store.interviewAdd(p.id, d);
+      else SF.store.interviewUpdate(p.id, ev.id, d);
+      if (onSave) onSave(d);
+    });
+    U.modal(esNueva ? 'Programar entrevista — ' + p.full_name : 'Entrevista — ' + p.full_name, f);
+  }
+
+  /* Avisar a la familia de la fecha. Va por el tablón del portal, con el
+     formato de siempre: notificación del club, y dentro el mensaje. */
+  function avisarEntrevista(p, d) {
+    SF.store.annCreate(p.team_id || null, {
+      kind: 'entrevista',
+      title: 'Entrevista con el club',
+      body: 'Os proponemos una entrevista' + (d.type ? ' (' + d.type.toLowerCase() + ')' : '') + '.\n\n' +
+        'Fecha: ' + fmtDate(d.date) + (d.time ? ' a las ' + d.time : '') +
+        (d.place ? '\nLugar: ' + d.place : '') +
+        '\n\nSi no os viene bien, contestad y buscamos otro momento.'
+    }, [p.id]);
+  }
+
   pages.captacion = function (view) {
-    view.innerHTML = head('Captación', 'Pipeline de prospecto a jugador. Cambia el estado desde cada tarjeta.');
+    var r = role();
+    view.innerHTML = head('Captación', 'De prospecto a jugador. La etapa dice por dónde va; las etiquetas, qué le falta.');
+    var ps = scopedPlayers();
+    var hoy = new Date().toISOString().slice(0, 10);
+
+    /* Lo que hay que atender hoy, antes del tablero: una entrevista que se
+       pasó de fecha sin cerrar es lo más fácil de perder de vista. */
+    var caducadas = ps.map(function (p) { return { p: p, e: SF.overdueInterview(p) }; }).filter(function (x) { return x.e; });
+    var proximas = SF.store.interviewsUpcoming().filter(function (x) { return ps.some(function (p) { return p.id === x.p.id; }); });
+
+    if (caducadas.length) {
+      view.appendChild(el('<div class="foco is-warn"><div class="foco-ic">' + ico('alert') + '</div><div class="foco-body">' +
+        '<p class="foco-t">' + caducadas.length + (caducadas.length === 1 ? ' entrevista pasó de fecha' : ' entrevistas pasaron de fecha') + ' sin cerrar</p>' +
+        '<p class="foco-s">' + esc(caducadas.map(function (x) { return x.p.full_name.split(' ')[0] + ' (' + fmtDate(x.e.date) + ')'; }).slice(0, 4).join(', ')) +
+        '. Ábrelas y anota qué pasó, o cámbiales la fecha.</p></div></div>'));
+    } else if (proximas.length) {
+      var n0 = proximas[0];
+      view.appendChild(el('<div class="foco"><div class="foco-ic">' + ico('cal') + '</div><div class="foco-body">' +
+        '<p class="foco-t">Próxima entrevista: ' + esc(n0.p.full_name) + '</p>' +
+        '<p class="foco-s">' + fmtDate(n0.e.date) + (n0.e.time ? ' a las ' + esc(n0.e.time) : '') +
+        (n0.e.type ? ' · ' + esc(n0.e.type.toLowerCase()) : '') + (proximas.length > 1 ? ' · y ' + (proximas.length - 1) + ' más programadas' : '') +
+        '</p></div></div>'));
+    }
+
     var board = el('<div class="board"></div>');
-    var ps = SF.store.players();
     SF.PIPELINE.forEach(function (stage) {
-      var col = el('<div class="bcol"><div class="bcol-head">' + esc(stage) + ' <span>' + ps.filter(function (p) { return p.status === stage; }).length + '</span></div><div class="bcol-body"></div></div>');
+      var enEtapa = ps.filter(function (p) { return p.status === stage; });
+      var col = el('<div class="bcol"><div class="bcol-head">' + esc(stage) + ' <span>' + enEtapa.length + '</span></div><div class="bcol-body"></div></div>');
       var bd = col.querySelector('.bcol-body');
-      ps.filter(function (p) { return p.status === stage; }).forEach(function (p) {
-        var c = el('<div class="kcard"><div class="kc-name">' + esc(p.full_name) + '</div><div class="kc-meta">' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + '</div></div>');
+
+      if (!enEtapa.length) bd.appendChild(el('<p class="bcol-vacio">Nadie aquí</p>'));
+
+      enEtapa.forEach(function (p) {
+        var next = SF.nextInterview(p), tarde = SF.overdueInterview(p);
+        var pend = SF.pendientesDe(p, { finanzas: r.canSeeFinance });
+
+        var c = el('<div class="kcard">' +
+          '<div class="kc-name">' + esc(p.full_name) + '</div>' +
+          '<div class="kc-meta">' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') +
+          (p.origin ? ' · ' + esc(p.origin) : '') + '</div>' +
+          /* Lo pendiente va SIEMPRE, esté en la etapa que esté. */
+          (pend.length ? '<div class="kc-tags">' + pend.map(function (x) {
+            return '<span class="tag tag-' + x.c + '">' + esc(x.t) + '</span>';
+          }).join('') + '</div>' : '') +
+          (tarde
+            ? '<div class="kc-cita tarde">' + ico('alert') + 'Entrevista del ' + fmtDate(tarde.date) + ' sin cerrar</div>'
+            : next
+              ? '<div class="kc-cita' + (next.date === hoy ? ' hoy' : '') + '">' + ico('cal') +
+                (next.date === hoy ? 'Entrevista HOY' : 'Entrevista ' + fmtDate(next.date)) +
+                (next.time ? ' · ' + esc(next.time) : '') + '</div>'
+              : '') +
+          '</div>');
+
+        var acc = el('<div class="kc-acc"></div>');
         var sel = el('<select class="kc-move"></select>');
         sel.innerHTML = SF.PIPELINE.map(function (s) { return '<option' + (s === stage ? ' selected' : '') + '>' + s + '</option>'; }).join('');
         sel.onclick = function (e) { e.stopPropagation(); };
         sel.onchange = function () { SF.store.update(p.id, { status: sel.value }); U.toast(p.full_name + ' → ' + sel.value); SF.router.render(); };
-        c.appendChild(sel);
-        c.onclick = function () { location.hash = '#/jugador/' + p.id; };
+        acc.appendChild(sel);
+
+        var bcita = el('<button class="kc-cal" title="' + (next || tarde ? 'Ver o cambiar la entrevista' : 'Programar entrevista') + '">' + ico('cal') + '</button>');
+        bcita.onclick = function (e) {
+          e.stopPropagation();
+          entrevistaModal(p, next || tarde || null, function (d) {
+            U.toast('Entrevista guardada');
+            if (confirm('¿Aviso a la familia de ' + p.full_name + ' con la fecha?')) { avisarEntrevista(p, d); U.toast('Aviso enviado a la familia'); }
+            SF.router.render();
+          });
+        };
+        acc.appendChild(bcita);
+        c.appendChild(acc);
+
+        c.onclick = function () { SF._openTab = 'captacion'; location.hash = '#/jugador/' + p.id; };
         bd.appendChild(c);
       });
       board.appendChild(col);
     });
     view.appendChild(board);
+    view.appendChild(el('<p class="hint">La <b>etapa</b> es una sola: por dónde va. Lo que le falta —papeles, vídeo, pagos— sale como etiqueta ' +
+      'y no depende de la etapa: se puede tener una oferta enviada y deber documentación a la vez. ' +
+      'El botón del calendario programa la entrevista y, si quieres, avisa a la familia.</p>'));
   };
 
   /* ===================== DOCUMENTOS ===================== */
