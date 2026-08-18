@@ -3985,8 +3985,12 @@ window.SF = window.SF || {};
         conMov.forEach(function (f) {
           var row = el('<div class="mes-row' + (f.acum < 0 ? ' mal' : '') + '">' +
             '<span class="mes-n">' + SF.MONTHS[f.m].slice(0, 3) + '</span>' +
-            '<span class="mes-bar"><span class="mes-e" style="width:' + Math.round(f.ent / tope * 100) + '%"></span>' +
-            '<span class="mes-s" style="width:' + Math.round(f.sal / tope * 100) + '%"></span></span>' +
+            /* Solo se pinta la barra que tiene importe: una barra de 0 € con
+               el ancho mínimo parecía un gasto que no existe. */
+            '<span class="mes-bar">' +
+            (f.ent ? '<span class="mes-e" style="width:' + Math.max(2, Math.round(f.ent / tope * 100)) + '%"></span>' : '') +
+            (f.sal ? '<span class="mes-s" style="width:' + Math.max(2, Math.round(f.sal / tope * 100)) + '%"></span>' : '') +
+            '</span>' +
             '<span class="mes-v ent">' + (f.ent ? '+' + eur(f.ent) : '') + '</span>' +
             '<span class="mes-v sal">' + (f.sal ? '−' + eur(f.sal) : '') + '</span>' +
             '<span class="mes-ac">' + eur(f.acum) + '</span></div>');
