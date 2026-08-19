@@ -3800,8 +3800,17 @@ window.SF = window.SF || {};
         if (vacio) nuevos.push({ k: k, label: c[1], v: v });
         else if (pinta(k, actual) !== pinta(k, v)) choques.push({ k: k, label: c[1], v: v, antes: actual });
       });
-      if (d.family_contact && !((p.family || {}).contact)) nuevos.push({ k: 'family_contact', label: 'Contacto familiar', v: d.family_contact });
-      if (d.family_phone && !((p.family || {}).phone)) nuevos.push({ k: 'family_phone', label: 'Teléfono de la familia', v: d.family_phone });
+      /* La familia va aparte porque vive dentro de p.family. Se trata igual
+         que el resto: si está vacío se añade, y si no coincide se avisa.
+         Antes, un teléfono distinto del padre se perdía sin decir nada. */
+      [['family_contact', 'contact', 'Contacto familiar'],
+       ['family_phone', 'phone', 'Teléfono de la familia'],
+       ['family_email', 'email', 'Email de la familia']].forEach(function (f) {
+        var v = d[f[0]]; if (!v) return;
+        var actual = (p.family || {})[f[1]];
+        if (!actual) nuevos.push({ k: f[0], label: f[2], v: v });
+        else if (String(actual).trim() !== String(v).trim()) choques.push({ k: f[0], label: f[2], v: v, antes: actual });
+      });
 
       if (!nuevos.length && !choques.length) {
         body.appendChild(el('<p class="hint">Ese mensaje no aporta nada nuevo: ya lo tenías todo.</p>'));
@@ -3835,9 +3844,10 @@ window.SF = window.SF || {};
           tocado++;
           if (k === 'family_contact') fam.contact = todos.v;
           else if (k === 'family_phone') fam.phone = todos.v;
+          else if (k === 'family_email') fam.email = todos.v;
           else patch[k] = todos.v;
         });
-        if (fam.contact !== (p.family || {}).contact || fam.phone !== (p.family || {}).phone) patch.family = fam;
+        if (JSON.stringify(fam) !== JSON.stringify(p.family || {})) patch.family = fam;
         if (!tocado) { U.toast('No has marcado nada'); return; }
         SF.store.update(p.id, patch);
         U.closeModal(); U.toast(tocado + ' dato(s) añadidos a ' + p.full_name);
