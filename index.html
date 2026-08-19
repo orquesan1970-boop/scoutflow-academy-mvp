@@ -3060,9 +3060,13 @@ window.SF = window.SF || {};
         if (td || (bq && bq.tardio)) {
           body.appendChild(el('<p class="sec-label">Crecimiento</p>'));
           if (td) {
-            var frase = td.pct && td.pct < 97
-              ? 'Le queda por crecer: está en el <b>' + td.pct + '%</b> de su talla estimada de adulto, le faltarían unos <b>' + td.faltan + ' cm</b>.'
-              : 'Está cerca de su talla de adulto.';
+            /* Tres casos, y el tercero pasa más de lo que parece: un chaval
+               puede superar ya la estimación de sus padres. Decirle entonces
+               que "le faltan -4 cm" sería absurdo. */
+            var frase = !td.pct ? 'Falta su altura actual para saber cuánto le queda.'
+              : td.pct >= 100 ? 'Ya <b>ha superado</b> la talla que cabría esperar por la de sus padres.'
+              : td.pct >= 97 ? 'Está prácticamente en su talla de adulto: le quedarían unos <b>' + td.faltan + ' cm</b>.'
+              : 'Le queda por crecer: va por el <b>' + td.pct + '%</b> de su talla estimada, unos <b>' + td.faltan + ' cm</b> más.';
             body.appendChild(el('<div class="foco"><div class="foco-ic">' + ico('chart') + '</div><div class="foco-body">' +
               '<p class="foco-t">Talla estimada de adulto: ' + (td.cm / 100).toFixed(2) + ' m</p>' +
               '<p class="foco-s">' + frase + ' Horquilla realista: entre <b>' + (td.min / 100).toFixed(2) + '</b> y <b>' + (td.max / 100).toFixed(2) + ' m</b>.</p>' +
