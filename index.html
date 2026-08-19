@@ -3839,7 +3839,9 @@ window.SF = window.SF || {};
     function paint() {
       out.innerHTML = '';
       var ft = bar.querySelector('#ft').value;
-      var ps = SF.store.players().filter(function (p) {
+      /* scopedPlayers, no players: una dirección técnica de un segmento no
+         debe ver la documentación de los jugadores de otro. */
+      var ps = scopedPlayers().filter(function (p) {
         if (ft === '__sin') return !p.team_id;
         return !ft || p.team_id === ft;
       });
@@ -3993,21 +3995,49 @@ window.SF = window.SF || {};
 
   /* ===================== INFORMES ===================== */
   pages.informes = function (view) {
-    view.innerHTML = head('Informes', 'Genera análisis por jugador (simulado por reglas).');
-    var ps = SF.store.players();
+    view.innerHTML = head('Informes', 'Un resumen automático de cada jugador: en qué destaca, qué le falta y qué tocaría hacer.');
+    /* scopedPlayers: un entrenador solo analiza a los suyos. Antes esta
+       pantalla enseñaba la plantilla entera del club a cualquiera que
+       tuviera Informes en el menú. */
+    var ps = scopedPlayers();
+
+    view.appendChild(el('<p class="hint">Pulsa <b>Analizar</b> y la app te resume ese jugador en media página: qué tiene a favor, ' +
+      'qué datos le faltan y cuál sería el siguiente paso según la fase en la que esté. ' +
+      'Sirve para preparar una reunión o una llamada a la familia sin repasar toda la ficha. ' +
+      '<b>No lo ve nadie de fuera del club</b> y no se guarda: es un resumen de consulta.</p>'));
+
+    if (!ps.length) {
+      view.appendChild(el('<div class="empty-panel"><p>No tienes jugadores a tu cargo todavía.</p></div>'));
+      return;
+    }
+
     var list = el('<div class="card"></div>');
     ps.forEach(function (p) {
-      var row = el('<div class="att"><div class="av av-purple">' + U.initials(p.full_name) + '</div><div class="att-body"><p class="att-name">' + esc(p.full_name) + '</p><p class="att-desc">' + esc(p.status) + '</p></div><button class="btn">' + ico('ai') + 'Analizar</button></div>');
+      /* Se dice de un vistazo qué va a salir en el análisis: si la ficha
+         está vacía, el resumen va a estar vacío, y más vale avisar antes. */
+      var ss = SF.scoutScore(p);
+      var pend = SF.pendientesDe(p);
+      var pista = ss ? 'Score ' + ss.score + ' · ' + ss.puestos + '/' + ss.total + ' evaluado' : 'sin evaluar todavía';
+      if (pend.length) pista += ' · ' + pend.map(function (x) { return x.t.toLowerCase(); }).join(', ');
+
+      var row = el('<div class="att"><div class="av av-purple">' + U.initials(p.full_name) + '</div>' +
+        '<div class="att-body"><p class="att-name">' + esc(p.full_name) + '</p>' +
+        '<p class="att-desc">' + esc(p.status) + ' · ' + esc(pista) + '</p></div>' +
+        '<button class="btn">' + ico('ai') + 'Analizar</button></div>');
       row.querySelector('button').onclick = function () { analizarIA(p); };
       list.appendChild(row);
     });
     view.appendChild(list);
+
+    view.appendChild(el('<p class="hint">Ojo con no confundirlo: <b>esto</b> es un resumen automático para uso interno. ' +
+      'Los <b>informes que se publican a la familia</b> —el trimestral, el deportivo— se escriben en la ficha del jugador, ' +
+      'en su pestaña Informes, y solo los ve la familia cuando los publicas a propósito.</p>'));
   };
 
   /* ===================== FAMILY ===================== */
   pages.family = function (view) {
     view.innerHTML = head('Family', 'Gestión del acceso de las familias al portal.');
-    var ps = SF.store.players().filter(function (p) { return (p.family || {}).contact; });
+    var ps = scopedPlayers().filter(function (p) { return (p.family || {}).contact; });
     var t = el('<table class="tbl"><thead><tr><th>Jugador</th><th>Contacto</th><th>Family</th><th></th></tr></thead><tbody></tbody></table>');
     var tb = t.querySelector('tbody');
     ps.forEach(function (p) {
