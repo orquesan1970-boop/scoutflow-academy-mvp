@@ -2369,6 +2369,12 @@ window.SF = window.SF || {};
       frow('Nombre', '<input name="first_name" value="' + esc(p.first_name) + '">') +
       frow('Apellidos', '<input name="last_name" value="' + esc(p.last_name) + '">') +
       frow('Fecha de nacimiento', '<input type="date" name="birth_date" value="' + esc(p.birth_date) + '">') +
+      /* El año va aparte de la fecha a propósito: muchas veces te dicen "es
+         del 2011" y nadie sabe el día. Sin este campo, ese dato se perdía al
+         guardar, y el año es de lo más importante que hay (categoría,
+         filtros, efecto de la edad relativa). */
+      frow('Año de nacimiento <span class="hint">si no sabes el día</span>',
+        '<input type="number" name="birth_year" min="1950" max="2030" placeholder="2011" value="' + esc(p.birth_year) + '">') +
       frow('Sexo', '<select name="gender"><option value="">—</option><option' + (p.gender === 'M' ? ' selected' : '') + '>M</option><option' + (p.gender === 'F' ? ' selected' : '') + '>F</option></select>') +
       frow('Nacionalidad (coma)', '<input name="nationality" value="' + esc((p.nationality || []).join(', ')) + '">') +
       frow('País de residencia', '<input name="residence_country" value="' + esc(p.residence_country) + '">') +
@@ -2419,6 +2425,9 @@ window.SF = window.SF || {};
       var data = {};
       f.querySelectorAll('input,select').forEach(function (i) { data[i.name] = i.value.trim(); });
       data.nationality = data.nationality ? data.nationality.split(',').map(function (x) { return x.trim(); }).filter(Boolean) : [];
+      /* La fecha completa manda sobre el año suelto: si hay fecha, el año se
+         recalcula de ella para que no puedan contradecirse. */
+      data.birth_year = data.birth_date ? new Date(data.birth_date).getFullYear() : (data.birth_year ? +data.birth_year : null);
       data.height_cm = data.height_cm ? +data.height_cm : null;
       data.weight_kg = data.weight_kg ? +data.weight_kg : null;
       ['wingspan_cm', 'torso_height_cm', 'foot_length_cm', 'hand_length_cm', 'start_age'].forEach(function (k) {
