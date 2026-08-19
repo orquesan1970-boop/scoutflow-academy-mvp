@@ -678,6 +678,53 @@ SF.STATUSES = [
 ];
 SF.PIPELINE = ['Nuevo', 'Datos incompletos', 'En evaluación', 'Entrevista', 'Oferta enviada', 'Inscrito'];
 
+/* ===================== CRECIMIENTO Y EDAD RELATIVA =====================
+
+   Dos cosas distintas que en formación se confunden constantemente:
+     · la EDAD RELATIVA: dentro del mismo año, quién nació antes;
+     · la MADUREZ: quién ha dado ya el estirón.
+   Las dos hacen que un chaval parezca mejor de lo que es (o peor), y las dos
+   se pueden calcular con datos que ya tenemos. */
+
+/* --- Trimestre de nacimiento ---
+   Dentro de un mismo año, los nacidos en enero-marzo están sistemáticamente
+   sobrerrepresentados en las canteras. No porque sean mejores: porque son
+   hasta once meses mayores cuando alguien los eligió. Sale gratis de la
+   fecha de nacimiento y destapa un sesgo que casi ningún club ve. */
+SF.birthQuarter = function (p) {
+  if (!p.birth_date) return null;
+  var m = new Date(p.birth_date + 'T00:00:00').getMonth();
+  if (isNaN(m)) return null;
+  var q = Math.floor(m / 3) + 1;
+  return { q: q, label: 'Q' + q, meses: ['ene-mar', 'abr-jun', 'jul-sep', 'oct-dic'][q - 1],
+    tardio: q >= 3 };   // Q3 y Q4: los más jóvenes de su año
+};
+
+/* --- Talla diana familiar ---
+   La fórmula clínica de siempre: media de la estatura de los padres, más 6,5
+   cm si es chico y menos 6,5 si es chica. Es una ESTIMACIÓN con un margen
+   amplio (±8,5 cm cubre a la gran mayoría), y así hay que enseñarla: como
+   una horquilla, nunca como una cifra exacta.
+
+   Nota: existe el método Khamis-Roche, que además usa la talla y el peso
+   actuales del chaval y afina bastante más. Necesita unas tablas de
+   coeficientes por edad que aún no tenemos; cuando las consigamos, este
+   cálculo se sustituye sin tocar nada más. */
+SF.tallaDiana = function (p) {
+  var f = (p.family || {});
+  var pa = +f.father_height_cm, ma = +f.mother_height_cm;
+  if (!pa || !ma) return null;
+  var chica = (p.gender || '').toLowerCase().indexOf('f') === 0 || (p.gender || '').toLowerCase().indexOf('muj') === 0;
+  var diana = (pa + ma) / 2 + (chica ? -6.5 : 6.5);
+  var out = { cm: Math.round(diana), min: Math.round(diana - 8.5), max: Math.round(diana + 8.5), chica: chica };
+  if (p.height_cm) {
+    out.actual = p.height_cm;
+    out.pct = Math.round(p.height_cm / diana * 100);
+    out.faltan = Math.round(diana - p.height_cm);
+  }
+  return out;
+};
+
 /* ===================== EVALUACIÓN Y SCOUT SCORE =====================
    Escala de 0 a 10. Se eligió por dos razones:
      · Una escala de 11 puntos es más fiable que una de 5: hay sitio para
@@ -1003,6 +1050,12 @@ SF.ACADEMY = { name: 'CBJA Academy', country: 'España', city: 'Madrid', primary
      lo comprobó y para qué temporada. Nunca el documento.
    - Los papeles: los custodia administración fuera de la app. */
 SF.SEASON = '2026/2027';
+
+/* Marca de versión. Sirve para saber en dos segundos si lo que ves en
+   pantalla es lo último o una página vieja guardada por el navegador, que
+   ya nos ha costado una evaluación mal guardada. Se ve en Configuración
+   y en el pie del menú. */
+SF.BUILD = '2026-08-19';
 
 SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'psicologo', 'fisio',
   'scout', 'delegado_equipo', 'delegado_campo', 'dt_general', 'dt_femenino',
@@ -3000,6 +3053,29 @@ window.SF = window.SF || {};
           body.appendChild(ml);
         }
 
+        /* --- Crecimiento: una frase, no una tabla ---
+           Solo aparece si hay datos. Y siempre con la horquilla, porque una
+           estimación sin margen se lee como una certeza. */
+        var td = SF.tallaDiana(p), bq = SF.birthQuarter(p);
+        if (td || (bq && bq.tardio)) {
+          body.appendChild(el('<p class="sec-label">Crecimiento</p>'));
+          if (td) {
+            var frase = td.pct && td.pct < 97
+              ? 'Le queda por crecer: está en el <b>' + td.pct + '%</b> de su talla estimada de adulto, le faltarían unos <b>' + td.faltan + ' cm</b>.'
+              : 'Está cerca de su talla de adulto.';
+            body.appendChild(el('<div class="foco"><div class="foco-ic">' + ico('chart') + '</div><div class="foco-body">' +
+              '<p class="foco-t">Talla estimada de adulto: ' + (td.cm / 100).toFixed(2) + ' m</p>' +
+              '<p class="foco-s">' + frase + ' Horquilla realista: entre <b>' + (td.min / 100).toFixed(2) + '</b> y <b>' + (td.max / 100).toFixed(2) + ' m</b>.</p>' +
+              '</div></div>'));
+            body.appendChild(el('<p class="hint">Calculado con la estatura de sus padres (talla diana familiar). Es una <b>estimación con margen amplio</b>, ' +
+              'no una predicción: influyen la genética y la alimentación. <b>No se le enseña a la familia.</b></p>'));
+          }
+          if (bq && bq.tardio) {
+            body.appendChild(el('<p class="hint">Nació en <b>' + bq.meses + '</b> (' + bq.label + '): es de los <b>más jóvenes de su año</b>. ' +
+              'Compite contra chavales hasta once meses mayores, y eso pesa mucho a estas edades.</p>'));
+          }
+        }
+
         /* --- Scout Score: de dónde sale, a la vista ---
            Un número que nadie sabe cómo se calcula es un número que se
            discute. Aquí se ve la media de cada bloque y cuánto pesa. */
@@ -3055,7 +3131,10 @@ window.SF = window.SF || {};
           edEval.onclick = function () {
             U.modal('Evaluación deportiva — ' + esc(p.full_name), evalForm(p, sp, function (ns) {
               var u = SF.store.currentUser();
-              var entry = { by: u.name, role: u.label, date: new Date().toISOString().slice(0, 10) };
+              /* Se guarda la escala con la que se puntuó. Sin esto, si mañana
+                 cambia la escala no hay forma de saber si un 5 era "la mitad"
+                 o "el máximo": es justo lo que nos pasó al pasar de 5 a 10. */
+              var entry = { by: u.name, role: u.label, date: new Date().toISOString().slice(0, 10), scale: SF.EVAL_MAX };
               var newLog = (p.eval_log || []).slice(); newLog.push(entry);
               SF.store.update(p.id, { stats: ns, eval_log: newLog });
               p = SF.store.get(p.id); U.toast('Evaluación guardada por ' + u.name); paint();
@@ -3194,6 +3273,29 @@ window.SF = window.SF || {};
       } else if (cur === 'familia') {
         var fam = p.family || {};
         body.appendChild(el('<div class="field-grid">' + fld('Contacto', fam.contact) + fld('Relación', fam.relation) + fld('Teléfono', fam.phone) + fld('Email', fam.email) + fld('Family activo', p.family_active ? 'Sí' : 'No') + '</div>'));
+
+        /* Estatura de los padres. Dos campos que parecen una curiosidad y son
+           lo que permite estimar hasta dónde va a crecer: en baloncesto eso
+           cambia por completo la lectura de un jugador. */
+        body.appendChild(el('<p class="sec-label">Estatura de los padres</p>'));
+        body.appendChild(el('<div class="field-grid">' +
+          fld('Padre', fam.father_height_cm ? fam.father_height_cm + ' cm' : '') +
+          fld('Madre', fam.mother_height_cm ? fam.mother_height_cm + ' cm' : '') + '</div>'));
+        if (SF.store.role() !== 'padre' && SF.store.role() !== 'jugador') {
+          var bAlt = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Anotar estatura de los padres</button>');
+          bAlt.onclick = function () {
+            U.modal('Estatura de los padres', smallForm([
+              { name: 'father_height_cm', label: 'Estatura del padre (cm)', type: 'number' },
+              { name: 'mother_height_cm', label: 'Estatura de la madre (cm)', type: 'number' }
+            ], fam, function (d) {
+              SF.store.update(p.id, { family: Object.assign({}, fam, { father_height_cm: +d.father_height_cm || null, mother_height_cm: +d.mother_height_cm || null }) });
+              U.toast('Guardado'); p = SF.store.get(p.id); paint();
+            }));
+          };
+          body.appendChild(bAlt);
+          body.appendChild(el('<p class="hint">Con esto y su talla actual, la app estima <b>hasta dónde va a crecer</b>. ' +
+            'Se pregunta a la familia sin más misterio: es un dato de salud habitual en cualquier reconocimiento.</p>'));
+        }
       } else if (cur === 'documentos') {
         /* Expediente de documentación, compuesto por jugador.
            Cada línea lleva quién la aporta y para cuándo: un visado sin fecha
@@ -6602,7 +6704,8 @@ SF.router = (function () {
       '<aside class="sidebar">' +
       '<div class="brand"><img class="logo" src="' + SF.LOGO + '" alt="ScoutFlow"><div><h1>ScoutFlow</h1><p>From Prospect to Player</p></div></div>' +
       '<nav class="nav" id="nav"></nav>' +
-      '<div class="sb-foot"><span class="sb-academy">' + esc(a.name) + ' · ' + esc((SF.SPORTS[a.primary_sport] || {}).label || '') + '</span></div>' +
+      '<div class="sb-foot"><span class="sb-academy">' + esc(a.name) + ' · ' + esc((SF.SPORTS[a.primary_sport] || {}).label || '') +
+      '<br><span style="opacity:.55">v' + esc(SF.BUILD) + '</span></span></div>' +
       '</aside>' +
       '<main class="main">' +
       '<header class="topbar">' +
