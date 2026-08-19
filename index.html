@@ -3731,10 +3731,12 @@ window.SF = window.SF || {};
             /* Sin IA la app sigue funcionando con el lector de siempre, pero
                se dice claramente que es peor, para que nadie se confunda. */
             var motivo = res.motivo === 'sin_clave'
-              ? 'La IA todavía no está conectada, así que he usado el lector básico: solo pilla año, altura, posición y cuatro nacionalidades. ' +
-                'Para activarla hay que poner la clave de OpenAI en Vercel.'
+              ? 'La IA no está conectada todavía, así que he usado el lector básico: solo pilla año, altura, posición y cuatro nacionalidades. ' +
+                'Para activarla, añade en Vercel una clave: <b>GEMINI_API_KEY</b> (Google, tiene capa gratuita), ' +
+                '<b>ANTHROPIC_API_KEY</b> o <b>OPENAI_API_KEY</b>. La app usa la que encuentre.'
               : res.motivo === 'red' ? 'No he podido contactar con el servidor. He usado el lector básico.'
-              : 'La IA ha fallado (' + esc(res.motivo || '') + '). He usado el lector básico.';
+              : 'La IA ha respondido con un error' + (res.detalle ? ': <span class="hint">' + esc(res.detalle) + '</span>' : '') +
+                '. He usado el lector básico.';
             estado.innerHTML = '<b>' + motivo + '</b>';
             resultado(parseText(t), null);
           }
