@@ -3657,30 +3657,195 @@ window.SF = window.SF || {};
   }
 
   /* ===================== IMPORTAR CON IA ===================== */
+  /* ¿De quién habla este texto? Busca si ya existe esa persona en el club.
+     Es la diferencia entre crear un duplicado y completar la ficha que ya
+     tienes a medias, que es lo que pasa de verdad: los datos llegan a
+     cachos, por WhatsApp, a lo largo de semanas. */
+  function buscarParecido(d) {
+    var nombre = ((d.first_name || '') + ' ' + (d.last_name || '')).trim().toLowerCase();
+    if (!nombre || nombre.length < 3) return null;
+    var trozos = nombre.split(/\s+/).filter(function (x) { return x.length > 2; });
+    if (!trozos.length) return null;
+    var mejor = null, mejorPuntos = 0;
+    SF.store.players().forEach(function (p) {
+      var suyo = (p.full_name || '').toLowerCase();
+      var puntos = trozos.filter(function (t) { return suyo.indexOf(t) >= 0; }).length;
+      /* Coincidir en año de nacimiento suma mucho: hay muchos "García". */
+      if (d.birth_year && p.birth_year === d.birth_year) puntos += 1.5;
+      if (puntos > mejorPuntos) { mejorPuntos = puntos; mejor = p; }
+    });
+    return mejorPuntos >= 2 ? { p: mejor, puntos: mejorPuntos } : null;
+  }
+
+  var CAMPOS_IMPORT = [
+    ['first_name', 'Nombre'], ['last_name', 'Apellidos'], ['birth_date', 'Fecha de nacimiento'],
+    ['birth_year', 'Año'], ['primary_position', 'Posición'], ['secondary_position', 'Posición secundaria'],
+    ['height_cm', 'Altura'], ['weight_kg', 'Peso'], ['nationality', 'Nacionalidad'],
+    ['city', 'Ciudad'], ['residence_country', 'País'], ['phone', 'Teléfono'], ['email', 'Email'],
+    ['club', 'Club actual'], ['league', 'Liga'], ['category', 'Categoría'],
+    ['school', 'Centro de estudios'], ['course', 'Curso'], ['objective', 'Objetivo']
+  ];
+  function pinta(k, v) {
+    if (v == null || v === '') return '';
+    if (k === 'nationality') return [].concat(v).join(', ');
+    if (k === 'height_cm') return (v / 100).toFixed(2) + ' m';
+    if (k === 'weight_kg') return v + ' kg';
+    return String(v);
+  }
+
   pages.importar = function (view) {
-    view.innerHTML = head('Importar con IA', 'Pega un mensaje, email o nota y la IA arma la ficha (extracción simulada).');
+    view.innerHTML = head('Importar desde un mensaje',
+      'Pega un WhatsApp, un correo o una nota. La app saca los datos y te dice si es alguien nuevo o si completa una ficha que ya tienes.');
     var wrap = el('<div class="import-wrap"></div>');
-    var ta = el('<textarea class="import-ta" placeholder="Ej: Pablo Ignacio Andrés Suárez nacido el 25 de agosto del 2002, posición Base/Escolta, nacionalidad argentina y española, mide 1,86 m"></textarea>');
-    var btns = el('<div class="row-c"><button class="btn btn-primary" id="ext">' + ico('ai') + 'Extraer datos</button></div>');
+    var ta = el('<textarea class="import-ta" placeholder="Pega aquí el mensaje tal cual llegó, con sus faltas y su desorden. Por ejemplo:&#10;&#10;[21:14, 3/9/2026] Ángel Prieto: buenas Jorge te paso el chaval del q te hablé&#10;[21:14] Ángel Prieto: Martin Rios, del 2009, juega de 3&#10;[21:15] Ángel Prieto: mide 1.92 ya, esta en el juventud alcala&#10;[21:16] Ángel Prieto: el padre se llama Roberto, tlf 600111222"></textarea>');
+    var btns = el('<div class="row-c"><button class="btn btn-primary" id="ext">' + ico('ai') + 'Leer el mensaje</button></div>');
+    var estado = el('<p class="hint" id="ia-estado"></p>');
     var outp = el('<div id="ext-out"></div>');
-    wrap.appendChild(ta); wrap.appendChild(btns); wrap.appendChild(outp);
+    wrap.appendChild(ta); wrap.appendChild(btns); wrap.appendChild(estado); wrap.appendChild(outp);
     view.appendChild(wrap);
 
+    view.appendChild(el('<div class="foco is-warn"><div class="foco-ic">' + ico('alert') + '</div><div class="foco-body">' +
+      '<p class="foco-t">De momento, solo con datos de prueba</p>' +
+      '<p class="foco-s">El texto se envía a un proveedor de IA para leerlo. Antes de pegar aquí datos reales de un menor ' +
+      'hay que tenerlo recogido en el contrato con el club y avisar a las familias. Para probar, invéntate los nombres.</p></div></div>'));
+
     btns.querySelector('#ext').onclick = function () {
-      var t = ta.value.trim(); if (!t) { U.toast('Pega algún texto primero'); return; }
-      var d = parseText(t);
+      var t = ta.value.trim();
+      if (!t) { U.toast('Pega algún texto primero'); return; }
+      estado.textContent = 'Leyendo el mensaje…';
       outp.innerHTML = '';
-      var card = el('<div class="card"><p class="sec-label">Datos detectados</p></div>');
-      var g = el('<div class="field-grid">' + fld('Nombre', ((d.first_name || '') + ' ' + (d.last_name || '')).trim()) + fld('Año', d.birth_year) + fld('Posición', d.primary_position) + fld('Nacionalidad', (d.nationality || []).join(', ')) + fld('Altura', d.height_cm ? (d.height_cm / 100).toFixed(2) + ' m' : '') + '</div>');
-      card.appendChild(g);
-      var miss = [];
-      if (!d.email) miss.push('email'); if (!d.city) miss.push('ciudad'); if (!d.club) miss.push('club'); miss.push('foto', 'documentos');
-      card.appendChild(el('<p class="sec-label">Datos faltantes</p><p class="hint">' + miss.join(', ') + '.</p>'));
-      var crear = el('<button class="btn btn-primary">Crear ficha</button>');
-      crear.onclick = function () { U.modal('Revisar y crear ficha', playerForm(d, function (data) { var np = SF.store.create(data); U.toast('Ficha creada'); location.hash = '#/jugador/' + np.id; })); };
-      card.appendChild(crear);
-      outp.appendChild(card);
+
+      fetch('/api/extraer', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ texto: t })
+      }).then(function (r) { return r.json(); }).catch(function () { return { ok: false, motivo: 'red' }; })
+        .then(function (res) {
+          if (res.ok) {
+            estado.innerHTML = 'Leído con IA <span class="hint">(' + esc(res.modelo || '') + ')</span>';
+            if (res.campos && res.campos.sin_datos) {
+              outp.appendChild(el('<div class="empty-panel"><p>Ese texto no habla de ningún jugador.</p></div>'));
+              return;
+            }
+            resultado(res.campos, res.campos.resumen);
+          } else {
+            /* Sin IA la app sigue funcionando con el lector de siempre, pero
+               se dice claramente que es peor, para que nadie se confunda. */
+            var motivo = res.motivo === 'sin_clave'
+              ? 'La IA todavía no está conectada, así que he usado el lector básico: solo pilla año, altura, posición y cuatro nacionalidades. ' +
+                'Para activarla hay que poner la clave de OpenAI en Vercel.'
+              : res.motivo === 'red' ? 'No he podido contactar con el servidor. He usado el lector básico.'
+              : 'La IA ha fallado (' + esc(res.motivo || '') + '). He usado el lector básico.';
+            estado.innerHTML = '<b>' + motivo + '</b>';
+            resultado(parseText(t), null);
+          }
+        });
     };
+
+    function resultado(d, resumen) {
+      outp.innerHTML = '';
+      if (resumen) outp.appendChild(el('<p class="hint" style="font-style:italic">' + esc(resumen) + '</p>'));
+
+      var hay = CAMPOS_IMPORT.filter(function (c) { return pinta(c[0], d[c[0]]) !== ''; });
+      if (!hay.length) { outp.appendChild(el('<div class="empty-panel"><p>No he sacado ningún dato de ese texto.</p></div>')); return; }
+
+      var card = el('<div class="card"><p class="sec-label">Esto es lo que he entendido</p></div>');
+      card.appendChild(el('<div class="field-grid">' + hay.map(function (c) {
+        return fld(c[1], pinta(c[0], d[c[0]]));
+      }).join('') + '</div>'));
+
+      /* ¿Es alguien que ya está? */
+      var parecido = buscarParecido(d);
+      if (parecido) {
+        var p = parecido.p;
+        card.appendChild(el('<p class="sec-label">Creo que ya lo tienes</p>'));
+        card.appendChild(el('<p class="hint">Esto se parece a <b>' + esc(p.full_name) + '</b> (' + SF.fichaCode(p.ficha) +
+          (p.birth_year ? ' · ' + p.birth_year : '') + '). Puedes completar su ficha o crear uno nuevo.</p>'));
+
+        var bComp = el('<button class="btn btn-primary btn-sm">' + ico('edit') + 'Completar la ficha de ' + esc(p.full_name.split(' ')[0]) + '</button>');
+        bComp.onclick = function () { completar(p, d); };
+        var bNuevo = el('<button class="btn btn-light btn-sm">Es otro jugador, crear ficha nueva</button>');
+        bNuevo.onclick = function () { crearNuevo(d); };
+        var fila = el('<div class="row-c"></div>'); fila.appendChild(bComp); fila.appendChild(bNuevo);
+        card.appendChild(fila);
+      } else {
+        var bC = el('<button class="btn btn-primary">' + ico('plus') + 'Crear la ficha</button>');
+        bC.onclick = function () { crearNuevo(d); };
+        card.appendChild(bC);
+      }
+      outp.appendChild(card);
+    }
+
+    function crearNuevo(d) {
+      var data = {};
+      CAMPOS_IMPORT.forEach(function (c) { if (d[c[0]] != null && d[c[0]] !== '') data[c[0]] = d[c[0]]; });
+      if (d.family_contact || d.family_phone) {
+        data.family = { contact: d.family_contact || '', relation: d.family_relation || '', phone: d.family_phone || '', email: d.family_email || '' };
+      }
+      U.modal('Revisar antes de crear', playerForm(data, function (fin) {
+        var np = SF.store.create(fin); U.toast('Ficha creada'); location.hash = '#/jugador/' + np.id;
+      }));
+    }
+
+    /* Completar una ficha existente. La regla: NUNCA pisar un dato que ya
+       está sin preguntar. Lo que está vacío se marca solo; lo que choca se
+       enseña en rojo y hay que decidirlo a mano. */
+    function completar(p, d) {
+      var body = el('<div></div>');
+      var nuevos = [], choques = [];
+      CAMPOS_IMPORT.forEach(function (c) {
+        var k = c[0], v = d[k];
+        if (v == null || v === '' || (Array.isArray(v) && !v.length)) return;
+        var actual = p[k];
+        var vacio = actual == null || actual === '' || (Array.isArray(actual) && !actual.length);
+        if (vacio) nuevos.push({ k: k, label: c[1], v: v });
+        else if (pinta(k, actual) !== pinta(k, v)) choques.push({ k: k, label: c[1], v: v, antes: actual });
+      });
+      if (d.family_contact && !((p.family || {}).contact)) nuevos.push({ k: 'family_contact', label: 'Contacto familiar', v: d.family_contact });
+      if (d.family_phone && !((p.family || {}).phone)) nuevos.push({ k: 'family_phone', label: 'Teléfono de la familia', v: d.family_phone });
+
+      if (!nuevos.length && !choques.length) {
+        body.appendChild(el('<p class="hint">Ese mensaje no aporta nada nuevo: ya lo tenías todo.</p>'));
+      }
+      if (nuevos.length) {
+        body.appendChild(el('<p class="sec-label">Se añade (estaba vacío)</p>'));
+        nuevos.forEach(function (x) {
+          var row = el('<label class="chk" style="padding:6px 0"><input type="checkbox" checked data-k="' + x.k + '">' +
+            '<span><b>' + esc(x.label) + ':</b> ' + esc(pinta(x.k, x.v)) + '</span></label>');
+          body.appendChild(row);
+        });
+      }
+      if (choques.length) {
+        body.appendChild(el('<p class="sec-label">No coincide con lo que ya tenías</p>'));
+        body.appendChild(el('<p class="hint">Desmarcado a propósito. Decide tú: el mensaje puede ser más reciente… o estar equivocado.</p>'));
+        choques.forEach(function (x) {
+          var row = el('<label class="chk" style="padding:6px 0"><input type="checkbox" data-k="' + x.k + '">' +
+            '<span><b>' + esc(x.label) + ':</b> tienes <b>' + esc(pinta(x.k, x.antes)) + '</b> → ponerlo en <b class="c-warn">' + esc(pinta(x.k, x.v)) + '</b></span></label>');
+          body.appendChild(row);
+        });
+      }
+
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar en la ficha</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        var patch = {}, fam = Object.assign({}, p.family || {}), tocado = 0;
+        body.querySelectorAll('input[type=checkbox]').forEach(function (i) {
+          if (!i.checked) return;
+          var k = i.dataset.k, todos = nuevos.concat(choques).filter(function (x) { return x.k === k; })[0];
+          if (!todos) return;
+          tocado++;
+          if (k === 'family_contact') fam.contact = todos.v;
+          else if (k === 'family_phone') fam.phone = todos.v;
+          else patch[k] = todos.v;
+        });
+        if (fam.contact !== (p.family || {}).contact || fam.phone !== (p.family || {}).phone) patch.family = fam;
+        if (!tocado) { U.toast('No has marcado nada'); return; }
+        SF.store.update(p.id, patch);
+        U.closeModal(); U.toast(tocado + ' dato(s) añadidos a ' + p.full_name);
+        location.hash = '#/jugador/' + p.id;
+      };
+      var w = el('<div></div>'); w.appendChild(body); w.appendChild(foot);
+      U.modal('Completar la ficha de ' + p.full_name, w);
+    }
 
     function parseText(t) {
       var d = { sport: 'baloncesto', status: 'Datos incompletos' };
@@ -6667,7 +6832,7 @@ SF.router = (function () {
   var root, view;
 
   var NAV = [
-    ['inicio', 'Inicio', 'home'], ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'], ['importar', 'Importar con IA', 'ai'],
+    ['inicio', 'Inicio', 'home'], ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'], ['importar', 'Importar mensaje', 'ai'],
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
