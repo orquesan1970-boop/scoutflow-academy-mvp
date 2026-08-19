@@ -252,6 +252,25 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
   .pre-row>*:nth-child(4),.pre-cab>*:nth-child(4),.pre-tot>*:nth-child(4){display:none}
 }
 
+/* ===== Vídeos ===== */
+.vid-list{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
+.vid{display:flex;gap:14px;align-items:center;border:1px solid var(--line);border-radius:var(--r-lg);
+  background:var(--surface);padding:10px 14px}
+.vid-thumb{position:relative;width:110px;height:62px;border-radius:9px;overflow:hidden;flex:none;
+  background:#EFEDF8;display:flex;align-items:center;justify-content:center}
+.vid-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.vid-src{font-size:11px;color:var(--purple-d);font-weight:600;text-align:center;padding:0 6px}
+.vid-play{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-size:20px;text-shadow:0 2px 8px rgba(0,0,0,.6)}
+.vid-b{flex:1;min-width:0}
+.vid-t{font-size:14px;font-weight:600;margin:0}
+.vid-m{font-size:12px;color:var(--ink-3);margin:4px 0 0;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.vid-n{font-size:12.5px;color:var(--ink-2);margin:5px 0 0}
+.vid-acc{display:flex;align-items:center;gap:8px;flex:none}
+.vid-frame{position:relative;padding-top:56.25%;border-radius:var(--r);overflow:hidden;background:#000}
+.vid-frame iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+@media(max-width:600px){ .vid{flex-wrap:wrap} .vid-thumb{width:92px;height:52px} }
+
 /* ===== Trayectoria: el club es la carpeta, las temporadas van dentro ===== */
 .car-club{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);margin-bottom:10px;overflow:hidden}
 .car-head{display:flex;align-items:center;gap:10px;padding:12px 15px;background:#FAF9FE;border-bottom:1px solid var(--line)}
@@ -677,6 +696,32 @@ SF.STATUSES = [
   'Entrevista', 'Oferta enviada', 'Inscrito', 'Rechazado'
 ];
 SF.PIPELINE = ['Nuevo', 'Datos incompletos', 'En evaluación', 'Entrevista', 'Oferta enviada', 'Inscrito'];
+
+/* ===================== VÍDEOS =====================
+   Guardamos ENLACES, no archivos. Y no es un apaño: es lo correcto.
+   El vídeo de un chaval ya está en YouTube, en Drive o en la plataforma del
+   club, subido por la familia o por el scout. Volver a subirlo aquí sería
+   duplicar gigas, pagar almacenamiento y, sobre todo, hacernos responsables
+   de custodiar la imagen de un menor sin necesidad.
+
+   Cuando llegue Supabase se podrán subir archivos también, pero los enlaces
+   seguirán siendo lo más usado. */
+SF.VIDEO_TYPES = ['Highlights', 'Partido completo', 'Entrenamiento', 'Prueba física', 'Otro'];
+
+/* Reconoce YouTube y Vimeo para poder enseñar la miniatura y reproducir
+   dentro de la ficha. Cualquier otro enlace (Drive, Hudl, un .mp4) se guarda
+   igual: se abre fuera y ya está. */
+SF.videoInfo = function (url) {
+  url = String(url || '').trim();
+  if (!url) return null;
+  var yt = url.match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]{11})/);
+  if (yt) return { fuente: 'YouTube', id: yt[1], embed: 'https://www.youtube-nocookie.com/embed/' + yt[1],
+    miniatura: 'https://img.youtube.com/vi/' + yt[1] + '/mqdefault.jpg' };
+  var vm = url.match(/vimeo\.com\/(?:video\/)?(\d+)/);
+  if (vm) return { fuente: 'Vimeo', id: vm[1], embed: 'https://player.vimeo.com/video/' + vm[1], miniatura: null };
+  if (/drive\.google\.com/.test(url)) return { fuente: 'Google Drive', embed: null, miniatura: null };
+  return { fuente: 'Enlace', embed: null, miniatura: null };
+};
 
 /* ===================== CRECIMIENTO Y EDAD RELATIVA =====================
 
@@ -1730,6 +1775,31 @@ SF.store = (function () {
 
     academy: function () { return db().academy; },
     saveAcademy: function (patch) { var d = db(); Object.assign(d.academy, patch); save(d); },
+    /* ---- VÍDEOS ---- */
+    videoAdd: function (playerId, data) {
+      var d = db(), u = (SF.USERS || {})[d.role] || d.role;
+      var v = Object.assign({ id: 'v' + Date.now(), type: 'Highlights', title: '', url: '', date: '', notes: '',
+        by: u, added_at: new Date().toISOString().slice(0, 10) }, data);
+      d.players = d.players.map(function (p) {
+        if (p.id !== playerId) return p;
+        var np = Object.assign({}, p, { videos: (p.videos || []).concat([v]) });
+        /* Si es de highlights, el documento pendiente de vídeo pasa a
+           recibido solo: si no, Documentos seguiría pidiéndolo eternamente. */
+        if (v.type === 'Highlights' && np.documents && np.documents.video_highlights === 'pendiente') {
+          np.documents = Object.assign({}, np.documents, { video_highlights: 'recibido' });
+        }
+        return np;
+      });
+      save(d); return v;
+    },
+    videoRemove: function (playerId, id) {
+      var d = db();
+      d.players = d.players.map(function (p) {
+        return p.id === playerId ? Object.assign({}, p, { videos: (p.videos || []).filter(function (v) { return v.id !== id; }) }) : p;
+      });
+      save(d);
+    },
+
     /* ---- ENTREVISTAS ---- */
     interviewAdd: function (playerId, data) {
       var d = db(), u = (SF.USERS || {})[d.role] || d.role;
@@ -3470,7 +3540,73 @@ window.SF = window.SF || {};
           body.appendChild(edMed);
         }
       } else if (cur === 'videos') {
-        body.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('camera') + '</div><p>Sin vídeos aún. En v0.3 (Supabase) se subirán highlights, partidos y entrenamientos.</p></div>'));
+        var vids = (p.videos || []).slice().sort(function (a, b) { return (b.date || b.added_at || '').localeCompare(a.date || a.added_at || ''); });
+        var puedeVid = SF.store.role() !== 'padre' && SF.store.role() !== 'jugador';
+
+        if (!vids.length) {
+          body.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('camera') + '</div>' +
+            '<h3>Sin vídeos todavía</h3><p>Pega el enlace de YouTube, Vimeo o Google Drive. No hace falta subir el archivo.</p></div>'));
+        }
+
+        var vw = el('<div class="vid-list"></div>');
+        vids.forEach(function (v) {
+          var inf = SF.videoInfo(v.url) || {};
+          var card = el('<div class="vid">' +
+            '<div class="vid-thumb">' + (inf.miniatura
+              ? '<img src="' + esc(inf.miniatura) + '" alt="">'
+              : '<span class="vid-src">' + esc(inf.fuente || 'Enlace') + '</span>') +
+            (inf.embed ? '<span class="vid-play">▶</span>' : '') + '</div>' +
+            '<div class="vid-b"><p class="vid-t">' + esc(v.title || v.type) + '</p>' +
+            '<p class="vid-m"><span class="tag tag-purple">' + esc(v.type) + '</span> ' +
+            (v.date ? fmtDate(v.date) + ' · ' : '') + esc(inf.fuente || '') +
+            (v.by ? ' · ' + esc(v.by) : '') + '</p>' +
+            (v.notes ? '<p class="vid-n">' + esc(v.notes) + '</p>' : '') + '</div>' +
+            '<div class="vid-acc"></div></div>');
+
+          var acc = card.querySelector('.vid-acc');
+          /* Se reproduce dentro de la ficha: si hay que salir a otra pestaña
+             para ver diez segundos de un tiro, no lo ve nadie. */
+          if (inf.embed) {
+            var bp = el('<button class="lnk">ver aquí</button>');
+            bp.onclick = function () {
+              U.modal(v.title || v.type, el('<div class="vid-frame"><iframe src="' + esc(inf.embed) +
+                '" allow="accelerometer; autoplay; clipboard-write; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>'));
+            };
+            card.querySelector('.vid-thumb').style.cursor = 'pointer';
+            card.querySelector('.vid-thumb').onclick = bp.onclick;
+            acc.appendChild(bp);
+          }
+          var ba = el('<a class="lnk" href="' + esc(v.url) + '" target="_blank" rel="noopener noreferrer">abrir</a>');
+          acc.appendChild(ba);
+          if (puedeVid) {
+            var bd = el('<button class="lnk-del">' + ico('trash') + '</button>');
+            bd.onclick = function () { if (confirm('¿Quitar este vídeo?')) { SF.store.videoRemove(p.id, v.id); p = SF.store.get(p.id); paint(); } };
+            acc.appendChild(bd);
+          }
+          vw.appendChild(card);
+        });
+        body.appendChild(vw);
+
+        if (puedeVid) {
+          var bv = el('<button class="btn btn-primary btn-sm">' + ico('plus') + 'Añadir un vídeo</button>');
+          bv.onclick = function () {
+            U.modal('Añadir vídeo — ' + p.full_name, smallForm([
+              { name: 'url', label: 'Enlace (YouTube, Vimeo, Drive…)' },
+              { name: 'type', label: '¿Qué es?', type: 'select', options: SF.VIDEO_TYPES },
+              { name: 'title', label: 'Título (opcional)' },
+              { name: 'date', label: 'Fecha del vídeo', type: 'date' },
+              { name: 'notes', label: 'Nota (opcional)', type: 'textarea' }
+            ], { type: 'Highlights' }, function (d) {
+              if (!d.url || !/^https?:\/\//i.test(d.url)) { U.toast('Pega un enlace que empiece por http'); return false; }
+              SF.store.videoAdd(p.id, d);
+              U.toast('Vídeo añadido'); p = SF.store.get(p.id); paint();
+            }));
+          };
+          body.appendChild(bv);
+          body.appendChild(el('<p class="hint">Se guarda <b>el enlace</b>, no el archivo: el vídeo se queda donde ya está. ' +
+            'Al añadir uno de <b>Highlights</b>, deja de pedirse en Documentos. ' +
+            '<b>Cuidado con los enlaces públicos</b> de menores: si el vídeo es privado o no listado, que siga siéndolo.</p>'));
+        }
       } else if (cur === 'captacion') {
         body.appendChild(el('<div class="field-grid">' + fld('Canal de origen', p.channel) + fld('Fecha de captación', p.capture_date) + fld('Responsable', p.responsible) + fld('Objetivo', p.objective) + '</div>'));
 
