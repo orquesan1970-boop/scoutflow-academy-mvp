@@ -28,7 +28,7 @@ const CAMPOS = {
   secondary_position: 'Posición secundaria, misma lista',
   height_cm: 'Altura en centímetros, entero',
   weight_kg: 'Peso en kilos',
-  nationality: 'Nacionalidades, en español y con mayúscula inicial',
+  nationality: 'Nacionalidades como NOMBRE DE PAÍS en español: "Serbia", "España", "Argentina". NUNCA el gentilicio ("serbio", "español")',
   city: 'Ciudad de residencia',
   residence_country: 'País de residencia',
   phone: 'Teléfono del jugador',
@@ -61,8 +61,13 @@ const INSTRUCCIONES = [
   '3. Alturas: "1.90", "190" o "un noventa" son 190.',
   '4. Posiciones: "uno" o "point guard" = Base; "dos" = Escolta; "tres" = Alero;',
   '   "cuatro" = Ala-pívot; "cinco" o "pivot" = Pívot.',
-  '5. Si el texto no habla de ningún jugador, pon sin_datos = true.',
-  '6. No opines sobre el jugador ni valores su nivel. Solo extraes datos.'
+  '5. Nacionalidad: siempre el PAÍS, nunca el gentilicio. "es serbio" → "Serbia";',
+  '   "argentino y español" → ["Argentina", "España"]. Si no, luego no se puede',
+  '   agrupar ni filtrar, porque el resto de la ficha usa nombres de país.',
+  '6. Si te dan solo el año ("es del 2011"), rellena birth_year y deja',
+  '   birth_date vacío. No te inventes el día.',
+  '7. Si el texto no habla de ningún jugador, pon sin_datos = true.',
+  '8. No opines sobre el jugador ni valores su nivel. Solo extraes datos.'
 ].join('\n');
 
 /* --- Esquemas, uno por proveedor: cada uno los pide a su manera --- */
