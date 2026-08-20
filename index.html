@@ -697,6 +697,54 @@ SF.STATUSES = [
 ];
 SF.PIPELINE = ['Nuevo', 'Datos incompletos', 'En evaluación', 'Entrevista', 'Oferta enviada', 'Inscrito'];
 
+/* ===================== LICENCIAS FEDERATIVAS =====================
+   Esto NO tramita nada: prepara. Antes de entrar en la intranet de la
+   federación te dice quién está listo y a quién le falta qué.
+
+   Lo que más tiempo cuesta no es teclear: es empezar una ficha, descubrir a
+   mitad que falta el DNI, salir a buscarlo y volver. Eso es lo que se evita.
+
+   Los permisos de los padres NO se piden aquí: ya se firman al inscribir al
+   jugador en el club. Pedirlos otra vez sería marear a la familia. */
+SF.LICENCIA_REQ = [
+  { k: 'nombre', label: 'Nombre y apellidos', ok: function (p) { return !!(p.full_name || '').trim(); } },
+  { k: 'fecha', label: 'Fecha de nacimiento completa', ok: function (p) { return !!p.birth_date; },
+    nota: 'No basta el año: la federación pide día, mes y año' },
+  { k: 'dni', label: 'DNI, NIE o pasaporte', ok: function (p) { return !!(p.dni || '').trim(); } },
+  { k: 'sexo', label: 'Sexo', ok: function (p) { return !!p.gender; },
+    nota: 'Determina la categoría en la que se inscribe' },
+  { k: 'nacionalidad', label: 'Nacionalidad', ok: function (p) { return !!(p.nationality || []).length; } },
+  { k: 'equipo', label: 'Equipo asignado', ok: function (p) { return !!p.team_id; },
+    nota: 'La licencia se pide por equipo' },
+  { k: 'contacto', label: 'Teléfono o email de contacto',
+    ok: function (p) { return !!(p.phone || p.email || (p.family || {}).phone || (p.family || {}).email); } },
+  { k: 'domicilio', label: 'Domicilio', ok: function (p) { return !!(p.address || '').trim(); } }
+];
+
+SF.licenciaPend = function (p) {
+  return SF.LICENCIA_REQ.filter(function (r) { return !r.ok(p); });
+};
+SF.licenciaListo = function (p) { return SF.licenciaPend(p).length === 0; };
+
+/* Los datos en bloque, listos para pegar en la intranet. No inventamos el
+   formato de fichero de la federación hasta saber cuál es: copiar y pegar
+   campo a campo funciona siempre y no engaña a nadie. */
+SF.licenciaTexto = function (p) {
+  var f = p.family || {};
+  return [
+    'Nombre: ' + (p.first_name || ''),
+    'Apellidos: ' + (p.last_name || ''),
+    'Fecha de nacimiento: ' + (p.birth_date || ''),
+    'Sexo: ' + (p.gender || ''),
+    'DNI / documento: ' + (p.dni || ''),
+    'Nacionalidad: ' + (p.nationality || []).join(', '),
+    'Domicilio: ' + (p.address || ''),
+    'Ciudad: ' + (p.city || ''),
+    'Teléfono: ' + (p.phone || f.phone || ''),
+    'Email: ' + (p.email || f.email || '')
+  ].join('\n');
+};
+
 /* ===================== VÍDEOS =====================
    Guardamos ENLACES, no archivos. Y no es un apaño: es lo correcto.
    El vídeo de un chaval ya está en YouTube, en Drive o en la plataforma del
@@ -946,7 +994,7 @@ SF.COACHES = ['Carlos Gorosito', 'Laura Méndez', 'Diego Pérez'];
 SF.ROLES = {
   director: {
     label: 'Director',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'informes', 'family', 'finanzas', 'economia', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
     tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, segments: 'all', canCreatePlayers: true
   },
   dt_general: {
@@ -1001,7 +1049,7 @@ SF.ROLES = {
   },
   administrativo: {
     label: 'Administrativo',
-    nav: ['inicio', 'jugadores', 'staff', 'comunicados', 'documentos', 'finanzas', 'economia', 'presupuesto', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'staff', 'comunicados', 'documentos', 'licencias', 'finanzas', 'economia', 'presupuesto', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all', canCreatePlayers: true
   },
@@ -6728,6 +6776,108 @@ window.SF = window.SF || {};
       'de las fichas de jugadores, y los gastos <b>aprobados</b> de Economía. Las demás se escriben a mano.</p>'));
   };
 
+  /* ===================== LICENCIAS ===================== */
+  pages.licencias = function (view) {
+    var r = role();
+    view.innerHTML = head('Licencias federativas ' + esc(SF.SEASON),
+      'Quién está listo para federar y a quién le falta algo. Aquí no se tramita nada: se prepara.');
+
+    var ps = scopedPlayers().filter(function (p) { return p.status !== 'Rechazado'; });
+    var listos = ps.filter(SF.licenciaListo);
+    var falta = ps.filter(function (p) { return !SF.licenciaListo(p); });
+
+    /* --- Resumen arriba, que es la pregunta real: ¿cuánto me queda? --- */
+    view.appendChild(el('<div class="foco ' + (falta.length ? 'is-warn' : 'is-ok') + '">' +
+      '<div class="foco-ic">' + ico(falta.length ? 'alert' : 'check') + '</div><div class="foco-body">' +
+      '<p class="foco-t">' + listos.length + ' de ' + ps.length + ' jugadores listos para federar</p>' +
+      '<p class="foco-s">' + (falta.length
+        ? 'A ' + falta.length + (falta.length === 1 ? ' le falta algún dato.' : ' les falta algún dato.') +
+          ' Mejor resolverlo antes de entrar en la intranet de la federación que a mitad de la ficha.'
+        : 'Puedes tramitarlas todas.') + '</p></div></div>'));
+
+    /* --- Qué falta, agrupado: si a diez les falta el DNI, es una gestión, no diez --- */
+    if (falta.length) {
+      var porDato = {};
+      falta.forEach(function (p) { SF.licenciaPend(p).forEach(function (d) { (porDato[d.label] = porDato[d.label] || []).push(p); }); });
+      view.appendChild(el('<p class="sec-label">Qué falta en total</p>'));
+      var lg = el('<div class="mini-list"></div>');
+      Object.keys(porDato).sort(function (a, b) { return porDato[b].length - porDato[a].length; }).forEach(function (lab) {
+        var req = SF.LICENCIA_REQ.filter(function (x) { return x.label === lab; })[0] || {};
+        lg.appendChild(el('<div class="mini-row"><span><b>' + esc(lab) + '</b> · ' + porDato[lab].length +
+          (porDato[lab].length === 1 ? ' jugador' : ' jugadores') +
+          (req.nota ? '<br><span class="hint">' + esc(req.nota) + '</span>' : '') + '</span>' +
+          '<span class="hint">' + esc(porDato[lab].slice(0, 4).map(function (p) { return p.full_name.split(' ')[0]; }).join(', ')) +
+          (porDato[lab].length > 4 ? '…' : '') + '</span></div>'));
+      });
+      view.appendChild(lg);
+    }
+
+    /* --- Por equipo, que es como se tramita --- */
+    var equipos = SF.store.teams().filter(function (t) { return r.segments === 'all' || !r.segments || r.segments.indexOf(t.segment) >= 0; });
+    var sinEquipo = ps.filter(function (p) { return !p.team_id; });
+
+    equipos.forEach(function (t) {
+      var roster = ps.filter(function (p) { return p.team_id === t.id; });
+      if (!roster.length) return;
+      var okN = roster.filter(SF.licenciaListo).length;
+      view.appendChild(el('<p class="sec-label">' + esc(t.name) + ' · ' + okN + ' de ' + roster.length + ' listos</p>'));
+      var l = el('<div class="mini-list"></div>');
+      roster.forEach(function (p) {
+        var pend = SF.licenciaPend(p);
+        var row = el('<div class="mini-row"><span><b>' + esc(p.full_name) + '</b> <span class="hint">' + SF.fichaCode(p.ficha) + '</span>' +
+          (pend.length
+            ? '<br>' + pend.map(function (d) { return '<span class="tag tag-warn">' + esc(d.label) + '</span>'; }).join(' ')
+            : ' <span class="tag tag-green">listo</span>') +
+          '</span><span class="row-actions"></span></div>');
+        var ra = row.querySelector('.row-actions');
+        if (!pend.length) {
+          var bc = el('<button class="lnk">copiar datos</button>');
+          bc.onclick = function () {
+            var txt = SF.licenciaTexto(p);
+            if (navigator.clipboard) navigator.clipboard.writeText(txt).then(function () { U.toast('Datos copiados'); });
+            else U.modal('Datos de ' + p.full_name, el('<div><p class="bz-body">' + esc(txt) + '</p></div>'));
+          };
+          ra.appendChild(bc);
+        }
+        var bf = el('<button class="lnk">ficha</button>');
+        bf.onclick = function () { location.hash = '#/jugador/' + p.id; };
+        ra.appendChild(bf);
+        l.appendChild(row);
+      });
+      view.appendChild(l);
+    });
+
+    if (sinEquipo.length) {
+      view.appendChild(el('<p class="sec-label">Sin equipo asignado · ' + sinEquipo.length + '</p>'));
+      view.appendChild(el('<p class="hint">La licencia se pide por equipo, así que estos no se pueden federar todavía: ' +
+        esc(sinEquipo.map(function (p) { return p.full_name; }).join(', ')) + '.</p>'));
+    }
+
+    /* --- El staff también se federa, y se olvida siempre --- */
+    if (r.nav.indexOf('staff') >= 0) {
+      var staffMal = SF.store.staff().filter(function (s) {
+        var l = s.licence || {};
+        return l.status && l.status !== 'no_aplica' && !(l.status === 'vigente' && l.season === SF.SEASON);
+      });
+      view.appendChild(el('<p class="sec-label">Entrenadores y técnicos</p>'));
+      if (!staffMal.length) view.appendChild(el('<p class="hint">Todas las licencias del staff están al día.</p>'));
+      var ls = el('<div class="mini-list"></div>');
+      staffMal.forEach(function (s) {
+        var l = s.licence || {};
+        var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> <span class="hint">' + esc(roleLabel(s.role)) + '</span><br>' +
+          '<span class="tag tag-warn">Licencia de ' + esc(l.season || 'ninguna') + '</span> <span class="hint">hay que renovarla para ' + esc(SF.SEASON) + '</span></span>' +
+          '<span class="row-actions"><button class="lnk" data-f>ficha</button></span></div>');
+        row.querySelector('[data-f]').onclick = function () { location.hash = '#/staff/' + s.id; };
+        ls.appendChild(row);
+      });
+      view.appendChild(ls);
+    }
+
+    view.appendChild(el('<p class="hint" style="margin-top:14px">Los <b>permisos de los padres no se piden aquí</b>: ya se firman al inscribir al jugador en el club.<br>' +
+      'De momento esta pantalla <b>no genera el fichero</b> de la federación, porque aún no sabemos qué columnas pide Intrafeb. ' +
+      'En cuanto tengamos su plantilla, se añade el botón. Mientras, «copiar datos» te deja el bloque listo para pegar.</p>'));
+  };
+
   /* ===================== BUSCADOR UNIVERSAL =====================
      Una sola caja para jugadores y para personal. Lo que se busca de cada
      ficha está declarado aquí a propósito: NO entran las notas internas, ni
@@ -6994,7 +7144,7 @@ SF.router = (function () {
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
     ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'],
-    ['presupuesto', 'Presupuesto', 'chart'],
+    ['presupuesto', 'Presupuesto', 'chart'], ['licencias', 'Licencias', 'shield'],
     ['importar-datos', 'Importar datos', 'chart'], ['mis-avisos', 'Mis avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
     ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
@@ -7005,7 +7155,7 @@ SF.router = (function () {
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
     staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo',
     comunicados: 'comunicados', 'importar-datos': 'importar-datos', 'mis-avisos': 'mis-avisos',
-    buscar: 'buscar', presupuesto: 'presupuesto'
+    buscar: 'buscar', presupuesto: 'presupuesto', licencias: 'licencias'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff' };
