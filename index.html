@@ -252,6 +252,30 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
   .pre-row>*:nth-child(4),.pre-cab>*:nth-child(4),.pre-tot>*:nth-child(4){display:none}
 }
 
+/* ===== Inscripción por pasos ===== */
+.pasos{display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap}
+.paso{display:flex;align-items:center;gap:8px;padding:7px 13px;border-radius:999px;
+  background:var(--surface);border:1px solid var(--line);font-size:12.5px;color:var(--ink-3)}
+.paso.on{border-color:var(--purple);color:var(--purple-d);font-weight:600}
+.paso.hecho{background:var(--ok-bg);border-color:transparent;color:var(--ok-ink)}
+.paso-n{width:20px;height:20px;border-radius:50%;background:#EFEDF8;color:var(--purple-d);
+  display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;flex:none}
+.paso.hecho .paso-n{background:var(--ok);color:#fff}
+.paso.on .paso-n{background:var(--purple);color:#fff}
+@media(max-width:700px){ .paso-t{display:none} .paso{padding:7px} }
+
+/* Consentimientos: la pregunta, el texto y dos botones grandes. Nada de
+   casillas diminutas para algo que tiene consecuencias legales. */
+.cons{border:1px solid var(--line);border-radius:var(--r-lg);padding:14px 16px;margin-bottom:10px;background:var(--surface)}
+.cons>b{font-size:14px;display:block;margin-bottom:5px}
+.cons>p{font-size:13px;color:var(--ink-2);margin:0 0 8px;line-height:1.55}
+.cons-yn{display:flex;gap:8px;margin-top:10px}
+.cyn{flex:1;padding:10px;border:1px solid var(--line-2);background:var(--surface);border-radius:10px;
+  font-family:inherit;font-size:13.5px;font-weight:600;cursor:pointer;color:var(--ink-2);transition:all .15s}
+.cyn:hover{border-color:var(--purple-2)}
+.cyn.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.cyn.no.on{background:var(--danger);border-color:var(--danger)}
+
 /* ===== Vídeos ===== */
 .vid-list{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}
 .vid{display:flex;gap:14px;align-items:center;border:1px solid var(--line);border-radius:var(--r-lg);
@@ -696,6 +720,45 @@ SF.STATUSES = [
   'Entrevista', 'Oferta enviada', 'Inscrito', 'Rechazado'
 ];
 SF.PIPELINE = ['Nuevo', 'Datos incompletos', 'En evaluación', 'Entrevista', 'Oferta enviada', 'Inscrito'];
+
+/* ===================== INSCRIPCIÓN EN EL CLUB =====================
+   El formulario que hoy se rellena en un papel y luego alguien pasa a mano.
+   Aquí se rellena una vez y la ficha nace completa.
+
+   Dos reglas que no son un capricho:
+
+   1. Cada autorización se contesta SÍ o NO, a propósito, y se guarda quién
+      la firmó y cuándo. Un "no contestado" no es un sí.
+   2. La de imagen SE PUEDE CONTESTAR QUE NO y aun así completar la
+      inscripción. Si condicionas la inscripción a que digan que sí, el
+      consentimiento deja de ser libre y no vale (RGPD art. 7.4). Es un error
+      muy común y sale caro. */
+SF.CONSENTIMIENTOS = [
+  { k: 'datos', titulo: 'Tratamiento de datos',
+    texto: 'Autorizo al club a guardar y tratar los datos de esta ficha para gestionar la actividad deportiva: inscripción, licencia federativa, comunicaciones y cobros.',
+    obligatorio: true,
+    nota: 'Sin esto el club no puede ni inscribirle. Es la base de todo lo demás.' },
+  { k: 'imagen', titulo: 'Uso de imagen',
+    texto: 'Autorizo que se publiquen fotografías y vídeos en los que aparezca, en las redes sociales del club, su web y notas de prensa, siempre en el contexto de la actividad deportiva.',
+    obligatorio: false,
+    nota: 'Se puede decir que NO y seguir adelante sin ningún problema. Si dice que no, el club no publicará su imagen.' },
+  { k: 'salidas', titulo: 'Desplazamientos y salidas',
+    texto: 'Autorizo su participación en desplazamientos, torneos y actividades organizadas por el club fuera de las instalaciones habituales.',
+    obligatorio: false },
+  { k: 'sanitaria', titulo: 'Atención sanitaria urgente',
+    texto: 'Autorizo al club a solicitar atención médica urgente si fuera necesario y no se pudiera contactar con la familia en ese momento.',
+    obligatorio: false }
+];
+
+/* En España, a partir de los 14 años el menor puede consentir por sí mismo
+   el tratamiento de sus datos; por debajo, firman los padres o tutores. */
+SF.firmaMenor14 = function (birth_date) {
+  if (!birth_date) return true;
+  var d = new Date(birth_date + 'T00:00:00');
+  if (isNaN(d)) return true;
+  var e = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
+  return e < 14;
+};
 
 /* ===================== LICENCIAS FEDERATIVAS =====================
    Esto NO tramita nada: prepara. Antes de entrar en la intranet de la
@@ -2853,10 +2916,15 @@ window.SF = window.SF || {};
   }
 
   pages.jugadores = function (view) {
-    var actions = '<button class="btn" id="imp">' + ico('ai') + 'Importar IA</button><button class="btn btn-primary" id="nuevo">' + ico('plus') + 'Nuevo jugador</button>';
+    var actions = '<button class="btn" id="imp">' + ico('ai') + 'Importar mensaje</button>' +
+      '<button class="btn" id="insc">' + ico('file') + 'Inscripción</button>' +
+      '<button class="btn btn-primary" id="nuevo">' + ico('plus') + 'Nuevo jugador</button>';
     view.innerHTML = head('Jugadores', 'Vista principal: tarjetas con foto', actions);
     view.querySelector('#nuevo').onclick = openCreate;
     view.querySelector('#imp').onclick = function () { location.hash = '#/importar'; };
+    /* Empieza siempre de cero: si alguien dejó una inscripción a medias, la
+       siguiente familia no debe encontrarse los datos del anterior. */
+    view.querySelector('#insc').onclick = function () { SF._insDatos = null; SF._insPaso = 1; location.hash = '#/inscripcion'; };
 
     var ps = scopedPlayers();
     var years = Array.from(new Set(ps.map(function (p) { return p.birth_year; }).filter(Boolean))).sort();
@@ -6776,6 +6844,190 @@ window.SF = window.SF || {};
       'de las fichas de jugadores, y los gastos <b>aprobados</b> de Economía. Las demás se escriben a mano.</p>'));
   };
 
+  /* ===================== INSCRIPCIÓN =====================
+     Por pasos y no en una sola pantalla larga: una familia delante de una
+     tablet abandona un formulario de cuarenta campos. En cinco pasos cortos,
+     no. */
+  pages.inscripcion = function (view) {
+    var paso = SF._insPaso || 1;
+    var D = SF._insDatos = SF._insDatos || { consent: {} };
+    var PASOS = ['El jugador', 'La familia', 'Salud', 'Autorizaciones', 'Equipación y pago'];
+
+    view.innerHTML = head('Inscripción en el club',
+      'Se rellena una vez y la ficha queda hecha. Puede rellenarla la familia aquí mismo, en una tablet.');
+
+    /* Barra de pasos: saber cuánto queda es la mitad de terminarlo. */
+    var barra = el('<div class="pasos"></div>');
+    PASOS.forEach(function (nombre, i) {
+      var n = i + 1;
+      barra.appendChild(el('<div class="paso' + (n === paso ? ' on' : n < paso ? ' hecho' : '') + '">' +
+        '<span class="paso-n">' + (n < paso ? '✓' : n) + '</span><span class="paso-t">' + nombre + '</span></div>'));
+    });
+    view.appendChild(barra);
+
+    var caja = el('<div class="card"></div>');
+    view.appendChild(caja);
+
+    function campo(k, label, tipo, opciones, ayuda) {
+      var v = D[k] == null ? '' : D[k];
+      var inner;
+      if (tipo === 'select') inner = '<select data-k="' + k + '"><option value="">—</option>' +
+        opciones.map(function (o) { return '<option' + (o === v ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+      else if (tipo === 'textarea') inner = '<textarea data-k="' + k + '">' + esc(v) + '</textarea>';
+      else inner = '<input type="' + (tipo || 'text') + '" data-k="' + k + '" value="' + esc(v) + '">';
+      return '<div class="frow"><label>' + label + '</label>' + inner +
+        (ayuda ? '<span class="hint">' + ayuda + '</span>' : '') + '</div>';
+    }
+    function leer() {
+      caja.querySelectorAll('[data-k]').forEach(function (i) { D[i.dataset.k] = (i.value || '').trim(); });
+    }
+
+    if (paso === 1) {
+      caja.innerHTML = '<div class="form-grid">' +
+        campo('first_name', 'Nombre *') + campo('last_name', 'Apellidos *') +
+        campo('birth_date', 'Fecha de nacimiento *', 'date') +
+        campo('gender', 'Sexo *', 'select', ['M', 'F']) +
+        campo('dni', 'DNI, NIE o pasaporte', null, null, 'Hace falta para la licencia federativa') +
+        campo('nationality', 'Nacionalidad', null, null, 'Si tiene dos, sepáralas con coma') +
+        campo('address', 'Domicilio') + campo('city', 'Ciudad') +
+        campo('phone', 'Teléfono del jugador') + campo('email', 'Email del jugador') +
+        campo('school', 'Centro de estudios') + campo('course', 'Curso') +
+        '</div>';
+    } else if (paso === 2) {
+      caja.innerHTML = '<p class="sec-label">Contacto principal</p><div class="form-grid">' +
+        campo('fam_contact', 'Nombre y apellidos *') +
+        campo('fam_relation', 'Relación *', 'select', ['Padre', 'Madre', 'Tutor/a legal']) +
+        campo('fam_phone', 'Teléfono *') + campo('fam_email', 'Email *') +
+        campo('fam_dni', 'DNI del que firma') +
+        '</div><p class="sec-label">Segundo contacto (opcional)</p><div class="form-grid">' +
+        campo('fam2_contact', 'Nombre y apellidos') + campo('fam2_phone', 'Teléfono') +
+        '</div><p class="sec-label">Estatura de los padres (opcional)</p><div class="form-grid">' +
+        campo('father_height_cm', 'Estatura del padre (cm)', 'number') +
+        campo('mother_height_cm', 'Estatura de la madre (cm)', 'number') +
+        '</div>';
+      caja.appendChild(el('<p class="hint">Lo de la estatura no es curiosidad: permite estimar hasta dónde va a crecer, ' +
+        'que en baloncesto ayuda a no confundir al que hoy es grande con el que va a serlo. Se puede dejar en blanco.</p>'));
+    } else if (paso === 3) {
+      caja.innerHTML = '<div class="form-grid">' +
+        campo('apto', '¿Tiene reconocimiento médico con apto? *', 'select', ['Sí', 'No', 'Pendiente']) +
+        campo('apto_fecha', 'Fecha del reconocimiento', 'date') +
+        campo('emergencia', 'Teléfono de emergencia') +
+        '</div>' +
+        '<div class="frow" style="margin-top:10px">' +
+        '<label>Alergias, medicación o algo que deba saber el club en una urgencia</label>' +
+        '<textarea data-k="salud_notas">' + esc(D.salud_notas || '') + '</textarea></div>';
+      caja.appendChild(el('<p class="hint">Solo lo imprescindible para atenderle si pasa algo. ' +
+        'El club <b>no guarda el historial médico</b>: eso es un dato de salud y no nos corresponde custodiarlo.</p>'));
+    } else if (paso === 4) {
+      var menor = SF.firmaMenor14(D.birth_date);
+      caja.appendChild(el('<p class="hint">' + (menor
+        ? 'Es menor de 14 años, así que estas autorizaciones las firma <b>el padre, la madre o el tutor</b>.'
+        : 'Tiene 14 años o más: puede firmar por sí mismo, aunque lo habitual es que lo haga la familia.') + '</p>'));
+      SF.CONSENTIMIENTOS.forEach(function (c) {
+        var val = D.consent[c.k];
+        var b = el('<div class="cons"><b>' + esc(c.titulo) + (c.obligatorio ? ' *' : '') + '</b>' +
+          '<p>' + esc(c.texto) + '</p>' +
+          (c.nota ? '<p class="hint">' + esc(c.nota) + '</p>' : '') +
+          '<div class="cons-yn"><button class="cyn' + (val === 'si' ? ' on' : '') + '" data-v="si">Sí, autorizo</button>' +
+          '<button class="cyn no' + (val === 'no' ? ' on' : '') + '" data-v="no">No autorizo</button></div></div>');
+        b.querySelectorAll('.cyn').forEach(function (btn) {
+          btn.onclick = function () { D.consent[c.k] = btn.dataset.v; SF.router.render(); };
+        });
+        caja.appendChild(b);
+      });
+      caja.appendChild(el('<div class="form-grid" style="margin-top:12px">' +
+        campo('firma_nombre', 'Nombre y apellidos de quien firma *') +
+        campo('firma_dni', 'DNI de quien firma') + '</div>'));
+      caja.appendChild(el('<p class="hint">Se guarda quién firma y en qué fecha. La familia puede cambiar de opinión ' +
+        'cuando quiera: retirar un consentimiento es un derecho, y basta con pedirlo al club.</p>'));
+    } else {
+      var kit = (SF.store.academy().kit) || {};
+      caja.innerHTML = '<div class="form-grid">' +
+        campo('talla', 'Talla de equipación', 'select', ['6', '8', '10', '12', '14', 'XS', 'S', 'M', 'L', 'XL', 'XXL']) +
+        campo('metodo_pago', 'Forma de pago', 'select', ['Recibo domiciliado', 'Transferencia', 'Tarjeta', 'Bizum', 'Efectivo']) +
+        campo('iban', 'IBAN (si es domiciliado)') +
+        campo('team_id_nombre', 'Equipo', 'select', SF.store.teams().map(function (t) { return t.name; })) +
+        '</div>';
+      caja.appendChild(el('<p class="hint">Si aún no sabéis el equipo, se deja en blanco y lo asigna el club después.</p>'));
+    }
+
+    /* --- Navegación --- */
+    var pie = el('<div class="row-c"></div>');
+    if (paso > 1) {
+      var bAtras = el('<button class="btn btn-light">' + ico('back') + 'Atrás</button>');
+      bAtras.onclick = function () { leer(); SF._insPaso = paso - 1; SF.router.render(); };
+      pie.appendChild(bAtras);
+    }
+    if (paso < 5) {
+      var bSig = el('<button class="btn btn-primary">Siguiente</button>');
+      bSig.onclick = function () {
+        leer();
+        var falta = [];
+        if (paso === 1) {
+          if (!D.first_name) falta.push('el nombre');
+          if (!D.last_name) falta.push('los apellidos');
+          if (!D.birth_date) falta.push('la fecha de nacimiento');
+          if (!D.gender) falta.push('el sexo');
+        }
+        if (paso === 2) {
+          if (!D.fam_contact) falta.push('el nombre del contacto');
+          if (!D.fam_relation) falta.push('la relación');
+          if (!D.fam_phone) falta.push('el teléfono');
+          if (!D.fam_email) falta.push('el email');
+        }
+        if (paso === 3 && !D.apto) falta.push('si tiene apto médico');
+        if (paso === 4) {
+          SF.CONSENTIMIENTOS.forEach(function (c) {
+            if (!D.consent[c.k]) falta.push('contestar «' + c.titulo + '»');
+            else if (c.obligatorio && D.consent[c.k] === 'no') falta.push('el consentimiento de tratamiento de datos, sin el que el club no puede inscribirle');
+          });
+          if (!D.firma_nombre) falta.push('el nombre de quien firma');
+        }
+        if (falta.length) { U.toast('Falta ' + falta.slice(0, 2).join(' y ')); return; }
+        SF._insPaso = paso + 1; SF.router.render();
+      };
+      pie.appendChild(bSig);
+    } else {
+      var bFin = el('<button class="btn btn-primary">' + ico('check') + 'Crear la ficha</button>');
+      bFin.onclick = function () {
+        leer();
+        var eq = SF.store.teams().filter(function (t) { return t.name === D.team_id_nombre; })[0];
+        var p = SF.store.create({
+          first_name: D.first_name, last_name: D.last_name, birth_date: D.birth_date,
+          gender: D.gender, dni: D.dni, address: D.address, city: D.city,
+          phone: D.phone, email: D.email, school: D.school, course: D.course,
+          nationality: (D.nationality || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean),
+          team_id: eq ? eq.id : null,
+          status: 'Inscrito',
+          family: {
+            contact: D.fam_contact, relation: D.fam_relation, phone: D.fam_phone, email: D.fam_email,
+            dni: D.fam_dni, contact2: D.fam2_contact, phone2: D.fam2_phone,
+            father_height_cm: +D.father_height_cm || null, mother_height_cm: +D.mother_height_cm || null
+          },
+          medical_ok: D.apto, medical_date: D.apto_fecha, emergency_phone: D.emergencia, medical_notes: D.salud_notas,
+          kit_order: D.talla ? { sizes: { 'Equipación': D.talla }, status: 'pedido' } : null,
+          bank: { method: D.metodo_pago, iban: D.iban },
+          /* El consentimiento, con quién firmó y cuándo. Si algún día alguien
+             pregunta "¿quién autorizó esta foto?", aquí está la respuesta. */
+          inscripcion: {
+            fecha: new Date().toISOString().slice(0, 10),
+            firmado_por: D.firma_nombre, dni_firmante: D.firma_dni, relacion: D.fam_relation,
+            consentimientos: Object.assign({}, D.consent),
+            recogido_por: SF.store.currentUser().name
+          }
+        });
+        SF._insDatos = null; SF._insPaso = 1;
+        U.toast('Ficha creada'); location.hash = '#/jugador/' + p.id;
+      };
+      pie.appendChild(bFin);
+    }
+    view.appendChild(pie);
+
+    if (paso === 1) {
+      view.appendChild(el('<p class="hint">Los campos con * son los imprescindibles. El resto se puede completar después.</p>'));
+    }
+  };
+
   /* ===================== LICENCIAS ===================== */
   pages.licencias = function (view) {
     var r = role();
@@ -7155,7 +7407,7 @@ SF.router = (function () {
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
     staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo',
     comunicados: 'comunicados', 'importar-datos': 'importar-datos', 'mis-avisos': 'mis-avisos',
-    buscar: 'buscar', presupuesto: 'presupuesto', licencias: 'licencias'
+    buscar: 'buscar', presupuesto: 'presupuesto', licencias: 'licencias', inscripcion: 'inscripcion'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff' };
@@ -7179,6 +7431,8 @@ SF.router = (function () {
     r = r || SF.perms();   // y también puede entrar por la URL, no solo por el menú
     // Los resultados de búsqueda: quien puede ver jugadores o personal
     if (route === 'buscar') return r.nav.indexOf('jugadores') >= 0 || r.nav.indexOf('staff') >= 0;
+    // La inscripción: quien puede dar de alta jugadores
+    if (route === 'inscripcion') return !!r.canCreatePlayers;
     if (route === 'jugador') return r.nav.indexOf('jugadores') >= 0;        // solo roles con Jugadores
     if (route === 'equipo') return r.nav.indexOf('equipos') >= 0;            // detalle de equipo
     if (route === 'portal-family') {                                         // padre (su portal) o staff que lo previsualiza
