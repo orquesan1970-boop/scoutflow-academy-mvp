@@ -4,89 +4,52 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ScoutFlow Academy — El club, ordenado</title>
-<meta name="description" content="Cuotas, licencias, asistencia y comunicación con las familias de tu club de baloncesto formativo, en un solo sitio.">
-<meta name="robots" content="noindex, nofollow"><!-- quitar cuando la web esté lista para publicarse -->
+<meta name="description" content="Cuotas, licencias federativas, documentación del staff, inscripciones y desarrollo del jugador para clubes de baloncesto formativo. Datos alojados en la Unión Europea.">
+<meta name="robots" content="noindex, nofollow"><!-- QUITAR esta línea el día que la web esté lista para publicarse -->
+<meta property="og:title" content="ScoutFlow Academy — El club, ordenado">
+<meta property="og:description" content="Lo que hoy vive en cinco hojas de Excel y tres grupos de WhatsApp, en un solo sitio.">
+<meta property="og:type" content="website">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@500;700;800;900&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
 :root{
-  --ink:#0F1319;
-  --ink-2:#1A212B;
-  --paper:#EDECE7;
-  --paper-2:#E4E3DC;
-  --chalk:#FFFFFF;
-  --cobalt:#1B45D6;
-  --cobalt-dk:#1436A8;
-  --maple:#E0BE8C;
-  --slate:#656E7A;
-  --alert:#C0392B;
-  --ok:#2E7D51;
-
+  --ink:#0F1319; --ink-2:#1A212B;
+  --paper:#EDECE7; --paper-2:#E4E3DC; --chalk:#FFFFFF;
+  --cobalt:#1B45D6; --cobalt-dk:#1436A8;
+  --maple:#E0BE8C; --slate:#656E7A;
+  --alert:#C0392B; --ok:#2E7D51;
   --display:"Big Shoulders Display",Impact,sans-serif;
   --body:"Archivo",system-ui,sans-serif;
   --mono:"IBM Plex Mono",monospace;
-
-  --pad:clamp(20px,5vw,72px);
-  --maxw:1240px;
+  --pad:clamp(20px,5vw,72px); --maxw:1240px;
 }
-
 *{box-sizing:border-box;margin:0;padding:0}
 html{scroll-behavior:smooth}
-body{
-  background:var(--paper);
-  color:var(--ink);
-  font-family:var(--body);
-  font-size:16px;
-  line-height:1.55;
-  -webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
-}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55;-webkit-font-smoothing:antialiased;overflow-x:hidden}
 a{color:inherit;text-decoration:none}
 img,svg{display:block;max-width:100%}
 :focus-visible{outline:3px solid var(--cobalt);outline-offset:3px}
-
 .wrap{max-width:var(--maxw);margin:0 auto;padding-left:var(--pad);padding-right:var(--pad)}
 
-/* ---------- utility type ---------- */
-.eyebrow{
-  font-family:var(--mono);font-size:11px;font-weight:500;
-  letter-spacing:.16em;text-transform:uppercase;color:var(--slate);
-}
+.eyebrow{font-family:var(--mono);font-size:11px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--slate)}
 .eyebrow--cobalt{color:var(--cobalt)}
 .eyebrow--chalk{color:rgba(255,255,255,.55)}
-.h2{
-  font-family:var(--display);font-weight:800;
-  font-size:clamp(38px,5.4vw,68px);line-height:.92;
-  letter-spacing:-.01em;text-transform:uppercase;
-}
-.lede{font-size:clamp(16px,1.5vw,19px);color:var(--slate);max-width:52ch}
+.h2{font-family:var(--display);font-weight:800;font-size:clamp(38px,5.4vw,68px);line-height:.92;letter-spacing:-.01em;text-transform:uppercase}
+.lede{font-size:clamp(16px,1.5vw,19px);color:var(--slate);max-width:56ch}
 
 /* ---------- nav ---------- */
-.nav{
-  position:sticky;top:0;z-index:60;
-  background:rgba(237,236,231,.86);
-  backdrop-filter:blur(12px);
-  border-bottom:1px solid rgba(15,19,25,.1);
-}
+.nav{position:sticky;top:0;z-index:60;background:rgba(237,236,231,.86);backdrop-filter:blur(12px);border-bottom:1px solid rgba(15,19,25,.1)}
 .nav__in{display:flex;align-items:center;gap:32px;height:68px}
 .brand{display:flex;align-items:center;gap:10px;margin-right:auto}
-.brand__mark{
-  width:34px;height:34px;background:var(--ink);color:var(--chalk);
-  display:grid;place-items:center;font-family:var(--display);
-  font-weight:900;font-size:15px;letter-spacing:.02em;
-}
-.brand__name{font-family:var(--display);font-weight:800;font-size:22px;text-transform:uppercase;letter-spacing:.01em;line-height:1}
+.brand__mark{width:34px;height:34px;background:var(--ink);color:var(--chalk);display:grid;place-items:center;font-family:var(--display);font-weight:900;font-size:15px}
+.brand__name{font-family:var(--display);font-weight:800;font-size:22px;text-transform:uppercase;line-height:1}
 .nav__links{display:flex;gap:26px;font-size:14.5px;font-weight:500}
 .nav__links a:hover{color:var(--cobalt)}
 .nav__cta{display:flex;align-items:center;gap:16px}
+@media(max-width:900px){.nav__links{display:none}}
 
-.btn{
-  display:inline-flex;align-items:center;gap:10px;
-  font-family:var(--body);font-weight:600;font-size:15px;
-  padding:13px 22px;border:1.5px solid transparent;cursor:pointer;
-  transition:transform .15s ease,background .15s ease,color .15s ease;
-}
+.btn{display:inline-flex;align-items:center;gap:10px;font-family:var(--body);font-weight:600;font-size:15px;padding:13px 22px;border:1.5px solid transparent;cursor:pointer;transition:transform .15s,background .15s,color .15s}
 .btn:hover{transform:translateY(-1px)}
 .btn--solid{background:var(--cobalt);color:var(--chalk)}
 .btn--solid:hover{background:var(--cobalt-dk)}
@@ -99,104 +62,83 @@ img,svg{display:block;max-width:100%}
 /* ---------- hero ---------- */
 .hero{padding:clamp(48px,7vw,86px) 0 clamp(40px,5vw,64px)}
 .hero__grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.02fr);gap:clamp(32px,5vw,72px);align-items:center}
-.hero h1{
-  font-family:var(--display);font-weight:900;
-  font-size:clamp(64px,10.5vw,138px);line-height:.82;
-  text-transform:uppercase;letter-spacing:-.015em;
-  margin:16px 0 22px;
-}
-.hero h1 .u{
-  display:inline-block;
-  box-shadow:inset 0 -.11em 0 var(--cobalt);
-}
-.hero__sub{font-size:clamp(17px,1.6vw,20px);color:var(--ink);opacity:.78;max-width:46ch}
+.hero h1{font-family:var(--display);font-weight:900;font-size:clamp(64px,10.5vw,138px);line-height:.82;text-transform:uppercase;letter-spacing:-.015em;margin:16px 0 22px}
+.hero h1 .u{display:inline-block;box-shadow:inset 0 -.11em 0 var(--cobalt)}
+.hero__sub{font-size:clamp(17px,1.6vw,20px);color:var(--ink);opacity:.78;max-width:48ch}
 .hero__actions{display:flex;flex-wrap:wrap;gap:14px;margin:30px 0 26px}
-.hero__trust{
-  font-family:var(--mono);font-size:12px;color:var(--slate);
-  border-top:1px solid rgba(15,19,25,.14);padding-top:16px;max-width:42ch;line-height:1.7;
-}
+.hero__trust{font-family:var(--mono);font-size:12px;color:var(--slate);border-top:1px solid rgba(15,19,25,.14);padding-top:16px;max-width:44ch;line-height:1.7}
 .hero__trust b{color:var(--ink);font-weight:600}
+@media(max-width:900px){.hero__grid{grid-template-columns:1fr}}
 
 /* before / after */
 .ba{display:grid;gap:14px}
 .ba__panel{border:1px solid rgba(15,19,25,.16);background:var(--chalk)}
-.ba__head{
-  display:flex;align-items:center;justify-content:space-between;gap:12px;
-  padding:10px 14px;border-bottom:1px solid rgba(15,19,25,.12);
-  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;
-}
+.ba__head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid rgba(15,19,25,.12);font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
 .ba--old .ba__head{background:var(--paper-2);color:var(--slate)}
 .ba--new .ba__head{background:var(--ink);color:var(--chalk)}
 .ba__file{font-family:var(--mono);font-size:10.5px;color:var(--slate);text-transform:none;letter-spacing:0}
 .ba__rows{padding:6px 0}
-.row{
-  display:grid;grid-template-columns:1.5fr 1fr 1fr .7fr;gap:10px;align-items:center;
-  padding:9px 14px;font-size:13px;border-bottom:1px solid rgba(15,19,25,.06);
-}
+.row{display:grid;grid-template-columns:1.5fr 1fr 1fr .7fr;gap:10px;align-items:center;padding:9px 14px;font-size:13px;border-bottom:1px solid rgba(15,19,25,.06)}
 .row:last-child{border-bottom:0}
 .row__name{font-weight:600}
 .cell-note{font-family:var(--mono);font-size:11.5px;color:var(--alert)}
 .cell-mut{font-family:var(--mono);font-size:11.5px;color:var(--slate)}
-.chip{
-  display:inline-flex;align-items:center;gap:6px;
-  font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;
-  padding:3px 8px;border:1px solid currentColor;text-transform:uppercase;
-}
-.chip--ok{color:var(--ok)}
-.chip--wait{color:#B07208}
+.chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--mono);font-size:10.5px;letter-spacing:.04em;padding:3px 8px;border:1px solid currentColor;text-transform:uppercase}
+.chip--ok{color:var(--ok)} .chip--wait{color:#B07208} .chip--bad{color:var(--alert)}
 .dot{width:6px;height:6px;border-radius:50%;background:currentColor}
-.ba__foot{
-  padding:11px 14px;border-top:1px solid rgba(15,19,25,.12);
-  font-family:var(--mono);font-size:11px;color:var(--slate);
-  display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;
-}
+.ba__foot{padding:11px 14px;border-top:1px solid rgba(15,19,25,.12);font-family:var(--mono);font-size:11px;color:var(--slate);display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .ba--new .ba__foot{color:var(--ink)}
-.ba__arrow{
-  justify-self:center;font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-  color:var(--cobalt);text-transform:uppercase;display:flex;align-items:center;gap:10px;
-}
+.ba__arrow{justify-self:center;font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--cobalt);text-transform:uppercase;display:flex;align-items:center;gap:10px}
 .ba__arrow::before,.ba__arrow::after{content:"";height:1px;width:40px;background:var(--cobalt);opacity:.45}
 
-/* ---------- scoreboard ---------- */
+/* ---------- board ---------- */
 .board{background:var(--ink);color:var(--chalk);padding:clamp(40px,5vw,64px) 0}
 .board__top{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin-bottom:34px}
 .board__title{font-family:var(--display);font-weight:700;font-size:clamp(24px,2.6vw,34px);text-transform:uppercase;line-height:1;color:var(--chalk)}
 .board__grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(255,255,255,.14)}
 .stat{background:var(--ink);padding:26px 22px}
 .stat__label{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:14px}
-.stat__num{
-  font-family:var(--display);font-weight:800;font-size:clamp(48px,5.4vw,74px);
-  line-height:.85;font-variant-numeric:tabular-nums;letter-spacing:-.01em;
-}
+.stat__num{font-family:var(--display);font-weight:800;font-size:clamp(44px,5vw,68px);line-height:.85;font-variant-numeric:tabular-nums}
 .stat__num i{font-style:normal;font-size:.42em;color:var(--maple);margin-left:4px;vertical-align:.55em}
 .stat__foot{font-size:12.5px;color:rgba(255,255,255,.55);margin-top:12px}
 .board__note{margin-top:26px;font-family:var(--mono);font-size:12px;color:rgba(255,255,255,.5)}
+@media(max-width:900px){.board__grid{grid-template-columns:repeat(2,1fr)}}
 
 /* ---------- pains ---------- */
 .pains{padding:clamp(56px,7vw,96px) 0 clamp(16px,2vw,24px)}
-.pains__list{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin-top:30px;border-top:2px solid var(--ink)}
+.pains__list{display:grid;grid-template-columns:repeat(3,1fr);margin-top:30px;border-top:2px solid var(--ink)}
 .pain{padding:22px 22px 26px 0;border-right:1px solid rgba(15,19,25,.14)}
 .pain:last-child{border-right:0}
 .pain:not(:first-child){padding-left:22px}
 .pain__t{font-family:var(--display);font-weight:700;font-size:clamp(20px,2vw,26px);text-transform:uppercase;line-height:1;margin-bottom:8px}
 .pain__d{font-size:14.5px;color:var(--slate)}
+@media(max-width:760px){.pains__list{grid-template-columns:1fr}.pain{border-right:0;border-bottom:1px solid rgba(15,19,25,.14);padding-left:0!important}}
+
+/* ---------- edge: lo que no hace nadie ---------- */
+.edge{background:var(--ink-2);color:var(--chalk);padding:clamp(56px,7vw,96px) 0}
+.edge .h2{color:var(--chalk)}
+.edge__lede{color:rgba(255,255,255,.6);max-width:58ch;margin-top:16px;font-size:16.5px}
+.edge__grid{display:grid;grid-template-columns:repeat(2,1fr);gap:1px;background:rgba(255,255,255,.14);margin-top:40px}
+.ed{background:var(--ink-2);padding:30px 26px}
+.ed__n{font-family:var(--mono);font-size:11px;color:var(--maple);letter-spacing:.14em;margin-bottom:14px}
+.ed h3{font-family:var(--display);font-weight:800;font-size:clamp(23px,2.4vw,30px);text-transform:uppercase;line-height:1;margin-bottom:12px}
+.ed p{font-size:14.5px;color:rgba(255,255,255,.68);max-width:46ch}
+.ed p b{color:var(--chalk);font-weight:600}
+@media(max-width:820px){.edge__grid{grid-template-columns:1fr}}
 
 /* ---------- modules ---------- */
 .mods{padding:clamp(56px,7vw,96px) 0}
-.mod{
-  display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);
-  gap:clamp(28px,5vw,64px);align-items:center;
-  padding:clamp(34px,4vw,54px) 0;border-top:1px solid rgba(15,19,25,.16);
-}
+.mod{display:grid;grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr);gap:clamp(28px,5vw,64px);align-items:center;padding:clamp(34px,4vw,54px) 0;border-top:1px solid rgba(15,19,25,.16)}
 .mod:nth-child(even) .mod__copy{order:2}
 .mod__tag{display:flex;align-items:center;gap:10px;margin-bottom:14px}
 .mod__tag span{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--cobalt)}
 .mod__tag i{height:1px;width:34px;background:var(--cobalt);display:block}
 .mod h3{font-family:var(--display);font-weight:800;font-size:clamp(30px,3.6vw,46px);text-transform:uppercase;line-height:.94;margin-bottom:14px}
-.mod p{color:var(--slate);font-size:15.5px;max-width:44ch}
+.mod p{color:var(--slate);font-size:15.5px;max-width:46ch}
 .mod ul{list-style:none;margin-top:18px;display:grid;gap:9px}
 .mod li{font-size:14.5px;padding-left:20px;position:relative}
 .mod li::before{content:"";position:absolute;left:0;top:.62em;width:9px;height:1.5px;background:var(--cobalt)}
+@media(max-width:900px){.mod{grid-template-columns:1fr}.mod:nth-child(even) .mod__copy{order:0}}
 
 /* mock UI */
 .ui{background:var(--chalk);border:1px solid rgba(15,19,25,.16);box-shadow:0 18px 40px -28px rgba(15,19,25,.5)}
@@ -206,556 +148,665 @@ img,svg{display:block;max-width:100%}
 .ui__foot{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-top:1px solid rgba(15,19,25,.12);background:var(--paper)}
 .ui__total{font-family:var(--display);font-weight:800;font-size:26px;font-variant-numeric:tabular-nums}
 .mini{font-family:var(--mono);font-size:11px;color:var(--slate)}
+.uirow{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;border-bottom:1px solid rgba(15,19,25,.07);font-size:13.5px}
+.uirow:last-child{border-bottom:0}
+.uirow b{font-weight:600}
+.uirow .sub{font-family:var(--mono);font-size:11px;color:var(--slate);display:block;margin-top:3px}
+.bar{height:6px;background:var(--paper-2);position:relative;width:120px;flex:none}
+.bar i{position:absolute;inset:0 auto 0 0;background:var(--cobalt);display:block}
+.cash{padding:20px 16px;border-bottom:1px solid rgba(15,19,25,.1)}
+.cash__n{font-family:var(--display);font-weight:800;font-size:44px;line-height:1;font-variant-numeric:tabular-nums}
+.cash__eq{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-family:var(--mono);font-size:11px;color:var(--slate)}
+.cash__eq b{display:block;font-family:var(--body);font-size:15px;color:var(--ink);font-weight:600}
+.months{padding:8px 16px 14px}
+.mrow{display:grid;grid-template-columns:34px 1fr 74px;gap:10px;align-items:center;padding:5px 0;font-family:var(--mono);font-size:11px;color:var(--slate)}
+.mrow .track{height:7px;background:var(--paper-2);position:relative}
+.mrow .track i{position:absolute;top:0;bottom:0;left:0;background:var(--ok)}
+.mrow.neg .track i{background:var(--alert)}
+.mrow .val{text-align:right;color:var(--ink);font-weight:500}
+.mrow.neg .val{color:var(--alert)}
 
-.msg{padding:14px 16px;border-bottom:1px solid rgba(15,19,25,.08)}
-.msg:last-child{border-bottom:0}
-.msg__meta{font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--cobalt);margin-bottom:5px}
-.msg__t{font-weight:600;font-size:14.5px;margin-bottom:3px}
-.msg__d{font-size:13px;color:var(--slate)}
+/* ---------- who ---------- */
+.who{background:var(--paper-2);padding:clamp(56px,7vw,96px) 0}
+.who__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;margin-top:36px}
+.who__c{background:var(--chalk);border:1px solid rgba(15,19,25,.14);padding:26px 24px}
+.who__c h3{font-family:var(--display);font-weight:800;font-size:24px;text-transform:uppercase;margin-bottom:10px;line-height:1}
+.who__c p{font-size:14.5px;color:var(--slate)}
+.who__c.is-off{opacity:.55}
+.who__c .tagline{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--cobalt);margin-bottom:12px;display:block}
+@media(max-width:860px){.who__grid{grid-template-columns:1fr}}
 
-.att{padding:16px}
-.att__legend{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:14px}
-.att__legend span{font-family:var(--mono);font-size:10.5px;color:var(--slate);display:flex;align-items:center;gap:6px}
-.sq{width:10px;height:10px;display:inline-block}
-.sq--p{background:var(--cobalt)}
-.sq--j{background:var(--maple)}
-.sq--a{background:var(--paper-2);border:1px solid rgba(15,19,25,.2)}
-.att__row{display:grid;grid-template-columns:110px 1fr 46px;gap:12px;align-items:center;padding:7px 0}
-.att__name{font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.att__cells{display:flex;gap:4px}
-.att__cells i{width:100%;height:16px;display:block}
-.att__pct{font-family:var(--mono);font-size:12px;text-align:right;font-variant-numeric:tabular-nums}
+/* ---------- case ---------- */
+.case{padding:clamp(56px,7vw,96px) 0}
+.case__q{font-family:var(--display);font-weight:700;font-size:clamp(26px,3.4vw,44px);line-height:1.05;text-transform:uppercase;max-width:20ch}
+.case__meta{margin-top:22px;font-family:var(--mono);font-size:12px;color:var(--slate);line-height:1.8}
 
-/* ---------- caso ---------- */
-.case{background:var(--ink);color:var(--chalk);padding:clamp(56px,7vw,96px) 0}
-.case__grid{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,.75fr);gap:clamp(30px,5vw,64px);align-items:center}
-.case blockquote{
-  font-family:var(--display);font-weight:500;text-transform:none;
-  font-size:clamp(26px,3.4vw,42px);line-height:1.06;letter-spacing:-.005em;
-}
-.case__who{margin-top:22px;font-size:14px;color:rgba(255,255,255,.6);line-height:1.6}
-.case__flag{
-  display:inline-block;margin-top:18px;font-family:var(--mono);font-size:10px;
-  letter-spacing:.12em;text-transform:uppercase;color:var(--maple);
-  border:1px dashed rgba(224,190,140,.6);padding:5px 9px;
-}
-.case__nums{display:grid;gap:1px;background:rgba(255,255,255,.14)}
-.case__num{background:var(--ink);padding:20px 22px}
-.case__num b{display:block;font-family:var(--display);font-weight:800;font-size:44px;line-height:.9;font-variant-numeric:tabular-nums}
-.case__num span{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.5)}
+/* ---------- roadmap ---------- */
+.road{padding:clamp(48px,6vw,80px) 0;border-top:1px solid rgba(15,19,25,.16)}
+.road__grid{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:rgba(15,19,25,.14);margin-top:34px;border:1px solid rgba(15,19,25,.14)}
+.rd{background:var(--paper);padding:22px 20px}
+.rd__s{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--cobalt);margin-bottom:10px}
+.rd h4{font-family:var(--display);font-weight:700;font-size:21px;text-transform:uppercase;line-height:1;margin-bottom:8px}
+.rd p{font-size:13.5px;color:var(--slate)}
+@media(max-width:900px){.road__grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:560px){.road__grid{grid-template-columns:1fr}}
 
-/* ---------- objeciones ---------- */
+/* ---------- price ---------- */
+.price{background:var(--ink);color:var(--chalk);padding:clamp(56px,7vw,96px) 0}
+.price .h2{color:var(--chalk)}
+.price__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(255,255,255,.14);margin-top:40px}
+.tier{background:var(--ink);padding:30px 26px;display:flex;flex-direction:column}
+.tier--hi{background:var(--ink-2);outline:1.5px solid var(--maple);outline-offset:-1.5px}
+.tier__n{font-family:var(--display);font-weight:800;font-size:27px;text-transform:uppercase;line-height:1}
+.tier__p{font-family:var(--display);font-weight:800;font-size:52px;line-height:1;margin:16px 0 4px}
+.tier__p small{font-family:var(--body);font-size:14px;font-weight:500;color:rgba(255,255,255,.55)}
+.tier__u{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.5);margin-bottom:20px}
+.tier ul{list-style:none;display:grid;gap:9px;font-size:14px;color:rgba(255,255,255,.78);margin-bottom:24px}
+.tier li{padding-left:18px;position:relative}
+.tier li::before{content:"";position:absolute;left:0;top:.6em;width:8px;height:1.5px;background:var(--maple)}
+.tier .btn{margin-top:auto;justify-content:center}
+.price__note{margin-top:26px;font-family:var(--mono);font-size:11.5px;color:rgba(255,255,255,.5);line-height:1.8}
+@media(max-width:860px){.price__grid{grid-template-columns:1fr}}
+
+/* ---------- faq ---------- */
 .faq{padding:clamp(56px,7vw,96px) 0}
-.faq__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:clamp(20px,3vw,36px);margin-top:34px}
-.faq__item h4{font-family:var(--display);font-weight:700;font-size:clamp(21px,2.1vw,27px);text-transform:uppercase;line-height:1.02;margin-bottom:10px;border-top:2px solid var(--ink);padding-top:14px}
-.faq__item p{font-size:14.5px;color:var(--slate)}
+.faq__list{margin-top:32px;border-top:1px solid rgba(15,19,25,.16)}
+.qa{border-bottom:1px solid rgba(15,19,25,.16)}
+.qa summary{list-style:none;cursor:pointer;padding:20px 0;display:flex;justify-content:space-between;gap:20px;align-items:baseline;font-family:var(--display);font-weight:700;font-size:clamp(19px,2vw,25px);text-transform:uppercase;line-height:1.1}
+.qa summary::-webkit-details-marker{display:none}
+.qa summary::after{content:"+";font-family:var(--mono);font-size:20px;color:var(--cobalt);flex:none}
+.qa[open] summary::after{content:"–"}
+.qa__a{padding:0 0 22px;max-width:64ch;color:var(--slate);font-size:15px}
+.qa__a b{color:var(--ink)}
 
-/* ---------- precios ---------- */
-.price{padding:clamp(56px,7vw,96px) 0;background:var(--paper-2)}
-.price__grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(15,19,25,.16);margin-top:34px;border:1px solid rgba(15,19,25,.16)}
-.plan{background:var(--paper);padding:30px 26px;display:flex;flex-direction:column;gap:14px}
-.plan--hi{background:var(--ink);color:var(--chalk)}
-.plan__n{font-family:var(--display);font-weight:800;font-size:30px;text-transform:uppercase;line-height:1}
-.plan__lic{font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--slate)}
-.plan--hi .plan__lic{color:rgba(255,255,255,.55)}
-.plan__p{font-family:var(--display);font-weight:800;font-size:52px;line-height:.9;font-variant-numeric:tabular-nums}
-.plan__p em{font-style:normal;font-family:var(--mono);font-size:12px;font-weight:400;letter-spacing:.06em;display:block;margin-top:8px;color:var(--slate);text-transform:uppercase}
-.plan--hi .plan__p em{color:rgba(255,255,255,.55)}
-.plan ul{list-style:none;display:grid;gap:8px;font-size:14px;margin-top:2px}
-.plan li{padding-left:18px;position:relative}
-.plan li::before{content:"";position:absolute;left:0;top:.6em;width:8px;height:1.5px;background:var(--cobalt)}
-.plan--hi li::before{background:var(--maple)}
-.plan .btn{margin-top:auto;justify-content:center}
-.price__note{margin-top:18px;font-family:var(--mono);font-size:11.5px;color:var(--slate)}
-
-/* ---------- cta final ---------- */
-.cta{position:relative;background:var(--ink);color:var(--chalk);overflow:hidden;padding:clamp(64px,8vw,120px) 0}
-.cta__court{position:absolute;inset:0;width:100%;height:100%;opacity:.16;pointer-events:none}
-.cta__in{position:relative;z-index:2;max-width:760px}
-.cta h2{font-family:var(--display);font-weight:900;font-size:clamp(44px,7vw,96px);text-transform:uppercase;line-height:.86;margin:14px 0 20px}
-.cta p{color:rgba(255,255,255,.7);font-size:17px;max-width:48ch}
-.cta__actions{display:flex;flex-wrap:wrap;gap:14px;margin-top:30px}
+/* ---------- cta ---------- */
+.cta{background:var(--cobalt);color:var(--chalk);padding:clamp(56px,7vw,92px) 0}
+.cta__grid{display:grid;grid-template-columns:1fr auto;gap:32px;align-items:center}
+.cta h2{font-family:var(--display);font-weight:900;font-size:clamp(46px,7vw,92px);line-height:.85;text-transform:uppercase}
+.cta p{color:rgba(255,255,255,.8);margin-top:16px;max-width:40ch}
+.cta__actions{display:flex;gap:14px;flex-wrap:wrap}
+@media(max-width:820px){.cta__grid{grid-template-columns:1fr}}
 
 /* ---------- footer ---------- */
-.foot{background:var(--ink);color:rgba(255,255,255,.6);border-top:1px solid rgba(255,255,255,.14);padding:40px 0}
-.foot__in{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;font-family:var(--mono);font-size:11.5px}
+.foot{background:var(--ink);color:rgba(255,255,255,.55);padding:40px 0;font-size:13px}
+.foot__in{display:flex;justify-content:space-between;gap:24px;flex-wrap:wrap;align-items:center}
 .foot a:hover{color:var(--chalk)}
-.foot__links{display:flex;gap:20px;flex-wrap:wrap}
 
-/* ---------- motion ---------- */
-.rise{opacity:0;transform:translateY(18px);transition:opacity .7s cubic-bezier(.22,.7,.3,1),transform .7s cubic-bezier(.22,.7,.3,1)}
-.rise.in{opacity:1;transform:none}
-.d1{transition-delay:.06s}.d2{transition-delay:.12s}.d3{transition-delay:.18s}.d4{transition-delay:.24s}
-
-@media (max-width:960px){
-  .hero__grid,.mod,.case__grid{grid-template-columns:1fr}
-  .mod:nth-child(even) .mod__copy{order:0}
-  .board__grid{grid-template-columns:repeat(2,1fr)}
-  .pains__list,.faq__grid,.price__grid{grid-template-columns:1fr}
-  .pain{border-right:0;border-bottom:1px solid rgba(15,19,25,.14);padding:20px 0}
-  .pain:not(:first-child){padding-left:0}
-  .nav__links{display:none}
-}
-@media (max-width:560px){
-  .board__grid{grid-template-columns:1fr}
-  .row{grid-template-columns:1.3fr 1fr;row-gap:4px}
-  .brand__name{font-size:19px}
-  .nav__cta .btn--line{display:none}
-}
-@media (prefers-reduced-motion:reduce){
-  *{animation:none!important;transition:none!important}
-  .rise{opacity:1;transform:none}
-  html{scroll-behavior:auto}
-}
+/* entrada suave */
+.rise{opacity:0;transform:translateY(14px);animation:rise .7s cubic-bezier(.2,.7,.3,1) forwards}
+.d1{animation-delay:.05s}.d2{animation-delay:.12s}.d3{animation-delay:.2s}
+@keyframes rise{to{opacity:1;transform:none}}
+@media(prefers-reduced-motion:reduce){.rise{animation:none;opacity:1;transform:none}}
 </style>
 </head>
 <body>
 
-<!-- NAV -->
-<header class="nav">
+<!-- ============ NAV ============ -->
+<nav class="nav">
   <div class="wrap nav__in">
     <a class="brand" href="#top">
       <span class="brand__mark">SFA</span>
-      <span class="brand__name">ScoutFlow Academy</span>
+      <span class="brand__name">Scoutflow Academy</span>
     </a>
-    <nav class="nav__links">
+    <div class="nav__links">
       <a href="#modulos">Producto</a>
-      <a href="#caso">Clubes</a>
+      <a href="#diferencial">Diferencial</a>
       <a href="#precios">Precios</a>
       <a href="#dudas">Dudas</a>
-    </nav>
+    </div>
     <div class="nav__cta">
-      <a class="btn btn--line btn--sm" href="https://app.scoutflow-academy.com">Acceder</a>
-      <a class="btn btn--solid btn--sm" href="#demo">Ver la demo</a>
+      <a class="btn btn--sm btn--line" href="https://app.scoutflow-academy.com">Acceder</a>
+      <a class="btn btn--sm btn--solid" href="#demo">Ver la demo</a>
     </div>
   </div>
-</header>
+</nav>
 
-<!-- HERO -->
+<!-- ============ HERO ============ -->
 <section class="hero" id="top">
   <div class="wrap hero__grid">
     <div>
       <p class="eyebrow rise">Gestión de clubes de baloncesto formativo</p>
-      <h1 class="rise d1">El club,<br><span class="u">ordenado</span>.</h1>
-      <p class="hero__sub rise d2">Cuotas, licencias, asistencia y comunicación con las familias. Lo que hoy vive en cinco hojas de Excel y tres grupos de WhatsApp, en un solo sitio.</p>
+      <h1 class="rise d1">El club<br><span class="u">ordenado</span></h1>
+      <p class="hero__sub rise d2">
+        Cuotas, licencias federativas, documentación del staff, inscripciones y seguimiento
+        de cada jugador. Lo que hoy vive en cinco hojas de Excel y tres grupos de WhatsApp,
+        en un solo sitio.
+      </p>
       <div class="hero__actions rise d3">
         <a class="btn btn--solid" href="#demo">Ver la demo en vivo →</a>
         <a class="btn btn--line" href="#contacto">Hablar con nosotros</a>
       </div>
-      <p class="hero__trust rise d4">
+      <p class="hero__trust rise d3">
         Datos alojados en la <b>Unión Europea</b>.<br>
+        Preparado para <b>LOPIVI</b> y protección de datos de menores.<br>
         Sin permanencia ni coste de puesta en marcha.
       </p>
     </div>
 
+    <!-- antes / después -->
     <div class="ba rise d2">
       <div class="ba__panel ba--old">
-        <div class="ba__head">
-          <span>Hoy</span>
-          <span class="ba__file">cuotas_2025_v3_FINAL(2).xlsx</span>
-        </div>
+        <div class="ba__head"><span>Hoy</span><span class="ba__file">cuotas_2025_v3_FINAL(2).xlsx</span></div>
         <div class="ba__rows">
-          <div class="row">
-            <span class="row__name">Marcos R.</span>
-            <span class="cell-note">¿pagó octubre?</span>
-            <span class="cell-mut">—</span>
-            <span class="cell-mut">?</span>
-          </div>
-          <div class="row">
-            <span class="row__name">Lucía B.</span>
-            <span class="cell-mut">180 €</span>
-            <span class="cell-note">falta DNI</span>
-            <span class="cell-mut">?</span>
-          </div>
-          <div class="row">
-            <span class="row__name">Iker M.</span>
-            <span class="cell-note">dto. hermano?</span>
-            <span class="cell-mut">preguntar a Ana</span>
-            <span class="cell-mut">?</span>
-          </div>
+          <div class="row"><span class="row__name">Marcos R.</span><span class="cell-note">¿pagó octubre?</span><span class="cell-mut">—</span><span class="cell-mut">?</span></div>
+          <div class="row"><span class="row__name">Lucía B.</span><span class="cell-mut">180 €</span><span class="cell-note">falta DNI</span><span class="cell-mut">?</span></div>
+          <div class="row"><span class="row__name">Iker M.</span><span class="cell-note">dto. hermano?</span><span class="cell-mut">preguntar a Ana</span><span class="cell-mut">?</span></div>
         </div>
-        <div class="ba__foot">
-          <span>3 versiones del archivo · 1 persona lo entiende</span>
-          <span>Sin control de asistencia</span>
-        </div>
+        <div class="ba__foot"><span>3 versiones del archivo</span><span>1 persona lo entiende</span><span>Sin control de asistencia</span></div>
       </div>
 
       <div class="ba__arrow">Con ScoutFlow</div>
 
       <div class="ba__panel ba--new">
-        <div class="ba__head">
-          <span>Cadete A · Temporada 25/26</span>
-          <span class="ba__file" style="color:rgba(255,255,255,.55)">actualizado hace 2 min</span>
-        </div>
+        <div class="ba__head"><span>Cadete A · Temporada 25/26</span><span style="color:rgba(255,255,255,.55)">actualizado hace 2 min</span></div>
         <div class="ba__rows">
-          <div class="row">
-            <span class="row__name">Marcos Ruiz</span>
-            <span class="chip chip--ok"><i class="dot"></i>Al día</span>
-            <span class="cell-mut">Docs. completos</span>
-            <span class="cell-mut">96%</span>
-          </div>
-          <div class="row">
-            <span class="row__name">Lucía Bravo</span>
-            <span class="chip chip--wait"><i class="dot"></i>Recibo 12/11</span>
-            <span class="cell-mut">Falta seguro</span>
-            <span class="cell-mut">91%</span>
-          </div>
-          <div class="row">
-            <span class="row__name">Iker Molina</span>
-            <span class="chip chip--ok"><i class="dot"></i>Al día</span>
-            <span class="cell-mut">Dto. hermano −15%</span>
-            <span class="cell-mut">88%</span>
-          </div>
+          <div class="row"><span class="row__name">Marcos Ruiz</span><span class="chip chip--ok"><i class="dot"></i>Al día</span><span class="cell-mut">Docs. completos</span><span class="cell-mut">96%</span></div>
+          <div class="row"><span class="row__name">Lucía Bravo</span><span class="chip chip--wait">Recibo 12/11</span><span class="cell-mut">Falta seguro</span><span class="cell-mut">91%</span></div>
+          <div class="row"><span class="row__name">Iker Molina</span><span class="chip chip--ok"><i class="dot"></i>Al día</span><span class="cell-mut">Dto. hermano −15%</span><span class="cell-mut">88%</span></div>
         </div>
-        <div class="ba__foot">
-          <span>Cuota · Documentación · Asistencia</span>
-          <span>Visible según tu rol</span>
-        </div>
+        <div class="ba__foot"><span>Cuota · Documentación · Asistencia</span><span>Visible según tu rol</span></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- SCOREBOARD -->
+<!-- ============ BOARD ============ -->
 <section class="board">
   <div class="wrap">
     <div class="board__top">
       <div>
-        <p class="eyebrow eyebrow--chalk">Panel del club</p>
-        <h2 class="board__title" style="margin-top:10px">Cómo va el club, sin pedírselo a nadie</h2>
+        <p class="eyebrow eyebrow--chalk">Lo que hay dentro</p>
+        <h2 class="board__title" style="margin-top:10px">No es una hoja de cálculo con logotipo</h2>
       </div>
-      <p class="mini" style="color:rgba(255,255,255,.5);max-width:30ch">Lo que ve la directiva al entrar. Datos de la demo pública.</p>
+      <p class="mini" style="color:rgba(255,255,255,.5);max-width:30ch">Cifras del producto, no promesas de marketing.</p>
     </div>
-
     <div class="board__grid">
-      <div class="stat rise">
-        <p class="stat__label">Cobrado esta temporada</p>
-        <p class="stat__num" data-count="92" data-suffix="%">0<i>%</i></p>
-        <p class="stat__foot">38.940 € de 42.300 €</p>
+      <div class="stat">
+        <p class="stat__label">Ficha del jugador</p>
+        <p class="stat__num">13<i>pestañas</i></p>
+        <p class="stat__foot">Del perfil a las notas internas, pasando por trayectoria, documentos y finanzas.</p>
       </div>
-      <div class="stat rise d1">
-        <p class="stat__label">Recibos devueltos</p>
-        <p class="stat__num" data-count="3">0</p>
-        <p class="stat__foot">Con aviso automático a la familia</p>
+      <div class="stat">
+        <p class="stat__label">Evaluación deportiva</p>
+        <p class="stat__num">22<i>apartados</i></p>
+        <p class="stat__foot">Técnica, física y mental, en escala de 0 a 10 con cada tramo definido.</p>
       </div>
-      <div class="stat rise d2">
-        <p class="stat__label">Familias conectadas</p>
-        <p class="stat__num" data-count="214">0</p>
-        <p class="stat__foot">De 231 jugadores en el club</p>
+      <div class="stat">
+        <p class="stat__label">Presupuesto</p>
+        <p class="stat__num">31<i>partidas</i></p>
+        <p class="stat__foot">Ingresos y gastos agrupados, con la columna de lo real rellenándose sola.</p>
       </div>
-      <div class="stat rise d3">
-        <p class="stat__label">Asistencia media</p>
-        <p class="stat__num" data-count="91" data-suffix="%">0<i>%</i></p>
-        <p class="stat__foot">14 equipos · últimos 30 días</p>
+      <div class="stat">
+        <p class="stat__label">Roles</p>
+        <p class="stat__num">16<i>perfiles</i></p>
+        <p class="stat__foot">Cada uno ve lo suyo: dirección, técnica, administración, familia y jugador.</p>
       </div>
     </div>
-    <p class="board__note">Cada dato se genera solo, a partir de lo que ya hacen entrenadores y tesorería.</p>
+    <p class="board__note">Construido con un club de formación de verdad, no en un despacho.</p>
   </div>
 </section>
 
-<!-- PAINS -->
+<!-- ============ PAINS ============ -->
 <section class="pains">
   <div class="wrap">
-    <p class="eyebrow rise">El problema real</p>
+    <p class="eyebrow rise">El problema</p>
     <h2 class="h2 rise d1" style="margin-top:12px;max-width:16ch">Un club no se cae por falta de talento</h2>
     <div class="pains__list rise d2">
       <div class="pain">
-        <h3 class="pain__t">Perseguir cuotas por WhatsApp</h3>
-        <p class="pain__d">El tesorero cruza extractos del banco con una hoja que actualiza a mano cada semana.</p>
+        <h3 class="pain__t">Perseguir cuotas</h3>
+        <p class="pain__d">Alguien cruza el extracto del banco con un Excel y manda recordatorios de uno en uno. Ese alguien acaba quemado.</p>
       </div>
       <div class="pain">
         <h3 class="pain__t">Papeles que no aparecen</h3>
-        <p class="pain__d">Falta un DNI, un consentimiento o un seguro justo el día del cierre de licencias.</p>
+        <p class="pain__d">El DNI de un chaval, el seguro, el certificado del entrenador. Se descubre que falta el día que hace falta.</p>
       </div>
       <div class="pain">
-        <h3 class="pain__t">Familias preguntando lo mismo</h3>
-        <p class="pain__d">Horarios, pagos y convocatorias repetidos veinte veces en tres grupos distintos.</p>
+        <h3 class="pain__t">Todo en una cabeza</h3>
+        <p class="pain__d">El club funciona porque una persona se acuerda de las cosas. El día que esa persona lo deja, empieza otra vez de cero.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- MODULOS -->
+<!-- ============ DIFERENCIAL ============ -->
+<section class="edge" id="diferencial">
+  <div class="wrap">
+    <p class="eyebrow eyebrow--chalk">Por qué nosotros</p>
+    <h2 class="h2" style="margin-top:12px;max-width:18ch">Cinco cosas que no hace ningún otro</h2>
+    <p class="edge__lede">
+      Software de gestión deportiva hay mucho. Esto es lo que encontrarás aquí y no en los demás,
+      porque nace de un club de formación y no de un catálogo de funcionalidades.
+    </p>
+
+    <div class="edge__grid">
+      <div class="ed">
+        <p class="ed__n">01 — Protección del menor</p>
+        <h3>El certificado que nadie sabe guardar</h3>
+        <p>
+          Cada temporada, todo el que trabaja con menores necesita el <b>certificado de delitos de naturaleza sexual</b>,
+          voluntarios incluidos. ScoutFlow te dice quién no lo tiene y se lo reclama.
+          Y hace lo más importante: <b>no guarda el documento</b>. Es un dato penal. El club anota que se ha
+          comprobado, quién y cuándo. Guardarlo sería crearte un problema, no resolverlo.
+        </p>
+      </div>
+
+      <div class="ed">
+        <p class="ed__n">02 — Carga de entrenamiento</p>
+        <h3>Quince horas a los doce años</h3>
+        <p>
+          Preguntas a la familia cuánto deporte hace fuera del club y la app suma. Si un chaval pasa de
+          <b>tantas horas semanales como años tiene</b>, salta el aviso: es el umbral que marcan las
+          sociedades de medicina deportiva por riesgo de lesión y abandono.
+          Nadie más te dice <b>lo que tu jugador hace cuando no está contigo</b>.
+        </p>
+      </div>
+
+      <div class="ed">
+        <p class="ed__n">03 — Crecimiento y edad relativa</p>
+        <h3>El que es bueno y el que solo es mayor</h3>
+        <p>
+          Con la estatura de los padres estima <b>hasta dónde va a crecer</b>. Y avisa de quién es de los
+          <b>más jóvenes de su año</b> — el sesgo por el que las canteras se llenan de nacidos en enero.
+          Sirve para <b>no descartar</b> al que madura tarde, que es de lo que se trata.
+        </p>
+      </div>
+
+      <div class="ed">
+        <p class="ed__n">04 — La caja de verdad</p>
+        <h3>Aprobar no es pagar</h3>
+        <p>
+          Un gasto aprobado sigue en tu cuenta hasta que sale. Aquí el saldo es
+          <b>lo cobrado de verdad menos lo pagado de verdad</b>, nunca contra el presupuesto.
+          Y el <b>mes a mes</b> enseña lo que un presupuesto anual esconde: que puedes cuadrar la temporada
+          y quedarte sin dinero en febrero.
+        </p>
+      </div>
+
+      <div class="ed">
+        <p class="ed__n">05 — Jugadores de fuera</p>
+        <h3>Visado de estudios, paso a paso</h3>
+        <p>
+          Diecinueve documentos, quién aporta cada uno, su fecha límite y cuáles necesitan
+          <b>Apostilla de La Haya</b> — porque un papel entregado sin ese sello no vale y el consulado lo devuelve.
+          Si traes jugadores de fuera, esto solo ya paga la suscripción.
+        </p>
+      </div>
+
+      <div class="ed">
+        <p class="ed__n">06 — Consentimientos</p>
+        <h3>Bien pedidos, o no valen</h3>
+        <p>
+          En la inscripción, cada autorización se contesta <b>sí o no</b>, y queda firmada con nombre y fecha.
+          La de imagen <b>se puede contestar que no</b> y aun así completar la inscripción: si la condicionas,
+          ese consentimiento deja de ser libre y no vale. Es un error muy común y sale caro.
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ MÓDULOS ============ -->
 <section class="mods" id="modulos">
   <div class="wrap">
+    <p class="eyebrow rise">El producto</p>
+    <h2 class="h2 rise d1" style="margin-top:12px;max-width:14ch">El club, de septiembre a junio</h2>
 
+    <!-- 1 · Inscripción -->
     <article class="mod">
       <div class="mod__copy">
-        <div class="mod__tag"><i></i><span>Cobros</span></div>
-        <h3>Sabes quién debe qué, sin abrir el banco</h3>
-        <p>Cuotas, inscripciones, cuotas de torneo y material, con el estado de cada familia siempre a la vista.</p>
+        <div class="mod__tag"><i></i><span>Septiembre</span></div>
+        <h3>Se acabó el papel de inscripción</h3>
+        <p>La familia lo rellena una vez, en cinco pasos, y la ficha nace completa. Nadie vuelve a teclear lo que ya está escrito.</p>
         <ul>
-          <li>Planes de pago por jugador y descuentos por hermanos</li>
-          <li>Remesas SEPA generadas desde el propio panel</li>
-          <li>Aviso automático cuando un recibo vuelve</li>
-          <li>Listado de deuda por equipo, con un clic</li>
+          <li>Datos del jugador, familia, salud y equipación</li>
+          <li>Autorizaciones firmadas con nombre y fecha</li>
+          <li>Sale directamente lista para federar</li>
+          <li>Aviso automático si el jugador es menor de 14</li>
         </ul>
       </div>
-      <div class="ui rise">
-        <div class="ui__bar">
-          <h4>Remesa · Noviembre</h4>
-          <span class="mini">14 equipos</span>
-        </div>
+      <div class="ui">
+        <div class="ui__bar"><h4>Inscripción · paso 4 de 5</h4><span class="mini">Nerea I. · 2013</span></div>
         <div class="ui__body">
-          <div class="row"><span class="row__name">Cadete A</span><span class="cell-mut">18 recibos</span><span class="chip chip--ok"><i class="dot"></i>Listo</span><span class="cell-mut">2.340 €</span></div>
-          <div class="row"><span class="row__name">Infantil B</span><span class="cell-mut">15 recibos</span><span class="chip chip--ok"><i class="dot"></i>Listo</span><span class="cell-mut">1.875 €</span></div>
-          <div class="row"><span class="row__name">Mini mixto</span><span class="cell-mut">21 recibos</span><span class="chip chip--wait"><i class="dot"></i>2 sin IBAN</span><span class="cell-mut">2.520 €</span></div>
+          <div class="uirow"><span><b>Tratamiento de datos</b><span class="sub">Imprescindible para inscribir</span></span><span class="chip chip--ok">Sí</span></div>
+          <div class="uirow"><span><b>Uso de imagen</b><span class="sub">Se puede decir que no</span></span><span class="chip chip--bad">No</span></div>
+          <div class="uirow"><span><b>Desplazamientos y salidas</b></span><span class="chip chip--ok">Sí</span></div>
+          <div class="uirow"><span><b>Atención sanitaria urgente</b></span><span class="chip chip--ok">Sí</span></div>
         </div>
-        <div class="ui__foot">
-          <div>
-            <span class="mini">Total a remesar</span>
-            <p class="ui__total">38.940 €</p>
-          </div>
-          <a class="btn btn--solid btn--sm" href="#demo">Generar fichero SEPA</a>
-        </div>
+        <div class="ui__foot"><span class="mini">Firma: Marta Ruiz · madre</span><span class="mini">21/08/2026</span></div>
       </div>
     </article>
 
+    <!-- 2 · Licencias -->
+    <article class="mod">
+      <div class="mod__copy">
+        <div class="mod__tag"><i></i><span>Federación</span></div>
+        <h3>Listo para federar, antes de entrar</h3>
+        <p>Te dice quién está completo y a quién le falta algo <em>antes</em> de que abras la intranet de la federación. Lo que cuesta tiempo no es teclear: es empezar una ficha y descubrir a mitad que falta el DNI.</p>
+        <ul>
+          <li>Ocho comprobaciones por jugador</li>
+          <li>Agrupado: si a diez les falta el DNI, es una gestión, no diez</li>
+          <li>La fecha completa, no vale solo el año</li>
+          <li>También los entrenadores, que se olvidan siempre</li>
+        </ul>
+      </div>
+      <div class="ui">
+        <div class="ui__bar"><h4>Licencias 26/27</h4><span class="mini">Cadete A</span></div>
+        <div class="ui__body">
+          <div class="uirow"><span><b>11 de 14 listos</b><span class="sub">Faltan tres fichas</span></span><span class="bar"><i style="width:78%"></i></span></div>
+          <div class="uirow"><span><b>DNI o pasaporte</b><span class="sub">Martín, Lucía, Diego</span></span><span class="chip chip--wait">3</span></div>
+          <div class="uirow"><span><b>Fecha de nacimiento completa</b><span class="sub">Diego</span></span><span class="chip chip--wait">1</span></div>
+          <div class="uirow"><span><b>Licencia del entrenador</b><span class="sub">Caducada 25/26</span></span><span class="chip chip--bad">Renovar</span></div>
+        </div>
+        <div class="ui__foot"><span class="mini">Reclamar a las familias</span><span class="mini">Copiar datos →</span></div>
+      </div>
+    </article>
+
+    <!-- 3 · Economía -->
+    <article class="mod">
+      <div class="mod__copy">
+        <div class="mod__tag"><i></i><span>Dinero</span></div>
+        <h3>Cuánto hay, no cuánto debería haber</h3>
+        <p>Un número grande arriba y la cuenta debajo en cristiano. Si hay que explicar de dónde sale el saldo, la pantalla está mal hecha.</p>
+        <ul>
+          <li>Aprobado y pagado son cosas distintas</li>
+          <li>Quién debe, desde cuándo y cuánto</li>
+          <li>Mes a mes, con los meses en rojo marcados</li>
+          <li>Presupuesto por partidas, con lo real automático</li>
+        </ul>
+      </div>
+      <div class="ui">
+        <div class="ui__bar"><h4>Economía · temporada</h4><span class="mini">actualizado hoy</span></div>
+        <div class="cash">
+          <p class="mini">Dinero en la caja hoy</p>
+          <p class="cash__n">4.120 €</p>
+          <div class="cash__eq">
+            <span><b>3.200 €</b>con lo que empezaste</span>
+            <span style="align-self:center">+</span>
+            <span><b style="color:var(--ok)">920 €</b>cobrado de verdad</span>
+            <span style="align-self:center">−</span>
+            <span><b style="color:var(--alert)">0 €</b>pagado de verdad</span>
+          </div>
+        </div>
+        <div class="months">
+          <div class="mrow"><span>Sep</span><span class="track"><i style="width:82%"></i></span><span class="val">3.620 €</span></div>
+          <div class="mrow"><span>Dic</span><span class="track"><i style="width:48%"></i></span><span class="val">1.980 €</span></div>
+          <div class="mrow neg"><span>Feb</span><span class="track"><i style="width:24%"></i></span><span class="val">−525 €</span></div>
+          <div class="mrow"><span>Abr</span><span class="track"><i style="width:40%"></i></span><span class="val">1.240 €</span></div>
+        </div>
+        <div class="ui__foot"><span class="mini">En febrero te quedarías en −525 €</span><span class="mini">Ver presupuesto</span></div>
+      </div>
+    </article>
+
+    <!-- 4 · Documentación -->
+    <article class="mod">
+      <div class="mod__copy">
+        <div class="mod__tag"><i></i><span>Papeles</span></div>
+        <h3>Solo lo que falta</h3>
+        <p>La pantalla de documentos no repite lo que ya tienes: enseña únicamente lo que falta, y sirve para pedirlo. Cada familia recibe lo suyo y solo lo suyo, nunca una lista con los nombres de los demás.</p>
+        <ul>
+          <li>Plantillas por situación, incluida la de visado</li>
+          <li>Marca lo que necesita Apostilla de La Haya</li>
+          <li>Recordatorio individual con un botón</li>
+          <li>Habilitación del staff, temporada a temporada</li>
+        </ul>
+      </div>
+      <div class="ui">
+        <div class="ui__bar"><h4>Documentos · lo que falta</h4><span class="mini">7 jugadores · 6 del staff</span></div>
+        <div class="ui__body">
+          <div class="uirow"><span><b>Pablo I. Andrés</b><span class="sub">Pasaporte · Certificado de notas · Apostilla</span></span><span class="chip chip--bad">Vencido</span></div>
+          <div class="uirow"><span><b>Lucía Fernández</b><span class="sub">Seguro médico</span></span><span class="chip chip--wait">7 días</span></div>
+          <div class="uirow"><span><b>Nuria Palau</b><span class="sub">Certificado de delitos · no se sube a la app</span></span><span class="chip chip--bad">Sin habilitar</span></div>
+          <div class="uirow"><span><b>Javier Sanz</b><span class="sub">Delegado voluntario · también le aplica</span></span><span class="chip chip--bad">Sin habilitar</span></div>
+        </div>
+        <div class="ui__foot"><span class="mini">Avisar a cada uno de lo suyo</span><span class="mini">4 pendientes</span></div>
+      </div>
+    </article>
+
+    <!-- 5 · Desarrollo -->
+    <article class="mod">
+      <div class="mod__copy">
+        <div class="mod__tag"><i></i><span>Cancha</span></div>
+        <h3>Cómo va el jugador, con método</h3>
+        <p>La valoración no es un número que alguien teclea: sale de las evaluaciones, con pesos conocidos, y dice de cuántos apartados se ha calculado. Un 80 con tres notas no es un 80 con veinte.</p>
+        <ul>
+          <li>Escala de 0 a 10 con cada tramo descrito</li>
+          <li>Siempre comparado con su categoría y su año</li>
+          <li>Trayectoria por temporadas, no por rangos vagos</li>
+          <li>Vídeos por enlace: YouTube, Vimeo o Drive</li>
+        </ul>
+      </div>
+      <div class="ui">
+        <div class="ui__bar"><h4>Martín Ríos · 2009 · Alero</h4><span class="mini">Scout Score</span></div>
+        <div class="cash" style="padding-bottom:14px">
+          <p class="cash__n" style="color:var(--cobalt)">80<span style="font-size:18px;color:var(--slate)">/100</span></p>
+          <p class="mini" style="margin-top:8px">15 de 22 apartados evaluados</p>
+        </div>
+        <div class="ui__body">
+          <div class="uirow"><span><b>Técnica</b><span class="sub">peso 40%</span></span><span class="bar"><i style="width:76%"></i></span></div>
+          <div class="uirow"><span><b>Física</b><span class="sub">peso 25%</span></span><span class="bar"><i style="width:73%"></i></span></div>
+          <div class="uirow"><span><b>Mental</b><span class="sub">peso 35%</span></span><span class="bar"><i style="width:90%"></i></span></div>
+        </div>
+        <div class="ui__foot"><span class="mini">Talla estimada de adulto: 1,92 m ±3</span><span class="mini">No lo ve la familia</span></div>
+      </div>
+    </article>
+
+    <!-- 6 · Comunicación -->
     <article class="mod">
       <div class="mod__copy">
         <div class="mod__tag"><i></i><span>Familias</span></div>
         <h3>Las familias dejan de preguntar</h3>
-        <p>Cada familia entra a su portal y ve lo suyo: calendario, pagos, documentos y avisos del equipo.</p>
+        <p>Cada familia entra y ve a su hijo: lo que debe, lo que tiene que entregar, los informes que el club ha publicado a propósito y los avisos. Nada de los demás.</p>
         <ul>
-          <li>Calendario de entrenamientos y partidos por equipo</li>
-          <li>Recibos y facturas descargables</li>
-          <li>Documentación firmada desde el móvil</li>
-          <li>Un acceso para varios hijos en el mismo club</li>
+          <li>Portal pensado para el móvil</li>
+          <li>Documentos con la cámara, sin escáner</li>
+          <li>Entrevistas con fecha, y su historial</li>
+          <li>Los informes solo se ven si el club los publica</li>
         </ul>
       </div>
-      <div class="ui rise">
-        <div class="ui__bar">
-          <h4>Portal · Familia Bravo</h4>
-          <span class="mini">2 hijos</span>
-        </div>
+      <div class="ui">
+        <div class="ui__bar"><h4>Portal de la familia</h4><span class="mini">Martín Ríos</span></div>
         <div class="ui__body">
-          <div class="msg">
-            <p class="msg__meta">Sábado 22 · 10:30</p>
-            <p class="msg__t">Partido vs. CB Torrejón</p>
-            <p class="msg__d">Pabellón Espartales · Citación 09:45 · Equipación blanca</p>
-          </div>
-          <div class="msg">
-            <p class="msg__meta">Pagos</p>
-            <p class="msg__t">Recibo de noviembre emitido</p>
-            <p class="msg__d">120 € · Descuento hermano aplicado −15%</p>
-          </div>
-          <div class="msg">
-            <p class="msg__meta">Pendiente de ti</p>
-            <p class="msg__t">Firmar autorización de imagen</p>
-            <p class="msg__d">Necesaria antes del 30 de noviembre</p>
-          </div>
+          <div class="uirow"><span><b>Cuota de noviembre</b><span class="sub">Vence el 12</span></span><span class="chip chip--wait">Pendiente</span></div>
+          <div class="uirow"><span><b>Seguro médico</b><span class="sub">Súbelo con la cámara</span></span><span class="chip chip--bad">Falta</span></div>
+          <div class="uirow"><span><b>Entrevista con el club</b><span class="sub">Viernes 21, 17:00 · Pabellón</span></span><span class="chip chip--ok">Confirmada</span></div>
+          <div class="uirow"><span><b>Informe del primer trimestre</b></span><span class="chip chip--ok">Publicado</span></div>
         </div>
-        <div class="ui__foot">
-          <span class="mini">Todo lo del club, en un sitio</span>
-          <span class="mini">Sin grupos de WhatsApp</span>
-        </div>
+        <div class="ui__foot"><span class="mini">Solo ve a su hijo</span><span class="mini">Notificación del club</span></div>
       </div>
     </article>
-
-    <article class="mod">
-      <div class="mod__copy">
-        <div class="mod__tag"><i></i><span>Deportivo</span></div>
-        <h3>El entrenador pasa lista en treinta segundos</h3>
-        <p>Asistencia por sesión, seguimiento del jugador y medidas físicas. Lo que el club necesita para decidir, no para rellenar informes.</p>
-        <ul>
-          <li>Presente, ausente o justificado, con marcado en bloque</li>
-          <li>Porcentajes acumulados por jugador y por equipo</li>
-          <li>Hitos y anotaciones de seguimiento a lo largo de la temporada</li>
-          <li>Medidas y evolución física en la ficha del jugador</li>
-        </ul>
-      </div>
-      <div class="ui rise">
-        <div class="ui__bar">
-          <h4>Asistencia · Cadete A</h4>
-          <span class="mini">Últimas 10 sesiones</span>
-        </div>
-        <div class="att">
-          <div class="att__legend">
-            <span><i class="sq sq--p"></i>Presente</span>
-            <span><i class="sq sq--j"></i>Justificado</span>
-            <span><i class="sq sq--a"></i>Ausente</span>
-          </div>
-          <div class="att__row"><span class="att__name">Marcos Ruiz</span><span class="att__cells"><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--j"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i></span><span class="att__pct">96%</span></div>
-          <div class="att__row"><span class="att__name">Lucía Bravo</span><span class="att__cells"><i class="sq--p"></i><i class="sq--p"></i><i class="sq--a"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--j"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i></span><span class="att__pct">91%</span></div>
-          <div class="att__row"><span class="att__name">Iker Molina</span><span class="att__cells"><i class="sq--p"></i><i class="sq--a"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--a"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i></span><span class="att__pct">88%</span></div>
-          <div class="att__row"><span class="att__name">Ana Sáez</span><span class="att__cells"><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--p"></i><i class="sq--j"></i><i class="sq--p"></i><i class="sq--p"></i></span><span class="att__pct">97%</span></div>
-        </div>
-        <div class="ui__foot">
-          <span class="mini">Se pasa desde el móvil, en la pista</span>
-          <span class="mini">Media del equipo · 93%</span>
-        </div>
-      </div>
-    </article>
-
   </div>
 </section>
 
-<!-- CASO -->
-<section class="case" id="caso">
-  <div class="wrap case__grid">
-    <div>
-      <p class="eyebrow eyebrow--chalk">Club piloto</p>
-      <blockquote style="margin-top:18px">«Antes cerrar el mes eran dos tardes cruzando el banco con el Excel. Ahora entro, miro quién falta y mando el aviso.»</blockquote>
-      <p class="case__who">Tesorería · CB Juan de Austria–Alcalá<br>231 jugadores · 14 equipos</p>
-      <span class="case__flag">Testimonio de ejemplo — sustituir por cita real antes de publicar</span>
-    </div>
-    <div class="case__nums">
-      <div class="case__num"><b>231</b><span>Jugadores gestionados</span></div>
-      <div class="case__num"><b>14</b><span>Equipos en la plataforma</span></div>
-      <div class="case__num"><b>1</b><span>Sitio para todo el club</span></div>
-    </div>
-  </div>
-</section>
-
-<!-- DUDAS -->
-<section class="faq" id="dudas">
+<!-- ============ PARA QUIÉN ============ -->
+<section class="who">
   <div class="wrap">
-    <p class="eyebrow rise">Antes de dar el paso</p>
-    <h2 class="h2 rise d1" style="margin-top:12px;max-width:14ch">Lo que preguntan todos los clubes</h2>
-    <div class="faq__grid">
-      <div class="faq__item rise d1">
-        <h4>¿Y los datos de los menores?</h4>
-        <p>Alojamiento en la Unión Europea, consentimiento familiar registrado y permisos por perfil: quien no debe ver el dinero de una familia, no lo ve. Cada acceso queda trazado.</p>
+    <p class="eyebrow rise">Para quién</p>
+    <h2 class="h2 rise d1" style="margin-top:12px;max-width:18ch">Hecho para el club de formación</h2>
+    <div class="who__grid">
+      <div class="who__c">
+        <span class="tagline">Encaja</span>
+        <h3>Club o academia de formación</h3>
+        <p>De 60 a 400 jugadores, varios equipos, una persona en administración y entrenadores que cobran poco o nada. Es el caso para el que está pensado, línea a línea.</p>
       </div>
-      <div class="faq__item rise d2">
-        <h4>Venimos de Excel</h4>
-        <p>Se importa el listado de jugadores y las cuotas de la temporada en curso desde vuestro archivo actual. No empezáis de cero ni volvéis a teclear nada.</p>
+      <div class="who__c">
+        <span class="tagline">Encaja</span>
+        <h3>Programa de tecnificación</h3>
+        <p>Si haces seguimiento fino de cada jugador, evalúas por temporada y traes gente de fuera, aquí tienes cosas que no vas a encontrar en otro sitio a este precio.</p>
       </div>
-      <div class="faq__item rise d3">
-        <h4>Somos un club pequeño</h4>
-        <p>El precio va por licencias federadas. Si el club crece, sube; si no crece, no. Sin permanencia y sin coste de puesta en marcha.</p>
+      <div class="who__c is-off">
+        <span class="tagline">No encaja, de momento</span>
+        <h3>Club profesional o polideportivo</h3>
+        <p>Ni club con estructura profesional ni entidad multideporte con diez secciones. El baloncesto está completo; el resto de deportes, todavía no. Preferimos decirlo antes.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- PRECIOS -->
+<!-- ============ CASO ============ -->
+<section class="case" id="caso">
+  <div class="wrap">
+    <p class="eyebrow rise">Cómo se ha construido</p>
+    <p class="case__q rise d1" style="margin-top:16px">
+      Cada pantalla nació de un problema real de un club de formación, y se probó ahí antes de darla por buena.
+    </p>
+    <p class="case__meta rise d2">
+      Desarrollado junto a un club de baloncesto formativo de la Comunidad de Madrid.<br>
+      Lo que no resolvía un problema concreto, no se construyó.
+    </p>
+  </div>
+</section>
+
+<!-- ============ ROADMAP ============ -->
+<section class="road">
+  <div class="wrap">
+    <p class="eyebrow rise">Con las cartas boca arriba</p>
+    <h2 class="h2 rise d1" style="margin-top:12px;max-width:20ch">Lo que aún no hace</h2>
+    <p class="lede rise d2" style="margin-top:16px">
+      Preferimos que lo sepas ahora y no cuando lo estés usando. Esto es lo que viene, en orden.
+    </p>
+    <div class="road__grid rise d2">
+      <div class="rd">
+        <p class="rd__s">En construcción</p>
+        <h4>Acceso con usuario</h4>
+        <p>Cada persona con su correo y su contraseña, y los permisos comprobados en el servidor.</p>
+      </div>
+      <div class="rd">
+        <p class="rd__s">Siguiente</p>
+        <h4>Cobro de la cuota</h4>
+        <p>Hoy se controla quién debe; el cobro se hace fuera. Domiciliación y tarjeta, en camino.</p>
+      </div>
+      <div class="rd">
+        <p class="rd__s">Siguiente</p>
+        <h4>Inscripción desde casa</h4>
+        <p>El formulario ya existe y se usa en el club. Falta el enlace para que lo rellene la familia.</p>
+      </div>
+      <div class="rd">
+        <p class="rd__s">Siguiente</p>
+        <h4>Avisos al móvil</h4>
+        <p>Los mensajes están dentro de la plataforma. Falta que suenen en el teléfono.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PRECIOS ============ -->
 <section class="price" id="precios">
   <div class="wrap">
-    <p class="eyebrow rise">Precios</p>
-    <h2 class="h2 rise d1" style="margin-top:12px;max-width:16ch">Por temporada, según licencias</h2>
+    <p class="eyebrow eyebrow--chalk">Precios</p>
+    <h2 class="h2" style="margin-top:12px;max-width:16ch">Por temporada, según el tamaño</h2>
     <div class="price__grid">
-      <div class="plan rise d1">
-        <p class="plan__n">Club</p>
-        <p class="plan__lic">Hasta 150 licencias</p>
-        <p class="plan__p">690 €<em>por temporada</em></p>
+      <div class="tier">
+        <p class="tier__n">Starter</p>
+        <p class="tier__p">49 €<small> /mes</small></p>
+        <p class="tier__u">Hasta 100 jugadores</p>
         <ul>
-          <li>Fichas, cuotas y documentación</li>
-          <li>Portal de familias</li>
-          <li>Asistencia y calendario</li>
-          <li>Soporte por correo</li>
+          <li>Jugadores, equipos y asistencia</li>
+          <li>Documentación y recordatorios</li>
+          <li>Habilitación del staff</li>
+          <li>Economía y presupuesto</li>
         </ul>
-        <a class="btn btn--line" href="#contacto">Empezar</a>
+        <a class="btn btn--ghost-light" href="#demo">Empezar</a>
       </div>
-      <div class="plan plan--hi rise d2">
-        <p class="plan__n">Club +</p>
-        <p class="plan__lic">Hasta 400 licencias</p>
-        <p class="plan__p">1.290 €<em>por temporada</em></p>
+      <div class="tier tier--hi">
+        <p class="tier__n">Pro</p>
+        <p class="tier__p">99 €<small> /mes</small></p>
+        <p class="tier__u">Hasta 500 jugadores</p>
         <ul>
-          <li>Todo lo del plan Club</li>
-          <li>Remesas SEPA y pago con tarjeta</li>
-          <li>Módulo de gastos y contabilidad</li>
-          <li>Importación desde vuestro Excel</li>
+          <li>Todo lo de Starter</li>
+          <li>Portal de las familias</li>
+          <li>Licencias federativas</li>
+          <li>Desarrollo del jugador y crecimiento</li>
+          <li>Importar desde WhatsApp con IA</li>
         </ul>
-        <a class="btn btn--solid" href="#contacto">Solicitar alta</a>
+        <a class="btn btn--solid" href="#demo">Ver la demo</a>
       </div>
-      <div class="plan rise d3">
-        <p class="plan__n">Federación</p>
-        <p class="plan__lic">Varios clubes</p>
-        <p class="plan__p">A medida<em>según número de clubes</em></p>
+      <div class="tier">
+        <p class="tier__n">Elite</p>
+        <p class="tier__p">199 €<small> /mes</small></p>
+        <p class="tier__u">Jugadores ilimitados</p>
         <ul>
-          <li>Panel agregado por club</li>
-          <li>Altas y bajas centralizadas</li>
-          <li>Formación al equipo de cada club</li>
-          <li>Persona de contacto asignada</li>
+          <li>Todo lo de Pro</li>
+          <li>Permisos avanzados por persona</li>
+          <li>Expediente de visado de estudios</li>
+          <li>Informes y exportación</li>
+          <li>Soporte prioritario</li>
         </ul>
-        <a class="btn btn--line" href="#contacto">Hablar con nosotros</a>
+        <a class="btn btn--ghost-light" href="#contacto">Hablar</a>
       </div>
     </div>
-    <p class="price__note">Importes de ejemplo — ajustar antes de publicar. IVA no incluido.</p>
+    <p class="price__note">
+      Precios sin IVA. Sin permanencia y sin coste de puesta en marcha.<br>
+      Los primeros clubes entran con condiciones especiales a cambio de contarnos qué falla.
+    </p>
   </div>
 </section>
 
-<!-- CTA -->
+<!-- ============ FAQ ============ -->
+<section class="faq" id="dudas">
+  <div class="wrap">
+    <p class="eyebrow rise">Dudas</p>
+    <h2 class="h2 rise d1" style="margin-top:12px;max-width:14ch">Lo que preguntan todos los clubes</h2>
+    <div class="faq__list rise d2">
+
+      <details class="qa">
+        <summary>¿Y quién mete todos los datos?</summary>
+        <div class="qa__a">La pregunta que más nos hacen, y la más justa. Se empieza por lo mínimo: nombre, fecha y equipo. Lo demás se rellena cuando hace falta. Además, la <b>inscripción</b> hace que la ficha nazca completa sin que nadie teclee nada, y puedes <b>pegar un WhatsApp</b> y que la app saque los datos sola.</div>
+      </details>
+
+      <details class="qa">
+        <summary>¿Dónde están los datos de los menores?</summary>
+        <div class="qa__a">En servidores de la <b>Unión Europea</b>. Los datos son del club, no nuestros: nosotros somos el encargado del tratamiento y firmamos el contrato que exige el reglamento. Puedes exportarlos y llevártelos cuando quieras.</div>
+      </details>
+
+      <details class="qa">
+        <summary>Ya tengo un Excel y me sale gratis</summary>
+        <div class="qa__a">Y te funciona, no te decimos que no. La pregunta es cuántas horas al mes cuesta mantenerlo y qué pasa el día que la persona que lo entiende deja el club. Si la respuesta es «poco» y «nada», quédate con el Excel.</div>
+      </details>
+
+      <details class="qa">
+        <summary>¿Se puede ver el certificado de delitos dentro de la app?</summary>
+        <div class="qa__a">No, y es deliberado. Es un <b>dato penal</b>. La persona lo presenta en administración y el club anota únicamente que se ha comprobado, quién y cuándo. Guardar el documento sería crearle un problema al club.</div>
+      </details>
+
+      <details class="qa">
+        <summary>¿Puede ver el entrenador lo que pagan las familias?</summary>
+        <div class="qa__a">No. Cada rol ve lo suyo, y el dinero de las familias no le corresponde a un entrenador. El director puede conceder permisos sueltos a una persona concreta —el entrenador que además lleva la caja de su equipo—, siempre <b>con motivo escrito y fecha de caducidad</b>.</div>
+      </details>
+
+      <details class="qa">
+        <summary>¿Y si dejáis el proyecto?</summary>
+        <div class="qa__a">Tus datos se exportan cuando quieras y son tuyos. Queda por escrito en el contrato. Es una pregunta razonable y nos parece bien que la hagas.</div>
+      </details>
+
+      <details class="qa">
+        <summary>¿Vale para fútbol o para un club polideportivo?</summary>
+        <div class="qa__a">Hoy no. La estructura es multideporte, pero <b>solo el baloncesto está completo</b>: posiciones, categorías y apartados de evaluación. Preferimos decírtelo ahora a que lo descubras en la segunda semana.</div>
+      </details>
+
+    </div>
+  </div>
+</section>
+
+<!-- ============ CTA ============ -->
 <section class="cta" id="demo">
-  <svg class="cta__court" viewBox="0 0 1200 600" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
-    <g fill="none" stroke="#FFFFFF" stroke-width="2">
-      <rect x="40" y="40" width="1120" height="520"/>
-      <line x1="600" y1="40" x2="600" y2="560"/>
-      <circle cx="600" cy="300" r="90"/>
-      <rect x="40" y="180" width="230" height="240"/>
-      <path d="M270 180 a120 120 0 0 1 0 240"/>
-      <rect x="930" y="180" width="230" height="240"/>
-      <path d="M930 180 a120 120 0 0 0 0 240"/>
-      <path d="M40 90 h60 a220 220 0 0 1 0 420 h-60"/>
-      <path d="M1160 90 h-60 a220 220 0 0 0 0 420 h60"/>
-    </g>
-  </svg>
-  <div class="wrap cta__in">
-    <p class="eyebrow eyebrow--chalk">Demo pública</p>
-    <h2>Entra y<br>míralo</h2>
-    <p>Un club de ejemplo con 231 jugadores, cuotas y asistencia reales de prueba. Sin registro, sin dejar el teléfono. Si encaja, hablamos.</p>
+  <div class="wrap cta__grid">
+    <div>
+      <h2>Entra y<br>míralo</h2>
+      <p>Una demostración de veinte minutos, con tus equipos de verdad si quieres. Si a las dos semanas no la has abierto, es que no te sirve.</p>
+    </div>
     <div class="cta__actions">
-      <a class="btn btn--solid" href="https://app.scoutflow-academy.com">Abrir la demo en vivo →</a>
-      <a class="btn btn--ghost-light" href="#contacto" id="contacto">Escribirnos</a>
+      <a class="btn btn--ghost-light" href="https://app.scoutflow-academy.com">Ver la demo</a>
+      <a class="btn btn--ghost-light" href="mailto:hola@scoutflow-academy.com" id="contacto">Escribirnos</a>
     </div>
   </div>
 </section>
 
 <footer class="foot">
   <div class="wrap foot__in">
-    <span>ScoutFlow Academy · Alcalá de Henares</span>
-    <div class="foot__links">
-      <a href="#">Aviso legal</a>
-      <a href="#">Privacidad y menores</a>
-      <a href="#">Contacto</a>
-      <a href="https://app.scoutflow-academy.com">Acceder a la app</a>
-    </div>
+    <span>© 2026 ScoutFlow Academy · From Prospect to Player</span>
+    <span>Datos alojados en la Unión Europea · <a href="mailto:hola@scoutflow-academy.com">hola@scoutflow-academy.com</a></span>
   </div>
 </footer>
 
-<script>
-(function(){
-  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  if(reduce){
-    document.querySelectorAll('.rise').forEach(function(el){el.classList.add('in')});
-    document.querySelectorAll('[data-count]').forEach(function(el){
-      el.textContent = el.dataset.count + (el.dataset.suffix||'');
-    });
-    return;
-  }
-
-  var io = new IntersectionObserver(function(entries){
-    entries.forEach(function(e){
-      if(!e.isIntersecting) return;
-      e.target.classList.add('in');
-      io.unobserve(e.target);
-      var nums = e.target.querySelectorAll('[data-count]');
-      nums.forEach(count);
-    });
-  },{threshold:.18, rootMargin:'0px 0px -8% 0px'});
-
-  document.querySelectorAll('.rise').forEach(function(el){io.observe(el)});
-
-  function count(el){
-    var target = parseInt(el.dataset.count,10);
-    var suffix = el.dataset.suffix || '';
-    var dur = 900, t0 = performance.now();
-    function step(t){
-      var p = Math.min((t-t0)/dur,1);
-      var eased = 1 - Math.pow(1-p,3);
-      el.innerHTML = Math.round(target*eased) + (suffix ? '<i>'+suffix+'</i>' : '');
-      if(p<1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  }
-
-  // hero visible on load
-  requestAnimationFrame(function(){
-    document.querySelectorAll('.hero .rise').forEach(function(el){el.classList.add('in')});
-  });
-})();
-</script>
 </body>
 </html>
