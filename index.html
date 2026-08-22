@@ -81,6 +81,11 @@ textarea{resize:vertical;min-height:90px}
 .c-danger{color:var(--danger)} .c-warn{color:var(--warn)}
 .sec-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-3);margin:18px 0 10px}
 .hint{font-size:12.5px;color:var(--ink-3);margin:6px 0}
+/* Aviso en línea: llama la atención sin gritar. Se usa, por ejemplo, cuando la
+   asimetría entre piernas pasa del umbral. */
+.aviso-lin{font-size:12.5px;color:#8A5A00;background:#FFF7E6;border-left:3px solid #E8A33D;
+  border-radius:0 8px 8px 0;padding:9px 12px;margin:8px 0;line-height:1.55}
+.aviso-lin b{color:#6B4500}
 .count{font-size:13px;color:var(--ink-2);margin:0 0 12px}
 .row-c{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 
@@ -561,6 +566,12 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .frow{display:flex;flex-direction:column;gap:5px}
 .frow label{font-size:12px;color:var(--ink-2)}
+.frow .hint{margin:0;font-size:11.5px}
+/* Separador de bloque: ocupa las dos columnas para que el título quede
+   claramente por encima de los campos que agrupa, y no al lado de uno. */
+.frow-sep{grid-column:1/-1;margin-top:8px;padding-top:12px;border-top:1px solid var(--line)}
+.frow-sep .sec-label{margin:0}
+.frow-sep .hint{margin-top:4px}
 
 /* Toast */
 .toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;padding:12px 18px;border-radius:var(--r);font-size:13px;opacity:0;pointer-events:none;transition:.22s;display:flex;align-items:center;gap:9px;z-index:60;max-width:90vw}
@@ -1030,8 +1041,58 @@ SF.MEASURE_FIELDS = [
   { k: 'foot_length_cm', label: 'Longitud de pie', u: 'cm' },
   { k: 'hand_length_cm', label: 'Longitud de manos', u: 'cm' },
   { k: 'dominant_hand', label: 'Mano dominante', texto: true },
-  { k: 'uses_both_hands', label: 'Usa las dos manos', texto: true }
+  { k: 'uses_both_hands', label: 'Usa las dos manos', texto: true },
+
+  /* --- Tests de rendimiento ---
+     Estos NO los mide ScoutFlow: los mide el preparador con su material o con
+     una app tipo My Jump Lab, y aquí se anotan para poder seguirlos temporada
+     a temporada. Es la división del trabajo que tiene sentido: ellos miden
+     bien, nosotros recordamos bien.
+
+     'menosEsMejor' existe porque en un sprint bajar de 3,20 a 3,05 es mejorar.
+     Sin esta marca, la app pintaría en rojo una mejora, que es peor que no
+     pintar nada. */
+  { k: 'cmj_cm', test: true, label: 'Salto vertical (CMJ)', u: 'cm', step: '0.1' },
+  { k: 'jump_single_l_cm', test: true, label: 'Salto a una pierna · izquierda', u: 'cm', step: '0.1' },
+  { k: 'jump_single_r_cm', test: true, label: 'Salto a una pierna · derecha', u: 'cm', step: '0.1' },
+  { k: 'dropjump_rsi', test: true, label: 'Drop jump · RSI', u: '', step: '0.01' },
+  { k: 'sprint20_s', test: true, label: 'Sprint 20 m', u: 's', step: '0.01', menosEsMejor: true },
+  { k: 'cod_s', test: true, label: 'Cambio de dirección', u: 's', step: '0.01', menosEsMejor: true },
+  { k: 'decel_s', test: true, label: 'Test de deceleración', u: 's', step: '0.01', menosEsMejor: true },
+  { k: 'nordic_n', test: true, label: 'Isquiotibiales nórdicos', u: 'N', step: '1' },
+  { k: 'ankle_rom_deg', test: true, label: 'Movilidad de tobillo', u: '°', step: '0.5' },
+  { k: 'measured_with', test: true, label: 'Medido con', texto: true }
 ];
+
+/* Instrumentos. Importa de verdad: un CMJ tomado con el móvil y uno tomado a
+   ojo con un cronómetro no son comparables, y si el club cambia de método a
+   mitad de temporada la evolución miente sin que nadie se entere. */
+SF.INSTRUMENTOS = ['My Jump Lab', 'Otra app de móvil', 'Plataforma de contacto', 'Fotocélulas', 'Cronómetro manual', 'Cinta métrica', 'Goniómetro', 'Otro'];
+
+/* Asimetría entre piernas. En baloncesto una diferencia grande entre la
+   izquierda y la derecha es un aviso: se asocia a más riesgo de lesión y a
+   peor rendimiento en los cambios de dirección. El umbral que se maneja
+   habitualmente en la literatura ronda el 10 %, así que por encima de ahí se
+   avisa, sin diagnosticar nada: esto no sustituye a un fisio. */
+SF.ASIMETRIA_AVISO = 10;
+SF.asimetria = function (m) {
+  if (!m) return null;
+  var i = +m.jump_single_l_cm, d = +m.jump_single_r_cm;
+  if (!i || !d) return null;
+  var alto = Math.max(i, d), bajo = Math.min(i, d);
+  var pct = Math.round((alto - bajo) / alto * 1000) / 10;
+  return { pct: pct, fuerte: i > d ? 'izquierda' : 'derecha', debil: i > d ? 'derecha' : 'izquierda', aviso: pct >= SF.ASIMETRIA_AVISO };
+};
+
+/* Altura de salto = lo que llega con impulso menos lo que llega parado.
+   Son dos datos que el club ya toma; restarlos a mano cada vez es justo el
+   tipo de cuenta que nadie hace y que la app puede hacer sola. */
+SF.alturaSalto = function (m) {
+  if (!m) return null;
+  var a = +m.vertical_reach_run, b = +m.vertical_reach_stand;
+  if (!a || !b || a <= b) return null;
+  return a - b;
+};
 
 /* Junta medidas y evaluaciones en una sola línea temporal por temporada.
    Devuelve de la más antigua a la más reciente, con la diferencia respecto
@@ -1108,7 +1169,9 @@ SF.evolucionMedidas = function (p, filas) {
     var prim = null, ult = null;
     vals.forEach(function (v) { if (v) { if (prim === null) prim = v; ult = v; } });
     var delta = null;
-    if (!def.texto && prim !== null && ult !== null) delta = Math.round((ult - prim) * 10) / 10;
+    /* Dos decimales: un sprint mejora 0,15 s. Redondeando a uno solo, esa
+       mejora se convertiría en 0,2 y el dato dejaría de ser el que se midió. */
+    if (!def.texto && prim !== null && ult !== null) delta = Math.round((ult - prim) * 100) / 100;
     out.push({ def: def, vals: vals, delta: delta });
   });
   return out;
@@ -1914,6 +1977,9 @@ SF.SEED_PLAYERS = [
     kit_order: { sizes: { '1ª equipación de juego': 'M', '2ª equipación de juego': 'M', 'Pantalón de juego': 'M', 'Chándal oficial': 'L' }, print_name: 'M. RÍOS', print_number: '7', status: 'pedido', requested_at: '2026-06-18' },
     vertical_reach_stand: 248, vertical_reach_run: 295, uses_both_hands: 'Sí',
     long_jump_stand_cm: 231, long_jump_run_cm: 281,
+    cmj_cm: 45.2, jump_single_l_cm: 23.4, jump_single_r_cm: 25.0, dropjump_rsi: 1.44,
+    sprint20_s: 2.98, cod_s: 5.29, decel_s: 1.31, nordic_n: 341, ankle_rom_deg: 36,
+    measured_with: 'My Jump Lab',
     /* Cuatro temporadas seguidas: es lo que hace valioso tener a un chaval en
        el club desde pequeño, y sin ejemplo así la pantalla de Evolución no se
        entiende. Las notas van en escala 0-5 y la migración las pasa a 0-10,
@@ -1931,13 +1997,22 @@ SF.SEED_PLAYERS = [
         torso_height_cm: 89, foot_length_cm: 28, hand_length_cm: 20, dominant_hand: 'Derecha', uses_both_hands: 'No' },
       { by: 'Diego Sosa', role: 'Preparador Físico', date: '2024-09-30', season: '2024/2025', height_cm: 184, weight_kg: 69, wingspan_cm: 190,
         vertical_reach_stand: 238, vertical_reach_run: 281, long_jump_stand_cm: 212, long_jump_run_cm: 258,
-        torso_height_cm: 92, foot_length_cm: 29, hand_length_cm: 21, dominant_hand: 'Derecha', uses_both_hands: 'No' },
+        torso_height_cm: 92, foot_length_cm: 29, hand_length_cm: 21, dominant_hand: 'Derecha', uses_both_hands: 'No',
+        cmj_cm: 38.4, jump_single_l_cm: 19.1, jump_single_r_cm: 22.6, dropjump_rsi: 1.12,
+        sprint20_s: 3.18, cod_s: 5.62, decel_s: 1.44, nordic_n: 268, ankle_rom_deg: 32,
+        measured_with: 'My Jump Lab' },
       { by: 'Diego Sosa', role: 'Preparador Físico', date: '2025-09-01', season: '2025/2026', height_cm: 189, weight_kg: 75, wingspan_cm: 196,
         vertical_reach_stand: 245, vertical_reach_run: 290, long_jump_stand_cm: 224, long_jump_run_cm: 272,
-        torso_height_cm: 95, foot_length_cm: 30, hand_length_cm: 22, dominant_hand: 'Derecha', uses_both_hands: 'Sí' },
+        torso_height_cm: 95, foot_length_cm: 30, hand_length_cm: 22, dominant_hand: 'Derecha', uses_both_hands: 'Sí',
+        cmj_cm: 42.7, jump_single_l_cm: 21.8, jump_single_r_cm: 24.1, dropjump_rsi: 1.31,
+        sprint20_s: 3.06, cod_s: 5.41, decel_s: 1.36, nordic_n: 312, ankle_rom_deg: 35,
+        measured_with: 'My Jump Lab' },
       { by: 'Diego Sosa', role: 'Preparador Físico', date: '2026-07-10', season: '2026/2027', height_cm: 192, weight_kg: 78, wingspan_cm: 198,
         vertical_reach_stand: 248, vertical_reach_run: 295, long_jump_stand_cm: 231, long_jump_run_cm: 281,
-        torso_height_cm: 96, foot_length_cm: 30, hand_length_cm: 22, dominant_hand: 'Derecha', uses_both_hands: 'Sí' }
+        torso_height_cm: 96, foot_length_cm: 30, hand_length_cm: 22, dominant_hand: 'Derecha', uses_both_hands: 'Sí',
+        cmj_cm: 45.2, jump_single_l_cm: 23.4, jump_single_r_cm: 25.0, dropjump_rsi: 1.44,
+        sprint20_s: 2.98, cod_s: 5.29, decel_s: 1.31, nordic_n: 341, ankle_rom_deg: 36,
+        measured_with: 'My Jump Lab' }
     ],
     family_active: true, family: { contact: 'Ana Ríos', relation: 'Madre', phone: '+34 600 111 222', email: 'ana@example.com' },
     consents: { imagen_publica: true, comunicaciones: true },
@@ -2696,6 +2771,11 @@ window.SF = window.SF || {};
     current = current || {};
     var f = el('<div class="form-grid"></div>');
     f.innerHTML = fields.map(function (fd) {
+      /* 'sep' no es un campo: parte el formulario en bloques con título. Sin
+         esto, la antropometría y los tests de rendimiento quedan en una lista
+         de veinte casillas iguales y no se distingue qué es cada cosa. */
+      if (fd.sep) return '<div class="frow frow-sep"><p class="sec-label">' + esc(fd.sep) + '</p>' +
+        (fd.nota ? '<p class="hint">' + fd.nota + '</p>' : '') + '</div>';
       var v = current[fd.name] != null ? current[fd.name] : '';
       var inner;
       if (fd.type === 'select') {
@@ -2704,9 +2784,14 @@ window.SF = window.SF || {};
       } else if (fd.type === 'textarea') {
         inner = '<textarea name="' + fd.name + '">' + esc(v) + '</textarea>';
       } else {
-        inner = '<input type="' + (fd.type || 'text') + '" name="' + fd.name + '" value="' + esc(v) + '">';
+        /* 'step' es imprescindible en los tests: un sprint son 3,12 segundos.
+           Sin step, el navegador solo acepta enteros y el dato no se puede
+           meter. */
+        inner = '<input type="' + (fd.type || 'text') + '" name="' + fd.name + '"' +
+          (fd.step ? ' step="' + fd.step + '"' : '') + ' value="' + esc(v) + '">';
       }
-      return '<div class="frow"><label>' + fd.label + '</label>' + inner + '</div>';
+      return '<div class="frow"><label>' + fd.label + '</label>' + inner +
+        (fd.hint ? '<span class="hint">' + fd.hint + '</span>' : '') + '</div>';
     }).join('');
     var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
     foot.children[0].onclick = U.closeModal;
@@ -2790,29 +2875,56 @@ window.SF = window.SF || {};
        la temporada entera no cabe en columnas tan estrechas. */
     function corta(t) { return esc(t.replace(/^\d{2}(\d{2})\/\d{2}(\d{2})$/, '$1/$2')); }
 
-    /* --- Todas las medidas, no solo altura y peso --- */
+    /* --- Todas las medidas, no solo altura y peso ---
+       En dos tablas: lo que mide el cuerpo (crece solo) y lo que mide el
+       rendimiento (se entrena). Mezclarlas hace creer que un chaval "mejoró"
+       porque le crecieron los pies. */
     var meds = SF.evolucionMedidas(p, filas);
-    if (meds.length) {
-      var tempsM = filas.filter(function (f) { return f.medida; }).map(function (f) { return f.season; });
-      wrap.appendChild(el('<p class="sec-label">Medidas, una a una</p>'));
+    var tempsM = filas.filter(function (f) { return f.medida; }).map(function (f) { return f.season; });
+
+    function tablaMedidas(titulo, lista, nota) {
+      if (!lista.length) return;
+      wrap.appendChild(el('<p class="sec-label">' + esc(titulo) + '</p>'));
+      if (nota) wrap.appendChild(el('<p class="hint">' + nota + '</p>'));
       var headM = '<th>Medida</th>' + tempsM.map(function (t) { return '<th class="evo-y">' + corta(t) + '</th>'; }).join('') +
         '<th class="evo-y">Cambio</th>';
       var tM = el('<div class="evo-scroll"><table class="evo-tab evo-sk"><thead><tr>' + headM + '</tr></thead><tbody></tbody></table></div>');
       var tbM = tM.querySelector('tbody');
-      meds.forEach(function (m) {
+      lista.forEach(function (m) {
         var celdas = m.vals.map(function (v) {
           if (!v) return '<td class="evo-y"><span class="hint">—</span></td>';
-          var txt = m.def.texto ? v : (m.def.metros ? (v / 100).toFixed(2) : v);
-          return '<td class="evo-y">' + esc(txt) + '</td>';
+          return '<td class="evo-y">' + esc(m.def.texto ? v : (m.def.metros ? (v / 100).toFixed(2) : v)) + '</td>';
         }).join('');
+        /* En un sprint, bajar es mejorar. Se invierte solo el COLOR, nunca el
+           signo: el número tiene que seguir diciendo la verdad (-0,15 s). */
+        var d = m.delta, cls = '';
+        if (d) cls = (m.def.menosEsMejor ? (d < 0) : (d > 0)) ? 'up' : 'down';
         tbM.appendChild(el('<tr><td>' + esc(m.def.label) +
-          (m.def.u && !m.def.metros ? ' <span class="hint">(' + m.def.u + ')</span>' : '') +
-          (m.def.metros ? ' <span class="hint">(m)</span>' : '') + '</td>' + celdas +
-          /* La diferencia siempre con su unidad: "+16" a secas al lado de
-             "+15 cm" hace dudar de si son kilos o centímetros. */
-          '<td class="evo-y">' + (m.delta ? delta(m.delta, ' ' + (m.def.u || '')) : '') + '</td></tr>'));
+          (m.def.metros ? ' <span class="hint">(m)</span>' : (m.def.u ? ' <span class="hint">(' + esc(m.def.u) + ')</span>' : '')) +
+          '</td>' + celdas + '<td class="evo-y">' +
+          (d ? '<span class="evo-d ' + cls + '">' + (d > 0 ? '+' : '') + d + ' ' + esc(m.def.u || '') + '</span>' : '') +
+          '</td></tr>'));
       });
       wrap.appendChild(tM);
+    }
+
+    tablaMedidas('El cuerpo, una a una', meds.filter(function (m) { return !m.def.test; }));
+    tablaMedidas('Tests de rendimiento', meds.filter(function (m) { return m.def.test; }),
+      'En sprint, cambio de dirección y deceleración <b>menos es mejor</b>: por eso una bajada sale en verde.');
+
+    /* Asimetría por temporada: es el dato que más se sigue de un salto a una
+       pierna, y sacarlo aquí evita que haya que restar dos columnas. */
+    var asims = filas.filter(function (f) { return f.medida && SF.asimetria(f.medida); });
+    if (asims.length) {
+      var ult = SF.asimetria(asims[asims.length - 1].medida);
+      wrap.appendChild(el('<p class="' + (ult.aviso ? 'aviso-lin' : 'hint') + '">Asimetría entre piernas: ' +
+        asims.map(function (f) {
+          var a = SF.asimetria(f.medida);
+          return corta(f.season) + ' <b>' + a.pct + ' %</b>';
+        }).join(' · ') +
+        '. La última, más con la ' + esc(ult.fuerte) + '.' +
+        (ult.aviso ? ' Por encima del ' + SF.ASIMETRIA_AVISO + ' % conviene comentarlo con el fisio; es un dato para mirar, no un diagnóstico.' : '') +
+        '</p>'));
     }
 
     /* --- Detalle apartado por apartado --- */
@@ -3573,6 +3685,35 @@ window.SF = window.SF || {};
           fld('Longitud de manos', p.hand_length_cm ? p.hand_length_cm + ' cm' : '') +
           fld('Mano dominante', p.dominant_hand) +
           fld('Usa las dos manos', p.uses_both_hands) + '</div>'));
+
+        /* Altura de salto: no se teclea, sale de los dos alcances que el club
+           ya toma. Restarlo a mano cada temporada no lo hace nadie. */
+        var altSalto = SF.alturaSalto(p);
+        if (altSalto) {
+          body.appendChild(el('<p class="hint">Con esos dos alcances, salta <b>' + altSalto + ' cm</b>.</p>'));
+        }
+
+        /* --- Tests de rendimiento --- */
+        var tests = SF.MEASURE_FIELDS.filter(function (t) { return t.test && p[t.k]; });
+        var asim = SF.asimetria(p);
+        if (tests.length || asim) {
+          body.appendChild(el('<p class="sec-label">Tests de rendimiento</p>'));
+          if (tests.length) {
+            body.appendChild(el('<div class="fields">' + tests.map(function (t) {
+              return fld(t.label, t.texto ? p[t.k] : p[t.k] + (t.u ? ' ' + t.u : ''));
+            }).join('') + '</div>'));
+          }
+          if (asim) {
+            /* Se dice el dato y qué pierna, no un diagnóstico. La app no es
+               un fisio y no debe sonar como si lo fuera. */
+            body.appendChild(el('<p class="' + (asim.aviso ? 'aviso-lin' : 'hint') + '">' +
+              'Asimetría entre piernas: <b>' + asim.pct + ' %</b>, salta más con la ' + esc(asim.fuerte) + '. ' +
+              (asim.aviso
+                ? 'Por encima del ' + SF.ASIMETRIA_AVISO + ' % conviene comentarlo con el fisio o el preparador; no es un diagnóstico, es un dato para mirar.'
+                : 'Por debajo del ' + SF.ASIMETRIA_AVISO + ' %, que es lo habitual.') + '</p>'));
+          }
+        }
+
         var mlog = p.measure_log || [];
         if (mlog.length) {
           var lastM = mlog[mlog.length - 1];
@@ -3593,7 +3734,23 @@ window.SF = window.SF || {};
               { name: 'foot_length_cm', label: 'Longitud de pie (cm)', type: 'number' },
               { name: 'hand_length_cm', label: 'Longitud de manos (cm)', type: 'number' },
               { name: 'dominant_hand', label: 'Mano dominante', type: 'select', options: ['Derecha', 'Izquierda', 'Ambidiestra'] },
-              { name: 'uses_both_hands', label: 'Usa las dos manos', type: 'select', options: ['Sí', 'No'] }
+              { name: 'uses_both_hands', label: 'Usa las dos manos', type: 'select', options: ['Sí', 'No'] },
+
+              { sep: 'Tests de rendimiento', nota: 'Rellena solo los que hagáis. Un hueco no pasa nada; un dato aproximado sí, porque luego se compara con el del año que viene.' },
+              { name: 'cmj_cm', label: 'Salto vertical CMJ (cm)', type: 'number', step: '0.1' },
+              { name: 'jump_single_l_cm', label: 'Salto a una pierna · izquierda (cm)', type: 'number', step: '0.1' },
+              { name: 'jump_single_r_cm', label: 'Salto a una pierna · derecha (cm)', type: 'number', step: '0.1',
+                hint: 'Con las dos piernas la app calcula sola la asimetría' },
+              { name: 'dropjump_rsi', label: 'Drop jump · RSI', type: 'number', step: '0.01',
+                hint: 'Índice de fuerza reactiva, sin unidad' },
+              { name: 'sprint20_s', label: 'Sprint 20 m (s)', type: 'number', step: '0.01', hint: 'Menos es mejor' },
+              { name: 'cod_s', label: 'Cambio de dirección (s)', type: 'number', step: '0.01', hint: 'Menos es mejor' },
+              { name: 'decel_s', label: 'Test de deceleración (s)', type: 'number', step: '0.01', hint: 'Menos es mejor' },
+              { name: 'nordic_n', label: 'Isquiotibiales nórdicos (N)', type: 'number', step: '1',
+                hint: 'Fuerza excéntrica, en newtons' },
+              { name: 'ankle_rom_deg', label: 'Movilidad de tobillo (°)', type: 'number', step: '0.5' },
+              { name: 'measured_with', label: 'Medido con', type: 'select', options: SF.INSTRUMENTOS,
+                hint: 'Importa: si cambiáis de método a mitad de temporada, los números dejan de ser comparables' }
             ], p, function (d) {
               var u = SF.store.currentUser();
               var hoy = new Date().toISOString().slice(0, 10);
