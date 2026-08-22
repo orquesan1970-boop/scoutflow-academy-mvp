@@ -1958,12 +1958,24 @@ SF.SEED_PLAYERS = [
     documents: { pasaporte: 'pendiente', expediente: 'pendiente', video_highlights: 'pendiente', seguro_medico: 'pendiente' },
     finance: { fee: 95, status: 'pendiente', matricula: false } }),
   P({ id: 'p2', scoutflow_id: 'SF-2026-0002', first_name: 'Martín', last_name: 'Ríos', full_name: 'Martín Ríos',
-    birth_date: '2009-03-12', birth_year: 2009, gender: 'M', nationality: ['España'], residence_country: 'España',
+    /* 2010: en la temporada 2026/2027 un cadete es de 2010 o 2011. Con 2009
+       sería junior y no podría estar en este equipo. */
+    birth_date: '2010-03-12', birth_year: 2010, gender: 'M', nationality: ['España'], residence_country: 'España',
     city: 'Madrid', sport: 'baloncesto', primary_position: 'Alero', height_cm: 192, weight_kg: 78, scout_score: 84,
-    status: 'Entrevista', club: 'CB Pozuelo', league: 'Preferente', category: 'Cadete', channel: 'Evento',
-    capture_date: '2026-06-01', instagram: '@martinrios', wingspan_cm: 198, torso_height_cm: 96,
+    status: 'Inscrito', club: 'CBJA Academy', league: 'Liga Cadete FBM', category: 'Cadete', channel: 'Evento',
+    capture_date: '2023-06-01', instagram: '@martinrios', wingspan_cm: 198, torso_height_cm: 96,
     foot_length_cm: 30, hand_length_cm: 22, dominant_hand: 'Derecha', start_age: 9,
-    career_history: [{ club: 'CB Pozuelo', from: '2021', to: '2024' }, { club: 'Estudiantes', from: '2024', to: '2025' }],
+    /* Llegó en 2023, que es cuando empiezan sus medidas: si la trayectoria
+       dijera otra cosa, el historial del preparador no cuadraría. */
+    career_history: [
+      { club: 'CB Pozuelo', seasons: [{ season: '2021/2022', category: 'Preinfantil' }, { season: '2022/2023', category: 'Infantil' }] },
+      { club: 'CBJA Academy', seasons: [
+        { season: '2023/2024', category: 'Infantil', competition: 'Liga Infantil FBM' },
+        { season: '2024/2025', category: 'Infantil', competition: 'Liga Infantil FBM', finish: '3º' },
+        { season: '2025/2026', category: 'Cadete', competition: 'Liga Cadete FBM', finish: '2º' },
+        { season: '2026/2027', category: 'Cadete', competition: 'Liga Cadete FBM' }
+      ] }
+    ],
     selections: { local: 'Sí', provincial: 'Sí', regional: 'Selección Madrid', national: '' },
     competitions: [{ date: '2025-02', name: 'Copa Federación', place: 'Madrid', ranking: 'Subcampeón', result: 'MVP de la final' }],
     school: 'IES Pozuelo', course: '4º ESO', gpa: '8.6', english: 'Intermedio', other_languages: 'Ninguno', graduation_date: '2026-06-20',
@@ -2086,6 +2098,270 @@ SF.SEED_PLAYERS = [
     capture_date: '2026-06-12', documents: { pasaporte: 'pendiente', expediente: 'pendiente', video_highlights: 'pendiente', seguro_medico: 'pendiente' } })
 ];
 
+/* ===================== PLANTILLA DE DEMOSTRACIÓN =====================
+   El Cadete Masculino A al completo, para poder enseñar a un club cómo se ve
+   un equipo de verdad y no una pantalla con tres fichas sueltas.
+
+   TODO ES INVENTADO. Nombres, teléfonos, correos y DNI no corresponden a
+   ninguna persona: los DNI empiezan por 99, que no se emite en España, y los
+   correos usan example.com, que está reservado justo para esto. Una
+   demostración NUNCA debe hacerse con datos reales de menores.
+
+   En vez de escribir doce fichas de cuarenta líneas, aquí va una tabla
+   compacta y un generador que reconstruye el historial hacia atrás. Es menos
+   código, se lee de un vistazo y, sobre todo, no se contradice a sí mismo.
+
+   Temporada 2026/2027: cadete es 2010 (segundo año) y 2011 (primero).
+
+   Cada jugador lleva algo distinto a propósito, para que cada pantalla de la
+   app tenga qué enseñar: uno con papeles pendientes, uno con la cuota
+   vencida, uno con beca, uno con asimetría alta entre piernas, nacidos a
+   final de año para el aviso de edad relativa, y dos que llegan de fuera. */
+SF.SQUAD_ROWS = [
+  { id: 'p8', nom: 'Hugo', ape: 'Serrano', d: '2010-05-18', pos: 'Base', pos2: 'Escolta', dor: '4',
+    alt: 176, peso: 68, crec: 11, anos: 4, cap: true,
+    notas: { 'Tiro': 4, 'Bote': 5, 'Pase': 5, 'Finalización': 3, 'Ataque 1x1': 4, 'Juego sin balón': 4, 'Defensa': 4, 'Robo de balón': 4, 'Lectura de juego': 5, 'Velocidad': 4, 'Coordinación': 4, 'Resistencia aeróbica': 4, 'Liderazgo': 5, 'Competitividad': 5 },
+    cmj: 41.0, sl: 21.0, sr: 21.8, rsi: 1.28, sp: 3.02, cod: 5.31,
+    padre: 178, madre: 165, cole: 'IES Vicente Aleixandre', curso: '4º ESO', gpa: '7.9',
+    fam: ['Rosa Serrano', 'Madre'], docs: 'ok', pagos: 'al_dia',
+    nota_int: 'Capitán desde 2024. Es el que ordena al equipo cuando el partido se rompe.' },
+
+  { id: 'p9', nom: 'Nicolás', ape: 'Vega', d: '2011-11-27', pos: 'Base', pos2: '', dor: '5',
+    alt: 169, peso: 58, crec: 13, anos: 4,
+    notas: { 'Tiro': 3, 'Bote': 4, 'Pase': 4, 'Finalización': 3, 'Ataque 1x1': 3, 'Juego sin balón': 3, 'Defensa': 3, 'Robo de balón': 4, 'Lectura de juego': 4, 'Velocidad': 4, 'Coordinación': 4, 'Resistencia aeróbica': 3, 'Liderazgo': 3, 'Competitividad': 4 },
+    cmj: 34.2, sl: 17.4, sr: 18.1, rsi: 1.05, sp: 3.21, cod: 5.58,
+    padre: 182, madre: 171, cole: 'Colegio Santa María', curso: '3º ESO', gpa: '8.4',
+    fam: ['Javier Vega', 'Padre'], docs: 'ok', pagos: 'al_dia',
+    nota_int: 'De los más pequeños del año y compite igual. Ojo con no descartarlo por físico: aún no ha pegado el estirón.' },
+
+  { id: 'p10', nom: 'Adrián', ape: 'Cuesta', d: '2010-01-09', pos: 'Escolta', pos2: 'Base', dor: '6',
+    alt: 181, peso: 72, crec: 9, anos: 4,
+    notas: { 'Tiro': 5, 'Bote': 3, 'Pase': 3, 'Finalización': 4, 'Ataque 1x1': 3, 'Juego sin balón': 5, 'Defensa': 3, 'Robo de balón': 3, 'Lectura de juego': 3, 'Velocidad': 3, 'Coordinación': 4, 'Resistencia aeróbica': 4, 'Liderazgo': 3, 'Competitividad': 4 },
+    cmj: 39.5, sl: 20.1, sr: 20.9, rsi: 1.19, sp: 3.11, cod: 5.44,
+    padre: 184, madre: 168, cole: 'IES Vicente Aleixandre', curso: '4º ESO', gpa: '6.8',
+    fam: ['Elena Prats', 'Madre'], docs: 'ok', pagos: 'pendiente',
+    nota_int: 'El mejor tirador del equipo. Trabaja el bote con la izquierda.' },
+
+  { id: 'p11', nom: 'Iker', ape: 'Molina', d: '2011-04-02', pos: 'Escolta', pos2: 'Alero', dor: '7',
+    alt: 178, peso: 66, crec: 12, anos: 4,
+    notas: { 'Tiro': 3, 'Bote': 4, 'Pase': 3, 'Finalización': 4, 'Ataque 1x1': 4, 'Juego sin balón': 3, 'Defensa': 4, 'Robo de balón': 3, 'Lectura de juego': 3, 'Velocidad': 5, 'Coordinación': 4, 'Resistencia aeróbica': 4, 'Liderazgo': 3, 'Competitividad': 4 },
+    cmj: 40.1, sl: 20.4, sr: 21.2, rsi: 1.22, sp: 2.94, cod: 5.26,
+    padre: 176, madre: 163, cole: 'Colegio Los Olivos', curso: '3º ESO', gpa: '7.2',
+    fam: ['Ana Molina', 'Madre'], docs: 'falta_seguro', pagos: 'al_dia',
+    nota_int: 'El más rápido de la plantilla en los 20 metros.' },
+
+  { id: 'p12', nom: 'Marcos', ape: 'Ruiz', d: '2010-09-14', pos: 'Alero', pos2: 'Escolta', dor: '8',
+    alt: 185, peso: 75, crec: 10, anos: 4,
+    notas: { 'Tiro': 4, 'Bote': 3, 'Pase': 4, 'Finalización': 4, 'Ataque 1x1': 4, 'Juego sin balón': 4, 'Rebote': 3, 'Defensa': 4, 'Robo de balón': 3, 'Lectura de juego': 4, 'Fuerza explosiva': 4, 'Velocidad': 4, 'Coordinación': 4, 'Resistencia aeróbica': 4, 'Liderazgo': 4, 'Competitividad': 4 },
+    cmj: 42.3, sl: 21.6, sr: 22.4, rsi: 1.30, sp: 3.05, cod: 5.35,
+    padre: 181, madre: 170, cole: 'IES Pozuelo', curso: '4º ESO', gpa: '7.5',
+    fam: ['Carmen Ruiz', 'Madre'], docs: 'ok', pagos: 'vencido' },
+
+  { id: 'p13', nom: 'Bruno', ape: 'Salas', d: '2011-02-21', pos: 'Alero', pos2: 'Ala-pívot', dor: '9',
+    alt: 183, peso: 71, crec: 14, anos: 4,
+    /* Asimetría alta a propósito: es el caso que dispara el aviso. */
+    cmj: 37.8, sl: 17.9, sr: 21.4, rsi: 1.08, sp: 3.14, cod: 5.62,
+    notas: { 'Tiro': 3, 'Bote': 3, 'Pase': 3, 'Finalización': 4, 'Ataque 1x1': 4, 'Juego sin balón': 3, 'Rebote': 4, 'Defensa': 4, 'Robo de balón': 3, 'Lectura de juego': 3, 'Fuerza explosiva': 3, 'Velocidad': 3, 'Coordinación': 3, 'Resistencia aeróbica': 4, 'Liderazgo': 3, 'Competitividad': 5 },
+    padre: 187, madre: 172, cole: 'Colegio Santa María', curso: '3º ESO', gpa: '6.5',
+    fam: ['Luis Salas', 'Padre'], docs: 'ok', pagos: 'al_dia',
+    lesion: 'Sobrecarga en el cuádriceps izquierdo (marzo 2026), recuperado',
+    nota_int: 'Salta bastante menos con la izquierda. Comentado con el preparador; en seguimiento.' },
+
+  { id: 'p14', nom: 'Tomás', ape: 'Iglesias', d: '2010-07-30', pos: 'Ala-pívot', pos2: 'Pívot', dor: '10',
+    alt: 190, peso: 82, crec: 12, anos: 4,
+    notas: { 'Tiro': 3, 'Bote': 2, 'Pase': 3, 'Finalización': 4, 'Ataque 1x1': 3, 'Juego sin balón': 4, 'Rebote': 5, 'Defensa': 4, 'Robo de balón': 2, 'Lectura de juego': 3, 'Fuerza explosiva': 4, 'Potencia': 5, 'Coordinación': 3, 'Resistencia aeróbica': 3, 'Liderazgo': 3, 'Competitividad': 4 },
+    cmj: 38.9, sl: 19.6, sr: 20.3, rsi: 1.14, sp: 3.28, cod: 5.71,
+    padre: 192, madre: 174, cole: 'IES Pozuelo', curso: '4º ESO', gpa: '7.0',
+    fam: ['Marta Iglesias', 'Madre'], docs: 'ok', pagos: 'beca',
+    nota_int: 'Beca parcial del 50 % desde 2025. Situación familiar revisada cada temporada por dirección.' },
+
+  { id: 'p15', nom: 'Gonzalo', ape: 'Prieto', d: '2011-06-11', pos: 'Ala-pívot', pos2: 'Alero', dor: '11',
+    alt: 187, peso: 74, crec: 16, anos: 4,
+    notas: { 'Tiro': 3, 'Bote': 3, 'Pase': 3, 'Finalización': 3, 'Ataque 1x1': 3, 'Juego sin balón': 3, 'Rebote': 4, 'Defensa': 3, 'Robo de balón': 3, 'Lectura de juego': 3, 'Fuerza explosiva': 3, 'Coordinación': 3, 'Resistencia aeróbica': 3, 'Liderazgo': 3, 'Competitividad': 4 },
+    cmj: 36.4, sl: 18.2, sr: 19.0, rsi: 1.02, sp: 3.19, cod: 5.66,
+    /* Padres muy altos: sirve para enseñar la talla diana y por qué no se
+       enseña nunca a la familia. */
+    padre: 198, madre: 181, cole: 'Colegio Los Olivos', curso: '3º ESO', gpa: '8.1',
+    fam: ['Sonia Prieto', 'Madre'], docs: 'falta_expediente', pagos: 'al_dia',
+    nota_int: 'Ha crecido 16 cm en cuatro temporadas y no ha terminado. Aún descoordinado, normal a esta velocidad de crecimiento.' },
+
+  { id: 'p16', nom: 'Álvaro', ape: 'Nieto', d: '2010-04-25', pos: 'Pívot', pos2: 'Ala-pívot', dor: '12',
+    alt: 196, peso: 88, crec: 13, anos: 4,
+    notas: { 'Tiro': 2, 'Bote': 2, 'Pase': 3, 'Finalización': 4, 'Ataque 1x1': 3, 'Juego sin balón': 3, 'Rebote': 5, 'Defensa': 4, 'Robo de balón': 2, 'Lectura de juego': 3, 'Fuerza explosiva': 4, 'Potencia': 5, 'Coordinación': 3, 'Resistencia aeróbica': 3, 'Liderazgo': 4, 'Competitividad': 4 },
+    cmj: 37.1, sl: 18.8, sr: 19.4, rsi: 1.06, sp: 3.34, cod: 5.82,
+    padre: 194, madre: 176, cole: 'IES Vicente Aleixandre', curso: '4º ESO', gpa: '6.9',
+    fam: ['Diego Nieto', 'Padre'], docs: 'ok', pagos: 'al_dia',
+    seleccion: 'Selección Madrid' },
+
+  /* --- Los dos que llegan de fuera esta temporada, de clubes distintos --- */
+  { id: 'p17', nom: 'Youssef', ape: 'Benali', d: '2011-08-08', pos: 'Pívot', pos2: '', dor: '13',
+    alt: 194, peso: 79, crec: 0, anos: 1, nac: ['Marruecos', 'España'],
+    origen: { club: 'CB Fuenlabrada', seasons: [
+      { season: '2024/2025', category: 'Infantil', competition: 'Liga Infantil FBM' },
+      { season: '2025/2026', category: 'Cadete', competition: 'Liga Cadete FBM', finish: '4º' }] },
+    notas: { 'Tiro': 2, 'Bote': 2, 'Pase': 2, 'Finalización': 4, 'Ataque 1x1': 3, 'Juego sin balón': 3, 'Rebote': 4, 'Defensa': 3, 'Robo de balón': 2, 'Lectura de juego': 2, 'Fuerza explosiva': 4, 'Potencia': 4, 'Coordinación': 3, 'Resistencia aeróbica': 3, 'Liderazgo': 3, 'Competitividad': 4 },
+    cmj: 38.2, sl: 19.1, sr: 19.9, rsi: 1.11, sp: 3.25, cod: 5.74,
+    padre: 190, madre: 172, cole: 'IES Vicente Aleixandre', curso: '3º ESO', gpa: '7.4',
+    fam: ['Karim Benali', 'Padre'], docs: 'falta_todo', pagos: 'pendiente',
+    nota_int: 'Llega de Fuenlabrada. Físicamente muy por delante; le falta todo lo técnico. Paciencia el primer año.' },
+
+  { id: 'p18', nom: 'Leo', ape: 'Ferrari', d: '2010-12-03', pos: 'Escolta', pos2: 'Alero', dor: '14',
+    alt: 184, peso: 73, crec: 0, anos: 1, nac: ['Italia', 'España'],
+    origen: { club: 'Real Canoe', seasons: [
+      { season: '2025/2026', category: 'Cadete', competition: 'Liga Cadete FBM', finish: '6º' }] },
+    notas: { 'Tiro': 4, 'Bote': 4, 'Pase': 4, 'Finalización': 3, 'Ataque 1x1': 4, 'Juego sin balón': 3, 'Defensa': 3, 'Robo de balón': 3, 'Lectura de juego': 4, 'Velocidad': 4, 'Coordinación': 4, 'Resistencia aeróbica': 3, 'Liderazgo': 3, 'Competitividad': 4 },
+    cmj: 40.6, sl: 20.7, sr: 21.5, rsi: 1.24, sp: 3.08, cod: 5.39,
+    padre: 183, madre: 169, cole: 'Colegio Los Olivos', curso: '4º ESO', gpa: '8.8',
+    fam: ['Giulia Ferrari', 'Madre'], docs: 'falta_seguro', pagos: 'al_dia',
+    nota_int: 'Llega del Canoe. Muy buen expediente académico; la familia pregunta por la vía universitaria en Estados Unidos.' }
+];
+
+/* Reconstruye el historial de cada jugador hacia atrás desde lo que es hoy.
+   Un club no rellena cuatro temporadas de golpe, pero para una demostración
+   necesitamos que existan; lo que no hacemos es inventarlas al azar: se
+   aplica una curva de crecimiento y una progresión de notas coherentes con
+   la edad, para que lo que se enseñe sea creíble. */
+SF.buildSquad = function () {
+  var TEMPS = ['2023/2024', '2024/2025', '2025/2026', '2026/2027'];
+  var F_MED = ['2023-10-04', '2024-09-30', '2025-09-15', '2026-07-10'];
+  var F_EVA = ['2024-05-20', '2025-05-15', '2026-06-10'];
+  /* Fracción del crecimiento que aún le quedaba en cada temporada. Se estira
+     al final: en cadete se crece menos que en infantil. */
+  var CURVA = { 4: [1, 0.55, 0.22, 0], 3: [1, 0.5, 0], 2: [1, 0], 1: [0] };
+  var PF = { by: 'Diego Sosa', role: 'Preparador Físico' };
+  var ENT = { by: 'Carlos Gorosito', role: 'Entrenador' };
+
+  function r1(x) { return Math.round(x * 10) / 10; }
+  function r2(x) { return Math.round(x * 100) / 100; }
+
+  return SF.SQUAD_ROWS.map(function (r, idx) {
+    var n = r.anos, k0 = 4 - n, curva = CURVA[n];
+    var num = idx + 8;
+
+    /* --- Medidas, una por temporada suya --- */
+    var med = [];
+    for (var k = 0; k < n; k++) {
+      var f = curva[k];                                   // 1 = lo más antiguo
+      var alt = Math.round(r.alt - r.crec * f);
+      var pes = Math.round(r.peso - (r.crec * 0.75) * f);
+      med.push({
+        by: PF.by, role: PF.role, date: F_MED[k0 + k], season: TEMPS[k0 + k],
+        height_cm: alt, weight_kg: pes,
+        wingspan_cm: Math.round(alt + (r.pos === 'Pívot' || r.pos === 'Ala-pívot' ? 6 : 3)),
+        vertical_reach_stand: Math.round(alt * 1.29),
+        vertical_reach_run: Math.round(alt * 1.29 + (r.cmj - 8 * f)),
+        long_jump_stand_cm: Math.round(r.cmj * 5.1 - 26 * f),
+        long_jump_run_cm: Math.round(r.cmj * 6.2 - 34 * f),
+        torso_height_cm: Math.round(alt * 0.5),
+        foot_length_cm: Math.round(alt / 6.4),
+        hand_length_cm: Math.round(alt / 8.7),
+        dominant_hand: r.zurdo ? 'Izquierda' : 'Derecha',
+        uses_both_hands: f > 0.5 ? 'No' : 'Sí',
+        cmj_cm: r1(r.cmj - 8 * f),
+        jump_single_l_cm: r1(r.sl - 4 * f),
+        jump_single_r_cm: r1(r.sr - 4 * f),
+        dropjump_rsi: r2(r.rsi - 0.3 * f),
+        sprint20_s: r2(r.sp + 0.26 * f),          // antes tardaba más
+        cod_s: r2(r.cod + 0.4 * f),
+        decel_s: r2(1.34 + 0.16 * f),
+        nordic_n: Math.round(320 - 70 * f),
+        ankle_rom_deg: Math.round(36 - 4 * f),
+        measured_with: 'My Jump Lab'
+      });
+    }
+
+    /* --- Evaluaciones: las tres de fin de temporada que le corresponden ---
+       El que llega de fuera solo tiene la de la prueba de acceso. */
+    var evs = [];
+    function notasDe(resta, quitar) {
+      var o = {}, keys = Object.keys(r.notas);
+      keys.forEach(function (sk, i) {
+        if (quitar && i >= keys.length - 3) return;       // apartados que aún no se evaluaban
+        var v = Math.round(r.notas[sk] - resta);
+        o[sk] = Math.max(1, Math.min(5, v));
+      });
+      return o;
+    }
+    if (n === 1) {
+      evs.push({ by: ENT.by, role: ENT.role, date: '2026-06-25', season: '2026/2027', stats: notasDe(0) });
+    } else {
+      for (var e = 0; e < 3; e++) {
+        if (e < k0) continue;                             // aún no estaba en el club
+        evs.push({ by: ENT.by, role: ENT.role, date: F_EVA[e], season: TEMPS[e],
+          stats: notasDe((2 - e) * 0.7, e === 0) });
+      }
+    }
+
+    /* --- Papeles y dinero: cada estado enseña una pantalla distinta --- */
+    var DOCS = {
+      ok: { pasaporte: 'validado', expediente: 'validado', video_highlights: 'validado', seguro_medico: 'validado' },
+      falta_seguro: { pasaporte: 'validado', expediente: 'validado', video_highlights: 'recibido', seguro_medico: 'pendiente' },
+      falta_expediente: { pasaporte: 'validado', expediente: 'pendiente', video_highlights: 'validado', seguro_medico: 'validado' },
+      falta_todo: { pasaporte: 'recibido', expediente: 'pendiente', video_highlights: 'pendiente', seguro_medico: 'pendiente' }
+    };
+    var cuota = r.pagos === 'beca' ? 48 : 95;
+    var meses = ['Marzo', 'Abril', 'Mayo', 'Junio'];
+    var pendDesde = { al_dia: 9, beca: 9, pendiente: 2, vencido: 1 }[r.pagos];
+    var items = [{ id: r.id + '-ins', type: 'inscripcion', label: 'Inscripción', month: '', amount: 150,
+      status: r.pagos === 'vencido' ? 'pendiente' : 'pagado', method: 'Recibo domiciliado' }];
+    meses.forEach(function (m, mi) {
+      items.push({ id: r.id + '-' + mi, type: 'cuota', label: 'Cuota ' + m, month: m, amount: cuota,
+        status: mi >= pendDesde ? 'pendiente' : 'pagado' });
+    });
+
+    return P({
+      id: r.id, scoutflow_id: 'SF-2026-' + String(num).padStart(4, '0'),
+      first_name: r.nom, last_name: r.ape, full_name: r.nom + ' ' + r.ape,
+      birth_date: r.d, birth_year: +r.d.slice(0, 4), gender: 'M',
+      nationality: r.nac || ['España'], residence_country: 'España', city: 'Madrid',
+      sport: 'baloncesto', primary_position: r.pos, secondary_position: r.pos2 || '',
+      height_cm: r.alt, weight_kg: r.peso,
+      wingspan_cm: med[n - 1].wingspan_cm, torso_height_cm: med[n - 1].torso_height_cm,
+      foot_length_cm: med[n - 1].foot_length_cm, hand_length_cm: med[n - 1].hand_length_cm,
+      vertical_reach_stand: med[n - 1].vertical_reach_stand, vertical_reach_run: med[n - 1].vertical_reach_run,
+      long_jump_stand_cm: med[n - 1].long_jump_stand_cm, long_jump_run_cm: med[n - 1].long_jump_run_cm,
+      cmj_cm: r.cmj, jump_single_l_cm: r.sl, jump_single_r_cm: r.sr, dropjump_rsi: r.rsi,
+      sprint20_s: r.sp, cod_s: r.cod, decel_s: med[n - 1].decel_s,
+      nordic_n: med[n - 1].nordic_n, ankle_rom_deg: med[n - 1].ankle_rom_deg,
+      measured_with: 'My Jump Lab',
+      dominant_hand: r.zurdo ? 'Izquierda' : 'Derecha', uses_both_hands: med[n - 1].uses_both_hands,
+      dorsal: r.dor, team_id: 't1', status: 'Inscrito',
+      club: 'CBJA Academy', league: 'Liga Cadete FBM', category: 'Cadete',
+      start_age: n === 1 ? 11 : 12 - n,
+      channel: n === 1 ? 'Scout' : 'Referencia',
+      capture_date: n === 1 ? '2026-06-18' : '2023-05-20',
+      responsible: 'Carlos Gorosito',
+      career_history: (r.origen ? [r.origen] : []).concat([{
+        club: 'CBJA Academy',
+        seasons: TEMPS.slice(k0).map(function (t, i) {
+          return { season: t, category: (+t.slice(0, 4) - (+r.d.slice(0, 4))) >= 15 ? 'Cadete' : 'Infantil',
+            competition: 'Liga ' + ((+t.slice(0, 4) - (+r.d.slice(0, 4))) >= 15 ? 'Cadete' : 'Infantil') + ' FBM' };
+        })
+      }]),
+      selections: { local: '', provincial: '', regional: r.seleccion || '', national: '' },
+      school: r.cole, course: r.curso, gpa: r.gpa, english: 'Intermedio',
+      dni: '99' + String(100000 + num * 137).slice(0, 6) + 'Z',
+      address: 'Madrid', emergency_phone: '+34 600 ' + (700 + num) + ' ' + (100 + num),
+      family_active: r.docs === 'ok',
+      family: { contact: r.fam[0], relation: r.fam[1],
+        phone: '+34 600 ' + (700 + num) + ' ' + (100 + num),
+        email: r.nom.toLowerCase().replace(/[áéíóúñ]/g, '') + '.' + r.ape.toLowerCase().replace(/[áéíóúñ]/g, '') + '@example.com',
+        father_height_cm: r.padre, mother_height_cm: r.madre },
+      medical: { congenital: 'No', congenital_detail: '', surgeries: 'No', surgeries_detail: '',
+        injuries: r.lesion ? 'Sí' : 'No', injuries_detail: r.lesion || '',
+        cardio_resp: 'No', cardio_resp_detail: '', blood_type: '', allergies: 'Ninguna conocida',
+        correctors: '', vaccination: 'Sí', notes: '' },
+      documents: DOCS[r.docs],
+      finance: { items: items },
+      notes_internal: r.nota_int || '',
+      stats: r.notas,
+      eval_log: evs, measure_log: med
+    });
+  });
+};
+
+SF.SEED_PLAYERS = SF.SEED_PLAYERS.concat(SF.buildSquad());
+
 </script>
   <script>
 /* js/store.js */
@@ -2131,7 +2407,7 @@ SF.store = (function () {
       expenses: JSON.parse(JSON.stringify(SF.EXPENSES || [])),
       staff: JSON.parse(JSON.stringify(SF.STAFF || [])),
       role: 'director',
-      seq: 8, teamSeq: (SF.TEAMS ? SF.TEAMS.length + 1 : 1)
+      seq: (SF.SEED_PLAYERS ? SF.SEED_PLAYERS.length + 1 : 8), teamSeq: (SF.TEAMS ? SF.TEAMS.length + 1 : 1)
     };
   }
 
