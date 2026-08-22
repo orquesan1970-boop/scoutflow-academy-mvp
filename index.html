@@ -2656,6 +2656,15 @@ SF.store = (function () {
       d.ann_aud_v1 = true;
       write(d);
     }
+    /* Los hilos nacieron con un solo destinatario. Ahora admiten varios, así
+       que el que había se convierte en una lista de uno. */
+    if (!d.conv_multi_v1) {
+      (d.convs || []).forEach(function (c) {
+        if (!c.to_staff_ids) c.to_staff_ids = c.to_staff ? [c.to_staff] : [];
+      });
+      d.conv_multi_v1 = true;
+      write(d);
+    }
     return d;
   }
 
@@ -2964,20 +2973,28 @@ SF.store = (function () {
        Un hilo: asunto, quién lo abre, a quién va, y mensajes debajo. Los
        supervisores se guardan al crearlo: si mañana cambia el director, la
        conversación no cambia de dueños retroactivamente. */
+    /* to_staff admite uno o varios. Un mensaje a cinco entrenadores es UN
+       hilo con cinco destinatarios: si fueran cinco hilos, nadie vería la
+       respuesta del otro y la coordinación se pierde, que es justo para lo
+       que sirve. Cuando NO se quiere eso, quien escribe marca "que cada uno
+       responda solo a mí" y entonces sí se crean hilos separados. */
     convCreate: function (data) {
       var d = db(); d.convs = d.convs || [];
+      var ids = data.to_staff_ids || (data.to_staff ? [data.to_staff] : []);
+      var ahora = new Date().toISOString();
       var c = {
-        id: 'c' + Date.now(),
+        id: 'c' + Date.now() + Math.floor(Math.random() * 1000),
         player_id: data.player_id || null,
         team_id: data.team_id || null,
         subject: data.subject,
         opened_by: data.from,                  // {kind, id, name, role}
-        to_staff: data.to_staff,               // id de la ficha de staff
+        to_staff_ids: ids,
+        to_staff: ids[0] || null,              // se conserva por compatibilidad
         supervisores: (SF.supervisoresDe(data.team_id) || []).map(function (s) { return s.id; }),
-        created_at: new Date().toISOString(),
+        created_at: ahora,
         closed_at: null,
         messages: [{
-          at: new Date().toISOString(), by: data.from, text: data.text,
+          at: ahora, by: data.from, text: data.text,
           read_by: [data.from.kind === 'staff' ? data.from.id : data.from.kind]
         }]
       };
@@ -3028,7 +3045,8 @@ SF.store = (function () {
     convsForStaff: function (staffId) {
       return (db().convs || [])
         .filter(function (c) {
-          if (c.to_staff === staffId) return true;
+          var dest = c.to_staff_ids || (c.to_staff ? [c.to_staff] : []);
+          if (dest.indexOf(staffId) >= 0) return true;
           if (c.opened_by && c.opened_by.kind === 'staff' && c.opened_by.id === staffId) return true;
           return (c.supervisores || []).indexOf(staffId) >= 0;
         })
@@ -8657,9 +8675,20 @@ window.SF = window.SF || {};
   function abrirHilo(c, me) {
     var p = c.player_id ? SF.store.get(c.player_id) : null;
     var box = el('<div></div>');
-    var supervisa = c.to_staff !== me.id && !(c.opened_by && c.opened_by.id === me.id);
+    var destIds = c.to_staff_ids || (c.to_staff ? [c.to_staff] : []);
+    var supervisa = destIds.indexOf(me.id) < 0 && !(c.opened_by && c.opened_by.id === me.id);
     if (p) box.appendChild(el('<p class="hint">Sobre <b>' + esc(p.full_name) + '</b>' +
       (p.team_id ? ' · ' + esc((SF.store.teamGet(p.team_id) || {}).name || '') : '') + '</p>'));
+    /* Con varios destinatarios hay que decir quiénes son: si no, nadie sabe
+       si su respuesta la va a leer solo quien preguntó o todo el club. */
+    if (destIds.length > 1) {
+      var nombres = destIds.map(function (id) {
+        var s = SF.store.staff().filter(function (x) { return x.id === id; })[0];
+        return s ? s.full_name : null;
+      }).filter(Boolean);
+      box.appendChild(el('<p class="hint">Va a <b>' + destIds.length + ' personas</b>: ' + esc(nombres.join(', ')) +
+        '. Lo que respondas lo verán todas.</p>'));
+    }
     if (supervisa) box.appendChild(el('<p class="aviso-lin">Ves esta conversación porque supervisas este equipo, no porque vaya dirigida a ti. Puedes responder si hace falta, y quedará con tu nombre.</p>'));
 
     var hilo = el('<div></div>');
@@ -8700,35 +8729,92 @@ window.SF = window.SF || {};
   function nuevoHiloStaff(me) {
     var otros = SF.store.staff().filter(function (s) { return s.id !== me.id; });
     if (!otros.length) { U.toast('No hay nadie más en el club'); return; }
+    var sel = {};
     var box = el('<div></div>');
     var f = el('<div class="form-grid">' +
-      '<div class="frow"><label>¿A quién?</label><select id="qd">' + otros.map(function (s) {
-        return '<option value="' + s.id + '">' + esc(s.full_name) + ' · ' + esc(roleLabel(s.role)) + '</option>';
-      }).join('') + '</select></div>' +
       '<div class="frow"><label>Sobre un jugador <span class="hint">opcional</span></label><select id="qp"><option value="">—</option>' +
         scopedPlayers().map(function (p) { return '<option value="' + p.id + '">' + esc(p.full_name) + '</option>'; }).join('') +
       '</select></div>' +
-      '<div class="frow" style="grid-column:1/-1"><label>Asunto</label><input id="qs" placeholder="Disponibilidad para el sábado"></div>' +
+      '<div class="frow"><label>Asunto</label><input id="qs" placeholder="Disponibilidad para el sábado"></div>' +
       '<div class="frow" style="grid-column:1/-1"><label>Mensaje</label><textarea id="qb" rows="4"></textarea></div></div>');
     box.appendChild(f);
+
+    /* --- Destinatarios: varios --- */
+    box.appendChild(el('<p class="sec-label">¿A quién?</p>'));
+    var atajos = el('<div class="row-c" style="margin-bottom:8px"></div>');
+    var cuenta = el('<p class="hint"></p>');
+    var lista = el('<div class="att-list"></div>');
+
+    function pinta() {
+      lista.innerHTML = '';
+      /* Agrupados por rol: en un club de veinte personas, una lista plana de
+         nombres no dice quién es quién. */
+      var porRol = {};
+      otros.forEach(function (s) { (porRol[s.role] = porRol[s.role] || []).push(s); });
+      Object.keys(porRol).forEach(function (rol) {
+        lista.appendChild(el('<p class="hint" style="margin:8px 0 2px">' + esc(roleLabel(rol)) + '</p>'));
+        porRol[rol].forEach(function (s) {
+          var on = !!sel[s.id];
+          var eq = (s.team_ids || []).map(function (id) { return (SF.store.teamGet(id) || {}).name; }).filter(Boolean);
+          var row = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span>' +
+            (on ? '☑ ' : '☐ ') + '<b>' + esc(s.full_name) + '</b>' +
+            (eq.length ? ' <span class="hint">· ' + esc(eq.join(', ')) + '</span>' : '') + '</span></button>');
+          row.onclick = function () { sel[s.id] = !sel[s.id]; pinta(); };
+          lista.appendChild(row);
+        });
+      });
+      var n = Object.keys(sel).filter(function (k) { return sel[k]; }).length;
+      cuenta.textContent = n ? (n === 1 ? '1 destinatario seleccionado' : n + ' destinatarios seleccionados')
+                             : 'Marca al menos uno.';
+    }
+    var bTodos = el('<button class="btn btn-light btn-sm">Todos</button>');
+    var bNadie = el('<button class="btn btn-light btn-sm">Ninguno</button>');
+    var bTec = el('<button class="btn btn-light btn-sm">Solo cuerpo técnico</button>');
+    bTodos.onclick = function () { otros.forEach(function (s) { sel[s.id] = true; }); pinta(); };
+    bNadie.onclick = function () { sel = {}; pinta(); };
+    bTec.onclick = function () {
+      sel = {};
+      otros.forEach(function (s) {
+        if (['entrenador', 'preparador_fisico', 'fisioterapeuta', 'psicologo'].indexOf(s.role) >= 0) sel[s.id] = true;
+      });
+      pinta();
+    };
+    atajos.appendChild(bTodos); atajos.appendChild(bTec); atajos.appendChild(bNadie);
+    box.appendChild(atajos); box.appendChild(cuenta); box.appendChild(lista);
+
+    /* Un hilo compartido es lo normal para coordinarse: preguntas quién puede
+       el sábado y todos ven las respuestas. Cuando no interesa que se lean
+       entre ellos, se marca esto y salen hilos separados. */
+    var priv = el('<label class="chk" style="margin-top:10px"><input type="checkbox" id="qpriv"> ' +
+      'Que cada uno responda solo a mí, sin ver las respuestas de los demás</label>');
+    box.appendChild(priv);
+    pinta();
+
     var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Enviar</button></div>');
     foot.children[0].onclick = U.closeModal;
     foot.children[1].onclick = function () {
       var asunto = f.querySelector('#qs').value.trim();
       var texto = f.querySelector('#qb').value.trim();
+      var ids = Object.keys(sel).filter(function (k) { return sel[k]; });
+      if (!ids.length) { U.toast('Elige al menos un destinatario'); return; }
       if (!asunto) { U.toast('Ponle un asunto'); return; }
       if (!texto) { U.toast('Escribe el mensaje'); return; }
       var pid = f.querySelector('#qp').value;
       var pj = pid ? SF.store.get(pid) : null;
-      SF.store.convCreate({
-        player_id: pid || null, team_id: pj ? pj.team_id : null,
-        subject: asunto, text: texto, to_staff: f.querySelector('#qd').value,
-        from: { kind: 'staff', id: me.id, name: me.full_name, role: roleLabel(me.role) }
-      });
-      U.closeModal(); U.toast('Mensaje enviado'); SF.router.render();
+      var de = { kind: 'staff', id: me.id, name: me.full_name, role: roleLabel(me.role) };
+      var base = { player_id: pid || null, team_id: pj ? pj.team_id : null, subject: asunto, text: texto, from: de };
+
+      if (priv.querySelector('#qpriv').checked) {
+        ids.forEach(function (id) { SF.store.convCreate(Object.assign({}, base, { to_staff_ids: [id] })); });
+      } else {
+        SF.store.convCreate(Object.assign({}, base, { to_staff_ids: ids }));
+      }
+      U.closeModal();
+      U.toast('Enviado a ' + ids.length + (ids.length === 1 ? ' persona' : ' personas'));
+      SF.router.render(); SF.router.renderShell();
     };
     box.appendChild(foot);
-    U.modal('Escribir a un compañero', box);
+    U.modal('Escribir a compañeros', box);
   }
 
   pages['mis-avisos'] = function (view) {
@@ -8757,9 +8843,11 @@ window.SF = window.SF || {};
         var p = c.player_id ? SF.store.get(c.player_id) : null;
         var ult = c.messages[c.messages.length - 1];
         var nuevos = SF.store.convSinLeer(c, me.id);
-        var mio = c.to_staff === me.id || (c.opened_by && c.opened_by.id === me.id);
+        var dIds = c.to_staff_ids || (c.to_staff ? [c.to_staff] : []);
+        var mio = dIds.indexOf(me.id) >= 0 || (c.opened_by && c.opened_by.id === me.id);
         var row = el('<div class="mini-row"><span><b>' + esc(c.subject) + '</b>' +
           (nuevos ? ' <span class="tag tag-purple">' + nuevos + ' sin leer</span>' : '') +
+          (dIds.length > 1 ? ' <span class="tag tag-gray">a ' + dIds.length + '</span>' : '') +
           (mio ? '' : ' <span class="tag tag-gray">supervisas</span>') +
           (c.closed_at ? ' <span class="tag tag-green">cerrada</span>' : '') +
           '<br><span class="hint">' + esc(ult.by.name) + ' · ' + esc(ult.by.role) +
