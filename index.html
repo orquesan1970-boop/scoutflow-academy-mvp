@@ -326,6 +326,11 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .evo-band-txt{flex:1;min-width:200px;display:flex;flex-direction:column;gap:3px}
 .evo-band-txt b{font-size:14.5px}
 .evo-band-txt span{font-size:12.5px;color:var(--ink-3)}
+
+/* Buscador de familias: con novecientas, esta pantalla es un buscador. */
+.fam-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.fam-bar input{flex:1 1 320px;min-width:0}
+.fam-bar select{flex:0 0 auto}
 .evo-lead{font-size:14px;color:var(--ink-2);margin:0 0 14px;line-height:1.55}
 .evo-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px}
 .evo-tab{width:100%;border-collapse:collapse;font-size:13px;min-width:340px}
@@ -5194,7 +5199,31 @@ window.SF = window.SF || {};
           fld('Fecha de graduación', p.graduation_date) + fld('Intereses', p.objective) + '</div>'));
       } else if (cur === 'familia') {
         var fam = p.family || {};
-        body.appendChild(el('<div class="field-grid">' + fld('Contacto', fam.contact) + fld('Relación', fam.relation) + fld('Teléfono', fam.phone) + fld('Email', fam.email) + fld('Family activo', p.family_active ? 'Sí' : 'No') + '</div>'));
+        body.appendChild(el('<div class="field-grid">' + fld('Contacto', fam.contact) + fld('Relación', fam.relation) + fld('Teléfono', fam.phone) + fld('Email', fam.email) + '</div>'));
+
+        /* El acceso al portal se gestiona AQUÍ, además de en la pantalla
+           Family. En un club de novecientos jugadores nadie va a buscar a una
+           familia en una lista: llega por la ficha del chaval, que es por
+           donde se llega a todo lo demás. */
+        (function () {
+          var r2 = role();
+          if (r2.tabs !== 'all' && ['director', 'administrativo', 'dt_general'].indexOf(SF.store.role()) < 0) return;
+          var banda = el('<div class="evo-band"></div>');
+          banda.appendChild(el('<div class="evo-band-txt"><b>Portal de la familia</b><span>' +
+            (p.family_active
+              ? esc(fam.contact || 'La familia') + ' puede ver la ficha, los avisos y los pagos de ' + esc(p.full_name.split(' ')[0]) + '.'
+              : 'Sin acceso. No ve nada del club.') + '</span></div>'));
+          var bVer = el('<button class="btn btn-light btn-sm">' + ico('search') + 'Ver su portal</button>');
+          bVer.onclick = function () { location.hash = '#/portal-family/' + p.id; };
+          var bTog = el('<button class="btn btn-sm' + (p.family_active ? '' : ' btn-primary') + '">' +
+            (p.family_active ? 'Quitar acceso' : 'Dar acceso') + '</button>');
+          bTog.onclick = function () { cambiarAcceso(p, function () { p = SF.store.get(p.id); paint(); }); };
+          banda.appendChild(bVer); banda.appendChild(bTog);
+          body.appendChild(banda);
+          if (p.family_active && !p.team_id) {
+            body.appendChild(el('<p class="aviso-lin">Tiene acceso pero no está en ningún equipo. Si ya no está en el club, quítaselo.</p>'));
+          }
+        })();
 
         /* Estatura de los padres. Dos campos que parecen una curiosidad y son
            lo que permite estimar hasta dónde va a crecer: en baloncesto eso
@@ -6323,18 +6352,110 @@ window.SF = window.SF || {};
   };
 
   /* ===================== FAMILY ===================== */
+  /* Un club de novecientos jugadores tiene novecientas familias. Una lista
+     entera no se gestiona: se busca. Por eso esta pantalla es un buscador con
+     resultados, no un listado con scroll. */
   pages.family = function (view) {
-    view.innerHTML = head('Family', 'Gestión del acceso de las familias al portal.');
-    var ps = scopedPlayers().filter(function (p) { return (p.family || {}).contact; });
-    var t = el('<table class="tbl"><thead><tr><th>Jugador</th><th>Contacto</th><th>Family</th><th></th></tr></thead><tbody></tbody></table>');
-    var tb = t.querySelector('tbody');
-    ps.forEach(function (p) {
-      var tr = el('<tr><td>' + esc(p.full_name) + '</td><td>' + esc(p.family.contact) + ' (' + esc(p.family.relation) + ')</td><td>' + (p.family_active ? '<span class="tag tag-green">Activo</span>' : '<span class="tag tag-gray">Inactivo</span>') + '</td><td><button class="btn">Ver portal</button></td></tr>');
-      tr.querySelector('button').onclick = function () { location.hash = '#/portal-family/' + p.id; };
-      tb.appendChild(tr);
-    });
-    view.appendChild(ps.length ? t : el('<div class="empty-panel"><p>Aún no hay familias registradas.</p></div>'));
+    view.innerHTML = head('Family', 'Quién tiene acceso al portal, y qué ve cada familia.');
+    var todos = scopedPlayers().filter(function (p) { return (p.family || {}).contact; });
+
+    if (!todos.length) {
+      view.appendChild(el('<div class="empty-panel"><p>Aún no hay familias registradas. En cuanto una ficha tenga un contacto familiar, aparecerá aquí.</p></div>'));
+      return;
+    }
+
+    /* Los que conservan acceso sin estar ya en ningún equipo. Es higiene de
+       protección de datos: si el chaval se fue del club, su familia no
+       debería seguir viendo nada. Sale arriba porque nadie lo va a buscar. */
+    var huerfanos = todos.filter(function (p) { return p.family_active && !p.team_id; });
+    if (huerfanos.length) {
+      var av = el('<p class="aviso-lin"><b>' + huerfanos.length +
+        (huerfanos.length === 1 ? ' familia conserva el acceso' : ' familias conservan el acceso') +
+        '</b> y su hijo o hija no está en ningún equipo. Si ya no están en el club, conviene quitárselo. ' +
+        '<button class="lnk" data-h>Ver quiénes</button></p>');
+      av.querySelector('[data-h]').onclick = function () { SF._famQ = ''; SF._famF = 'revisar'; SF.router.render(); };
+      view.appendChild(av);
+    }
+
+    var q = (SF._famQ || '');
+    var filtro = SF._famF || 'todos';
+
+    var barra = el('<div class="fam-bar">' +
+      '<input id="fq" placeholder="Buscar por jugador, por contacto o por equipo…" value="' + esc(q) + '">' +
+      '<select id="ff">' +
+      ['todos|Todas', 'con|Con acceso', 'sin|Sin acceso', 'revisar|Sin equipo pero con acceso']
+        .map(function (o) {
+          var k = o.split('|')[0];
+          return '<option value="' + k + '"' + (k === filtro ? ' selected' : '') + '>' + o.split('|')[1] + '</option>';
+        }).join('') + '</select></div>');
+    view.appendChild(barra);
+    var inp = barra.querySelector('#fq');
+    inp.oninput = function () { SF._famQ = this.value; pinta(); };
+    barra.querySelector('#ff').onchange = function () { SF._famF = this.value; pinta(); };
+
+    var cuenta = el('<p class="hint"></p>');
+    var caja = el('<div></div>');
+    view.appendChild(cuenta); view.appendChild(caja);
+
+    function pinta() {
+      var qq = (SF._famQ || '').trim().toLowerCase();
+      var f = SF._famF || 'todos';
+      var res = todos.filter(function (p) {
+        if (f === 'con' && !p.family_active) return false;
+        if (f === 'sin' && p.family_active) return false;
+        if (f === 'revisar' && !(p.family_active && !p.team_id)) return false;
+        if (!qq) return true;
+        var eq = p.team_id ? ((SF.store.teamGet(p.team_id) || {}).name || '') : '';
+        var texto = (p.full_name + ' ' + (p.family.contact || '') + ' ' + (p.family.relation || '') + ' ' + eq).toLowerCase();
+        return qq.split(/\s+/).every(function (w) { return texto.indexOf(w) >= 0; });
+      });
+
+      cuenta.innerHTML = res.length
+        ? '<b>' + res.length + '</b> ' + (res.length === 1 ? 'familia' : 'familias') +
+          (qq || f !== 'todos' ? ' con este filtro' : ' en total') + '.'
+        : 'Ninguna familia con esos criterios.';
+
+      caja.innerHTML = '';
+      if (!res.length) return;
+      var t = el('<table class="tbl"><thead><tr><th>Jugador</th><th>Equipo</th><th>Contacto</th><th>Acceso</th><th></th></tr></thead><tbody></tbody></table>');
+      var tb = t.querySelector('tbody');
+      /* Tope de 40: si hace falta ver más, es que hay que afinar la búsqueda,
+         no que haya que hacer scroll durante un minuto. */
+      res.slice(0, 40).forEach(function (p) {
+        var eq = p.team_id ? ((SF.store.teamGet(p.team_id) || {}).name || '—') : '<span class="hint">sin equipo</span>';
+        var tr = el('<tr><td><b>' + esc(p.full_name) + '</b></td><td>' + eq + '</td>' +
+          '<td>' + esc(p.family.contact) + ' <span class="hint">(' + esc(p.family.relation || '') + ')</span></td>' +
+          '<td>' + (p.family_active ? '<span class="tag tag-green">Con acceso</span>' : '<span class="tag tag-gray">Sin acceso</span>') + '</td>' +
+          '<td><span class="row-actions"><button class="lnk" data-t>' + (p.family_active ? 'Quitar' : 'Dar acceso') + '</button>' +
+          '<button class="btn btn-sm" data-v>Ver portal</button></span></td></tr>');
+        tr.querySelector('[data-v]').onclick = function () { location.hash = '#/portal-family/' + p.id; };
+        tr.querySelector('[data-t]').onclick = function () { cambiarAcceso(p, pinta); };
+        tb.appendChild(tr);
+      });
+      caja.appendChild(t);
+      if (res.length > 40) caja.appendChild(el('<p class="hint">Se muestran 40 de ' + res.length + '. Afina la búsqueda para ver el resto.</p>'));
+    }
+    pinta();
+
+    view.appendChild(el('<p class="hint">Todavía no existe el acceso con usuario y contraseña, así que ninguna familia puede entrar por su cuenta: ' +
+      '<b>Ver portal</b> es la forma que tiene el club de mirar lo que verá cada una. Cuando montemos el acceso real, ' +
+      'quitar aquí el permiso cerrará esa puerta de verdad.</p>'));
   };
+
+  /* Dar o quitar el acceso de una familia. Se pregunta al quitar, porque es
+     una puerta que se cierra a alguien. */
+  function cambiarAcceso(p, onDone) {
+    if (p.family_active) {
+      if (!confirm('¿Quitar el acceso al portal a ' + ((p.family || {}).contact || 'esta familia') + '?\n\n' +
+        'Dejará de ver la ficha de ' + p.full_name + ', sus avisos y sus pagos.')) return;
+      SF.store.update(p.id, { family_active: false });
+      U.toast('Acceso retirado');
+    } else {
+      SF.store.update(p.id, { family_active: true });
+      U.toast('Acceso concedido');
+    }
+    if (typeof onDone === 'function') onDone(); else SF.router.render();
+  }
 
   /* ===================== FINANZAS (helpers) ===================== */
   function finTag(s) { var c = s === 'pagado' ? 'green' : s === 'vencido' ? 'danger' : 'warn'; return '<span class="tag tag-' + c + '">' + esc(s) + '</span>'; }
