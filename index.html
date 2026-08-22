@@ -2743,8 +2743,10 @@ window.SF = window.SF || {};
       'mantener un 6 mientras sube de categoría ya es mejorar.</p>'));
 
     grupos.forEach(function (g) {
+      /* 2026/2027 -> 26/27. Cortar por posición daba "26/20": las columnas son
+         estrechas y la temporada entera no cabe, pero mal abreviada confunde. */
       var head = '<th>' + esc(g.grupo) + '</th>' + temps.map(function (t) {
-        return '<th class="evo-y">' + esc(t.slice(2, 7)) + '</th>';       // 2019/2020 -> 19/20
+        return '<th class="evo-y">' + esc(t.replace(/^\d{2}(\d{2})\/\d{2}(\d{2})$/, '$1/$2')) + '</th>';
       }).join('') + '<th class="evo-y">Cambio</th>';
       var t2 = el('<div class="evo-scroll"><table class="evo-tab evo-sk"><thead><tr>' + head + '</tr></thead><tbody></tbody></table></div>');
       var tb2 = t2.querySelector('tbody');
@@ -3675,7 +3677,7 @@ window.SF = window.SF || {};
               (conAlt.length > 1 && conAlt[conAlt.length - 1].altura > conAlt[0].altura
                 ? ' · ha crecido ' + (conAlt[conAlt.length - 1].altura - conAlt[0].altura) + ' cm' : '');
           banda.appendChild(el('<div class="evo-band-txt"><b>Evolución del jugador</b><span>' + linea + '</span></div>'));
-          var bEvo = el('<button class="btn btn-primary btn-sm">' + ico('star') + 'Ver evolución</button>');
+          var bEvo = el('<button class="btn btn-primary btn-sm">' + ico('chart') + 'Ver evolución</button>');
           bEvo.onclick = function () { U.modal('Evolución — ' + esc(p.full_name), evolucionBody(p)); };
           banda.appendChild(bEvo);
           body.appendChild(banda);
