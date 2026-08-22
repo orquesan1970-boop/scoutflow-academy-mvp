@@ -2808,7 +2808,9 @@ window.SF = window.SF || {};
         tbM.appendChild(el('<tr><td>' + esc(m.def.label) +
           (m.def.u && !m.def.metros ? ' <span class="hint">(' + m.def.u + ')</span>' : '') +
           (m.def.metros ? ' <span class="hint">(m)</span>' : '') + '</td>' + celdas +
-          '<td class="evo-y">' + (m.delta ? delta(m.delta, m.def.metros ? ' cm' : '') : '') + '</td></tr>'));
+          /* La diferencia siempre con su unidad: "+16" a secas al lado de
+             "+15 cm" hace dudar de si son kilos o centímetros. */
+          '<td class="evo-y">' + (m.delta ? delta(m.delta, ' ' + (m.def.u || '')) : '') + '</td></tr>'));
       });
       wrap.appendChild(tM);
     }
