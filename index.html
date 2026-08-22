@@ -611,6 +611,18 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .ph-open-b{margin-top:8px;border-top:1px solid var(--line);padding-top:8px}
 .ph-open-b>p{font-size:12.5px;color:var(--ink-2);margin:0;line-height:1.5}
 .ph-open-b[hidden]{display:none}
+/* Conversaciones: formato correo, no chat. Los mensajes van uno debajo de
+   otro, a ancho completo, sin burbujas ni alineación a la derecha, que es lo
+   que invita a contestar con monosílabos. */
+.conv-new{display:flex;flex-direction:column;gap:7px;margin:8px 0 4px}
+.conv-new input,.conv-new select,.conv-new textarea{font-size:12.5px}
+.conv-new textarea{min-height:62px;resize:vertical}
+.conv-new .ph-btn{align-self:flex-start}
+.conv-m{border-top:1px solid var(--line);padding:9px 0}
+.conv-m:first-child{border-top:0;padding-top:0}
+.conv-m.otro{border-left:2px solid var(--purple);padding-left:9px}
+.conv-who{display:block;font-size:12px;font-weight:600;margin-bottom:3px}
+.conv-m p{font-size:12.5px;color:var(--ink-2);margin:0;line-height:1.5}
 .ph-btn.pay{background:var(--purple);color:#fff;border-color:var(--purple)}
 
 /* Responsive */
@@ -845,6 +857,65 @@ SF.audienciaReal = function (audiencia, p) {
      que uno mal dirigido. */
   if (menor) return { jugador: false, familia: true, redirigido: quiereJug && !quiereFam };
   return { jugador: quiereJug, familia: quiereFam, redirigido: false };
+};
+
+/* ===================== CONVERSACIONES =====================
+   Bidireccional, pero NO es un chat. Funciona como un correo: hay un asunto,
+   un primer mensaje y respuestas debajo. Nadie escribe "ok" a las once de la
+   noche esperando que el entrenador conteste al momento.
+
+   Quién puede escribir a quién no es libre, y esa es la parte importante:
+
+     · La FAMILIA solo alcanza a las personas que llevan a su hijo: el
+       entrenador de su equipo, el preparador físico de su equipo y el
+       director técnico de su segmento. No al del equipo de al lado, ni a
+       administración por la puerta de atrás.
+     · El JUGADOR solo alcanza a su entrenador. Un menor no debe tener línea
+       directa con cinco adultos del club.
+     · El STAFF se escribe entre sí sin restricción.
+
+   Y toda conversación en la que hay una familia o un menor la ve también
+   dirección y el DT del segmento. No es control: es que el entrenador no se
+   quede solo si un día una familia se pone difícil, y que el club tenga
+   registro de lo que se habló. Se le dice a la familia en la propia pantalla,
+   porque una supervisión que no se avisa es otra cosa. */
+
+/* Personas del club a las que puede escribir la familia de un jugador. */
+SF.destinatariosFamilia = function (p) {
+  if (!p || !p.team_id) return [];
+  var equipo = SF.store.teamGet(p.team_id);
+  if (!equipo) return [];
+  return SF.store.staff().filter(function (s) {
+    var lleva = (s.team_ids || []).indexOf(p.team_id) >= 0;
+    if (s.role === 'entrenador' || s.role === 'preparador_fisico') return lleva;
+    /* El DT que corresponde sale del segmento del equipo, no de una lista
+       que alguien tenga que mantener a mano. */
+    var segs = (SF.ROLES[s.role] || {}).segments;
+    if (!segs) return false;
+    if (segs === 'all') return s.role === 'dt_general' && lleva;
+    return segs.indexOf(equipo.segment) >= 0;
+  });
+};
+
+/* El jugador solo escribe a su entrenador. */
+SF.destinatariosJugador = function (p) {
+  if (!p || !p.team_id) return [];
+  return SF.store.staff().filter(function (s) {
+    return s.role === 'entrenador' && (s.team_ids || []).indexOf(p.team_id) >= 0;
+  });
+};
+
+/* Quién supervisa una conversación de un equipo: dirección y el DT que le
+   toca. Se guarda en el hilo al crearlo para que quede constancia de quién
+   tenía acceso ese día, aunque mañana cambien los cargos. */
+SF.supervisoresDe = function (teamId) {
+  var equipo = teamId ? SF.store.teamGet(teamId) : null;
+  return SF.store.staff().filter(function (s) {
+    if (s.role === 'dt_general') return true;
+    var segs = (SF.ROLES[s.role] || {}).segments;
+    if (!segs || segs === 'all' || !equipo) return false;
+    return segs.indexOf(equipo.segment) >= 0;
+  });
 };
 
 /* ===================== LICENCIAS FEDERATIVAS =====================
@@ -1594,6 +1665,51 @@ SF.STAFF = [
     qualification: '', qual_entity: '', qual_year: null, qual_number: '', languages: 'Español',
     licence: { season: '', number: '', category: '', valid_until: '', status: 'no_aplica' },
     clearance: { season: '', cleared: false, checked_on: '', checked_by: '' },
+    experience: [], training: [], cv_file: '' },
+
+  /* Dirección Técnica. Los roles existían pero no había nadie que los
+     ocupara, así que una familia no tenía a quién escribir por encima del
+     entrenador. Cada DT lleva los equipos de su segmento: de ahí sale, sin
+     configurar nada, quién es "el DT que le corresponde" a cada jugador. */
+  { id: 's7', num: 7, full_name: 'Álvaro Sanchís', role: 'dt_general',
+    email: 'direcciontecnica@cbja.es', phone: '+34 600 100 007', team_ids: ['t1', 't2', 't3', 't4'],
+    bio: 'Dirección técnica del club. Responsable del proyecto deportivo y de los cuerpos técnicos.',
+    qualification: 'TD3 Baloncesto', qual_entity: 'FEB', qual_year: 2015, qual_number: 'TD3-0342',
+    languages: 'Español, Inglés',
+    licence: { season: '2026/2027', number: 'FBM-21007', category: 'Todas', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-01', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's8', num: 8, full_name: 'Raúl Ibáñez', role: 'dt_masculino',
+    email: 'dt.masculino@cbja.es', phone: '+34 600 100 008', team_ids: ['t1'],
+    bio: 'Dirección técnica de la sección masculina.',
+    qualification: 'TD2 Baloncesto', qual_entity: 'FEB', qual_year: 2018, qual_number: 'TD2-0955',
+    languages: 'Español',
+    licence: { season: '2026/2027', number: 'FBM-22104', category: 'Todas', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-01', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's9', num: 9, full_name: 'Cristina Bravo', role: 'dt_femenino',
+    email: 'dt.femenino@cbja.es', phone: '+34 600 100 009', team_ids: ['t2'],
+    bio: 'Dirección técnica de la sección femenina.',
+    qualification: 'TD2 Baloncesto', qual_entity: 'FEB', qual_year: 2020, qual_number: 'TD2-1402',
+    languages: 'Español, Inglés',
+    licence: { season: '2026/2027', number: 'FBM-22988', category: 'Todas', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-01', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's10', num: 10, full_name: 'Nacho Peris', role: 'dt_minis',
+    email: 'dt.minis@cbja.es', phone: '+34 600 100 010', team_ids: ['t3'],
+    bio: 'Dirección técnica de minis.',
+    qualification: 'TD1 Baloncesto', qual_entity: 'FBM', qual_year: 2021, qual_number: 'TD1-0880',
+    languages: 'Español',
+    licence: { season: '2026/2027', number: 'FBM-23551', category: 'Mini', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-03', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's11', num: 11, full_name: 'Elena Vidal', role: 'dt_escuelas',
+    email: 'dt.escuelas@cbja.es', phone: '+34 600 100 011', team_ids: ['t4'],
+    bio: 'Dirección técnica de escuelas.',
+    qualification: 'TD1 Baloncesto', qual_entity: 'FBM', qual_year: 2022, qual_number: 'TD1-1015',
+    languages: 'Español',
+    licence: { season: '2026/2027', number: 'FBM-24010', category: 'Escuela', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-03', checked_by: 'Marta Soler' },
     experience: [], training: [], cv_file: '' }
 ];
 
@@ -2844,6 +2960,84 @@ SF.store = (function () {
       };
       d.announcements.push(a); save(d); return a;
     },
+    /* ---- CONVERSACIONES ----
+       Un hilo: asunto, quién lo abre, a quién va, y mensajes debajo. Los
+       supervisores se guardan al crearlo: si mañana cambia el director, la
+       conversación no cambia de dueños retroactivamente. */
+    convCreate: function (data) {
+      var d = db(); d.convs = d.convs || [];
+      var c = {
+        id: 'c' + Date.now(),
+        player_id: data.player_id || null,
+        team_id: data.team_id || null,
+        subject: data.subject,
+        opened_by: data.from,                  // {kind, id, name, role}
+        to_staff: data.to_staff,               // id de la ficha de staff
+        supervisores: (SF.supervisoresDe(data.team_id) || []).map(function (s) { return s.id; }),
+        created_at: new Date().toISOString(),
+        closed_at: null,
+        messages: [{
+          at: new Date().toISOString(), by: data.from, text: data.text,
+          read_by: [data.from.kind === 'staff' ? data.from.id : data.from.kind]
+        }]
+      };
+      d.convs.push(c); save(d); return c;
+    },
+    convReply: function (convId, from, text) {
+      var d = db();
+      (d.convs || []).forEach(function (c) {
+        if (c.id !== convId) return;
+        c.messages.push({ at: new Date().toISOString(), by: from, text: text,
+          read_by: [from.kind === 'staff' ? from.id : from.kind] });
+      });
+      save(d);
+    },
+    convMarkRead: function (convId, quien) {
+      var d = db();
+      (d.convs || []).forEach(function (c) {
+        if (c.id !== convId) return;
+        c.messages.forEach(function (m) {
+          m.read_by = m.read_by || [];
+          if (m.read_by.indexOf(quien) < 0) m.read_by.push(quien);
+        });
+      });
+      save(d);
+    },
+    convClose: function (convId, by) {
+      var d = db();
+      (d.convs || []).forEach(function (c) {
+        if (c.id === convId) { c.closed_at = new Date().toISOString(); c.closed_by = by; }
+      });
+      save(d);
+    },
+    /* Hilos de un jugador, para su portal y para su ficha. */
+    convsForPlayer: function (pid, kind) {
+      return (db().convs || [])
+        .filter(function (c) {
+          if (c.player_id !== pid) return false;
+          /* El jugador solo ve los hilos que abrió él: los de sus padres con
+             el club no son suyos. */
+          if (kind === 'jugador') return c.opened_by && c.opened_by.kind === 'jugador';
+          if (kind === 'familia') return c.opened_by && c.opened_by.kind === 'familia';
+          return true;
+        })
+        .sort(function (a, b) { return (b.messages[b.messages.length - 1].at).localeCompare(a.messages[a.messages.length - 1].at); });
+    },
+    /* Hilos que le tocan a una persona del staff: los suyos, los que abrió y
+       los que supervisa. */
+    convsForStaff: function (staffId) {
+      return (db().convs || [])
+        .filter(function (c) {
+          if (c.to_staff === staffId) return true;
+          if (c.opened_by && c.opened_by.kind === 'staff' && c.opened_by.id === staffId) return true;
+          return (c.supervisores || []).indexOf(staffId) >= 0;
+        })
+        .sort(function (a, b) { return (b.messages[b.messages.length - 1].at).localeCompare(a.messages[a.messages.length - 1].at); });
+    },
+    convSinLeer: function (c, quien) {
+      return (c.messages || []).filter(function (m) { return (m.read_by || []).indexOf(quien) < 0; }).length;
+    },
+
     annRsvp: function (annId, playerId, value, by) {
       var d = db();
       (d.announcements || []).forEach(function (a) {
@@ -3182,6 +3376,97 @@ window.SF = window.SF || {};
     };
     var wrap = el('<div></div>'); wrap.appendChild(f); wrap.appendChild(foot);
     return wrap;
+  }
+
+  /* ---------- Escribir al club, desde el portal ----------
+     Sirve para la familia y para el jugador; cambia a quién puede escribir y
+     poco más. No es un chat: hay asunto, se manda, y las respuestas quedan
+     debajo. Nadie ve escribiendo a nadie ni espera contestación inmediata. */
+  function bloqueConversaciones(p, quien) {
+    var esFam = quien === 'familia';
+    var dest = esFam ? SF.destinatariosFamilia(p) : SF.destinatariosJugador(p);
+    var hilos = SF.store.convsForPlayer(p.id, quien);
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="ph-sec">' + (esFam ? 'Escribir al club' : 'Escribir a tu entrenador') + '</p>'));
+
+    if (!dest.length) {
+      box.appendChild(el('<p class="hint">' + (p.team_id
+        ? 'Todavía no hay nadie asignado a este equipo a quien escribir.'
+        : 'Cuando el club asigne un equipo, aquí podrás escribir a su entrenador.') + '</p>'));
+    } else {
+      var f = el('<div class="conv-new"></div>');
+      f.appendChild(el('<select id="cd">' + dest.map(function (s) {
+        return '<option value="' + s.id + '">' + esc(s.full_name) + ' · ' + esc((SF.ROLES[s.role] || {}).label || s.role) + '</option>';
+      }).join('') + '</select>'));
+      f.appendChild(el('<input id="cs" placeholder="Asunto: no podrá venir el sábado">'));
+      f.appendChild(el('<textarea id="cb" placeholder="Escribe tu mensaje…"></textarea>'));
+      var bEnv = el('<button class="ph-btn on">Enviar</button>');
+      f.appendChild(bEnv);
+      bEnv.onclick = function () {
+        var asunto = f.querySelector('#cs').value.trim();
+        var texto = f.querySelector('#cb').value.trim();
+        if (!asunto) { U.toast('Ponle un asunto'); return; }
+        if (!texto) { U.toast('Escribe el mensaje'); return; }
+        SF.store.convCreate({
+          player_id: p.id, team_id: p.team_id, subject: asunto, text: texto,
+          to_staff: f.querySelector('#cd').value,
+          from: esFam
+            ? { kind: 'familia', id: 'familia', name: (p.family || {}).contact || 'Familia', role: (p.family || {}).relation || 'Familia' }
+            : { kind: 'jugador', id: 'jugador', name: p.full_name, role: 'Jugador' }
+        });
+        U.toast('Mensaje enviado'); SF.router.render();
+      };
+      box.appendChild(f);
+      /* La supervisión se avisa. Una conversación que alguien más lee sin
+         decirlo no es una conversación, es otra cosa. */
+      box.appendChild(el('<p class="hint">' + (esFam
+        ? 'La dirección del club y el director técnico también ven estas conversaciones. Es para que quede constancia de lo que se habla con las familias.'
+        : 'Tus padres o tutores y la dirección del club también ven lo que escribes aquí.') + '</p>'));
+    }
+
+    if (hilos.length) {
+      box.appendChild(el('<p class="ph-sec">Tus conversaciones</p>'));
+      hilos.forEach(function (c) {
+        var staff = SF.store.staff().filter(function (s) { return s.id === c.to_staff; })[0];
+        var ultimo = c.messages[c.messages.length - 1];
+        var sinLeer = SF.store.convSinLeer(c, quien);
+        var card = el('<div class="ph-report' + (sinLeer ? ' is-nuevo' : '') + '"></div>');
+        var cab = el('<button class="ph-open"><span class="ph-open-t"><b>' + esc(c.subject) + '</b>' +
+          (sinLeer ? '<span class="tag tag-warn">respuesta</span>' : '') + '</span>' +
+          '<span class="hint">' + esc(staff ? staff.full_name : 'el club') + ' · ' +
+          c.messages.length + (c.messages.length === 1 ? ' mensaje' : ' mensajes') + ' · ' +
+          fmtDate((ultimo.at || '').slice(0, 10)) + (c.closed_at ? ' · cerrada' : '') + '</span></button>');
+        var cuerpo = el('<div class="ph-open-b" hidden></div>');
+        c.messages.forEach(function (m) {
+          cuerpo.appendChild(el('<div class="conv-m' + (m.by.kind === 'staff' ? ' otro' : '') + '">' +
+            '<span class="conv-who">' + esc(m.by.name) + ' <span class="hint">' + esc(m.by.role) + ' · ' +
+            fmtDate((m.at || '').slice(0, 10)) + '</span></span><p>' + esc(m.text).replace(/\n/g, '<br>') + '</p></div>'));
+        });
+        if (!c.closed_at) {
+          var resp = el('<div class="conv-new"><textarea placeholder="Responder…"></textarea><button class="ph-btn on">Responder</button></div>');
+          resp.querySelector('button').onclick = function () {
+            var t = resp.querySelector('textarea').value.trim();
+            if (!t) return;
+            SF.store.convReply(c.id, esFam
+              ? { kind: 'familia', id: 'familia', name: (p.family || {}).contact || 'Familia', role: (p.family || {}).relation || 'Familia' }
+              : { kind: 'jugador', id: 'jugador', name: p.full_name, role: 'Jugador' }, t);
+            U.toast('Respuesta enviada'); SF.router.render();
+          };
+          cuerpo.appendChild(resp);
+        } else cuerpo.appendChild(el('<p class="hint">El club dio esta conversación por cerrada.</p>'));
+        cab.onclick = function () {
+          if (cuerpo.hasAttribute('hidden')) {
+            cuerpo.removeAttribute('hidden');
+            SF.store.convMarkRead(c.id, quien);
+            var t = cab.querySelector('.tag'); if (t) t.remove();
+            card.classList.remove('is-nuevo');
+          } else cuerpo.setAttribute('hidden', '');
+        };
+        card.appendChild(cab); card.appendChild(cuerpo);
+        box.appendChild(card);
+      });
+    }
+    return box;
   }
 
   /* ---------- Evolución del jugador temporada a temporada ----------
@@ -6177,6 +6462,8 @@ window.SF = window.SF || {};
       b.appendChild(card);
     });
 
+    b.appendChild(bloqueConversaciones(p, 'familia'));
+
     /* Documentación = CHECKLIST. La app no guarda documentos: solo lleva la
        cuenta de qué se ha entregado. Los papeles van por correo o en mano, y
        solo el club marca la recepción. (Decisión 2026-08-02) */
@@ -6751,6 +7038,7 @@ window.SF = window.SF || {};
       b.appendChild(card);
     });
     b.appendChild(el('<p class="hint">Estos avisos van dirigidos a ti. Los que el club manda a tu familia no aparecen aquí.</p>'));
+    b.appendChild(bloqueConversaciones(p, 'jugador'));
 
     view.appendChild(phone);
   };
@@ -8364,17 +8652,132 @@ window.SF = window.SF || {};
      El buzón de cada persona del staff. Existe porque un entrenador no tiene
      "Comunicados" (esa pantalla es la del que envía, no la del que recibe):
      sin un sitio propio, los avisos se enviaban a ninguna parte. */
+  /* Un hilo abierto, desde el lado del staff. Mismo formato que ve la
+     familia: mensajes uno debajo de otro y una caja para responder. */
+  function abrirHilo(c, me) {
+    var p = c.player_id ? SF.store.get(c.player_id) : null;
+    var box = el('<div></div>');
+    var supervisa = c.to_staff !== me.id && !(c.opened_by && c.opened_by.id === me.id);
+    if (p) box.appendChild(el('<p class="hint">Sobre <b>' + esc(p.full_name) + '</b>' +
+      (p.team_id ? ' · ' + esc((SF.store.teamGet(p.team_id) || {}).name || '') : '') + '</p>'));
+    if (supervisa) box.appendChild(el('<p class="aviso-lin">Ves esta conversación porque supervisas este equipo, no porque vaya dirigida a ti. Puedes responder si hace falta, y quedará con tu nombre.</p>'));
+
+    var hilo = el('<div></div>');
+    c.messages.forEach(function (m) {
+      hilo.appendChild(el('<div class="conv-m' + (m.by.kind !== 'staff' ? ' otro' : '') + '">' +
+        '<span class="conv-who">' + esc(m.by.name) + ' <span class="hint">' + esc(m.by.role) + ' · ' +
+        fmtDate((m.at || '').slice(0, 10)) + '</span></span><p>' + esc(m.text).replace(/\n/g, '<br>') + '</p></div>'));
+    });
+    box.appendChild(hilo);
+
+    if (c.closed_at) {
+      box.appendChild(el('<p class="hint">Conversación cerrada por ' + esc(c.closed_by || 'el club') + '.</p>'));
+    } else {
+      var resp = el('<div class="conv-new"><textarea placeholder="Responder…"></textarea></div>');
+      var acc = el('<div class="modal-actions"></div>');
+      var bR = el('<button class="btn btn-primary">Responder</button>');
+      var bC = el('<button class="btn">Dar por cerrada</button>');
+      bR.onclick = function () {
+        var t = resp.querySelector('textarea').value.trim();
+        if (!t) { U.toast('Escribe la respuesta'); return; }
+        SF.store.convReply(c.id, { kind: 'staff', id: me.id, name: me.full_name, role: roleLabel(me.role) }, t);
+        U.closeModal(); U.toast('Respuesta enviada'); SF.router.render();
+      };
+      bC.onclick = function () {
+        SF.store.convClose(c.id, me.full_name);
+        U.closeModal(); U.toast('Conversación cerrada'); SF.router.render();
+      };
+      acc.appendChild(bC); acc.appendChild(bR);
+      box.appendChild(resp); box.appendChild(acc);
+    }
+    SF.store.convMarkRead(c.id, me.id);
+    U.modal(c.subject, box);
+    SF.router.renderShell();
+  }
+
+  /* Hilo nuevo entre personas del club. Entre staff no hay restricción: el
+     filtro fuerte es el de las familias y el de los jugadores. */
+  function nuevoHiloStaff(me) {
+    var otros = SF.store.staff().filter(function (s) { return s.id !== me.id; });
+    if (!otros.length) { U.toast('No hay nadie más en el club'); return; }
+    var box = el('<div></div>');
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>¿A quién?</label><select id="qd">' + otros.map(function (s) {
+        return '<option value="' + s.id + '">' + esc(s.full_name) + ' · ' + esc(roleLabel(s.role)) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="frow"><label>Sobre un jugador <span class="hint">opcional</span></label><select id="qp"><option value="">—</option>' +
+        scopedPlayers().map(function (p) { return '<option value="' + p.id + '">' + esc(p.full_name) + '</option>'; }).join('') +
+      '</select></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Asunto</label><input id="qs" placeholder="Disponibilidad para el sábado"></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Mensaje</label><textarea id="qb" rows="4"></textarea></div></div>');
+    box.appendChild(f);
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Enviar</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var asunto = f.querySelector('#qs').value.trim();
+      var texto = f.querySelector('#qb').value.trim();
+      if (!asunto) { U.toast('Ponle un asunto'); return; }
+      if (!texto) { U.toast('Escribe el mensaje'); return; }
+      var pid = f.querySelector('#qp').value;
+      var pj = pid ? SF.store.get(pid) : null;
+      SF.store.convCreate({
+        player_id: pid || null, team_id: pj ? pj.team_id : null,
+        subject: asunto, text: texto, to_staff: f.querySelector('#qd').value,
+        from: { kind: 'staff', id: me.id, name: me.full_name, role: roleLabel(me.role) }
+      });
+      U.closeModal(); U.toast('Mensaje enviado'); SF.router.render();
+    };
+    box.appendChild(foot);
+    U.modal('Escribir a un compañero', box);
+  }
+
   pages['mis-avisos'] = function (view) {
     var me = SF.store.staffMe();
-    view.innerHTML = head('Mis avisos', 'Comunicaciones del club dirigidas a ti.');
+    view.innerHTML = head('Mis avisos', 'Lo que te manda el club y lo que te preguntan las familias.');
     if (!me) { view.appendChild(el('<div class="empty-panel"><p>No hay ninguna ficha de staff asociada a este usuario.</p></div>')); return; }
+
+    /* --- Conversaciones: primero, porque son lo que hay que CONTESTAR ---
+       Un aviso se lee y se olvida; una consulta de una familia esperando
+       respuesta es una deuda. Por eso van arriba. */
+    var hilos = SF.store.convsForStaff(me.id);
+    var pendientes = hilos.filter(function (c) { return !c.closed_at && SF.store.convSinLeer(c, me.id); });
+
+    view.appendChild(el('<p class="sec-label">Conversaciones' +
+      (pendientes.length ? ' · ' + pendientes.length + ' sin leer' : '') + '</p>'));
+
+    var bNuevo = el('<button class="btn btn-light btn-sm" style="margin-bottom:10px">' + ico('arrow') + 'Escribir a un compañero</button>');
+    bNuevo.onclick = function () { nuevoHiloStaff(me); };
+    view.appendChild(bNuevo);
+
+    if (!hilos.length) {
+      view.appendChild(el('<p class="hint">Aquí aparecerán las consultas de las familias y de tus compañeros. Nadie te ha escrito todavía.</p>'));
+    } else {
+      var hl = el('<div class="mini-list" style="margin-bottom:18px"></div>');
+      hilos.forEach(function (c) {
+        var p = c.player_id ? SF.store.get(c.player_id) : null;
+        var ult = c.messages[c.messages.length - 1];
+        var nuevos = SF.store.convSinLeer(c, me.id);
+        var mio = c.to_staff === me.id || (c.opened_by && c.opened_by.id === me.id);
+        var row = el('<div class="mini-row"><span><b>' + esc(c.subject) + '</b>' +
+          (nuevos ? ' <span class="tag tag-purple">' + nuevos + ' sin leer</span>' : '') +
+          (mio ? '' : ' <span class="tag tag-gray">supervisas</span>') +
+          (c.closed_at ? ' <span class="tag tag-green">cerrada</span>' : '') +
+          '<br><span class="hint">' + esc(ult.by.name) + ' · ' + esc(ult.by.role) +
+          (p ? ' · sobre ' + esc(p.full_name) : '') + ' · ' + fmtDate((ult.at || '').slice(0, 10)) +
+          '</span></span><span class="row-actions"><button class="lnk" data-a>Abrir</button></span></div>');
+        row.querySelector('[data-a]').onclick = function () { abrirHilo(c, me); };
+        hl.appendChild(row);
+      });
+      view.appendChild(hl);
+    }
+
+    view.appendChild(el('<p class="sec-label">Avisos del club</p>'));
 
     var lista = SF.store.commsForStaff(me.id);
     var sinLeer = lista.filter(function (x) { return !x.leido; }).length;
 
     if (!lista.length) {
-      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('bell') + '</div>' +
-        '<h3>No tienes avisos</h3><p>Aquí te llegarán las comunicaciones del club: documentación pendiente, cambios de horario y avisos de dirección.</p></div>'));
+      view.appendChild(el('<p class="hint">No tienes avisos. Aquí te llegan las comunicaciones del club: documentación pendiente, cambios de horario y avisos de dirección.</p>'));
       return;
     }
 
@@ -8552,10 +8955,18 @@ SF.router = (function () {
   function campana(r) {
     if (r.nav.indexOf('mis-avisos') < 0) return '';
     var me = SF.store.staffMe();
-    var n = me ? SF.store.commUnread(me.id) : 0;
+    /* La campana suma avisos y conversaciones sin leer. Si una consulta de
+       una familia no hiciera sonar la campana, se quedaría sin contestar. */
+    var n = 0;
+    if (me) {
+      n = SF.store.commUnread(me.id);
+      SF.store.convsForStaff(me.id).forEach(function (c) {
+        if (!c.closed_at && SF.store.convSinLeer(c, me.id)) n++;
+      });
+    }
     return '<button class="bell' + (n ? ' has' : '') + '" id="bell" title="' +
-      (n ? n + (n === 1 ? ' aviso sin leer' : ' avisos sin leer') : 'Sin avisos nuevos') + '" aria-label="' +
-      (n ? n + ' avisos sin leer' : 'Avisos') + '">' +
+      (n ? n + (n === 1 ? ' cosa sin leer' : ' cosas sin leer') : 'Sin avisos nuevos') + '" aria-label="' +
+      (n ? n + ' sin leer' : 'Avisos') + '">' +
       '<svg class="ic" aria-hidden="true"><use href="#i-bell"/></svg>' +
       (n ? '<span class="bell-n">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</button>';
   }
