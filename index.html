@@ -5624,7 +5624,118 @@ window.SF = window.SF || {};
   };
 
   /* "Analizar con IA" — resumen basado en reglas (simulado, honesto) */
+  /* Lo que sale del club cuando se pide un análisis.
+     Se compone campo a campo, en positivo: solo entra lo que está aquí
+     escrito. Es la diferencia entre "quito lo sensible" y "solo dejo pasar lo
+     que hace falta"; lo segundo no se rompe cuando mañana añadamos un campo
+     nuevo a la ficha.
+
+     Fuera quedan, a propósito: notas internas, situación económica,
+     antecedentes médicos, disponibilidad clínica, teléfonos, correos, DNI,
+     dirección y los datos de la familia. Ninguno hace falta para escribir un
+     resumen deportivo. */
+  function fichaParaIA(p) {
+    var sp = SF.SPORTS[p.sport] || {};
+    var ss = SF.scoutScore(p);
+    var f = {};
+    function set(k, v) { if (v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)) f[k] = v; }
+
+    set('nombre', p.full_name);
+    set('anio', p.birth_year);
+    var ed = SF.ageAt(p); set('edad', ed ? ed.años : null);
+    set('posicion', p.primary_position); set('posicion_2', p.secondary_position);
+    set('altura_cm', p.height_cm); set('peso_kg', p.weight_kg); set('envergadura_cm', p.wingspan_cm);
+    set('mano', p.dominant_hand); set('usa_dos_manos', p.uses_both_hands);
+    set('equipo', teamName(p)); set('categoria', p.category); set('club', p.club); set('liga', p.league);
+    set('estado', p.status); set('edad_de_inicio', p.start_age);
+    set('nacionalidades', p.nationality); set('curso', p.course); set('idioma_ingles', p.english);
+    set('objetivo', p.objective);
+
+    if (ss) { set('score', ss.score + ' sobre 100'); set('score_cobertura', ss.puestos + ' de ' + ss.total + ' apartados evaluados'); }
+
+    /* Las notas, en texto plano y diciendo la escala: sin eso el modelo no
+       sabe si un 6 es bueno o malo. */
+    if (p.stats && sp.skills) {
+      var notas = [];
+      Object.keys(sp.skills).forEach(function (g) {
+        var trozo = sp.skills[g].filter(function (sk) { return +p.stats[sk] > 0; })
+          .map(function (sk) { return sk + ' ' + p.stats[sk]; });
+        if (trozo.length) notas.push(g + ' — ' + trozo.join(', '));
+      });
+      set('evaluacion', notas.length ? notas.concat(['escala 0 a 10, comparado con su categoría y su año']) : null);
+    }
+
+    /* La evolución sí importa y no es sensible: son centímetros y notas. */
+    var fl = SF.evolucion(p);
+    if (fl.length > 1) {
+      set('anios_en_el_club', fl.length);
+      set('evolucion', fl.map(function (x) {
+        return x.season + ': ' + (x.altura ? (x.altura / 100).toFixed(2) + ' m' : 'sin medir') +
+          (x.score != null ? ', score ' + x.score : '');
+      }));
+    }
+
+    var pend = Object.keys(p.documents || {}).filter(function (k) { return p.documents[k] === 'pendiente'; });
+    set('documentos_pendientes', pend);
+
+    /* Disponibilidad SIN diagnóstico, igual que en el resto de la app. */
+    var dz = SF.dispo(p);
+    if (dz.activa) set('disponibilidad', dz.def.corto + (dz.limitacion ? ' · ' + dz.limitacion : ''));
+
+    var ch = SF.careerNorm(p.career_history);
+    if (ch.length) set('trayectoria', ch.map(function (c) {
+      return c.club + ' (' + (c.seasons || []).length + ' temporadas)';
+    }));
+    var sel = p.selections || {};
+    var sels = ['local', 'provincial', 'regional', 'national'].map(function (k) { return sel[k]; }).filter(function (x) { return x && x !== 'No'; });
+    set('selecciones', sels);
+    return f;
+  }
+
+  /* Análisis con la IA de verdad. Si no hay clave o falla el proveedor, cae
+     al resumen por reglas: mejor un resumen pobre que una pantalla rota. */
   function analizarIA(p) {
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint">Leyendo la ficha de <b>' + esc(p.full_name) + '</b>…</p>'));
+    var m = U.modal('Análisis · ' + p.full_name, box);
+    var ficha = fichaParaIA(p);
+
+    fetch('/api/analizar', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ficha: ficha })
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (!document.getElementById('sf-modal')) return;          // lo cerró mientras esperaba
+      if (!d.ok) { box.innerHTML = ''; box.appendChild(informePorReglas(p, d.motivo)); return; }
+      var i = d.informe;
+      function bloque(t, arr) {
+        if (!arr || !arr.length) return '';
+        return '<p class="sec-label">' + t + '</p><ul>' + arr.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>';
+      }
+      box.innerHTML = '<div class="ia-report">' +
+        '<p class="sec-label">Resumen</p><p>' + esc(i.resumen) + '</p>' +
+        bloque('En qué destaca', i.fuerte) +
+        bloque('Qué le toca trabajar', i.mejorar) +
+        bloque('Qué falta en la ficha', i.faltan) +
+        (i.siguiente ? '<p class="sec-label">Siguiente paso</p><p>' + esc(i.siguiente) + '</p>' : '') +
+        '</div>';
+      /* Se dice quién lo ha escrito y qué ha salido del club. Un resumen de
+         IA sin decir que es de IA es exactamente el problema que tuvimos. */
+      var pie = el('<p class="hint">Escrito por <b>' + esc(d.modelo || 'la IA') + '</b> a partir de la ficha. ' +
+        'Revísalo antes de usarlo: puede equivocarse. <button class="lnk" data-q>¿Qué se ha enviado?</button></p>');
+      pie.querySelector('[data-q]').onclick = function () {
+        U.modal('Qué ha salido del club', el('<div><p class="hint">Solo estos campos. No se envían notas internas, ' +
+          'ni datos económicos, ni médicos, ni teléfonos o correos de la familia.</p>' +
+          '<p class="bz-body">' + esc((d.enviado || []).join('\n')) + '</p></div>'));
+      };
+      box.appendChild(pie);
+    }).catch(function () {
+      if (!document.getElementById('sf-modal')) return;
+      box.innerHTML = ''; box.appendChild(informePorReglas(p, 'red'));
+    });
+  }
+
+  /* El de siempre, por reglas. Ahora es el plan B y lo dice claramente. */
+  function informePorReglas(p, motivo) {
     var strengths = [], gaps = [];
     if (p.height_cm >= 195) strengths.push('Envergadura física destacada para su posición.');
     var ssInf = SF.scoutScore(p);
@@ -5643,9 +5754,17 @@ window.SF = window.SF || {};
     var node = el('<div class="ia-report"><p class="sec-label">Resumen ejecutivo</p><p>' + esc(p.full_name) + ', ' + (p.birth_year || '') + ', ' + esc(p.primary_position || '') + '. Estado: ' + esc(p.status) + '.</p>' +
       '<p class="sec-label">Fortalezas</p><ul>' + strengths.map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' +
       '<p class="sec-label">Áreas / datos faltantes</p><ul>' + (gaps.length ? gaps : ['Ficha razonablemente completa.']).map(function (s) { return '<li>' + esc(s) + '</li>'; }).join('') + '</ul>' +
-      '<p class="sec-label">Siguiente paso sugerido</p><p>' + esc(next) + '</p>' +
-      '<p class="hint">Generado por reglas (demo). En v0.3 esto lo produce la IA real con el texto y documentos del jugador.</p></div>');
-    U.modal('Análisis con IA · ' + p.full_name, node);
+      '<p class="sec-label">Siguiente paso sugerido</p><p>' + esc(next) + '</p></div>');
+    /* Se dice por qué estás leyendo el plan B. Antes ponía "Análisis con IA"
+       cuando no había ninguna IA detrás, y eso confundió hasta a quien lo
+       encargó. */
+    var razon = motivo === 'sin_clave'
+      ? 'No hay ninguna IA configurada en este momento, así que este resumen está <b>hecho por reglas</b> de la propia app, no escrito por una IA.'
+      : motivo === 'red'
+        ? 'No se ha podido conectar con la IA. Este resumen está <b>hecho por reglas</b> de la propia app.'
+        : 'La IA no ha podido responder. Este resumen está <b>hecho por reglas</b> de la propia app.';
+    node.appendChild(el('<p class="hint">' + razon + ' Sirve para salir del paso; el bueno lo escribe la IA.</p>'));
+    return node;
   }
 
   /* ===================== IMPORTAR CON IA ===================== */
