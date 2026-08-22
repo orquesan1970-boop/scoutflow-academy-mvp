@@ -1964,7 +1964,7 @@ SF.SEED_PLAYERS = [
     city: 'Madrid', sport: 'baloncesto', primary_position: 'Alero', height_cm: 192, weight_kg: 78, scout_score: 84,
     status: 'Inscrito', club: 'CBJA Academy', league: 'Liga Cadete FBM', category: 'Cadete', channel: 'Evento',
     capture_date: '2023-06-01', instagram: '@martinrios', wingspan_cm: 198, torso_height_cm: 96,
-    foot_length_cm: 30, hand_length_cm: 22, dominant_hand: 'Derecha', start_age: 9,
+    foot_length_cm: 30, hand_length_cm: 22, dominant_hand: 'Derecha', start_age: 9, dorsal: '7',
     /* Llegó en 2023, que es cuando empiezan sus medidas: si la trayectoria
        dijera otra cosa, el historial del preparador no cuadraría. */
     career_history: [
@@ -1980,7 +1980,10 @@ SF.SEED_PLAYERS = [
     competitions: [{ date: '2025-02', name: 'Copa Federación', place: 'Madrid', ranking: 'Subcampeón', result: 'MVP de la final' }],
     school: 'IES Pozuelo', course: '4º ESO', gpa: '8.6', english: 'Intermedio', other_languages: 'Ninguno', graduation_date: '2026-06-20',
     medical: { congenital: 'No', congenital_detail: '', surgeries: 'No', surgeries_detail: '', injuries: 'Sí', injuries_detail: 'Esguince de tobillo (2024), recuperado', cardio_resp: 'No', cardio_resp_detail: '', blood_type: '0+', allergies: 'Ninguna conocida', correctors: 'Plantillas', vaccination: 'Sí', notes: '' },
-    stats: { 'Tiro': 4, 'Bote': 4, 'Pase': 4, 'Finalización': 4, 'Defensa': 3, 'Fuerza explosiva': 4, 'Velocidad': 4, 'Velocidad de reacción': 3, 'Potencia': 4, 'Flexibilidad': 3, 'Coordinación': 4, 'Resistencia aeróbica': 4, 'Resistencia anaeróbica': 3, 'Liderazgo': 5, 'Competitividad': 4 },
+    /* Los 22 apartados: le faltaban los que se añadieron después (Ataque 1x1,
+       Juego sin balón, Robo de balón) y con 15 de 22 la cobertura del Score
+       salía baja justo en el jugador de referencia del equipo. */
+    stats: { 'Tiro': 4, 'Bote': 4, 'Pase': 4, 'Finalización': 5, 'Ataque 1x1': 5, 'Juego sin balón': 4, 'Rebote': 4, 'Defensa': 4, 'Robo de balón': 3, 'Lectura de juego': 4, 'Fuerza explosiva': 4, 'Velocidad': 4, 'Velocidad de reacción': 3, 'Potencia': 4, 'Flexibilidad': 3, 'Coordinación': 4, 'Resistencia aeróbica': 4, 'Resistencia anaeróbica': 3, 'Liderazgo': 5, 'Competitividad': 5 },
     dni: '12345678X', address: 'Calle Mayor 12, Pozuelo', emergency_phone: '+34 600 111 222',
     bank: { iban: 'ES12 3456 7890 1234 5678 9012', method: 'Recibo domiciliado' }, siblings_position: 'Primero',
     tracking: {
@@ -2142,7 +2145,7 @@ SF.SQUAD_ROWS = [
     fam: ['Elena Prats', 'Madre'], docs: 'ok', pagos: 'pendiente',
     nota_int: 'El mejor tirador del equipo. Trabaja el bote con la izquierda.' },
 
-  { id: 'p11', nom: 'Iker', ape: 'Molina', d: '2011-04-02', pos: 'Escolta', pos2: 'Alero', dor: '7',
+  { id: 'p11', nom: 'Iker', ape: 'Molina', d: '2011-04-02', pos: 'Escolta', pos2: 'Alero', dor: '15',
     alt: 178, peso: 66, crec: 12, anos: 4,
     notas: { 'Tiro': 3, 'Bote': 4, 'Pase': 3, 'Finalización': 4, 'Ataque 1x1': 4, 'Juego sin balón': 3, 'Defensa': 4, 'Robo de balón': 3, 'Lectura de juego': 3, 'Velocidad': 5, 'Coordinación': 4, 'Resistencia aeróbica': 4, 'Liderazgo': 3, 'Competitividad': 4 },
     cmj: 40.1, sl: 20.4, sr: 21.2, rsi: 1.22, sp: 2.94, cod: 5.26,
@@ -6732,7 +6735,7 @@ window.SF = window.SF || {};
       var seg = SF.SEGMENTS[t.segment] || t.segment || '—';
       var coaches = (t.coaches || []).length ? t.coaches.join(', ') : 'Sin entrenador';
       var card = el('<button class="team-card"><div class="tc-top"><span class="tag tag-purple">' + esc(seg) + '</span><span class="hint">' + esc(t.category || '') + '</span></div>' +
-        '<h3>' + esc(t.name) + '</h3><p class="tc-meta">' + count + ' jugadores · ' + esc(coaches) + '</p></button>');
+        '<h3>' + esc(t.name) + '</h3><p class="tc-meta">' + count + (count === 1 ? ' jugador · ' : ' jugadores · ') + esc(coaches) + '</p></button>');
       card.onclick = function () { location.hash = '#/equipo/' + t.id; };
       grid.appendChild(card);
     });
