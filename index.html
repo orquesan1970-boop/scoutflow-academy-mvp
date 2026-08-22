@@ -1012,6 +1012,27 @@ SF.ageAt = function (p, dateStr) {
   return null;
 };
 
+/* Todo lo que toma el preparador físico, en un solo sitio. Definirlo aquí y
+   no en cada pantalla evita que se añada un campo a la ficha y luego no
+   aparezca en el historial, que es justo lo que pasaba antes.
+   'texto: true' son los que no son un número y por tanto no tienen resta:
+   pasar de "No" a "Sí" en usar las dos manos no son centímetros, pero es
+   probablemente el cambio más importante que hace un jugador de cantera. */
+SF.MEASURE_FIELDS = [
+  { k: 'height_cm', label: 'Altura', u: 'cm', metros: true },
+  { k: 'weight_kg', label: 'Peso', u: 'kg' },
+  { k: 'wingspan_cm', label: 'Envergadura', u: 'cm' },
+  { k: 'vertical_reach_stand', label: 'Alcance vertical sin impulso', u: 'cm' },
+  { k: 'vertical_reach_run', label: 'Alcance vertical con impulso', u: 'cm' },
+  { k: 'long_jump_stand_cm', label: 'Salto de longitud sin carrera', u: 'cm' },
+  { k: 'long_jump_run_cm', label: 'Salto de longitud con carrera', u: 'cm' },
+  { k: 'torso_height_cm', label: 'Altura de torso', u: 'cm' },
+  { k: 'foot_length_cm', label: 'Longitud de pie', u: 'cm' },
+  { k: 'hand_length_cm', label: 'Longitud de manos', u: 'cm' },
+  { k: 'dominant_hand', label: 'Mano dominante', texto: true },
+  { k: 'uses_both_hands', label: 'Usa las dos manos', texto: true }
+];
+
 /* Junta medidas y evaluaciones en una sola línea temporal por temporada.
    Devuelve de la más antigua a la más reciente, con la diferencia respecto
    a la temporada anterior ya calculada: sin las diferencias hay que restar
@@ -1068,6 +1089,29 @@ SF.evolucion = function (p) {
     prev = f;
   });
   return filas;
+};
+
+/* Igual que las destrezas, pero con las medidas del preparador físico: una
+   fila por medida y una columna por temporada. Solo salen las que se han
+   tomado alguna vez. */
+SF.evolucionMedidas = function (p, filas) {
+  var conM = filas.filter(function (f) { return f.medida; });
+  if (!conM.length) return [];
+  var out = [];
+  SF.MEASURE_FIELDS.forEach(function (def) {
+    var vals = conM.map(function (f) {
+      var v = f.medida[def.k];
+      if (v === undefined || v === null || v === '') return null;
+      return def.texto ? String(v) : (+v || null);
+    });
+    if (!vals.some(function (v) { return v; })) return;        // nunca tomada
+    var prim = null, ult = null;
+    vals.forEach(function (v) { if (v) { if (prim === null) prim = v; ult = v; } });
+    var delta = null;
+    if (!def.texto && prim !== null && ult !== null) delta = Math.round((ult - prim) * 10) / 10;
+    out.push({ def: def, vals: vals, delta: delta });
+  });
+  return out;
 };
 
 /* Para el detalle apartado por apartado: cada destreza con su valor en cada
@@ -1814,7 +1858,7 @@ function P(o) {
     dorsal: '', height_est_cm: null,
     languages: [], weight_kg: null, wingspan_cm: null, torso_height_cm: null,
     foot_length_cm: null, hand_length_cm: null, dominant_hand: '', uses_both_hands: '',
-    vertical_reach_stand: null, vertical_reach_run: null,
+    vertical_reach_stand: null, vertical_reach_run: null, long_jump_stand_cm: null, long_jump_run_cm: null,
     club: '', league: '',
     category: '', start_age: '', career_history: [],
     selections: { local: '', provincial: '', regional: '', national: '' },
@@ -1868,7 +1912,8 @@ SF.SEED_PLAYERS = [
       next: { action: 'Entrevista con la familia', date: '2026-06-28' }
     },
     kit_order: { sizes: { '1ª equipación de juego': 'M', '2ª equipación de juego': 'M', 'Pantalón de juego': 'M', 'Chándal oficial': 'L' }, print_name: 'M. RÍOS', print_number: '7', status: 'pedido', requested_at: '2026-06-18' },
-    vertical_reach_stand: 248, vertical_reach_run: 295, uses_both_hands: 'No',
+    vertical_reach_stand: 248, vertical_reach_run: 295, uses_both_hands: 'Sí',
+    long_jump_stand_cm: 231, long_jump_run_cm: 281,
     /* Cuatro temporadas seguidas: es lo que hace valioso tener a un chaval en
        el club desde pequeño, y sin ejemplo así la pantalla de Evolución no se
        entiende. Las notas van en escala 0-5 y la migración las pasa a 0-10,
@@ -1881,10 +1926,18 @@ SF.SEED_PLAYERS = [
       { by: 'Carlos Gorosito', role: 'Entrenador', date: '2026-06-10', season: '2025/2026' }
     ], team_id: 't1',
     measure_log: [
-      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2023-10-04', season: '2023/2024', height_cm: 177, weight_kg: 62, wingspan_cm: 182 },
-      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2024-09-30', season: '2024/2025', height_cm: 184, weight_kg: 69, wingspan_cm: 190 },
-      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2025-09-01', season: '2025/2026', height_cm: 189, weight_kg: 75, wingspan_cm: 196, torso_height_cm: 95, foot_length_cm: 30, hand_length_cm: 22 },
-      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2026-07-10', season: '2026/2027', height_cm: 192, weight_kg: 78, wingspan_cm: 198, torso_height_cm: 96, foot_length_cm: 30, hand_length_cm: 22 }
+      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2023-10-04', season: '2023/2024', height_cm: 177, weight_kg: 62, wingspan_cm: 182,
+        vertical_reach_stand: 228, vertical_reach_run: 268, long_jump_stand_cm: 198, long_jump_run_cm: 240,
+        torso_height_cm: 89, foot_length_cm: 28, hand_length_cm: 20, dominant_hand: 'Derecha', uses_both_hands: 'No' },
+      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2024-09-30', season: '2024/2025', height_cm: 184, weight_kg: 69, wingspan_cm: 190,
+        vertical_reach_stand: 238, vertical_reach_run: 281, long_jump_stand_cm: 212, long_jump_run_cm: 258,
+        torso_height_cm: 92, foot_length_cm: 29, hand_length_cm: 21, dominant_hand: 'Derecha', uses_both_hands: 'No' },
+      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2025-09-01', season: '2025/2026', height_cm: 189, weight_kg: 75, wingspan_cm: 196,
+        vertical_reach_stand: 245, vertical_reach_run: 290, long_jump_stand_cm: 224, long_jump_run_cm: 272,
+        torso_height_cm: 95, foot_length_cm: 30, hand_length_cm: 22, dominant_hand: 'Derecha', uses_both_hands: 'Sí' },
+      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2026-07-10', season: '2026/2027', height_cm: 192, weight_kg: 78, wingspan_cm: 198,
+        vertical_reach_stand: 248, vertical_reach_run: 295, long_jump_stand_cm: 231, long_jump_run_cm: 281,
+        torso_height_cm: 96, foot_length_cm: 30, hand_length_cm: 22, dominant_hand: 'Derecha', uses_both_hands: 'Sí' }
     ],
     family_active: true, family: { contact: 'Ana Ríos', relation: 'Madre', phone: '+34 600 111 222', email: 'ana@example.com' },
     consents: { imagen_publica: true, comunicaciones: true },
@@ -2733,6 +2786,33 @@ window.SF = window.SF || {};
         'De aquí en adelante queda todo.</p>'));
     }
 
+    /* 2026/2027 -> 26/27. Se usa en las cabeceras de las tablas de detalle:
+       la temporada entera no cabe en columnas tan estrechas. */
+    function corta(t) { return esc(t.replace(/^\d{2}(\d{2})\/\d{2}(\d{2})$/, '$1/$2')); }
+
+    /* --- Todas las medidas, no solo altura y peso --- */
+    var meds = SF.evolucionMedidas(p, filas);
+    if (meds.length) {
+      var tempsM = filas.filter(function (f) { return f.medida; }).map(function (f) { return f.season; });
+      wrap.appendChild(el('<p class="sec-label">Medidas, una a una</p>'));
+      var headM = '<th>Medida</th>' + tempsM.map(function (t) { return '<th class="evo-y">' + corta(t) + '</th>'; }).join('') +
+        '<th class="evo-y">Cambio</th>';
+      var tM = el('<div class="evo-scroll"><table class="evo-tab evo-sk"><thead><tr>' + headM + '</tr></thead><tbody></tbody></table></div>');
+      var tbM = tM.querySelector('tbody');
+      meds.forEach(function (m) {
+        var celdas = m.vals.map(function (v) {
+          if (!v) return '<td class="evo-y"><span class="hint">—</span></td>';
+          var txt = m.def.texto ? v : (m.def.metros ? (v / 100).toFixed(2) : v);
+          return '<td class="evo-y">' + esc(txt) + '</td>';
+        }).join('');
+        tbM.appendChild(el('<tr><td>' + esc(m.def.label) +
+          (m.def.u && !m.def.metros ? ' <span class="hint">(' + m.def.u + ')</span>' : '') +
+          (m.def.metros ? ' <span class="hint">(m)</span>' : '') + '</td>' + celdas +
+          '<td class="evo-y">' + (m.delta ? delta(m.delta, m.def.metros ? ' cm' : '') : '') + '</td></tr>'));
+      });
+      wrap.appendChild(tM);
+    }
+
     /* --- Detalle apartado por apartado --- */
     var grupos = SF.evolucionSkills(p, filas);
     if (!grupos.length) {
@@ -2746,10 +2826,8 @@ window.SF = window.SF || {};
       'mantener un 6 mientras sube de categoría ya es mejorar.</p>'));
 
     grupos.forEach(function (g) {
-      /* 2026/2027 -> 26/27. Cortar por posición daba "26/20": las columnas son
-         estrechas y la temporada entera no cabe, pero mal abreviada confunde. */
       var head = '<th>' + esc(g.grupo) + '</th>' + temps.map(function (t) {
-        return '<th class="evo-y">' + esc(t.replace(/^\d{2}(\d{2})\/\d{2}(\d{2})$/, '$1/$2')) + '</th>';
+        return '<th class="evo-y">' + corta(t) + '</th>';
       }).join('') + '<th class="evo-y">Cambio</th>';
       var t2 = el('<div class="evo-scroll"><table class="evo-tab evo-sk"><thead><tr>' + head + '</tr></thead><tbody></tbody></table></div>');
       var tb2 = t2.querySelector('tbody');
@@ -3486,6 +3564,8 @@ window.SF = window.SF || {};
           fld('Envergadura', p.wingspan_cm ? p.wingspan_cm + ' cm' : '') +
           fld('Alcance vertical (sin impulso)', p.vertical_reach_stand ? p.vertical_reach_stand + ' cm' : '') +
           fld('Alcance vertical (con impulso)', p.vertical_reach_run ? p.vertical_reach_run + ' cm' : '') +
+          fld('Salto de longitud (sin carrera)', p.long_jump_stand_cm ? p.long_jump_stand_cm + ' cm' : '') +
+          fld('Salto de longitud (con carrera)', p.long_jump_run_cm ? p.long_jump_run_cm + ' cm' : '') +
           fld('Altura de torso', p.torso_height_cm ? p.torso_height_cm + ' cm' : '') +
           fld('Longitud de pie', p.foot_length_cm ? p.foot_length_cm + ' cm' : '') +
           fld('Longitud de manos', p.hand_length_cm ? p.hand_length_cm + ' cm' : '') +
@@ -3505,6 +3585,8 @@ window.SF = window.SF || {};
               { name: 'wingspan_cm', label: 'Envergadura (cm)', type: 'number' },
               { name: 'vertical_reach_stand', label: 'Alcance vertical sin impulso (cm)', type: 'number' },
               { name: 'vertical_reach_run', label: 'Alcance vertical con impulso (cm)', type: 'number' },
+              { name: 'long_jump_stand_cm', label: 'Salto de longitud sin carrera (cm)', type: 'number' },
+              { name: 'long_jump_run_cm', label: 'Salto de longitud con carrera (cm)', type: 'number' },
               { name: 'torso_height_cm', label: 'Altura de torso (cm)', type: 'number' },
               { name: 'foot_length_cm', label: 'Longitud de pie (cm)', type: 'number' },
               { name: 'hand_length_cm', label: 'Longitud de manos (cm)', type: 'number' },
@@ -3531,6 +3613,7 @@ window.SF = window.SF || {};
             if (e.weight_kg) vals.push(e.weight_kg + ' kg');
             if (e.wingspan_cm) vals.push('env. ' + e.wingspan_cm);
             if (e.vertical_reach_run) vals.push('alc. ' + e.vertical_reach_run);
+            if (e.long_jump_run_cm) vals.push('long. ' + e.long_jump_run_cm);
             ml.appendChild(el('<div class="mini-row"><span><b>' + esc(e.date) + '</b> · ' + esc(vals.join(' · ')) + '</span><span class="hint">' + esc(e.by) + '</span></div>'));
           });
           body.appendChild(ml);
