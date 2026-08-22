@@ -793,6 +793,15 @@ SF.LOGO="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAIAAAACACAYAAADDPmHLAAAzY
    abriendo index.html con doble clic (file://). */
 window.SF = window.SF || {};
 
+/* Texto para buscar: minúsculas y SIN TILDES.
+   En una app en español esto no es un detalle. Nadie escribe "Andrés" con
+   tilde en un buscador, ni "Suárez", ni "Martín". Sin esto, buscar "andres"
+   no encuentra a Andrés, y lo peor: al importar un WhatsApp, "Andres" no
+   reconocería la ficha de "Andrés" y crearía un duplicado. */
+SF.norm = function (s) {
+  return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+};
+
 /* Estados canónicos del jugador y orden del pipeline de captación */
 SF.STATUSES = [
   'Nuevo', 'Datos incompletos', 'Pendiente de vídeo', 'En evaluación',
@@ -4429,7 +4438,7 @@ window.SF = window.SF || {};
     if (gq && !preFilter) bar.querySelector('#q').value = gq;
 
     function render() {
-      var q = bar.querySelector('#q').value.toLowerCase().trim();
+      var q = SF.norm(bar.querySelector('#q').value).trim();
       var fy = bar.querySelector('#fy').value, fp = bar.querySelector('#fp').value, fn = bar.querySelector('#fn').value, fs = bar.querySelector('#fs').value;
       var rows = ps.filter(function (p) {
         if (preFilter && !preFilter(p)) return false;
@@ -4444,8 +4453,8 @@ window.SF = window.SF || {};
              todos los nacidos en 2007. */
           var qn = q.replace(/^j-?/, '').replace(/^0+(?=\d)/, '');
           if (/^\d+$/.test(qn) && String(p.ficha) === qn) return true;
-          var hay = (p.full_name + ' ' + (p.primary_position || '') + ' ' + (p.nationality || []).join(' ') + ' ' +
-            (p.birth_year || '') + ' ' + (p.scoutflow_id || '') + ' ' + SF.fichaCode(p.ficha)).toLowerCase();
+          var hay = SF.norm(p.full_name + ' ' + (p.primary_position || '') + ' ' + (p.nationality || []).join(' ') + ' ' +
+            (p.birth_year || '') + ' ' + (p.scoutflow_id || '') + ' ' + SF.fichaCode(p.ficha));
           if (q.indexOf('sin pasaporte') >= 0) return p.documents.pasaporte === 'pendiente';
           if (hay.indexOf(q) < 0) return false;
         }
@@ -5802,13 +5811,16 @@ window.SF = window.SF || {};
      tienes a medias, que es lo que pasa de verdad: los datos llegan a
      cachos, por WhatsApp, a lo largo de semanas. */
   function buscarParecido(d) {
-    var nombre = ((d.first_name || '') + ' ' + (d.last_name || '')).trim().toLowerCase();
+    /* Sin tildes en los dos lados. Si no, un WhatsApp que dice "Andres" no
+       reconocería la ficha de "Andrés" y crearíamos un duplicado, que es
+       justo lo que esta función existe para evitar. */
+    var nombre = SF.norm(((d.first_name || '') + ' ' + (d.last_name || '')).trim());
     if (!nombre || nombre.length < 3) return null;
     var trozos = nombre.split(/\s+/).filter(function (x) { return x.length > 2; });
     if (!trozos.length) return null;
     var mejor = null, mejorPuntos = 0;
     SF.store.players().forEach(function (p) {
-      var suyo = (p.full_name || '').toLowerCase();
+      var suyo = SF.norm(p.full_name);
       var puntos = trozos.filter(function (t) { return suyo.indexOf(t) >= 0; }).length;
       /* Coincidir en año de nacimiento suma mucho: hay muchos "García". */
       if (d.birth_year && p.birth_year === d.birth_year) puntos += 1.5;
@@ -6357,11 +6369,26 @@ window.SF = window.SF || {};
      resultados, no un listado con scroll. */
   pages.family = function (view) {
     view.innerHTML = head('Family', 'Quién tiene acceso al portal, y qué ve cada familia.');
-    var todos = scopedPlayers().filter(function (p) { return (p.family || {}).contact; });
+    /* SIN filtrar por "tiene contacto familiar". Antes, quien no lo tenía
+       desaparecía de esta pantalla sin decir nada: buscabas a un jugador que
+       existe y salía "ninguna familia", como si el buscador estuviera roto.
+       Y además, no tener contacto familiar es justo el agujero que hay que
+       tapar, así que tiene que verse. */
+    var todos = scopedPlayers();
 
     if (!todos.length) {
-      view.appendChild(el('<div class="empty-panel"><p>Aún no hay familias registradas. En cuanto una ficha tenga un contacto familiar, aparecerá aquí.</p></div>'));
+      view.appendChild(el('<div class="empty-panel"><p>No tienes jugadores a tu cargo todavía.</p></div>'));
       return;
+    }
+
+    var sinContacto = todos.filter(function (p) { return !(p.family || {}).contact; });
+    if (sinContacto.length) {
+      var av2 = el('<p class="aviso-lin"><b>' + sinContacto.length +
+        (sinContacto.length === 1 ? ' jugador no tiene contacto familiar' : ' jugadores no tienen contacto familiar') +
+        '</b> en su ficha. Sin eso no se les puede dar acceso al portal ni avisar de nada. ' +
+        '<button class="lnk" data-s>Ver quiénes</button></p>');
+      av2.querySelector('[data-s]').onclick = function () { SF._famQ = ''; SF._famF = 'nocontacto'; SF.router.render(); };
+      view.appendChild(av2);
     }
 
     /* Los que conservan acceso sin estar ya en ningún equipo. Es higiene de
@@ -6383,7 +6410,7 @@ window.SF = window.SF || {};
     var barra = el('<div class="fam-bar">' +
       '<input id="fq" placeholder="Buscar por jugador, por contacto o por equipo…" value="' + esc(q) + '">' +
       '<select id="ff">' +
-      ['todos|Todas', 'con|Con acceso', 'sin|Sin acceso', 'revisar|Sin equipo pero con acceso']
+      ['todos|Todas', 'con|Con acceso', 'sin|Sin acceso', 'nocontacto|Sin contacto familiar', 'revisar|Sin equipo pero con acceso']
         .map(function (o) {
           var k = o.split('|')[0];
           return '<option value="' + k + '"' + (k === filtro ? ' selected' : '') + '>' + o.split('|')[1] + '</option>';
@@ -6398,22 +6425,25 @@ window.SF = window.SF || {};
     view.appendChild(cuenta); view.appendChild(caja);
 
     function pinta() {
-      var qq = (SF._famQ || '').trim().toLowerCase();
+      /* Sin tildes: nadie escribe "Suárez" con tilde en un buscador. */
+      var qq = SF.norm(SF._famQ || '').trim();
       var f = SF._famF || 'todos';
       var res = todos.filter(function (p) {
+        var fam0 = p.family || {};
         if (f === 'con' && !p.family_active) return false;
         if (f === 'sin' && p.family_active) return false;
+        if (f === 'nocontacto' && fam0.contact) return false;
         if (f === 'revisar' && !(p.family_active && !p.team_id)) return false;
         if (!qq) return true;
         var eq = p.team_id ? ((SF.store.teamGet(p.team_id) || {}).name || '') : '';
-        var texto = (p.full_name + ' ' + (p.family.contact || '') + ' ' + (p.family.relation || '') + ' ' + eq).toLowerCase();
+        var texto = SF.norm(p.full_name + ' ' + (fam0.contact || '') + ' ' + (fam0.relation || '') + ' ' + eq);
         return qq.split(/\s+/).every(function (w) { return texto.indexOf(w) >= 0; });
       });
 
       cuenta.innerHTML = res.length
-        ? '<b>' + res.length + '</b> ' + (res.length === 1 ? 'familia' : 'familias') +
+        ? '<b>' + res.length + '</b> ' + (res.length === 1 ? 'jugador' : 'jugadores') +
           (qq || f !== 'todos' ? ' con este filtro' : ' en total') + '.'
-        : 'Ninguna familia con esos criterios.';
+        : 'Nadie con esos criterios. Prueba con menos palabras o cambia el filtro.';
 
       caja.innerHTML = '';
       if (!res.length) return;
@@ -6422,14 +6452,26 @@ window.SF = window.SF || {};
       /* Tope de 40: si hace falta ver más, es que hay que afinar la búsqueda,
          no que haya que hacer scroll durante un minuto. */
       res.slice(0, 40).forEach(function (p) {
-        var eq = p.team_id ? ((SF.store.teamGet(p.team_id) || {}).name || '—') : '<span class="hint">sin equipo</span>';
+        var fam0 = p.family || {};
+        var eq = p.team_id ? esc((SF.store.teamGet(p.team_id) || {}).name || '—') : '<span class="hint">sin equipo</span>';
+        /* Sin contacto no se puede dar acceso: en vez de un botón que no
+           hace nada, se manda a rellenarlo, que es lo que toca. */
+        var cont = fam0.contact
+          ? esc(fam0.contact) + ' <span class="hint">(' + esc(fam0.relation || '') + ')</span>'
+          : '<span class="tag tag-warn">Sin contacto familiar</span>';
+        var acceso = !fam0.contact ? '<span class="hint">—</span>'
+          : (p.family_active ? '<span class="tag tag-green">Con acceso</span>' : '<span class="tag tag-gray">Sin acceso</span>');
+        var acciones = fam0.contact
+          ? '<button class="lnk" data-t>' + (p.family_active ? 'Quitar' : 'Dar acceso') + '</button><button class="btn btn-sm" data-v>Ver portal</button>'
+          : '<button class="lnk" data-f>Añadir contacto</button>';
         var tr = el('<tr><td><b>' + esc(p.full_name) + '</b></td><td>' + eq + '</td>' +
-          '<td>' + esc(p.family.contact) + ' <span class="hint">(' + esc(p.family.relation || '') + ')</span></td>' +
-          '<td>' + (p.family_active ? '<span class="tag tag-green">Con acceso</span>' : '<span class="tag tag-gray">Sin acceso</span>') + '</td>' +
-          '<td><span class="row-actions"><button class="lnk" data-t>' + (p.family_active ? 'Quitar' : 'Dar acceso') + '</button>' +
-          '<button class="btn btn-sm" data-v>Ver portal</button></span></td></tr>');
-        tr.querySelector('[data-v]').onclick = function () { location.hash = '#/portal-family/' + p.id; };
-        tr.querySelector('[data-t]').onclick = function () { cambiarAcceso(p, pinta); };
+          '<td>' + cont + '</td><td>' + acceso + '</td>' +
+          '<td><span class="row-actions">' + acciones + '</span></td></tr>');
+        if (tr.querySelector('[data-v]')) tr.querySelector('[data-v]').onclick = function () { location.hash = '#/portal-family/' + p.id; };
+        if (tr.querySelector('[data-t]')) tr.querySelector('[data-t]').onclick = function () { cambiarAcceso(p, pinta); };
+        if (tr.querySelector('[data-f]')) tr.querySelector('[data-f]').onclick = function () {
+          SF._openTab = 'familia'; location.hash = '#/jugador/' + p.id;
+        };
         tb.appendChild(tr);
       });
       caja.appendChild(t);
@@ -7833,13 +7875,13 @@ window.SF = window.SF || {};
       var tag = p.status === 'Inscrito' ? '<span class="tag tag-green">Inscrito</span>' : '<span class="tag tag-gray">' + esc(p.status) + '</span>';
       var other = (p.team_id && p.team_id !== t.id) ? ' · <span class="hint">en ' + esc((SF.store.teamGet(p.team_id) || {}).name || 'otro equipo') + '</span>' : '';
       var row = el('<label class="mini-row add-row"><span><input type="checkbox" value="' + p.id + '"> <b>' + esc(p.full_name) + '</b> · ' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + other + '</span>' + tag + '</label>');
-      row.dataset.hay = (p.full_name + ' ' + (p.birth_year || '') + ' ' + (p.primary_position || '')).toLowerCase();
+      row.dataset.hay = SF.norm(p.full_name + ' ' + (p.birth_year || '') + ' ' + (p.primary_position || ''));
       list.appendChild(row);
     });
     box.appendChild(list);
     var empty = el('<p class="hint add-empty" style="display:none">Sin coincidencias.</p>'); box.appendChild(empty);
     search.oninput = function () {
-      var q = search.value.trim().toLowerCase(), vis = 0;
+      var q = SF.norm(search.value).trim(), vis = 0;
       Array.prototype.forEach.call(list.querySelectorAll('.add-row'), function (r) {
         var show = !q || r.dataset.hay.indexOf(q) >= 0; r.style.display = show ? '' : 'none'; if (show) vis++;
       });
@@ -9264,7 +9306,7 @@ window.SF = window.SF || {};
     var t = [p.full_name, SF.fichaCode(p.ficha), p.scoutflow_id, p.birth_year,
       p.primary_position, p.secondary_position, (p.nationality || []).join(' '),
       p.club, p.league, p.category, p.city, p.residence_country, p.status, p.school];
-    return t.filter(Boolean).join(' ').toLowerCase();
+    return SF.norm(t.filter(Boolean).join(' '));
   }
   /* La trayectoria va aparte para poder decir POR QUÉ ha salido:
      si buscas "EBA" quieres saber que ha coincidido ahí, no adivinarlo. */
@@ -9274,14 +9316,14 @@ window.SF = window.SF || {};
       t.push(c.club);
       c.seasons.forEach(function (s) { t.push(s.season, s.category, s.competition, s.finish); });
     });
-    return t.filter(Boolean).join(' ').toLowerCase();
+    return SF.norm(t.filter(Boolean).join(' '));
   }
   function trayectoriaResumen(p, terms) {
     var out = [];
     SF.careerNorm(p.career_history).forEach(function (c) {
       c.seasons.forEach(function (s) {
         var linea = [c.club, s.season, s.category, s.competition, s.finish].filter(Boolean).join(' · ');
-        if (terms.some(function (q) { return linea.toLowerCase().indexOf(q) >= 0; })) out.push(linea);
+        if (terms.some(function (q) { return SF.norm(linea).indexOf(q) >= 0; })) out.push(linea);
       });
     });
     return out;
@@ -9289,9 +9331,9 @@ window.SF = window.SF || {};
   function textoStaff(s) {
     var eq = (s.team_ids || []).map(function (id) { return (SF.store.teamGet(id) || {}).name; });
     var l = s.licence || {};
-    return [s.full_name, SF.staffCode(s.num), roleLabel(s.role), s.qualification, s.qual_entity,
-      s.qual_number, l.category, l.number, s.languages, s.email, eq.join(' ')]
-      .filter(Boolean).join(' ').toLowerCase();
+    var t = [s.full_name, SF.staffCode(s.num), roleLabel(s.role), s.qualification, s.qual_entity,
+      s.qual_number, l.category, l.number, s.languages, s.email, eq.join(' ')];
+    return SF.norm(t.filter(Boolean).join(' '));
   }
   /* Todos los términos tienen que aparecer: "cadete 2009" busca las dos cosas,
      no una o la otra. */
@@ -9299,7 +9341,7 @@ window.SF = window.SF || {};
 
   pages.buscar = function (view) {
     var q = (SF._q || '').trim();
-    var terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+    var terms = SF.norm(q).split(/\s+/).filter(Boolean);
     var r = role();
 
     view.innerHTML = head('Resultados', q ? 'Buscando «' + esc(q) + '»' : 'Escribe algo en la barra de búsqueda.');
@@ -9317,7 +9359,7 @@ window.SF = window.SF || {};
     var ss = verStaff ? SF.store.staff().filter(function (s) { return casa(textoStaff(s), terms); }) : [];
 
     var eqs = r.nav.indexOf('equipos') >= 0
-      ? SF.store.teams().filter(function (t) { return casa((t.name + ' ' + t.category + ' ' + (t.coaches || []).join(' ')).toLowerCase(), terms); })
+      ? SF.store.teams().filter(function (t) { return casa(SF.norm(t.name + ' ' + t.category + ' ' + (t.coaches || []).join(' ')), terms); })
       : [];
 
     if (!ps.length && !ss.length && !eqs.length) {
