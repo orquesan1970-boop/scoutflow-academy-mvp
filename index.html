@@ -1069,6 +1069,14 @@ SF.MEASURE_FIELDS = [
    mitad de temporada la evolución miente sin que nadie se entere. */
 SF.INSTRUMENTOS = ['My Jump Lab', 'Otra app de móvil', 'Plataforma de contacto', 'Fotocélulas', 'Cronómetro manual', 'Cinta métrica', 'Goniómetro', 'Otro'];
 
+/* Los decimales, según lo que se mide. JavaScript escribe 25.0 como "25" y
+   -0.20 como "-0.2"; en una columna de tiempos eso hace dudar de si falta una
+   cifra. Cada medida se muestra con los decimales con los que se toma. */
+SF.numMedida = function (v, def) {
+  var d = (def && def.step === '0.01') ? 2 : ((def && def.step === '0.1') ? 1 : 0);
+  return d ? (+v).toFixed(d) : String(v);
+};
+
 /* Asimetría entre piernas. En baloncesto una diferencia grande entre la
    izquierda y la derecha es un aviso: se asocia a más riesgo de lesión y a
    peor rendimiento en los cambios de dirección. El umbral que se maneja
@@ -2882,6 +2890,8 @@ window.SF = window.SF || {};
     var meds = SF.evolucionMedidas(p, filas);
     var tempsM = filas.filter(function (f) { return f.medida; }).map(function (f) { return f.season; });
 
+    var num = SF.numMedida;
+
     function tablaMedidas(titulo, lista, nota) {
       if (!lista.length) return;
       wrap.appendChild(el('<p class="sec-label">' + esc(titulo) + '</p>'));
@@ -2893,7 +2903,7 @@ window.SF = window.SF || {};
       lista.forEach(function (m) {
         var celdas = m.vals.map(function (v) {
           if (!v) return '<td class="evo-y"><span class="hint">—</span></td>';
-          return '<td class="evo-y">' + esc(m.def.texto ? v : (m.def.metros ? (v / 100).toFixed(2) : v)) + '</td>';
+          return '<td class="evo-y">' + esc(m.def.texto ? v : (m.def.metros ? (v / 100).toFixed(2) : num(v, m.def))) + '</td>';
         }).join('');
         /* En un sprint, bajar es mejorar. Se invierte solo el COLOR, nunca el
            signo: el número tiene que seguir diciendo la verdad (-0,15 s). */
@@ -2902,7 +2912,7 @@ window.SF = window.SF || {};
         tbM.appendChild(el('<tr><td>' + esc(m.def.label) +
           (m.def.metros ? ' <span class="hint">(m)</span>' : (m.def.u ? ' <span class="hint">(' + esc(m.def.u) + ')</span>' : '')) +
           '</td>' + celdas + '<td class="evo-y">' +
-          (d ? '<span class="evo-d ' + cls + '">' + (d > 0 ? '+' : '') + d + ' ' + esc(m.def.u || '') + '</span>' : '') +
+          (d ? '<span class="evo-d ' + cls + '">' + (d > 0 ? '+' : '') + num(d, m.def) + ' ' + esc(m.def.u || '') + '</span>' : '') +
           '</td></tr>'));
       });
       wrap.appendChild(tM);
@@ -3700,7 +3710,7 @@ window.SF = window.SF || {};
           body.appendChild(el('<p class="sec-label">Tests de rendimiento</p>'));
           if (tests.length) {
             body.appendChild(el('<div class="fields">' + tests.map(function (t) {
-              return fld(t.label, t.texto ? p[t.k] : p[t.k] + (t.u ? ' ' + t.u : ''));
+              return fld(t.label, t.texto ? p[t.k] : SF.numMedida(p[t.k], t) + (t.u ? ' ' + t.u : ''));
             }).join('') + '</div>'));
           }
           if (asim) {
