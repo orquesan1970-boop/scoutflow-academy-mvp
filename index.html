@@ -602,6 +602,15 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .ph-report>span{display:block;font-size:11.5px;margin-bottom:6px}
 .ph-report>p{font-size:12.5px;color:var(--ink-2);margin:0;line-height:1.5}
 .ph-btn .ic{width:14px;height:14px}
+/* Aviso plegado: llega cerrado y se abre. Solo así el "leído" es verdad. */
+.ph-report.is-nuevo{border-color:var(--purple);box-shadow:0 0 0 3px rgba(111,90,239,.09)}
+.ph-open{display:block;width:100%;text-align:left;background:none;border:0;padding:0;cursor:pointer;font:inherit;color:inherit}
+.ph-open-t{display:flex;align-items:center;gap:8px;font-size:13px}
+.ph-open-t b{font-size:13px}
+.ph-open>.hint{display:block;font-size:11.5px;margin:2px 0 0}
+.ph-open-b{margin-top:8px;border-top:1px solid var(--line);padding-top:8px}
+.ph-open-b>p{font-size:12.5px;color:var(--ink-2);margin:0;line-height:1.5}
+.ph-open-b[hidden]{display:none}
 .ph-btn.pay{background:var(--purple);color:#fff;border-color:var(--purple)}
 
 /* Responsive */
@@ -658,6 +667,17 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .composer{display:flex;gap:10px;align-items:flex-end}
 .composer textarea{min-height:64px;resize:vertical}
 .composer .btn{flex:0 0 auto}
+
+/* Compositor de avisos: asunto, cuerpo y, sobre todo, a quién va. El
+   destinatario está a la vista antes de enviar, no escondido en un menú. */
+.composer-x{display:flex;flex-direction:column;gap:9px;border:1px solid var(--line);
+  border-radius:var(--r-lg);background:var(--surface);padding:13px;margin-bottom:6px}
+.composer-x textarea{min-height:74px;resize:vertical}
+.composer-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.composer-row select{flex:1 1 240px;min-width:0}
+.composer-row .btn{flex:0 0 auto}
+.chk{display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--ink-2);cursor:pointer;white-space:nowrap}
+.chk input{width:15px;height:15px;margin:0}
 
 /* ── Pagos en el Portal Family ── */
 .ph-pay{display:flex;flex-direction:column;gap:1px;background:var(--bg);border:1px solid var(--line);
@@ -793,6 +813,33 @@ SF.firmaMenor14 = function (birth_date) {
   if (isNaN(d)) return true;
   var e = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
   return e < 14;
+};
+
+/* ===================== A QUIÉN LLEGA UN AVISO =====================
+   Un club que trabaja con menores no le escribe a un niño de doce años: le
+   escribe a su familia. Por debajo de 14 el mensaje va SIEMPRE a los tutores,
+   aunque quien lo manda haya elegido "a los jugadores". No es una manía: es
+   la misma edad a partir de la cual el menor puede consentir por sí mismo
+   (LOPDGDD), y es la línea que un presidente entiende a la primera.
+
+   A partir de 14 sí se puede escribir al jugador, y quien manda elige.
+
+   Devuelve a quién le llega DE VERDAD, que puede no ser lo que se pidió. */
+SF.AUDIENCIAS = [
+  { k: 'familias', label: 'Solo a las familias', desc: 'Lo reciben padres, madres y tutores. Es lo normal en formación.' },
+  { k: 'ambos', label: 'A las familias y a los jugadores', desc: 'Los dos lo ven. A los menores de 14 les llegará solo a su familia.' },
+  { k: 'jugadores', label: 'Solo a los jugadores', desc: 'Para cosas del vestuario. A los menores de 14 les llegará a su familia igualmente.' }
+];
+
+SF.audienciaReal = function (audiencia, p) {
+  var quiereJug = audiencia === 'jugadores' || audiencia === 'ambos';
+  var quiereFam = audiencia === 'familias' || audiencia === 'ambos';
+  var menor = p ? SF.firmaMenor14(p.birth_date) : true;
+  /* Si es menor de 14 y solo se había marcado "jugadores", el mensaje no se
+     pierde: se redirige a la familia. Un aviso que no llega a nadie es peor
+     que uno mal dirigido. */
+  if (menor) return { jugador: false, familia: true, redirigido: quiereJug && !quiereFam };
+  return { jugador: quiereJug, familia: quiereFam, redirigido: false };
 };
 
 /* ===================== LICENCIAS FEDERATIVAS =====================
@@ -2474,6 +2521,20 @@ SF.store = (function () {
       d.eval_hist_v1 = true;
       write(d);
     }
+    /* Migración de avisos: los que ya existen no sabían a quién iban. Se les
+       pone el criterio por defecto (a las familias) para que sigan siendo
+       visibles donde lo eran, sin abrirlos de golpe a los jugadores. */
+    if (!d.ann_aud_v1) {
+      (d.announcements || []).forEach(function (a) {
+        if (!a.audience) a.audience = 'familias';
+        (a.targets || []).forEach(function (t) {
+          if (t.to_family === undefined) t.to_family = true;
+          if (t.to_player === undefined) t.to_player = false;
+        });
+      });
+      d.ann_aud_v1 = true;
+      write(d);
+    }
     return d;
   }
 
@@ -2738,21 +2799,42 @@ SF.store = (function () {
     annGet: function (id) { return (db().announcements || []).filter(function (a) { return a.id === id; })[0] || null; },
     /* Avisos de UN jugador, tenga equipo o no. Un jugador en seguimiento
        todavía no pertenece a ningún equipo y también hay que poder avisarle. */
-    annForPlayer: function (pid) {
+    /* 'quien' filtra por a quién iba dirigido: el portal de la familia no
+       debe enseñar lo que era solo para el vestuario, ni al revés. Sin
+       parámetro devuelve todo, que es lo que necesita el staff. */
+    annForPlayer: function (pid, quien) {
       return (db().announcements || [])
-        .filter(function (a) { return !a.retracted_at && (a.targets || []).some(function (t) { return t.player_id === pid; }); })
+        .filter(function (a) {
+          if (a.retracted_at) return false;
+          var t = (a.targets || []).filter(function (x) { return x.player_id === pid; })[0];
+          if (!t) return false;
+          if (quien === 'family') return t.to_family !== false;
+          if (quien === 'player') return t.to_player === true;
+          return true;
+        })
         .sort(function (x, y) { return (y.created_at || '').localeCompare(x.created_at || ''); });
     },
     annCreate: function (teamId, data, playerIds) {
       var d = db(); d.announcements = d.announcements || [];
       var u = (SF.USERS || {})[d.role] || d.role;
+      /* 'audience' dice a quién va: 'familias', 'jugadores' o 'ambos'.
+         Sin esto no se puede prometer a un club a quién llega un mensaje, que
+         es justo lo que un presidente pregunta. Y por cada jugador se guarda
+         si le tocaba a él, a su familia o a los dos, porque en un mismo aviso
+         al equipo puede no ser igual para todos: a los menores de 14 se
+         escribe a la familia, no al niño. */
+      var aud = data.audience || 'familias';
       var a = {
         id: 'a' + Date.now(), team_id: teamId, author: u,
         author_role: (SF.ROLES[d.role] || {}).label || d.role,
         kind: data.kind || 'aviso', title: data.title, body: data.body,
+        audience: aud,
         needs_rsvp: !!data.needs_rsvp, created_at: new Date().toISOString(),
         targets: (playerIds || []).map(function (pid) {
-          return { player_id: pid, read_player: null, read_family: null, rsvp: null, rsvp_by: null };
+          var p = (d.players || []).filter(function (x) { return x.id === pid; })[0];
+          var real = SF.audienciaReal(aud, p);
+          return { player_id: pid, to_player: real.jugador, to_family: real.familia,
+            read_player: null, read_family: null, rsvp: null, rsvp_by: null };
         })
       };
       d.announcements.push(a); save(d); return a;
@@ -6047,14 +6129,32 @@ window.SF = window.SF || {};
     /* Avisos del club dirigidos a este jugador. Va en un solo sentido: la
        familia lee y, si el aviso lo pide, confirma asistencia. No escribe. */
     b.appendChild(el('<p class="ph-sec">Avisos del club</p>'));
-    var famAnns = SF.store.annForPlayer(p.id);
+    var famAnns = SF.store.annForPlayer(p.id, 'family');
     if (!famAnns.length) b.appendChild(el('<p class="hint">No tienes avisos.</p>'));
     famAnns.slice(0, 6).forEach(function (a) {
-      SF.store.annMarkRead(a.id, p.id, 'family');       // al abrirlo, queda visto
       var tg = (a.targets || []).filter(function (t) { return t.player_id === p.id; })[0] || {};
-      var card = el('<div class="ph-report"><b>' + esc(a.title) + '</b>' +
-        '<span class="hint">' + fmtDate((a.created_at || '').slice(0, 10)) + ' · ' + esc(a.author || 'El club') + '</span>' +
-        '<p>' + esc(a.body || '').replace(/\n/g, '<br>') + '</p></div>');
+      /* El aviso llega cerrado y se marca como leído cuando la familia lo
+         ABRE. Antes bastaba con que la pantalla lo pintara, y entonces el
+         club veía "visto" de alguien que solo había entrado al portal. Si se
+         le va a decir a un club que puede saber quién lo ha leído, tiene que
+         ser verdad. */
+      var abierto = !!tg.read_family;
+      var card = el('<div class="ph-report' + (abierto ? '' : ' is-nuevo') + '"></div>');
+      var cab = el('<button class="ph-open"><span class="ph-open-t"><b>' + esc(a.title) + '</b>' +
+        (abierto ? '' : '<span class="tag tag-warn">nuevo</span>') + '</span>' +
+        '<span class="hint">' + fmtDate((a.created_at || '').slice(0, 10)) + ' · ' + esc(a.author || 'El club') + '</span></button>');
+      var cuerpo = el('<div class="ph-open-b"' + (abierto ? '' : ' hidden') + '><p>' +
+        esc(a.body || '').replace(/\n/g, '<br>') + '</p></div>');
+      cab.onclick = function () {
+        var oculto = cuerpo.hasAttribute('hidden');
+        if (oculto) {
+          cuerpo.removeAttribute('hidden');
+          SF.store.annMarkRead(a.id, p.id, 'family');
+          var et = cab.querySelector('.tag'); if (et) et.remove();
+          card.classList.remove('is-nuevo');
+        } else cuerpo.setAttribute('hidden', '');
+      };
+      card.appendChild(cab); card.appendChild(cuerpo);
       if (a.needs_rsvp) {
         var yn = el('<div class="ph-yn" style="margin-top:10px"></div>');
         [['ire', 'Iré', true], ['no_puedo', 'No puedo', false]].forEach(function (o) {
@@ -6066,8 +6166,8 @@ window.SF = window.SF || {};
           };
           yn.appendChild(btn);
         });
-        card.appendChild(yn);
-        if (tg.rsvp_by) card.appendChild(el('<p class="hint">Respondió ' + esc(tg.rsvp_by) + '</p>'));
+        cuerpo.appendChild(yn);
+        if (tg.rsvp_by) cuerpo.appendChild(el('<p class="hint">Respondió ' + esc(tg.rsvp_by) + '</p>'));
       }
       b.appendChild(card);
     });
@@ -6614,14 +6714,25 @@ window.SF = window.SF || {};
     /* Avisos del club: en un solo sentido. No es un chat y no ve a nadie más.
        Salen del tablón real, no del muro del equipo. */
     b.appendChild(el('<p class="ph-sec">Avisos del club</p>'));
-    var jAnns = SF.store.annForPlayer(p.id);
+    var jAnns = SF.store.annForPlayer(p.id, 'player');
     if (!jAnns.length) b.appendChild(el('<p class="hint">No tienes avisos.</p>'));
     jAnns.slice(0, 6).forEach(function (a) {
-      SF.store.annMarkRead(a.id, p.id, 'player');
       var tg = (a.targets || []).filter(function (x) { return x.player_id === p.id; })[0] || {};
-      var card = el('<div class="ph-report"><b>' + esc(a.title) + '</b>' +
-        '<span class="hint">' + fmtDate((a.created_at || '').slice(0, 10)) + ' · ' + esc(a.author || 'El club') + '</span>' +
-        '<p>' + esc(a.body || '').replace(/\n/g, '<br>') + '</p></div>');
+      var abierto = !!tg.read_player;                  // se marca al abrirlo, no al pintarlo
+      var card = el('<div class="ph-report' + (abierto ? '' : ' is-nuevo') + '"></div>');
+      var cab = el('<button class="ph-open"><span class="ph-open-t"><b>' + esc(a.title) + '</b>' +
+        (abierto ? '' : '<span class="tag tag-warn">nuevo</span>') + '</span>' +
+        '<span class="hint">' + fmtDate((a.created_at || '').slice(0, 10)) + ' · ' + esc(a.author || 'El club') + '</span></button>');
+      var cuerpo = el('<div class="ph-open-b"' + (abierto ? '' : ' hidden') + '><p>' +
+        esc(a.body || '').replace(/\n/g, '<br>') + '</p></div>');
+      cab.onclick = function () {
+        if (cuerpo.hasAttribute('hidden')) {
+          cuerpo.removeAttribute('hidden');
+          SF.store.annMarkRead(a.id, p.id, 'player');
+          var et = cab.querySelector('.tag'); if (et) et.remove();
+          card.classList.remove('is-nuevo');
+        } else cuerpo.setAttribute('hidden', '');
+      };
       if (a.needs_rsvp) {
         var yn = el('<div class="ph-yn" style="margin-top:10px"></div>');
         [['ire', 'Iré'], ['no_puedo', 'No puedo']].forEach(function (o) {
@@ -6629,11 +6740,12 @@ window.SF = window.SF || {};
           btn.onclick = function () { SF.store.annRsvp(a.id, p.id, o[0], p.full_name); U.toast('Respuesta enviada'); SF.router.render(); };
           yn.appendChild(btn);
         });
-        card.appendChild(yn);
+        cuerpo.appendChild(yn);
       }
+      card.appendChild(cab); card.appendChild(cuerpo);
       b.appendChild(card);
     });
-    b.appendChild(el('<p class="hint">Los avisos que te llegan los reciben también tus padres o tutores.</p>'));
+    b.appendChild(el('<p class="hint">Estos avisos van dirigidos a ti. Los que el club manda a tu familia no aparecen aquí.</p>'));
 
     view.appendChild(phone);
   };
@@ -6817,6 +6929,17 @@ window.SF = window.SF || {};
     return all.filter(function (t) { return (me.team_ids || []).indexOf(t.id) >= 0; });
   }
 
+  /* Aviso automático de una cita. Va a la familia y al jugador: al de 14 en
+     adelante le llega a él también, y al menor solo a su familia, que es la
+     regla del club. Con confirmación de asistencia en los partidos. */
+  function avisarCita(t, titulo, cuerpo, pideConfirmar) {
+    var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
+    if (!roster.length) return;
+    SF.store.annCreate(t.id, { title: titulo, body: cuerpo, kind: 'cita',
+      audience: 'ambos', needs_rsvp: !!pideConfirmar },
+      roster.map(function (p) { return p.id; }));
+  }
+
   function trainingModal(t, refresh) {
     var f = el('<div class="form-grid">' +
       '<div class="frow"><label>Fecha</label><input id="d" type="date"></div>' +
@@ -6830,7 +6953,10 @@ window.SF = window.SF || {};
       var u = SF.store.currentUser();
       var ev = { id: 'ev' + Date.now(), type: 'entrenamiento', date: date, time: f.querySelector('#h').value, place: f.querySelector('#pl').value.trim(), note: f.querySelector('#n').value.trim(), by: u.name };
       SF.store.teamAddEvent(t.id, ev);
-      SF.store.teamPost(t.id, { by: u.name, role: u.label, date: new Date().toISOString().slice(0, 10), text: 'Entrenamiento: ' + fmtDate(ev.date) + (ev.time ? ' · ' + ev.time : '') + (ev.place ? ' · ' + ev.place : '') + (ev.note ? '. ' + ev.note : '') });
+      /* La cita se avisa como aviso de verdad, no en el tablón: si no, el
+         entrenador pone un entrenamiento y la familia no se entera. */
+      avisarCita(t, 'Entrenamiento · ' + fmtDate(ev.date),
+        fmtDate(ev.date) + (ev.time ? ' a las ' + ev.time : '') + (ev.place ? '\n' + ev.place : '') + (ev.note ? '\n' + ev.note : ''));
       U.closeModal(); refresh(); U.toast('Entrenamiento publicado');
     };
     var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot); U.modal('Añadir entrenamiento', w);
@@ -6850,7 +6976,8 @@ window.SF = window.SF || {};
       var u = SF.store.currentUser();
       var ev = { id: 'ev' + Date.now(), type: 'partido', date: date, time: f.querySelector('#h').value, opponent: f.querySelector('#op').value.trim(), place: f.querySelector('#pl').value.trim(), competition: f.querySelector('#cp').value.trim(), by: u.name };
       SF.store.teamAddEvent(t.id, ev);
-      SF.store.teamPost(t.id, { by: u.name, role: u.label, date: new Date().toISOString().slice(0, 10), text: 'Próximo partido: ' + fmtDate(ev.date) + (ev.time ? ' · ' + ev.time : '') + ' vs ' + (ev.opponent || 'rival') + (ev.place ? ' · ' + ev.place : '') + (ev.competition ? ' (' + ev.competition + ')' : '') });
+      avisarCita(t, 'Partido vs ' + (ev.opponent || 'rival') + ' · ' + fmtDate(ev.date),
+        fmtDate(ev.date) + (ev.time ? ' a las ' + ev.time : '') + (ev.place ? '\n' + ev.place : '') + (ev.competition ? '\n' + ev.competition : ''), true);
       U.closeModal(); refresh(); U.toast('Partido publicado');
     };
     var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot); U.modal('Añadir partido', w);
@@ -6867,6 +6994,9 @@ window.SF = window.SF || {};
     var f = el('<div class="form-grid">' +
       '<div class="frow"><label>Título</label><input id="ti" placeholder="Cambio de horario del sábado"></div>' +
       '<div class="frow"><label>Mensaje</label><textarea id="bo" rows="3" placeholder="El partido se adelanta a las 10:00."></textarea></div>' +
+      '<div class="frow"><label>¿A quién le llega?</label><select id="au">' + SF.AUDIENCIAS.map(function (x) {
+        return '<option value="' + x.k + '">' + esc(x.label) + '</option>';
+      }).join('') + '</select></div>' +
       '<div class="frow"><label><input type="checkbox" id="rs"' + (preset && preset.rsvp ? ' checked' : '') + '> Pedir confirmación de asistencia</label></div></div>');
     if (preset && preset.title) f.querySelector('#ti').value = preset.title;
     if (preset && preset.body) f.querySelector('#bo').value = preset.body;
@@ -6905,7 +7035,8 @@ window.SF = window.SF || {};
       var title = f.querySelector('#ti').value.trim();
       if (!title) { U.toast('Ponle un título al aviso'); return; }
       if (!ids.length) { U.toast('Elige al menos un destinatario'); return; }
-      SF.store.annCreate(t.id, { title: title, body: f.querySelector('#bo').value.trim(), needs_rsvp: f.querySelector('#rs').checked }, ids);
+      SF.store.annCreate(t.id, { title: title, body: f.querySelector('#bo').value.trim(),
+        audience: f.querySelector('#au').value, needs_rsvp: f.querySelector('#rs').checked }, ids);
       if (typeof onSent === 'function') onSent();
       U.closeModal(); U.toast('Aviso enviado a ' + ids.length); SF.router.render();
     };
@@ -6915,18 +7046,38 @@ window.SF = window.SF || {};
 
   function annResponses(a, roster) {
     var box = el('<div></div>');
-    box.appendChild(el('<p class="hint">' + esc(a.body || '') + '</p>'));
+    var aud = (SF.AUDIENCIAS.filter(function (x) { return x.k === a.audience; })[0] || {}).label || 'A las familias';
+    box.appendChild(el('<p class="hint"><b>' + esc(aud) + '</b> · enviado el ' +
+      fmtDate((a.created_at || '').slice(0, 10)) + ' por ' + esc(a.author || '') + '</p>'));
+    if (a.body) box.appendChild(el('<p class="bz-body">' + esc(a.body) + '</p>'));
+
     var list = el('<div class="mini-list"></div>');
     a.targets.forEach(function (tg) {
       var p = SF.store.get(tg.player_id); if (!p) return;
-      var vJ = tg.read_player ? '<span class="tag tag-green">jugador ✓</span>' : '<span class="tag tag-gray">jugador —</span>';
-      var vF = tg.read_family ? '<span class="tag tag-green">tutores ✓</span>' : '<span class="tag tag-gray">tutores —</span>';
-      var r = tg.rsvp === 'ire' ? '<span class="tag tag-green">Iré</span>'
-        : (tg.rsvp === 'no_puedo' ? '<span class="tag tag-danger">No puedo</span>' : '<span class="tag tag-warn">sin responder</span>');
-      list.appendChild(el('<div class="mini-row"><span><b>' + esc(p.full_name) + '</b></span><span class="row-actions">' + vJ + ' ' + vF + (a.needs_rsvp ? ' ' + r : '') + '</span></div>'));
+      var et = [];
+      /* Solo se enseña la columna de quien era destinatario. Poner "jugador —"
+         a un chaval al que no se le escribió parecería que no lo ha leído,
+         cuando lo que pasa es que no era para él. */
+      if (tg.to_family) et.push(tg.read_family
+        ? '<span class="tag tag-green">familia · abierto</span>'
+        : '<span class="tag tag-gray">familia · sin abrir</span>');
+      if (tg.to_player) et.push(tg.read_player
+        ? '<span class="tag tag-green">jugador · abierto</span>'
+        : '<span class="tag tag-gray">jugador · sin abrir</span>');
+      if (!et.length) et.push('<span class="tag tag-gray">no era destinatario</span>');
+      if (a.needs_rsvp && (tg.to_family || tg.to_player)) {
+        et.push(tg.rsvp === 'ire' ? '<span class="tag tag-green">Iré</span>'
+          : (tg.rsvp === 'no_puedo' ? '<span class="tag tag-danger">No puedo</span>'
+            : '<span class="tag tag-warn">sin responder</span>'));
+      }
+      var menor = SF.firmaMenor14(p.birth_date);
+      list.appendChild(el('<div class="mini-row"><span><b>' + esc(p.full_name) + '</b>' +
+        (menor ? ' <span class="hint">menor de 14</span>' : '') +
+        '</span><span class="row-actions">' + et.join(' ') + '</span></div>'));
     });
     box.appendChild(list);
-    box.appendChild(el('<p class="hint">Nadie ve a los demás destinatarios: cada uno recibe solo el suyo.</p>'));
+    box.appendChild(el('<p class="hint"><b>Abierto</b> significa que esa persona ha desplegado el mensaje en su portal, no solo que ha entrado. ' +
+      'Nadie ve a los demás destinatarios: cada uno recibe solo el suyo.</p>'));
     return box;
   }
 
@@ -7532,25 +7683,106 @@ window.SF = window.SF || {};
       var bt = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir entrenamiento</button>'); bt.onclick = function () { trainingModal(t, function () { SF.router.render(); }); };
       var bm = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir partido</button>'); bm.onclick = function () { matchModal(t, function () { SF.router.render(); }); };
       evtools.appendChild(bt); evtools.appendChild(bm); view.appendChild(evtools);
-      view.appendChild(el('<p class="hint">Al añadir una cita se publica un aviso automático en la comunicación del equipo. Los partidos los carga el entrenador según la federación.</p>'));
+      view.appendChild(el('<p class="hint">Al añadir una cita se manda un aviso a las familias y a los jugadores de 14 en adelante, y en los partidos se les pide confirmación. Lo verás abajo, en Enviados. Los partidos los carga el entrenador según la federación.</p>'));
     }
 
-    // Comunicación
-    view.appendChild(el('<p class="sec-label">Comunicación del equipo</p>'));
-    view.appendChild(el('<p class="hint">Espacio compartido entre entrenador, dirección técnica y familias.</p>'));
-    var wallWrap = el('<div class="wall"></div>');
+    /* ---------- Mensajes al equipo ----------
+       Antes esto era un tablón: se escribía y se quedaba colgado, sin saber a
+       quién llegaba ni si alguien lo había leído. Ahora cada mensaje es un
+       aviso con destinatarios y acuse, que es lo que un club necesita para
+       poder decir "se lo mandé a las doce familias y lo han abierto ocho". */
+    view.appendChild(el('<p class="sec-label">Mensajes al equipo</p>'));
+    var roster = SF.store.players().filter(function (x) { return x.team_id === t.id; });
+    var menores = roster.filter(function (x) { return SF.firmaMenor14(x.birth_date); }).length;
+
+    if (!roster.length) {
+      view.appendChild(el('<p class="hint">Este equipo aún no tiene jugadores, así que no hay a quién escribir.</p>'));
+    } else {
+      var comp = el('<div class="composer-x"></div>');
+      comp.appendChild(el('<input id="mt" placeholder="Asunto: equipación del sábado">'));
+      comp.appendChild(el('<textarea id="mb" placeholder="Escribe el mensaje…"></textarea>'));
+      var fila = el('<div class="composer-row"></div>');
+      fila.appendChild(el('<select id="ma">' + SF.AUDIENCIAS.map(function (x) {
+        return '<option value="' + x.k + '">' + esc(x.label) + '</option>';
+      }).join('') + '</select>'));
+      fila.appendChild(el('<label class="chk"><input type="checkbox" id="mr"> Pedir confirmación de asistencia</label>'));
+      var bSend = el('<button class="btn btn-primary" id="send">' + ico('arrow') + 'Enviar</button>');
+      fila.appendChild(bSend);
+      comp.appendChild(fila);
+      var expl = el('<p class="hint"></p>');
+      comp.appendChild(expl);
+      view.appendChild(comp);
+
+      function explica() {
+        var k = comp.querySelector('#ma').value;
+        var def = SF.AUDIENCIAS.filter(function (x) { return x.k === k; })[0];
+        var cuenta = { jug: 0, fam: 0, redir: 0 };
+        roster.forEach(function (x) {
+          var real = SF.audienciaReal(k, x);
+          if (real.jugador) cuenta.jug++;
+          if (real.familia) cuenta.fam++;
+          if (real.redirigido) cuenta.redir++;
+        });
+        var partes = [];
+        if (cuenta.fam) partes.push('<b>' + cuenta.fam + '</b> ' + (cuenta.fam === 1 ? 'familia' : 'familias'));
+        if (cuenta.jug) partes.push('<b>' + cuenta.jug + '</b> ' + (cuenta.jug === 1 ? 'jugador' : 'jugadores'));
+        expl.innerHTML = esc(def.desc) + ' Lo recibirán ' + (partes.join(' y ') || 'nadie') + '.' +
+          (cuenta.redir ? ' <b>' + cuenta.redir + '</b> ' + (cuenta.redir === 1 ? 'es menor de 14 y le llegará a su familia.' : 'son menores de 14 y les llegará a su familia.') : '');
+      }
+      comp.querySelector('#ma').onchange = explica; explica();
+
+      bSend.onclick = function () {
+        var titulo = comp.querySelector('#mt').value.trim();
+        var cuerpo = comp.querySelector('#mb').value.trim();
+        if (!titulo) { U.toast('Ponle un asunto: es lo que ven primero'); return; }
+        var a = SF.store.annCreate(t.id, {
+          title: titulo, body: cuerpo, kind: 'equipo',
+          audience: comp.querySelector('#ma').value,
+          needs_rsvp: comp.querySelector('#mr').checked
+        }, roster.map(function (x) { return x.id; }));
+        var n = a.targets.filter(function (x) { return x.to_family || x.to_player; }).length;
+        U.toast('Enviado a ' + n + (n === 1 ? ' destinatario' : ' destinatarios'));
+        SF.router.render();
+      };
+      if (menores) view.appendChild(el('<p class="hint">' + menores +
+        (menores === 1 ? ' jugador es menor de 14 años, así que sus mensajes van siempre a su familia.'
+                       : ' jugadores son menores de 14 años, así que sus mensajes van siempre a su familia.') +
+        ' Es la misma edad a partir de la cual el menor puede consentir por sí mismo.</p>'));
+    }
+
+    /* --- Enviados, con el acuse a la vista --- */
+    var envs = SF.store.announcements(t.id);
+    view.appendChild(el('<p class="sec-label">Enviados</p>'));
+    if (!envs.length) view.appendChild(el('<p class="hint">Todavía no se ha enviado ningún mensaje a este equipo.</p>'));
+    var lista = el('<div class="mini-list"></div>');
+    envs.slice(0, 10).forEach(function (a) {
+      var dest = (a.targets || []).filter(function (x) { return x.to_family || x.to_player; });
+      var abiertos = dest.filter(function (x) { return x.read_player || x.read_family; }).length;
+      var aud = (SF.AUDIENCIAS.filter(function (x) { return x.k === a.audience; })[0] || {}).label || 'A las familias';
+      var pct = dest.length ? Math.round(abiertos / dest.length * 100) : 0;
+      var color = pct === 100 ? 'tag-green' : (pct >= 50 ? 'tag-warn' : 'tag-gray');
+      var row = el('<div class="mini-row"><span><b>' + esc(a.title) + '</b> <span class="hint">' +
+        esc(aud.toLowerCase()) + ' · ' + fmtDate((a.created_at || '').slice(0, 10)) + ' · ' + esc(a.author || '') + '</span></span>' +
+        '<span class="row-actions"><span class="tag ' + color + '">' + abiertos + ' de ' + dest.length + ' lo han abierto</span>' +
+        '<button class="lnk" data-v>Ver quién</button></span></div>');
+      row.querySelector('[data-v]').onclick = function () { U.modal(a.title, annResponses(a, roster)); };
+      lista.appendChild(row);
+    });
+    view.appendChild(lista);
+
+    /* Los mensajes del tablón antiguo no se borran: se enseñan aparte y se
+       dice claramente que aquello no llegaba a nadie. Borrar lo que alguien
+       escribió sería peor que reconocer que estaba mal hecho. */
     var wall = (t.wall || []).slice().reverse();
-    if (!wall.length) wallWrap.appendChild(el('<p class="hint">Aún no hay mensajes.</p>'));
-    wall.forEach(function (m) { wallWrap.appendChild(el('<div class="msg"><div class="msg-head"><b>' + esc(m.by) + '</b> <span class="hint">' + esc(m.role) + ' · ' + esc(m.date) + '</span></div><p>' + esc(m.text) + '</p></div>')); });
-    view.appendChild(wallWrap);
-    var composer = el('<div class="composer"><textarea id="msg" placeholder="Escribe un mensaje para el equipo…"></textarea><button class="btn btn-primary" id="send">' + ico('arrow') + 'Enviar</button></div>');
-    view.appendChild(composer);
-    composer.querySelector('#send').onclick = function () {
-      var txt = composer.querySelector('#msg').value.trim(); if (!txt) return;
-      var u = SF.store.currentUser();
-      SF.store.teamPost(t.id, { by: u.name, role: u.label, date: new Date().toISOString().slice(0, 10), text: txt });
-      U.toast('Mensaje enviado'); SF.router.render();
-    };
+    if (wall.length) {
+      view.appendChild(el('<p class="sec-label">Tablón antiguo</p>'));
+      view.appendChild(el('<p class="hint">Mensajes escritos antes de que existieran los destinatarios. Se quedaban en esta pantalla: <b>no llegaban a las familias</b>. Se conservan solo como histórico.</p>'));
+      var wallWrap = el('<div class="wall"></div>');
+      wall.forEach(function (m) {
+        wallWrap.appendChild(el('<div class="msg"><div class="msg-head"><b>' + esc(m.by) + '</b> <span class="hint">' + esc(m.role) + ' · ' + esc(m.date) + '</span></div><p>' + esc(m.text) + '</p></div>'));
+      });
+      view.appendChild(wallWrap);
+    }
   };
 
   /* ===================== PRESUPUESTO =====================
