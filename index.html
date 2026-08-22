@@ -323,7 +323,10 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .evo-tab tbody tr:last-child td{border-bottom:none}
 .evo-tab tbody tr:hover{background:#FAF9FE}
 .evo-tab .evo-y{text-align:center;min-width:44px}
-.evo-sk td:first-child{white-space:normal;min-width:130px;color:var(--ink-2)}
+/* Ancho fijo en la primera columna: si no, cada tabla se dimensiona sola y
+   las temporadas de Técnica, Física y Mental no quedan en la misma vertical. */
+.evo-sk{table-layout:fixed}
+.evo-sk td:first-child,.evo-sk th:first-child{white-space:normal;width:44%;color:var(--ink-2)}
 .evo-sk th:first-child{color:var(--purple-d)}
 .evo-d{font-size:11.5px;font-weight:600;border-radius:6px;padding:2px 6px;margin-left:4px;white-space:nowrap}
 .evo-d.up{color:#1B7A4B;background:#E8F6EE}
@@ -3655,8 +3658,12 @@ window.SF = window.SF || {};
               '</span><span class="hint">' + esc(e.date) + '</span></div>'));
           });
           body.appendChild(hl);
-          body.appendChild(el('<p class="hint">Cada temporada guarda sus notas. Para verlas comparadas, ' +
-            'entra en <b>Trayectoria</b> y pulsa <b>Ver evolución</b>.</p>'));
+          /* El botón vive en Trayectoria, pero el entrenador y el preparador
+             físico NO tienen esa pestaña, y son justo los dos que evalúan y
+             miden. Sin esto, quien crea el historial no puede verlo. */
+          var bEvo2 = el('<button class="btn btn-light btn-sm">' + ico('chart') + 'Ver evolución por temporadas</button>');
+          bEvo2.onclick = function () { U.modal('Evolución — ' + esc(p.full_name), evolucionBody(p)); };
+          body.appendChild(bEvo2);
         }
 
 
