@@ -1611,7 +1611,10 @@ SF.USERS = {
   entrenador: 'Carlos Gorosito', scout: 'Laura Pérez', padre: 'Familia',
   dt_general: 'Dirección General', dt_femenino: 'DT Femenino',
   dt_masculino: 'DT Masculino', dt_escuelas: 'DT Escuelas', dt_minis: 'DT Minis',
-  preparador_fisico: 'Diego Sosa'
+  preparador_fisico: 'Diego Sosa',
+  /* Faltaban: sin nombre, el saludo decía "Buenas tardes, Fisioterapeuta". */
+  fisio: 'Marta Cifuentes', psicologo: 'Nuria Palau',
+  delegado_equipo: 'Javier Sanz', delegado_campo: 'Javier Sanz', jugador: 'Martín Ríos'
 };
 
 /* Equipos semilla. Cada jugador pertenece a un equipo (player.team_id). */
@@ -3441,8 +3444,17 @@ window.SF = window.SF || {};
     var all = SF.store.players();
     var r = role();
     if (r.team_scope) {
-      var me = SF.store.currentUser().name;
-      var myTeams = SF.store.teams().filter(function (t) { return (t.coaches || []).indexOf(me) >= 0; }).map(function (t) { return t.id; });
+      /* El alcance sale de la FICHA de staff (sus team_ids), no de la lista de
+         entrenadores del equipo. Con lo anterior, un fisioterapeuta o un
+         psicólogo —que no son "coaches" de ningún equipo— no veían a ningún
+         jugador y su pantalla salía vacía. Se conserva la lista de
+         entrenadores como respaldo para los equipos antiguos. */
+      var me = SF.store.staffMe();
+      var nombre = SF.store.currentUser().name;
+      var myTeams = SF.store.teams().filter(function (t) {
+        if (me && (me.team_ids || []).indexOf(t.id) >= 0) return true;
+        return (t.coaches || []).indexOf(nombre) >= 0;
+      }).map(function (t) { return t.id; });
       return all.filter(function (p) { return myTeams.indexOf(p.team_id) >= 0; });
     }
     if (r.segments && r.segments !== 'all') {
