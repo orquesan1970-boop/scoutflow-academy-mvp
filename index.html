@@ -972,6 +972,39 @@ SF.dispo = function (p) {
     by: a.by || '', role: a.role || '', at: a.at || '', caducada: caducada, activa: k !== 'disponible' };
 };
 
+/* ===================== CITAS CON LA FISIOTERAPEUTA =====================
+   Lo que convierte el rol en un puesto de trabajo y no en una pantalla de
+   consulta: el entrenador puede pedirle que mire a un chaval.
+
+   La pide el cuerpo técnico o dirección, nunca la familia: si la familia
+   pudiera pedir cita directamente, el club perdería el control de su propia
+   agenda y el fisio acabaría de recepcionista.
+
+   El MOTIVO y la NOTA de vuelta son deliberadamente cortos y funcionales.
+   No son un informe. El riesgo de este campo es que alguien acabe escribiendo
+   ahí el diagnóstico que hemos sacado a propósito del resto de la app, así
+   que la propia pantalla lo advierte y el campo es breve. */
+SF.CITA_ESTADOS = {
+  solicitada: { label: 'Solicitada', tag: 'tag-warn' },
+  confirmada: { label: 'Confirmada', tag: 'tag-purple' },
+  realizada: { label: 'Atendida', tag: 'tag-green' },
+  anulada: { label: 'Anulada', tag: 'tag-gray' }
+};
+SF.CITA_MOTIVOS = [
+  'Molestia después del entrenamiento', 'Molestia después del partido',
+  'Vuelve de lesión, revisar', 'Revisión antes de competir',
+  'Lo veo cojear', 'Se queja al saltar', 'Valoración general', 'Otro'
+];
+
+/* La fisioterapeuta del club. Si hubiera varias, se elegiría; con una, se
+   coge la que lleve ese equipo. */
+SF.fisioDe = function (p) {
+  var lista = SF.store.staff().filter(function (s) { return s.role === 'fisio'; });
+  if (!lista.length) return null;
+  var suyo = lista.filter(function (s) { return p && p.team_id && (s.team_ids || []).indexOf(p.team_id) >= 0; })[0];
+  return suyo || lista[0];
+};
+
 /* ===================== LICENCIAS FEDERATIVAS =====================
    Esto NO tramita nada: prepara. Antes de entrar en la intranet de la
    federación te dice quién está listo y a quién le falta qué.
@@ -1498,13 +1531,13 @@ SF.ROLES = {
   director: {
     label: 'Director',
     nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
-    tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, canSetAvailability: true, canSeeMedical: true, segments: 'all', canCreatePlayers: true
+    tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, canSetAvailability: true, canSeeMedical: true, canAskCita: true, segments: 'all', canCreatePlayers: true
   },
   dt_general: {
     label: 'Dirección Técnica General',
     nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, segments: 'all', staff: true, canCreatePlayers: true
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canAskCita: true, segments: 'all', staff: true, canCreatePlayers: true
   },
   preparador_fisico: {
     label: 'Preparador Físico',
@@ -1514,32 +1547,32 @@ SF.ROLES = {
     canEvaluate: true, evalGroups: ['Física'], canEditPhysical: true,
     /* Firma disponibilidad, pero NO ve antecedentes médicos: para decir que
        hoy entrena al 50 % no hace falta saber si tiene una cardiopatía. */
-    canSetAvailability: true,
+    canSetAvailability: true, canAskCita: true,
     canManageTeams: false, segments: 'all', staff: true
   },
   dt_femenino: {
     label: 'Dirección Técnica Femenino',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['femenino'], canCreatePlayers: true
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['femenino'], canCreatePlayers: true
   },
   dt_masculino: {
     label: 'Dirección Técnica Masculino',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['masculino'], canCreatePlayers: true
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['masculino'], canCreatePlayers: true
   },
   dt_escuelas: {
     label: 'Dirección Técnica Escuelas',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['escuelas'], canCreatePlayers: true
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['escuelas'], canCreatePlayers: true
   },
   dt_minis: {
     label: 'Dirección Técnica Minis',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, segments: ['minis'], canCreatePlayers: true
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['minis'], canCreatePlayers: true
   },
   scout: {
     label: 'Scout',
@@ -1551,7 +1584,7 @@ SF.ROLES = {
     label: 'Entrenador',
     nav: ['mi-equipo', 'jugadores', 'equipos', 'informes', 'economia', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes'],
-    canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, team_scope: true, segments: 'all', staff: true
+    canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, canAskCita: true, team_scope: true, segments: 'all', staff: true
   },
   administrativo: {
     label: 'Administrativo',
@@ -2664,6 +2697,15 @@ SF.store = (function () {
       academy: JSON.parse(JSON.stringify(SF.ACADEMY)),
       players: seedPlayers,
       teams: JSON.parse(JSON.stringify(SF.TEAMS || [])),
+      /* Una cita pedida, para que la agenda de la fisioterapeuta no aparezca
+         vacía en una demostración. */
+      citas: [{
+        id: 'ct-demo1', player_id: 'p12', team_id: 't1', con: 's12', tipo: 'fisioterapia',
+        motivo: 'Molestia después del partido', detalle: 'Terminó tocado el domingo, quiero que lo mires antes del sábado.',
+        estado: 'solicitada', fecha: '', hora: '', nota: '',
+        pedida_por: { id: 's1', name: 'Carlos Gorosito', role: 'Entrenador' },
+        creada_at: '2026-08-21T09:20:00'
+      }],
       expenses: JSON.parse(JSON.stringify(SF.EXPENSES || [])),
       staff: JSON.parse(JSON.stringify(SF.STAFF || [])),
       role: 'director',
@@ -3070,6 +3112,32 @@ SF.store = (function () {
     /* Cambiar la disponibilidad deja rastro: quién lo firmó y cuándo. Si un
        día hay que explicar por qué un chaval jugó lesionado, tiene que
        poder saberse quién dio el alta. */
+    /* ---- CITAS ---- */
+    citaCreate: function (data) {
+      var d = db(); d.citas = d.citas || [];
+      var c = Object.assign({
+        id: 'ct' + Date.now(), estado: 'solicitada', nota: '',
+        creada_at: new Date().toISOString()
+      }, data);
+      d.citas.push(c); save(d); return c;
+    },
+    citaUpdate: function (id, patch) {
+      var d = db();
+      (d.citas || []).forEach(function (c) { if (c.id === id) Object.assign(c, patch); });
+      save(d);
+    },
+    /* Las que le tocan a una persona del staff: las que le han pedido a ella
+       y las que ha pedido ella. */
+    citasDeStaff: function (staffId) {
+      return (db().citas || [])
+        .filter(function (c) { return c.con === staffId || (c.pedida_por || {}).id === staffId; })
+        .sort(function (a, b) { return (a.fecha || '9999').localeCompare(b.fecha || '9999'); });
+    },
+    citasDeJugador: function (pid) {
+      return (db().citas || []).filter(function (c) { return c.player_id === pid; })
+        .sort(function (a, b) { return (b.creada_at || '').localeCompare(a.creada_at || ''); });
+    },
+
     setDispo: function (playerId, datos, quien) {
       var d = db();
       (d.players || []).forEach(function (p) {
@@ -3508,6 +3576,48 @@ window.SF = window.SF || {};
     };
     var wrap = el('<div></div>'); wrap.appendChild(f); wrap.appendChild(foot);
     return wrap;
+  }
+
+  /* Gestión de una cita, desde el lado de la fisioterapeuta: confirmar día y
+     hora, o darla por atendida dejando una nota para quien la pidió.
+     La nota es corta y funcional a propósito, y la pantalla lo advierte: es
+     el único sitio de la app donde alguien podría colar un diagnóstico. */
+  function gestionarCita(c, p, onDone) {
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint"><b>' + esc(p.full_name) + '</b> · lo pidió ' +
+      esc((c.pedida_por || {}).name || '') + ' (' + esc((c.pedida_por || {}).role || '') + ')</p>'));
+    box.appendChild(el('<p class="bz-body">' + esc(c.motivo || '') + (c.detalle ? '\n' + c.detalle : '') + '</p>'));
+
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>Día</label><input id="cf" type="date" value="' + esc(c.fecha || '') + '"></div>' +
+      '<div class="frow"><label>Hora</label><input id="ch" type="time" value="' + esc(c.hora || '') + '"></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Nota para quien la pidió</label>' +
+      '<input id="cn" maxlength="90" value="' + esc(c.nota || '') + '" placeholder="Puede entrenar, sin saltos hasta el viernes">' +
+      '<span class="hint">Qué puede o no puede hacer, en una línea. <b>Nada clínico</b>: el diagnóstico no se escribe aquí ni en ningún sitio de la app.</span></div></div>');
+    box.appendChild(f);
+
+    var foot = el('<div class="modal-actions"></div>');
+    var bAnu = el('<button class="btn">Anular</button>');
+    var bCon = el('<button class="btn">Confirmar día</button>');
+    var bHec = el('<button class="btn btn-primary">Ya la he atendido</button>');
+    function guardar(estado) {
+      SF.store.citaUpdate(c.id, {
+        estado: estado, fecha: f.querySelector('#cf').value, hora: f.querySelector('#ch').value,
+        nota: f.querySelector('#cn').value.trim(),
+        cerrada_at: estado === 'realizada' ? new Date().toISOString() : null
+      });
+      U.closeModal(); U.toast(estado === 'realizada' ? 'Cita atendida' : 'Cita actualizada'); onDone();
+    }
+    bAnu.onclick = function () { guardar('anulada'); };
+    bCon.onclick = function () {
+      if (!f.querySelector('#cf').value) { U.toast('Pon el día'); return; }
+      guardar('confirmada');
+    };
+    bHec.onclick = function () { guardar('realizada'); };
+    foot.appendChild(bAnu); foot.appendChild(bCon); foot.appendChild(bHec);
+    box.appendChild(foot);
+    box.appendChild(el('<p class="hint">Si de la cita sale un cambio en si puede jugar, actualízalo arriba en <b>¿Puede jugar?</b>. El entrenador lo verá ahí.</p>'));
+    U.modal('Cita de fisioterapia', box);
   }
 
   /* ---------- Escribir al club, desde el portal ----------
@@ -4121,7 +4231,14 @@ window.SF = window.SF || {};
     var bruto = [];
     if (esSalud) {
       /* La lista del fisioterapeuta: a quién tiene que atender, no qué
-         papeles faltan. */
+         papeles faltan. Las citas pedidas van las primeras: alguien está
+         esperando respuesta. */
+      var me0 = SF.store.staffMe();
+      var pedidas = me0 ? SF.store.citasDeStaff(me0.id).filter(function (c) { return c.estado === 'solicitada'; }) : [];
+      pedidas.forEach(function (c) {
+        var pj = SF.store.get(c.player_id); if (!pj) return;
+        bruto.push({ p: pj, d: 'Cita pedida por ' + ((c.pedida_por || {}).name || 'el club') + ' · ' + (c.motivo || ''), t: 'purple', tt: 'Cita', tab: 'deportivo' });
+      });
       caduc.forEach(function (p) { bruto.push({ p: p, d: 'La fecha de alta ya pasó', t: 'warn', tt: 'Revisar', tab: 'deportivo' }); });
       bajas.forEach(function (p) {
         var dz = SF.dispo(p);
@@ -4192,7 +4309,19 @@ window.SF = window.SF || {};
       var row = el('<div class="ag-item"><div class="ag-day"><div class="d">' + (isNaN(d) ? '—' : d.getDate()) + '</div>' +
         '<div class="m">' + (isNaN(d) ? '' : SF_MON[d.getMonth()]) + '</div></div>' +
         '<div><p class="ag-t">' + esc(c.k === 'Partido' ? 'vs ' + (c.e.opponent || '—') : c.k === 'Entrevista' ? 'Entrevista' : 'Entrenamiento') + '</p>' +
-        '<p class="ag-s">' + esc(c.t.name) + (c.e.time ? ' · ' + esc(c.e.time) : '') + '</p></div></div>');
+        '<p class="ag-s">' + esc(c.t.name) + (c.e.time ? ' · ' + esc(c.e.time) : '') +
+        /* Para la fisioterapeuta, un partido no es una fecha: es "¿con quién
+           NO cuento?". Esa es la conexión que le faltaba a esta caja. */
+        (function () {
+          if (!esSalud || !c.t.id) return '';
+          var fuera = mios.filter(function (pp) {
+            return pp.team_id === c.t.id && SF.dispo(pp).activa;
+          });
+          if (!fuera.length) return ' · <b>plantilla completa</b>';
+          return ' · <b>' + fuera.length + (fuera.length === 1 ? ' jugador tocado' : ' jugadores tocados') + '</b>: ' +
+            esc(fuera.map(function (pp) { return pp.full_name.split(' ')[0]; }).join(', '));
+        })() +
+        '</p></div></div>');
       row.onclick = function () {
         if (c.jugador) { SF._openTab = 'captacion'; location.hash = '#/jugador/' + c.jugador.id; }
         else location.hash = '#/equipo/' + c.t.id;
@@ -4201,15 +4330,39 @@ window.SF = window.SF || {};
     });
     lado.appendChild(ag);
 
-    var rec = el('<div class="card"><h3>Últimos jugadores</h3><p class="hint">Recién añadidos.</p><div class="rec-list"></div></div>');
-    mios.slice(0, 4).forEach(function (p) {
-      var row = el('<div class="recent"><div class="rec-photo">' + U.initials(p.full_name) + '</div><div>' +
-        '<p class="rec-name">' + esc(p.full_name) + '</p><p class="rec-meta">' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + '</p></div></div>');
-      row.onclick = function () { location.hash = '#/jugador/' + p.id; };
-      rec.querySelector('.rec-list').appendChild(row);
-    });
-    if (!mios.length) rec.querySelector('.rec-list').appendChild(el('<p class="hint">Aún no tienes jugadores asignados.</p>'));
-    lado.appendChild(rec);
+    if (esSalud) {
+      /* "Últimos jugadores · recién añadidos" no le dice nada a quien lleva la
+         salud del club: es información de captación. En su sitio va su
+         agenda, que es lo que de verdad organiza su semana. */
+      var meAg = SF.store.staffMe();
+      var mias = meAg ? SF.store.citasDeStaff(meAg.id).filter(function (c) {
+        return c.estado === 'solicitada' || c.estado === 'confirmada';
+      }) : [];
+      var ags = el('<div class="card"><h3>Tu agenda</h3><p class="hint">Citas pedidas y confirmadas.</p><div class="rec-list"></div></div>');
+      var cont = ags.querySelector('.rec-list');
+      if (!mias.length) cont.appendChild(el('<p class="hint">No hay ninguna cita pendiente. El cuerpo técnico puede pedírtelas desde la ficha del jugador.</p>'));
+      mias.slice(0, 5).forEach(function (c) {
+        var pj = SF.store.get(c.player_id); if (!pj) return;
+        var est = SF.CITA_ESTADOS[c.estado] || SF.CITA_ESTADOS.solicitada;
+        var row = el('<div class="recent"><div class="rec-photo">' + U.initials(pj.full_name) + '</div><div>' +
+          '<p class="rec-name">' + esc(pj.full_name) + ' <span class="tag ' + est.tag + '">' + esc(est.label) + '</span></p>' +
+          '<p class="rec-meta">' + esc(c.motivo || '') + (c.fecha ? ' · ' + fmtDate(c.fecha) : ' · sin fecha') +
+          (c.hora ? ' · ' + esc(c.hora) : '') + '</p></div></div>');
+        row.onclick = function () { SF._openTab = 'deportivo'; location.hash = '#/jugador/' + pj.id; };
+        cont.appendChild(row);
+      });
+      lado.appendChild(ags);
+    } else {
+      var rec = el('<div class="card"><h3>Últimos jugadores</h3><p class="hint">Recién añadidos.</p><div class="rec-list"></div></div>');
+      mios.slice(0, 4).forEach(function (p) {
+        var row = el('<div class="recent"><div class="rec-photo">' + U.initials(p.full_name) + '</div><div>' +
+          '<p class="rec-name">' + esc(p.full_name) + '</p><p class="rec-meta">' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + '</p></div></div>');
+        row.onclick = function () { location.hash = '#/jugador/' + p.id; };
+        rec.querySelector('.rec-list').appendChild(row);
+      });
+      if (!mios.length) rec.querySelector('.rec-list').appendChild(el('<p class="hint">Aún no tienes jugadores asignados.</p>'));
+      lado.appendChild(rec);
+    }
 
     cols.appendChild(lado);
     view.appendChild(cols);
@@ -4492,6 +4645,59 @@ window.SF = window.SF || {};
               'y no se guarda en la app.</p>'));
           }
           body.appendChild(banda);
+
+          /* --- Citas con la fisioterapeuta ---
+             Aquí se cierra el circuito: el entrenador pide, ella atiende, y la
+             respuesta vuelve al mismo sitio donde se preguntó. */
+          (function () {
+            var fis = SF.fisioDe(p);
+            var citas = SF.store.citasDeJugador(p.id);
+            var abiertas = citas.filter(function (c) { return c.estado === 'solicitada' || c.estado === 'confirmada'; });
+            var puedePedir = role().canAskCita && fis;
+            if (!citas.length && !puedePedir) return;
+
+            body.appendChild(el('<p class="sec-label">Fisioterapia</p>'));
+            if (puedePedir && !abiertas.length) {
+              var bc = el('<button class="btn btn-light btn-sm">' + ico('cal') + 'Pedir cita con ' + esc(fis.full_name.split(' ')[0]) + '</button>');
+              bc.onclick = function () {
+                U.modal('Pedir cita — ' + esc(p.full_name), smallForm([
+                  { name: 'motivo', label: '¿Por qué la pides?', type: 'select', options: SF.CITA_MOTIVOS },
+                  { name: 'detalle', label: 'Una línea más, si hace falta',
+                    hint: 'Lo que has visto tú, no un diagnóstico' },
+                  { name: 'fecha', label: 'Cuándo te vendría bien', type: 'date' }
+                ], {}, function (d2) {
+                  var u = SF.store.currentUser();
+                  SF.store.citaCreate({
+                    player_id: p.id, team_id: p.team_id, con: fis.id, tipo: 'fisioterapia',
+                    motivo: d2.motivo || 'Valoración general', detalle: d2.detalle || '', fecha: d2.fecha || '',
+                    pedida_por: { id: (SF.store.staffMe() || {}).id || u.role, name: u.name, role: u.label }
+                  });
+                  p = SF.store.get(p.id); U.toast('Cita pedida a ' + fis.full_name); paint();
+                }));
+              };
+              body.appendChild(bc);
+            }
+
+            if (citas.length) {
+              var cl = el('<div class="mini-list"></div>');
+              citas.slice(0, 5).forEach(function (c) {
+                var est = SF.CITA_ESTADOS[c.estado] || SF.CITA_ESTADOS.solicitada;
+                var linea = '<b>' + esc(c.motivo || 'Cita') + '</b> <span class="tag ' + est.tag + '">' + esc(est.label) + '</span>' +
+                  '<br><span class="hint">La pidió ' + esc((c.pedida_por || {}).name || '') +
+                  (c.fecha ? ' · ' + fmtDate(c.fecha) : '') + (c.hora ? ' · ' + esc(c.hora) : '') + '</span>' +
+                  (c.nota ? '<br><span class="hint"><b>' + esc(fis ? fis.full_name : 'Fisioterapia') + ':</b> ' + esc(c.nota) + '</span>' : '');
+                var row = el('<div class="mini-row"><span>' + linea + '</span><span class="row-actions"></span></div>');
+                /* Solo la fisioterapeuta gestiona su agenda. */
+                if (role().canSetAvailability && role().canSeeMedical && c.estado !== 'realizada' && c.estado !== 'anulada') {
+                  var bg = el('<button class="lnk" data-g>Gestionar</button>');
+                  bg.onclick = function () { gestionarCita(c, p, function () { p = SF.store.get(p.id); paint(); }); };
+                  row.querySelector('.row-actions').appendChild(bg);
+                }
+                cl.appendChild(row);
+              });
+              body.appendChild(cl);
+            }
+          })();
 
           var hist = (p.availability_log || []).slice().reverse().slice(0, 5);
           if (hist.length > 1 && puede) {
