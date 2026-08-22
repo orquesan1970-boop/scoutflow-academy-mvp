@@ -86,6 +86,13 @@ textarea{resize:vertical;min-height:90px}
 .aviso-lin{font-size:12.5px;color:#8A5A00;background:#FFF7E6;border-left:3px solid #E8A33D;
   border-radius:0 8px 8px 0;padding:9px 12px;margin:8px 0;line-height:1.55}
 .aviso-lin b{color:#6B4500}
+
+/* Banda de disponibilidad: lo primero de Deportivo. Sin diagnóstico, nunca. */
+.dispo{border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface);padding:13px 15px;margin-bottom:16px}
+.dispo.act{border-color:#E8A33D;background:linear-gradient(180deg,#FFFCF5,var(--surface))}
+.dispo-t{display:flex;align-items:center;gap:10px;flex-wrap:wrap;font-size:14px}
+.dispo .hint{margin:6px 0 0}
+.dispo .btn{margin-top:10px}
 .count{font-size:13px;color:var(--ink-2);margin:0 0 12px}
 .row-c{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 
@@ -918,6 +925,53 @@ SF.supervisoresDe = function (teamId) {
   });
 };
 
+/* ===================== DISPONIBILIDAD =====================
+   La decisión de producto más delicada de la app, y conviene entenderla.
+
+   Un club necesita saber si un chaval puede jugar el sábado. NO necesita
+   saber qué tiene. El diagnóstico es dato de salud del artículo 9 del RGPD,
+   la categoría más protegida que existe, y además un fisioterapeuta
+   colegiado tiene secreto profesional: su historia clínica no es del club.
+
+   Así que ScoutFlow NO guarda diagnósticos. Guarda tres cosas:
+     · si puede jugar,
+     · qué NO puede hacer, en términos deportivos ("sin saltos"),
+     · desde cuándo, hasta cuándo, y quién lo firma.
+
+   Con eso el entrenador planifica el partido sin saber nada del cuerpo del
+   jugador. Es la misma decisión que con el certificado de delitos: lo que no
+   guardas no lo puedes perder ni filtrar.
+
+   La limitación es funcional a propósito. "Sin saltos" es información
+   deportiva; "tendinopatía rotuliana" es información clínica. Parecen lo
+   mismo y no lo son. */
+SF.DISPO = [
+  { k: 'disponible', label: 'Disponible', tag: 'tag-green', corto: 'Disponible' },
+  { k: 'limitada', label: 'Disponible con limitaciones', tag: 'tag-warn', corto: 'Con limitaciones' },
+  { k: 'no', label: 'No disponible', tag: 'tag-danger', corto: 'No disponible' }
+];
+/* En términos de lo que puede o no puede HACER, nunca de lo que tiene. */
+SF.LIMITACIONES = [
+  'Sin saltos', 'Sin contacto', 'Sin cambios de dirección', 'Sin carrera',
+  'Carga reducida', 'Solo trabajo específico', 'Solo gimnasio', 'Vuelta progresiva'
+];
+
+SF.dispo = function (p) {
+  var a = (p && p.availability) || {};
+  var k = a.estado || 'disponible';
+  var def = SF.DISPO.filter(function (x) { return x.k === k; })[0] || SF.DISPO[0];
+  /* Si la fecha de alta ya pasó, no se sigue diciendo que está de baja: se
+     avisa de que hay que revisarlo. Un semáforo caducado engaña más que no
+     tener semáforo. */
+  var caducada = false;
+  if (k !== 'disponible' && a.hasta) {
+    var h = new Date(a.hasta + 'T23:59:59');
+    if (!isNaN(h) && h.getTime() < Date.now()) caducada = true;
+  }
+  return { k: k, def: def, limitacion: a.limitacion || '', desde: a.desde || '', hasta: a.hasta || '',
+    by: a.by || '', role: a.role || '', at: a.at || '', caducada: caducada, activa: k !== 'disponible' };
+};
+
 /* ===================== LICENCIAS FEDERATIVAS =====================
    Esto NO tramita nada: prepara. Antes de entrar en la intranet de la
    federación te dice quién está listo y a quién le falta qué.
@@ -1444,7 +1498,7 @@ SF.ROLES = {
   director: {
     label: 'Director',
     nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
-    tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, segments: 'all', canCreatePlayers: true
+    tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, canSetAvailability: true, canSeeMedical: true, segments: 'all', canCreatePlayers: true
   },
   dt_general: {
     label: 'Dirección Técnica General',
@@ -1458,6 +1512,9 @@ SF.ROLES = {
     tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false,
     canEvaluate: true, evalGroups: ['Física'], canEditPhysical: true,
+    /* Firma disponibilidad, pero NO ve antecedentes médicos: para decir que
+       hoy entrena al 50 % no hace falta saber si tiene una cardiopatía. */
+    canSetAvailability: true,
     canManageTeams: false, segments: 'all', staff: true
   },
   dt_femenino: {
@@ -1520,6 +1577,9 @@ SF.ROLES = {
     nav: ['inicio', 'jugadores', 'equipos', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'seguimiento'],
     canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: false,
+    /* Es el único sanitario del club: es quien firma si un jugador puede
+       jugar y el único, con dirección, que ve los antecedentes médicos. */
+    canSetAvailability: true, canSeeMedical: true,
     canEditPhysical: true, canManageTeams: false, team_scope: true, segments: 'all', staff: true
   },
   delegado_equipo: {
@@ -1702,6 +1762,16 @@ SF.STAFF = [
     languages: 'Español',
     licence: { season: '2026/2027', number: 'FBM-23551', category: 'Mini', valid_until: '2027-06-30', status: 'vigente' },
     clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-03', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  /* Fisioterapeuta: tampoco existía como persona, solo como rol vacío. Lleva
+     todos los equipos porque en un club de este tamaño hay una sola. */
+  { id: 's12', num: 12, full_name: 'Marta Cifuentes', role: 'fisio',
+    email: 'fisio@cbja.es', phone: '+34 600 100 012', team_ids: ['t1', 't2', 't3', 't4'],
+    bio: 'Fisioterapeuta del club. Colegiada. Lleva la disponibilidad de los jugadores y el trabajo de prevención.',
+    qualification: 'Grado en Fisioterapia', qual_entity: 'Colegio Profesional de Fisioterapeutas de la Comunidad de Madrid',
+    qual_year: 2017, qual_number: 'COL-8842', languages: 'Español, Inglés',
+    licence: { season: '', number: '', category: '', valid_until: '', status: 'no_aplica' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-01', checked_by: 'Marta Soler' },
     experience: [], training: [], cv_file: '' },
   { id: 's11', num: 11, full_name: 'Elena Vidal', role: 'dt_escuelas',
     email: 'dt.escuelas@cbja.es', phone: '+34 600 100 011', team_ids: ['t4'],
@@ -1952,6 +2022,7 @@ SF.PERM_KEYS = [
   { key: 'canSeeFinance', label: 'Ver finanzas de sus jugadores' },
   { key: 'canManageFinance', label: 'Gestionar cobros y planes de pago', nav: ['finanzas'] },
   { key: 'canSeeScore', label: 'Ver el Scout Score' },
+  { key: 'canSetAvailability', label: 'Firmar si un jugador puede jugar' },
   { key: 'canEvaluate', label: 'Evaluar jugadores' },
   { key: 'canEditPhysical', label: 'Tomar y editar medidas físicas' },
   { key: 'canManageTeams', label: 'Crear y gestionar equipos' },
@@ -2110,6 +2181,10 @@ function P(o) {
     kit_order: { sizes: {}, print_name: '', print_number: '', status: '', requested_at: '' },
     team_id: '',
     eval_log: [], measure_log: [],
+    /* Disponibilidad deportiva. NUNCA lleva diagnóstico: solo si puede jugar,
+       qué no puede hacer y hasta cuándo. Ver la sección DISPONIBILIDAD. */
+    availability: { estado: 'disponible', limitacion: '', desde: '', hasta: '', nota: '', by: '', role: '', at: '' },
+    availability_log: [],
     medical: { congenital: '', congenital_detail: '', surgeries: '', surgeries_detail: '', injuries: '', injuries_detail: '', cardio_resp: '', cardio_resp_detail: '', blood_type: '', allergies: '', correctors: '', vaccination: '', notes: '' },
     family: { contact: '', relation: '', phone: '', email: '' },
     documents: { pasaporte: 'pendiente', expediente: 'pendiente', video_highlights: 'pendiente', seguro_medico: 'pendiente' },
@@ -2319,7 +2394,8 @@ SF.SQUAD_ROWS = [
     cmj: 40.1, sl: 20.4, sr: 21.2, rsi: 1.22, sp: 2.94, cod: 5.26,
     padre: 176, madre: 163, cole: 'Colegio Los Olivos', curso: '3º ESO', gpa: '7.2',
     fam: ['Ana Molina', 'Madre'], docs: 'falta_seguro', pagos: 'al_dia',
-    nota_int: 'El más rápido de la plantilla en los 20 metros.' },
+    nota_int: 'El más rápido de la plantilla en los 20 metros.',
+    dispo: { estado: 'no', limitacion: 'Solo gimnasio', desde: '2026-08-14', hasta: '2026-09-20' } },
 
   { id: 'p12', nom: 'Marcos', ape: 'Ruiz', d: '2010-09-14', pos: 'Alero', pos2: 'Escolta', dor: '8',
     alt: 185, peso: 75, crec: 10, anos: 4,
@@ -2336,7 +2412,11 @@ SF.SQUAD_ROWS = [
     padre: 187, madre: 172, cole: 'Colegio Santa María', curso: '3º ESO', gpa: '6.5',
     fam: ['Luis Salas', 'Padre'], docs: 'ok', pagos: 'al_dia',
     lesion: 'Sobrecarga en el cuádriceps izquierdo (marzo 2026), recuperado',
-    nota_int: 'Salta bastante menos con la izquierda. Comentado con el preparador; en seguimiento.' },
+    nota_int: 'Salta bastante menos con la izquierda. Comentado con el preparador; en seguimiento.',
+    /* Ojo a lo que dice y a lo que NO dice: "sin saltos" es información
+       deportiva, no clínica. El entrenador sabe que no lo puede poner a
+       rebotear y no sabe —ni tiene por qué— qué le pasa. */
+    dispo: { estado: 'limitada', limitacion: 'Sin saltos', desde: '2026-08-10', hasta: '2026-09-05' } },
 
   { id: 'p14', nom: 'Tomás', ape: 'Iglesias', d: '2010-07-30', pos: 'Ala-pívot', pos2: 'Pívot', dor: '10',
     alt: 190, peso: 82, crec: 12, anos: 4,
@@ -2523,6 +2603,12 @@ SF.buildSquad = function () {
         cardio_resp: 'No', cardio_resp_detail: '', blood_type: '', allergies: 'Ninguna conocida',
         correctors: '', vaccination: 'Sí', notes: '' },
       documents: DOCS[r.docs],
+      availability: r.dispo
+        ? Object.assign({ nota: '', by: 'Marta Cifuentes', role: 'Fisioterapeuta', at: '2026-08-14T10:00:00' }, r.dispo)
+        : { estado: 'disponible', limitacion: '', desde: '', hasta: '', nota: '', by: '', role: '', at: '' },
+      availability_log: r.dispo
+        ? [Object.assign({ nota: '', by: 'Marta Cifuentes', role: 'Fisioterapeuta', at: '2026-08-14T10:00:00' }, r.dispo)]
+        : [],
       finance: { items: items },
       notes_internal: r.nota_int || '',
       stats: r.notas,
@@ -2978,6 +3064,22 @@ SF.store = (function () {
        respuesta del otro y la coordinación se pierde, que es justo para lo
        que sirve. Cuando NO se quiere eso, quien escribe marca "que cada uno
        responda solo a mí" y entonces sí se crean hilos separados. */
+    /* Cambiar la disponibilidad deja rastro: quién lo firmó y cuándo. Si un
+       día hay que explicar por qué un chaval jugó lesionado, tiene que
+       poder saberse quién dio el alta. */
+    setDispo: function (playerId, datos, quien) {
+      var d = db();
+      (d.players || []).forEach(function (p) {
+        if (p.id !== playerId) return;
+        var a = Object.assign({}, datos, {
+          by: quien.name, role: quien.label, at: new Date().toISOString()
+        });
+        p.availability = a;
+        p.availability_log = (p.availability_log || []).concat([a]);
+      });
+      save(d);
+    },
+
     convCreate: function (data) {
       var d = db(); d.convs = d.convs || [];
       var ids = data.to_staff_ids || (data.to_staff ? [data.to_staff] : []);
@@ -3897,11 +3999,31 @@ window.SF = window.SF || {};
     var sinMed = mios.filter(function (p) { return !p.height_cm || !p.weight_kg; });
     var sinEval = mios.filter(function (p) { return !(p.eval_log || []).length; });
 
+    /* Lo del fisioterapeuta. Su trabajo no es que falten datos ni vídeos:
+       es quién no puede jugar, quién vuelve, y a quién hay que mirar. */
+    var bajas = mios.filter(function (p) { return SF.dispo(p).k === 'no'; });
+    var limit = mios.filter(function (p) { return SF.dispo(p).k === 'limitada'; });
+    var caduc = mios.filter(function (p) { return SF.dispo(p).caducada; });
+    var asim = mios.filter(function (p) { var a = SF.asimetria(p); return a && a.aviso; });
+
     /* --- FOCO: una sola cosa, la más urgente, con su botón.
        Un panel de inicio tiene que responder "¿qué hago ahora?", no
        "¿cuántas cosas hay?". Por eso hay una tarjeta y no cuatro. --- */
     var foco = null;
-    if (venc.length) {
+    var esSalud = r.canSetAvailability && !r.canSeeFinance;   // fisio o preparador
+    if (esSalud && caduc.length) {
+      foco = { cls: 'is-warn', ic: 'alert', t: caduc.length + (caduc.length === 1 ? ' alta que revisar' : ' altas que revisar'),
+        s: 'La fecha prevista ya pasó y siguen marcados como no disponibles.', btn: 'Ver jugadores',
+        go: function () { location.hash = '#/jugadores'; } };
+    } else if (esSalud && bajas.length) {
+      foco = { cls: 'is-danger', ic: 'alert', t: bajas.length + (bajas.length === 1 ? ' jugador no disponible' : ' jugadores no disponibles'),
+        s: 'El cuerpo técnico lo ve en su ficha. Actualiza cuando haya novedades.', btn: 'Ver jugadores',
+        go: function () { location.hash = '#/jugadores'; } };
+    } else if (esSalud && asim.length) {
+      foco = { cls: 'is-warn', ic: 'users', t: asim.length + (asim.length === 1 ? ' asimetría alta' : ' asimetrías altas'),
+        s: 'Diferencia de más del ' + SF.ASIMETRIA_AVISO + ' % entre piernas en el salto a una pierna.', btn: 'Ver jugadores',
+        go: function () { location.hash = '#/jugadores'; } };
+    } else if (venc.length) {
       foco = { cls: 'is-danger', ic: 'card', t: venc.length + (venc.length === 1 ? ' cuota vencida' : ' cuotas vencidas'),
         s: 'Lo más antiguo lleva tiempo esperando. Conviene reclamarlo hoy.', btn: 'Ver impagos',
         go: function () { SF._jugQuery = '@Pagos vencidos'; location.hash = '#/jugadores'; } };
@@ -3932,12 +4054,22 @@ window.SF = window.SF || {};
     /* --- Indicadores: solo los que este rol puede ver Y hacer algo con ellos.
        Un preparador físico no tiene por qué ver el dinero de las familias. --- */
     var kpis = [];
-    if (r.canSeeFinance) kpis.push({ cls: 'danger', n: venc.length, l: 'Pagos vencidos', q: '@Pagos vencidos', foot: venc.length ? 'requiere gestión' : 'todo cobrado' });
-    kpis.push({ cls: 'warn', n: incom.length, l: 'Datos incompletos', q: '@Datos incompletos', foot: 'faltan datos clave' });
-    if (r.canEvaluate) kpis.push({ cls: '', n: sinEval.length, l: 'Sin evaluar', q: '', foot: 'ninguna evaluación aún' });
-    if (r.canEditPhysical) kpis.push({ cls: 'warn', n: sinMed.length, l: 'Sin medidas', q: '', foot: 'sin altura o peso' });
-    kpis.push({ cls: 'warn', n: sinVid.length, l: 'Pendiente de vídeo', q: '@Pendiente de vídeo', foot: 'sin highlights' });
-    kpis.push({ cls: 'purple', n: enti.length, l: 'Entrevistas', q: '@Entrevistas', foot: 'por hacer' });
+    if (esSalud) {
+      /* Al fisioterapeuta no le sirve de nada saber cuántas fichas están
+         incompletas o a quién le falta el vídeo. Su pantalla es otra. */
+      kpis.push({ cls: 'danger', n: bajas.length, l: 'No disponibles', q: '', foot: bajas.length ? 'no pueden jugar' : 'nadie de baja' });
+      kpis.push({ cls: 'warn', n: limit.length, l: 'Con limitaciones', q: '', foot: 'pueden, con restricciones' });
+      kpis.push({ cls: 'warn', n: caduc.length, l: 'Altas por revisar', q: '', foot: 'la fecha prevista ya pasó' });
+      kpis.push({ cls: 'purple', n: asim.length, l: 'Asimetrías altas', q: '', foot: 'más del ' + SF.ASIMETRIA_AVISO + ' % entre piernas' });
+      if (r.canEditPhysical) kpis.push({ cls: 'warn', n: sinMed.length, l: 'Sin medidas', q: '', foot: 'sin altura o peso' });
+    } else {
+      if (r.canSeeFinance) kpis.push({ cls: 'danger', n: venc.length, l: 'Pagos vencidos', q: '@Pagos vencidos', foot: venc.length ? 'requiere gestión' : 'todo cobrado' });
+      kpis.push({ cls: 'warn', n: incom.length, l: 'Datos incompletos', q: '@Datos incompletos', foot: 'faltan datos clave' });
+      if (r.canEvaluate) kpis.push({ cls: '', n: sinEval.length, l: 'Sin evaluar', q: '', foot: 'ninguna evaluación aún' });
+      if (r.canEditPhysical) kpis.push({ cls: 'warn', n: sinMed.length, l: 'Sin medidas', q: '', foot: 'sin altura o peso' });
+      kpis.push({ cls: 'warn', n: sinVid.length, l: 'Pendiente de vídeo', q: '@Pendiente de vídeo', foot: 'sin highlights' });
+      kpis.push({ cls: 'purple', n: enti.length, l: 'Entrevistas', q: '@Entrevistas', foot: 'por hacer' });
+    }
 
     var kwrap = el('<div class="kpis"></div>');
     kpis.slice(0, 4).forEach(function (k) {
@@ -3975,10 +4107,29 @@ window.SF = window.SF || {};
        la ficha a medias y le faltan medidas, es UNA persona a la que atender,
        no tres líneas de lista que empujan a los demás fuera de la pantalla. */
     var bruto = [];
-    venc.forEach(function (p) { bruto.push({ p: p, d: 'Cuota vencida', t: 'danger', tt: 'Pago', tab: 'finanzas' }); });
-    incom.forEach(function (p) { bruto.push({ p: p, d: 'Faltan datos clave', t: 'warn', tt: 'Incompleto' }); });
-    enti.forEach(function (p) { bruto.push({ p: p, d: 'Entrevista pendiente', t: 'purple', tt: 'Agenda' }); });
-    if (r.canEditPhysical) sinMed.forEach(function (p) { bruto.push({ p: p, d: 'Sin altura o peso', t: 'gray', tt: 'Medidas' }); });
+    if (esSalud) {
+      /* La lista del fisioterapeuta: a quién tiene que atender, no qué
+         papeles faltan. */
+      caduc.forEach(function (p) { bruto.push({ p: p, d: 'La fecha de alta ya pasó', t: 'warn', tt: 'Revisar', tab: 'deportivo' }); });
+      bajas.forEach(function (p) {
+        var dz = SF.dispo(p);
+        bruto.push({ p: p, d: 'No disponible' + (dz.hasta ? ' · alta prevista ' + fmtDate(dz.hasta) : ''), t: 'danger', tt: 'Baja', tab: 'deportivo' });
+      });
+      limit.forEach(function (p) {
+        var dz = SF.dispo(p);
+        bruto.push({ p: p, d: 'Con limitaciones' + (dz.limitacion ? ' · ' + dz.limitacion : ''), t: 'warn', tt: 'Limitado', tab: 'deportivo' });
+      });
+      asim.forEach(function (p) {
+        var a = SF.asimetria(p);
+        bruto.push({ p: p, d: 'Asimetría del ' + a.pct + ' %, salta menos con la ' + a.debil, t: 'purple', tt: 'Mirar', tab: 'deportivo' });
+      });
+      sinMed.forEach(function (p) { bruto.push({ p: p, d: 'Sin altura o peso', t: 'gray', tt: 'Medidas', tab: 'deportivo' }); });
+    } else {
+      venc.forEach(function (p) { bruto.push({ p: p, d: 'Cuota vencida', t: 'danger', tt: 'Pago', tab: 'finanzas' }); });
+      incom.forEach(function (p) { bruto.push({ p: p, d: 'Faltan datos clave', t: 'warn', tt: 'Incompleto' }); });
+      enti.forEach(function (p) { bruto.push({ p: p, d: 'Entrevista pendiente', t: 'purple', tt: 'Agenda' }); });
+      if (r.canEditPhysical) sinMed.forEach(function (p) { bruto.push({ p: p, d: 'Sin altura o peso', t: 'gray', tt: 'Medidas' }); });
+    }
 
     var porJug = {}, items = [];
     bruto.forEach(function (x) {                      // el primero que llega es el más urgente
@@ -4193,6 +4344,18 @@ window.SF = window.SF || {};
     tEstado.onclick = function () { SF._openTab = 'captacion'; SF.router.render(); };
     tags.appendChild(tEstado);
 
+    /* Si no puede jugar, se ve en la cabecera sin abrir ninguna pestaña. Un
+       entrenador que prepara la convocatoria no debería tener que buscarlo. */
+    (function () {
+      var dz = SF.dispo(p);
+      if (!dz.activa) return;
+      var t = el('<button class="tag-lnk"><span class="tag ' + dz.def.tag + '">' + esc(dz.def.corto) +
+        (dz.limitacion ? ' · ' + esc(dz.limitacion) : '') + '</span></button>');
+      t.title = 'Ver la disponibilidad en Deportivo';
+      t.onclick = function () { SF._openTab = 'deportivo'; SF.router.render(); };
+      tags.appendChild(t);
+    })();
+
     /* Si hay entrevista programada, la fecha se ve aquí sin tener que buscarla. */
     var cita = SF.nextInterview(p), citaTarde = SF.overdueInterview(p);
     if (cita || citaTarde) {
@@ -4250,8 +4413,88 @@ window.SF = window.SF || {};
           fld('Deporte', SF.SPORTS[p.sport] ? SF.SPORTS[p.sport].label : p.sport) +
           fld('Posición principal', posLabel) + fld('Posición secundaria', p.secondary_position);
         body.appendChild(g);
+
+        /* --- Ficha de urgencia ---
+           Lo mínimo que hace falta si un chaval se cae en un partido fuera de
+           casa: a quién llamar, a qué es alérgico y su grupo sanguíneo. Eso sí
+           lo ve el entrenador y el delegado, porque son quienes están allí.
+           El resto del historial médico NO: eso es del fisio y de dirección. */
+        (function () {
+          var md = p.medical || {};
+          var hay = md.allergies || md.blood_type || p.emergency_phone || md.correctors;
+          if (!hay) return;
+          body.appendChild(el('<p class="sec-label">Si pasa algo en un partido</p>'));
+          body.appendChild(el('<div class="field-grid">' +
+            fld('Llamar a', (p.family || {}).contact ? (p.family || {}).contact + ((p.family || {}).relation ? ' (' + (p.family || {}).relation + ')' : '') : '') +
+            fld('Teléfono de emergencia', p.emergency_phone || (p.family || {}).phone) +
+            fld('Alergias', md.allergies) +
+            fld('Grupo sanguíneo', md.blood_type) +
+            fld('Correctores', md.correctors) + '</div>'));
+          body.appendChild(el('<p class="hint">Solo lo imprescindible para una urgencia. El historial médico completo no se enseña aquí: lo ven el fisioterapeuta y la dirección.</p>'));
+        })();
       } else if (cur === 'deportivo') {
         var sp = SF.SPORTS[p.sport];
+
+        /* --- ¿Puede jugar? ---
+           Lo primero de la pestaña, porque es lo primero que mira un
+           entrenador el viernes. Nunca dice qué tiene: solo si puede, qué no
+           puede hacer, hasta cuándo y quién lo firmó. */
+        (function () {
+          var dz = SF.dispo(p);
+          var puede = role().canSetAvailability;
+          if (!dz.activa && !puede) return;            // sano y no puedo tocarlo: no ocupo pantalla
+          var banda = el('<div class="dispo' + (dz.activa ? ' act' : '') + '"></div>');
+          var txt = '<b>' + esc(dz.def.label) + '</b>';
+          if (dz.limitacion) txt += ' · ' + esc(dz.limitacion);
+          var pie = [];
+          if (dz.desde) pie.push('desde ' + fmtDate(dz.desde));
+          if (dz.hasta) pie.push('previsión de alta ' + fmtDate(dz.hasta));
+          if (dz.by) pie.push('lo firma ' + dz.by + (dz.role ? ' · ' + dz.role : ''));
+          banda.appendChild(el('<div class="dispo-t"><span class="tag ' + dz.def.tag + '">' + esc(dz.def.corto) + '</span>' +
+            '<span>' + txt + '</span></div>' + (pie.length ? '<p class="hint">' + esc(pie.join(' · ')) + '</p>' : '')));
+          if (dz.caducada) banda.appendChild(el('<p class="aviso-lin">La fecha de alta prevista ya ha pasado y sigue marcado como no disponible. Conviene revisarlo.</p>'));
+
+          if (puede) {
+            var bd = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Actualizar disponibilidad</button>');
+            bd.onclick = function () {
+              U.modal('¿Puede jugar? — ' + esc(p.full_name), smallForm([
+                { name: 'estado', label: '¿Puede jugar?', type: 'select', options: SF.DISPO.map(function (x) { return x.label; }) },
+                { name: 'limitacion', label: 'Qué NO puede hacer', type: 'select', options: SF.LIMITACIONES,
+                  hint: 'En términos deportivos, nunca clínicos' },
+                { name: 'desde', label: 'Desde', type: 'date' },
+                { name: 'hasta', label: 'Previsión de alta', type: 'date' }
+              ], {
+                estado: dz.def.label, limitacion: dz.limitacion, desde: dz.desde, hasta: dz.hasta
+              }, function (d2) {
+                var k = (SF.DISPO.filter(function (x) { return x.label === d2.estado; })[0] || SF.DISPO[0]).k;
+                SF.store.setDispo(p.id, {
+                  estado: k, limitacion: k === 'disponible' ? '' : d2.limitacion,
+                  desde: d2.desde, hasta: k === 'disponible' ? '' : d2.hasta
+                }, SF.store.currentUser());
+                p = SF.store.get(p.id); U.toast('Disponibilidad actualizada'); paint();
+              }));
+            };
+            banda.appendChild(bd);
+            banda.appendChild(el('<p class="hint">Aquí no se anota ninguna lesión ni diagnóstico. ' +
+              'El club solo necesita saber si puede jugar y qué no puede hacer; lo clínico es del fisioterapeuta ' +
+              'y no se guarda en la app.</p>'));
+          }
+          body.appendChild(banda);
+
+          var hist = (p.availability_log || []).slice().reverse().slice(0, 5);
+          if (hist.length > 1 && puede) {
+            body.appendChild(el('<p class="sec-label">Historial de disponibilidad</p>'));
+            var hl = el('<div class="mini-list"></div>');
+            hist.forEach(function (h) {
+              var def = SF.DISPO.filter(function (x) { return x.k === h.estado; })[0] || SF.DISPO[0];
+              hl.appendChild(el('<div class="mini-row"><span><b>' + esc(def.corto) + '</b>' +
+                (h.limitacion ? ' · ' + esc(h.limitacion) : '') + ' <span class="hint">' + esc(h.by || '') + '</span></span>' +
+                '<span class="hint">' + fmtDate((h.at || '').slice(0, 10)) + '</span></div>'));
+            });
+            body.appendChild(hl);
+          }
+        })();
+
         body.appendChild(el('<div class="field-grid">' + fld('Club', p.club) + fld('Liga', p.league) + fld('Categoría', p.category) + fld('Equipo', teamName(p)) +
           fld('Dorsal', p.dorsal) + fld('Edad de inicio', p.start_age ? p.start_age + ' años' : '') + '</div>'));
         /* Altura: se distingue la medida de la estimada a ojo por el scout.
@@ -4877,7 +5120,15 @@ window.SF = window.SF || {};
           body.appendChild(el('<p class="hint">El expediente se compone por jugador: un jugador internacional en seguimiento necesita papeles que un jugador local no. <b>' + SF.DOC_FORMATO + '</b></p>'));
         }
 
-        if (SF.store.role() !== 'padre') {
+        /* Los antecedentes médicos son dato de salud del artículo 9 del RGPD:
+           enfermedad congénita, cardiopatías, operaciones. Antes los veía
+           cualquiera con esta pestaña — es decir, administración — y NO los
+           veía el fisioterapeuta, que es el único sanitario del club. Estaba
+           exactamente del revés. Ahora solo los ven quien tiene canSeeMedical
+           (fisio y dirección) y la propia familia, que son sus datos.
+           Lo que administración y el entrenador necesitan para una urgencia
+           —alergias, grupo sanguíneo, teléfono— está en Perfil. */
+        if (role().canSeeMedical) {
           body.appendChild(el('<p class="sec-label">Antecedentes médicos</p>'));
           var md = p.medical || {};
           var mg = el('<div class="field-grid">' +
