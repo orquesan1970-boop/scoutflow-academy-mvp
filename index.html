@@ -308,6 +308,27 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .car-add{padding:10px 15px;border-top:1px dashed var(--line-2)}
 .car-vacio{padding:12px 15px;font-size:12.5px;color:var(--ink-3)}
 
+/* ===== Evolución del jugador ===== */
+.evo-band{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 16px;margin-bottom:16px;
+  border:1px solid var(--line);border-radius:var(--r-lg);background:linear-gradient(180deg,#FAF9FE,var(--surface))}
+.evo-band-txt{flex:1;min-width:200px;display:flex;flex-direction:column;gap:3px}
+.evo-band-txt b{font-size:14.5px}
+.evo-band-txt span{font-size:12.5px;color:var(--ink-3)}
+.evo-lead{font-size:14px;color:var(--ink-2);margin:0 0 14px;line-height:1.55}
+.evo-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px}
+.evo-tab{width:100%;border-collapse:collapse;font-size:13px;min-width:340px}
+.evo-tab th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);
+  font-weight:600;padding:7px 10px;border-bottom:1px solid var(--line-2);white-space:nowrap}
+.evo-tab td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:middle}
+.evo-tab tbody tr:last-child td{border-bottom:none}
+.evo-tab tbody tr:hover{background:#FAF9FE}
+.evo-tab .evo-y{text-align:center;min-width:44px}
+.evo-sk td:first-child{white-space:normal;min-width:130px;color:var(--ink-2)}
+.evo-sk th:first-child{color:var(--purple-d)}
+.evo-d{font-size:11.5px;font-weight:600;border-radius:6px;padding:2px 6px;margin-left:4px;white-space:nowrap}
+.evo-d.up{color:#1B7A4B;background:#E8F6EE}
+.evo-d.down{color:#A33; background:#FBEDED}
+
 /* ===== Campana de avisos ===== */
 .bell{position:relative;border:1px solid var(--line);background:var(--surface);border-radius:10px;
   width:38px;height:38px;display:inline-flex;align-items:center;justify-content:center;
@@ -916,10 +937,13 @@ SF.SCORE_WEIGHTS = { 'Técnica': 40, 'Física': 25, 'Mental': 35 };
 /* El Scout Score sale de las evaluaciones. Nadie lo teclea.
    Devuelve también de cuántos apartados sale: un 84 con 3 notas puestas no
    vale lo mismo que un 84 con 15, y eso hay que decirlo. */
-SF.scoutScore = function (p) {
+SF.scoutScore = function (p, statsOverride) {
   var sp = SF.SPORTS[p.sport || 'baloncesto'];
   if (!sp || !sp.skills) return null;
-  var stats = p.stats || {};
+  /* Con statsOverride se calcula el Score de unas notas ANTIGUAS, para poder
+     comparar la temporada de hace tres años con la de ahora. Sin esto, el
+     histórico se vería en crudo y nadie lee 22 números por temporada. */
+  var stats = statsOverride || p.stats || {};
   var pesoTotal = 0, acumulado = 0, puestos = 0, total = 0, porGrupo = {};
 
   Object.keys(sp.skills).forEach(function (g) {
@@ -943,6 +967,127 @@ SF.scoutScore = function (p) {
     cobertura: Math.round(puestos / total * 100),
     porGrupo: porGrupo
   };
+};
+
+/* ===================== EVOLUCIÓN DEL JUGADOR =====================
+   Un chaval entra con ocho años y se va con dieciocho. Si cada evaluación
+   pisa la anterior, el club pierde justo lo que más vale de tenerlo diez
+   temporadas: poder ver cómo ha cambiado.
+
+   Por eso cada evaluación guarda una FOTO de las notas, no solo la fecha.
+   Una foto por temporada: si el entrenador la retoca en enero, corrige la de
+   esa temporada; en septiembre nace una nueva y la anterior queda cerrada.
+   Es como funciona un club, y evita llenar el historial de entradas iguales.
+
+   La temporada va de julio a junio. Una evaluación del 3 de septiembre de
+   2019 pertenece a 2019/2020; una del 10 de mayo de 2020, también. */
+SF.seasonOf = function (dateStr) {
+  var d = dateStr ? new Date(dateStr + (dateStr.length === 10 ? 'T00:00:00' : '')) : new Date();
+  if (isNaN(d)) return SF.SEASON;
+  var y = d.getFullYear();
+  var ini = d.getMonth() >= 6 ? y : y - 1;      // julio (mes 6) abre temporada
+  return ini + '/' + (ini + 1);
+};
+
+/* Edad exacta en una fecha dada. Si solo hay año de nacimiento, se dice
+   la edad que cumplía ese año y se avisa de que es aproximada. */
+SF.ageAt = function (p, dateStr) {
+  var ref = dateStr ? new Date(dateStr + 'T00:00:00') : new Date();
+  if (isNaN(ref)) return null;
+  if (p.birth_date) {
+    var b = new Date(p.birth_date + 'T00:00:00');
+    if (isNaN(b)) return null;
+    var a = ref.getFullYear() - b.getFullYear();
+    var m = ref.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && ref.getDate() < b.getDate())) a--;
+    return a >= 0 && a < 60 ? { años: a, exacta: true } : null;
+  }
+  if (p.birth_year) {
+    var ap = ref.getFullYear() - p.birth_year;
+    return ap >= 0 && ap < 60 ? { años: ap, exacta: false } : null;
+  }
+  return null;
+};
+
+/* Junta medidas y evaluaciones en una sola línea temporal por temporada.
+   Devuelve de la más antigua a la más reciente, con la diferencia respecto
+   a la temporada anterior ya calculada: sin las diferencias hay que restar
+   a mano y entonces nadie lo mira. */
+SF.evolucion = function (p) {
+  var porTemp = {};
+  function fila(season) {
+    if (!porTemp[season]) porTemp[season] = { season: season, medida: null, eval: null };
+    return porTemp[season];
+  }
+
+  (p.measure_log || []).forEach(function (m) {
+    var f = fila(m.season || SF.seasonOf(m.date));
+    /* Si hay varias medidas en la misma temporada nos quedamos con la última:
+       la del final de curso cuenta el crecimiento real de ese año. */
+    if (!f.medida || (m.date || '') >= (f.medida.date || '')) f.medida = m;
+  });
+
+  (p.eval_log || []).forEach(function (e) {
+    var f = fila(e.season || SF.seasonOf(e.date));
+    if (!f.eval || (e.date || '') >= (f.eval.date || '')) f.eval = e;
+  });
+
+  var filas = Object.keys(porTemp).sort().map(function (k) { return porTemp[k]; });
+  if (!filas.length) return [];
+
+  var prev = null;
+  filas.forEach(function (f) {
+    var fecha = (f.eval && f.eval.date) || (f.medida && f.medida.date) || null;
+    f.fecha = fecha;
+    f.edad = SF.ageAt(p, fecha);
+    f.altura = f.medida && f.medida.height_cm ? +f.medida.height_cm : null;
+    f.peso = f.medida && f.medida.weight_kg ? +f.medida.weight_kg : null;
+    f.stats = f.eval && f.eval.stats ? f.eval.stats : null;
+    f.sinDetalle = !!(f.eval && !f.eval.stats);
+    var ss = f.stats ? SF.scoutScore(p, f.stats) : null;
+    f.score = ss ? ss.score : null;
+    f.cobertura = ss ? ss.cobertura : null;
+    f.porGrupo = ss ? ss.porGrupo : null;
+
+    /* Diferencias contra la ÚLTIMA temporada que tenía ese dato, no contra la
+       inmediatamente anterior: si un año no se le midió, el crecimiento no
+       desaparece, se acumula. */
+    f.dAltura = null; f.dPeso = null; f.dScore = null;
+    var pa = null, pp = null, psc = null;
+    filas.slice(0, filas.indexOf(f)).forEach(function (a) {
+      if (a.altura != null) pa = a.altura;
+      if (a.peso != null) pp = a.peso;
+      if (a.score != null) psc = a.score;
+    });
+    if (f.altura != null && pa != null) f.dAltura = f.altura - pa;
+    if (f.peso != null && pp != null) f.dPeso = Math.round((f.peso - pp) * 10) / 10;
+    if (f.score != null && psc != null) f.dScore = f.score - psc;
+    prev = f;
+  });
+  return filas;
+};
+
+/* Para el detalle apartado por apartado: cada destreza con su valor en cada
+   temporada. Solo devuelve las que se han puntuado alguna vez, porque una
+   tabla con 22 filas vacías no la lee nadie. */
+SF.evolucionSkills = function (p, filas) {
+  var sp = SF.SPORTS[p.sport || 'baloncesto'];
+  if (!sp || !sp.skills) return [];
+  var conNotas = filas.filter(function (f) { return f.stats; });
+  if (!conNotas.length) return [];
+  var out = [];
+  Object.keys(sp.skills).forEach(function (g) {
+    var items = [];
+    sp.skills[g].forEach(function (sk) {
+      var vals = conNotas.map(function (f) { return +f.stats[sk] || null; });
+      if (!vals.some(function (v) { return v; })) return;      // nunca evaluada
+      var prim = null, ult = null;
+      vals.forEach(function (v) { if (v) { if (prim === null) prim = v; ult = v; } });
+      items.push({ skill: sk, vals: vals, delta: (prim !== null && ult !== null) ? ult - prim : null });
+    });
+    if (items.length) out.push({ grupo: g, items: items });
+  });
+  return out;
 };
 
 /* ===================== ENTREVISTAS =====================
@@ -1211,7 +1356,7 @@ SF.SEASON = '2026/2027';
    pantalla es lo último o una página vieja guardada por el navegador, que
    ya nos ha costado una evaluación mal guardada. Se ve en Configuración
    y en el pie del menú. */
-SF.BUILD = '2026-08-19';
+SF.BUILD = '2026-08-22';
 
 SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'psicologo', 'fisio',
   'scout', 'delegado_equipo', 'delegado_campo', 'dt_general', 'dt_femenino',
@@ -1721,8 +1866,23 @@ SF.SEED_PLAYERS = [
     },
     kit_order: { sizes: { '1ª equipación de juego': 'M', '2ª equipación de juego': 'M', 'Pantalón de juego': 'M', 'Chándal oficial': 'L' }, print_name: 'M. RÍOS', print_number: '7', status: 'pedido', requested_at: '2026-06-18' },
     vertical_reach_stand: 248, vertical_reach_run: 295, uses_both_hands: 'No',
-    eval_log: [{ by: 'Carlos Gorosito', role: 'Entrenador', date: '2026-06-10' }], team_id: 't1',
-    measure_log: [{ by: 'Diego Sosa', role: 'Preparador Físico', date: '2025-09-01', height_cm: 189, weight_kg: 75, wingspan_cm: 196, torso_height_cm: 95, foot_length_cm: 30, hand_length_cm: 22 }],
+    /* Cuatro temporadas seguidas: es lo que hace valioso tener a un chaval en
+       el club desde pequeño, y sin ejemplo así la pantalla de Evolución no se
+       entiende. Las notas van en escala 0-5 y la migración las pasa a 0-10,
+       igual que las actuales. */
+    eval_log: [
+      { by: 'Carlos Gorosito', role: 'Entrenador', date: '2024-05-20', season: '2023/2024',
+        stats: { 'Tiro': 2, 'Bote': 3, 'Pase': 3, 'Finalización': 3, 'Defensa': 2, 'Fuerza explosiva': 2, 'Velocidad': 3, 'Potencia': 2, 'Coordinación': 3, 'Resistencia aeróbica': 3, 'Liderazgo': 3, 'Competitividad': 3 } },
+      { by: 'Carlos Gorosito', role: 'Entrenador', date: '2025-05-15', season: '2024/2025',
+        stats: { 'Tiro': 3, 'Bote': 3, 'Pase': 4, 'Finalización': 3, 'Defensa': 2, 'Fuerza explosiva': 3, 'Velocidad': 3, 'Velocidad de reacción': 2, 'Potencia': 3, 'Flexibilidad': 3, 'Coordinación': 3, 'Resistencia aeróbica': 3, 'Resistencia anaeróbica': 2, 'Liderazgo': 4, 'Competitividad': 4 } },
+      { by: 'Carlos Gorosito', role: 'Entrenador', date: '2026-06-10', season: '2025/2026' }
+    ], team_id: 't1',
+    measure_log: [
+      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2023-10-04', season: '2023/2024', height_cm: 177, weight_kg: 62, wingspan_cm: 182 },
+      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2024-09-30', season: '2024/2025', height_cm: 184, weight_kg: 69, wingspan_cm: 190 },
+      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2025-09-01', season: '2025/2026', height_cm: 189, weight_kg: 75, wingspan_cm: 196, torso_height_cm: 95, foot_length_cm: 30, hand_length_cm: 22 },
+      { by: 'Diego Sosa', role: 'Preparador Físico', date: '2026-07-10', season: '2026/2027', height_cm: 192, weight_kg: 78, wingspan_cm: 198, torso_height_cm: 96, foot_length_cm: 30, hand_length_cm: 22 }
+    ],
     family_active: true, family: { contact: 'Ana Ríos', relation: 'Madre', phone: '+34 600 111 222', email: 'ana@example.com' },
     consents: { imagen_publica: true, comunicaciones: true },
     reports: [
@@ -1856,13 +2016,44 @@ SF.store = (function () {
        queda marcado, para no volver a doblarlo en cada carga. */
     if (d.eval_scale !== 10) {
       (d.players || []).forEach(function (p) {
-        if (!p.stats) return;
-        Object.keys(p.stats).forEach(function (k) {
-          var v = +p.stats[k];
-          if (v > 0 && v <= 5) p.stats[k] = v * 2;
-        });
+        function doblar(st) {
+          if (!st) return;
+          Object.keys(st).forEach(function (k) {
+            var v = +st[k];
+            if (v > 0 && v <= 5) st[k] = v * 2;
+          });
+        }
+        doblar(p.stats);
+        /* También las notas guardadas en el histórico: si no, una evaluación
+           de hace tres años se leería en otra escala y parecería que el chaval
+           ha mejorado el doble de lo que ha mejorado. */
+        (p.eval_log || []).forEach(function (e) { doblar(e.stats); });
       });
       d.eval_scale = 10;
+      write(d);
+    }
+    /* Migración del historial: hasta ahora una evaluación solo dejaba quién y
+       cuándo, no las notas, así que cada nueva evaluación borraba la anterior.
+       Aquí se hacen tres cosas, todas sin inventar nada:
+         1. Se sella la temporada en medidas y evaluaciones que no la tengan.
+         2. Las notas actuales se adjuntan a la ÚLTIMA evaluación, que es de
+            quien son: así no se pierde la que hay hoy.
+         3. Las anteriores quedan marcadas como "sin detalle". No se rellenan
+            a ojo: es la ficha de un menor, y un dato inventado es peor que
+            un hueco. */
+    if (!d.eval_hist_v1) {
+      (d.players || []).forEach(function (p) {
+        (p.measure_log || []).forEach(function (m) {
+          if (!m.season) m.season = SF.seasonOf(m.date);
+        });
+        var log = p.eval_log || [];
+        log.forEach(function (e) { if (!e.season) e.season = SF.seasonOf(e.date); });
+        if (log.length && p.stats && Object.keys(p.stats).length) {
+          var ult = log[log.length - 1];
+          if (!ult.stats) ult.stats = JSON.parse(JSON.stringify(p.stats));
+        }
+      });
+      d.eval_hist_v1 = true;
       write(d);
     }
     return d;
@@ -2475,6 +2666,97 @@ window.SF = window.SF || {};
       if (onSave(data) !== false) U.closeModal();
     };
     var wrap = el('<div></div>'); wrap.appendChild(f); wrap.appendChild(foot);
+    return wrap;
+  }
+
+  /* ---------- Evolución del jugador temporada a temporada ----------
+     Lo que un club gana teniendo a un chaval desde los ocho años. Arriba, una
+     fila por temporada con lo que se mide (edad, altura, peso, Score); abajo,
+     apartado por apartado, para ver que a los nueve no botaba con la izquierda
+     y a los doce sí. Se lee de la temporada más antigua a la más reciente. */
+  function evolucionBody(p) {
+    var wrap = el('<div class="evo"></div>');
+    var filas = SF.evolucion(p);
+    var verScore = role().canSeeScore;
+
+    if (!filas.length) {
+      wrap.appendChild(el('<p class="hint">Todavía no hay nada que comparar. En cuanto el preparador tome medidas ' +
+        'o el entrenador evalúe, esta temporada quedará registrada y el año que viene se podrá ver el cambio.</p>'));
+      return wrap;
+    }
+
+    /* Titular en una frase. Un número dice más que una tabla, y la tabla
+       queda debajo para quien quiera el detalle. */
+    var conAlt = filas.filter(function (f) { return f.altura != null; });
+    var conPes = filas.filter(function (f) { return f.peso != null; });
+    var resumen = [];
+    if (conAlt.length > 1) {
+      var cm = conAlt[conAlt.length - 1].altura - conAlt[0].altura;
+      if (cm > 0) resumen.push('ha crecido <b>' + cm + ' cm</b>');
+    }
+    if (conPes.length > 1) {
+      var kg = Math.round((conPes[conPes.length - 1].peso - conPes[0].peso) * 10) / 10;
+      if (kg > 0) resumen.push('ha ganado <b>' + kg + ' kg</b>');
+    }
+    var nT = filas.length;
+    wrap.appendChild(el('<p class="evo-lead">' + esc(p.full_name) + ' tiene <b>' + nT +
+      (nT === 1 ? ' temporada' : ' temporadas') + '</b> registradas' +
+      (resumen.length ? '. Desde la primera ' + resumen.join(' y ') : '') + '.</p>'));
+
+    function delta(d, unidad) {
+      if (d == null || d === 0) return '';
+      return '<span class="evo-d ' + (d > 0 ? 'up' : 'down') + '">' + (d > 0 ? '+' : '') + d + (unidad || '') + '</span>';
+    }
+
+    /* --- Una fila por temporada --- */
+    var th = '<th>Temporada</th><th>Edad</th><th>Altura</th><th>Peso</th>' + (verScore ? '<th>Score</th>' : '');
+    var tab = el('<div class="evo-scroll"><table class="evo-tab"><thead><tr>' + th + '</tr></thead><tbody></tbody></table></div>');
+    var tb = tab.querySelector('tbody');
+
+    filas.forEach(function (f) {
+      var edad = f.edad ? f.edad.años + ' años' + (f.edad.exacta ? '' : ' aprox.') : '—';
+      var alt = f.altura != null ? (f.altura / 100).toFixed(2) + ' m ' + delta(f.dAltura, ' cm') : '—';
+      var pes = f.peso != null ? f.peso + ' kg ' + delta(f.dPeso, ' kg') : '—';
+      var sc = f.score != null ? '<b>' + f.score + '</b> ' + delta(f.dScore)
+             : (f.sinDetalle ? '<span class="hint">sin detalle</span>' : '—');
+      tb.appendChild(el('<tr><td><b>' + esc(f.season) + '</b></td><td>' + esc(edad) + '</td><td>' +
+        alt + '</td><td>' + pes + '</td>' + (verScore ? '<td>' + sc + '</td>' : '') + '</tr>'));
+    });
+    wrap.appendChild(tab);
+
+    if (filas.some(function (f) { return f.sinDetalle; })) {
+      wrap.appendChild(el('<p class="hint">Las temporadas marcadas como <i>sin detalle</i> se evaluaron antes de que ' +
+        'la app guardara las notas. Sabemos quién evaluó y cuándo, pero no con qué puntuación, y no se rellena a ojo. ' +
+        'De aquí en adelante queda todo.</p>'));
+    }
+
+    /* --- Detalle apartado por apartado --- */
+    var grupos = SF.evolucionSkills(p, filas);
+    if (!grupos.length) {
+      wrap.appendChild(el('<p class="hint">Cuando haya una temporada evaluada aparecerá aquí el detalle de cada apartado.</p>'));
+      return wrap;
+    }
+    var temps = filas.filter(function (f) { return f.stats; }).map(function (f) { return f.season; });
+    wrap.appendChild(el('<p class="sec-label">Apartado por apartado</p>'));
+    wrap.appendChild(el('<p class="hint">De 0 a ' + SF.EVAL_MAX + '. La última columna es lo que ha cambiado desde la ' +
+      'primera temporada evaluada. Recuerda que la nota se pone comparándolo con <b>su categoría y su año</b>: ' +
+      'mantener un 6 mientras sube de categoría ya es mejorar.</p>'));
+
+    grupos.forEach(function (g) {
+      var head = '<th>' + esc(g.grupo) + '</th>' + temps.map(function (t) {
+        return '<th class="evo-y">' + esc(t.slice(2, 7)) + '</th>';       // 2019/2020 -> 19/20
+      }).join('') + '<th class="evo-y">Cambio</th>';
+      var t2 = el('<div class="evo-scroll"><table class="evo-tab evo-sk"><thead><tr>' + head + '</tr></thead><tbody></tbody></table></div>');
+      var tb2 = t2.querySelector('tbody');
+      g.items.forEach(function (it) {
+        var celdas = it.vals.map(function (v) {
+          return '<td class="evo-y">' + (v ? v : '<span class="hint">—</span>') + '</td>';
+        }).join('');
+        tb2.appendChild(el('<tr><td>' + esc(it.skill) + '</td>' + celdas +
+          '<td class="evo-y">' + (it.delta ? delta(it.delta) : '') + '</td></tr>'));
+      });
+      wrap.appendChild(t2);
+    });
     return wrap;
   }
 
@@ -3225,7 +3507,8 @@ window.SF = window.SF || {};
               { name: 'uses_both_hands', label: 'Usa las dos manos', type: 'select', options: ['Sí', 'No'] }
             ], p, function (d) {
               var u = SF.store.currentUser();
-              var entry = Object.assign({ by: u.name, role: u.label, date: new Date().toISOString().slice(0, 10) }, d);
+              var hoy = new Date().toISOString().slice(0, 10);
+              var entry = Object.assign({ by: u.name, role: u.label, date: hoy, season: SF.seasonOf(hoy) }, d);
               var newLog = (p.measure_log || []).slice(); newLog.push(entry);
               SF.store.update(p.id, Object.assign({}, d, { measure_log: newLog }));
               p = SF.store.get(p.id); U.toast('Medidas guardadas por ' + u.name); paint();
@@ -3333,10 +3616,28 @@ window.SF = window.SF || {};
               /* Se guarda la escala con la que se puntuó. Sin esto, si mañana
                  cambia la escala no hay forma de saber si un 5 era "la mitad"
                  o "el máximo": es justo lo que nos pasó al pasar de 5 a 10. */
-              var entry = { by: u.name, role: u.label, date: new Date().toISOString().slice(0, 10), scale: SF.EVAL_MAX };
-              var newLog = (p.eval_log || []).slice(); newLog.push(entry);
+              var hoy = new Date().toISOString().slice(0, 10);
+              var temp = SF.seasonOf(hoy);
+              /* Una entrada por temporada. Si ya hay evaluación de esta
+                 temporada se corrige esa; si no, nace una nueva y la del año
+                 pasado queda cerrada con sus notas intactas. Así el club puede
+                 ver diez años después cómo ha cambiado el chaval. */
+              var entry = {
+                by: u.name, role: u.label, date: hoy, season: temp,
+                scale: SF.EVAL_MAX,
+                stats: JSON.parse(JSON.stringify(ns))
+              };
+              var newLog = (p.eval_log || []).slice();
+              var i = -1;
+              newLog.forEach(function (e, k) { if ((e.season || SF.seasonOf(e.date)) === temp) i = k; });
+              var corregida = i >= 0;
+              if (corregida) { entry.creada = newLog[i].creada || newLog[i].date; newLog[i] = entry; }
+              else newLog.push(entry);
               SF.store.update(p.id, { stats: ns, eval_log: newLog });
-              p = SF.store.get(p.id); U.toast('Evaluación guardada por ' + u.name); paint();
+              p = SF.store.get(p.id);
+              U.toast(corregida ? 'Evaluación de ' + temp + ' corregida por ' + u.name
+                                : 'Evaluación de ' + temp + ' guardada por ' + u.name);
+              paint();
             }, groups));
           };
           body.appendChild(edEval);
@@ -3345,15 +3646,41 @@ window.SF = window.SF || {};
           body.appendChild(el('<p class="sec-label">Historial de evaluaciones</p>'));
           var hl = el('<div class="mini-list"></div>');
           log.slice().reverse().slice(0, 6).forEach(function (e) {
-            hl.appendChild(el('<div class="mini-row"><span><b>' + esc(e.by) + '</b> · ' + esc(e.role) + '</span><span class="hint">' + esc(e.date) + '</span></div>'));
+            var temp = e.season || SF.seasonOf(e.date);
+            var ssH = e.stats ? SF.scoutScore(p, e.stats) : null;
+            hl.appendChild(el('<div class="mini-row"><span><b>' + esc(temp) + '</b> · ' + esc(e.by) + ' · ' + esc(e.role) +
+              (ssH ? ' · Score ' + ssH.score : '<span class="hint"> · sin detalle guardado</span>') +
+              '</span><span class="hint">' + esc(e.date) + '</span></div>'));
           });
           body.appendChild(hl);
+          body.appendChild(el('<p class="hint">Cada temporada guarda sus notas. Para verlas comparadas, ' +
+            'entra en <b>Trayectoria</b> y pulsa <b>Ver evolución</b>.</p>'));
         }
 
 
       } else if (cur === 'trayectoria') {
         /* Pestaña propia: por dónde ha pasado. Estaba al final de
            Deportivo, debajo de las evaluaciones, y no se veía. */
+        /* Antes de por dónde ha pasado: cómo ha cambiado. Un chaval que lleva
+           ocho temporadas en el club es la información más valiosa que tiene
+           una cantera, y hasta ahora no se veía en ningún sitio. */
+        (function () {
+          var fl = SF.evolucion(p);
+          var banda = el('<div class="evo-band"></div>');
+          var conAlt = fl.filter(function (f) { return f.altura != null; });
+          var linea = !fl.length
+            ? 'Sin temporadas registradas todavía.'
+            : fl.length + (fl.length === 1 ? ' temporada registrada' : ' temporadas registradas') +
+              ' · de ' + esc(fl[0].season) + ' a ' + esc(fl[fl.length - 1].season) +
+              (conAlt.length > 1 && conAlt[conAlt.length - 1].altura > conAlt[0].altura
+                ? ' · ha crecido ' + (conAlt[conAlt.length - 1].altura - conAlt[0].altura) + ' cm' : '');
+          banda.appendChild(el('<div class="evo-band-txt"><b>Evolución del jugador</b><span>' + linea + '</span></div>'));
+          var bEvo = el('<button class="btn btn-primary btn-sm">' + ico('star') + 'Ver evolución</button>');
+          bEvo.onclick = function () { U.modal('Evolución — ' + esc(p.full_name), evolucionBody(p)); };
+          banda.appendChild(bEvo);
+          body.appendChild(banda);
+        })();
+
         // Trayectoria de clubes: cada club es una carpeta con sus temporadas
         body.appendChild(el('<p class="sec-label">Trayectoria deportiva</p>'));
         var ch = SF.careerNorm(p.career_history);
