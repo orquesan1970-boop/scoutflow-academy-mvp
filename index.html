@@ -4607,7 +4607,10 @@ window.SF = window.SF || {};
         (function () {
           var dz = SF.dispo(p);
           var puede = role().canSetAvailability;
-          if (!dz.activa && !puede) return;            // sano y no puedo tocarlo: no ocupo pantalla
+          /* Sano y no puedo tocarlo: no ocupo pantalla. Ojo: este return solo
+             se salta la BANDA. Las citas van en su propio bloque más abajo,
+             porque un jugador sano puede tener una cita pedida. */
+          if (!dz.activa && !puede) return;
           var banda = el('<div class="dispo' + (dz.activa ? ' act' : '') + '"></div>');
           var txt = '<b>' + esc(dz.def.label) + '</b>';
           if (dz.limitacion) txt += ' · ' + esc(dz.limitacion);
@@ -4646,10 +4649,26 @@ window.SF = window.SF || {};
           }
           body.appendChild(banda);
 
-          /* --- Citas con la fisioterapeuta ---
-             Aquí se cierra el circuito: el entrenador pide, ella atiende, y la
-             respuesta vuelve al mismo sitio donde se preguntó. */
-          (function () {
+          var hist = (p.availability_log || []).slice().reverse().slice(0, 5);
+          if (hist.length > 1 && puede) {
+            body.appendChild(el('<p class="sec-label">Historial de disponibilidad</p>'));
+            var hl = el('<div class="mini-list"></div>');
+            hist.forEach(function (h) {
+              var def = SF.DISPO.filter(function (x) { return x.k === h.estado; })[0] || SF.DISPO[0];
+              hl.appendChild(el('<div class="mini-row"><span><b>' + esc(def.corto) + '</b>' +
+                (h.limitacion ? ' · ' + esc(h.limitacion) : '') + ' <span class="hint">' + esc(h.by || '') + '</span></span>' +
+                '<span class="hint">' + fmtDate((h.at || '').slice(0, 10)) + '</span></div>'));
+            });
+            body.appendChild(hl);
+          }
+        })();
+
+        /* --- Citas con la fisioterapeuta ---
+           Aquí se cierra el circuito: el entrenador pide, ella atiende, y la
+           respuesta vuelve al mismo sitio donde se preguntó.
+           Va FUERA del bloque anterior: un jugador sano también puede tener
+           una cita pedida, y si estuviera dentro no se vería nunca. */
+        (function () {
             var fis = SF.fisioDe(p);
             var citas = SF.store.citasDeJugador(p.id);
             var abiertas = citas.filter(function (c) { return c.estado === 'solicitada' || c.estado === 'confirmada'; });
@@ -4697,20 +4716,6 @@ window.SF = window.SF || {};
               });
               body.appendChild(cl);
             }
-          })();
-
-          var hist = (p.availability_log || []).slice().reverse().slice(0, 5);
-          if (hist.length > 1 && puede) {
-            body.appendChild(el('<p class="sec-label">Historial de disponibilidad</p>'));
-            var hl = el('<div class="mini-list"></div>');
-            hist.forEach(function (h) {
-              var def = SF.DISPO.filter(function (x) { return x.k === h.estado; })[0] || SF.DISPO[0];
-              hl.appendChild(el('<div class="mini-row"><span><b>' + esc(def.corto) + '</b>' +
-                (h.limitacion ? ' · ' + esc(h.limitacion) : '') + ' <span class="hint">' + esc(h.by || '') + '</span></span>' +
-                '<span class="hint">' + fmtDate((h.at || '').slice(0, 10)) + '</span></div>'));
-            });
-            body.appendChild(hl);
-          }
         })();
 
         body.appendChild(el('<div class="field-grid">' + fld('Club', p.club) + fld('Liga', p.league) + fld('Categoría', p.category) + fld('Equipo', teamName(p)) +
