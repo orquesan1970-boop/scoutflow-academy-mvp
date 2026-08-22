@@ -825,9 +825,14 @@ SF.firmaMenor14 = function (birth_date) {
    A partir de 14 sí se puede escribir al jugador, y quien manda elige.
 
    Devuelve a quién le llega DE VERDAD, que puede no ser lo que se pidió. */
+/* El primero es el que sale marcado por defecto, y va a propósito: en un club
+   de formación lo normal es que un aviso lo vean la familia Y el jugador. El
+   chaval de 15 años se entera de que hay equipación roja sin depender de que
+   su padre le pase el recado, y la familia lo sabe igualmente. Por debajo de
+   14 se recorta solo. */
 SF.AUDIENCIAS = [
-  { k: 'familias', label: 'Solo a las familias', desc: 'Lo reciben padres, madres y tutores. Es lo normal en formación.' },
   { k: 'ambos', label: 'A las familias y a los jugadores', desc: 'Los dos lo ven. A los menores de 14 les llegará solo a su familia.' },
+  { k: 'familias', label: 'Solo a las familias', desc: 'Lo reciben padres, madres y tutores. Para cuotas, papeles y asuntos de casa.' },
   { k: 'jugadores', label: 'Solo a los jugadores', desc: 'Para cosas del vestuario. A los menores de 14 les llegará a su familia igualmente.' }
 ];
 
