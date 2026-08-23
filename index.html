@@ -876,6 +876,14 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .inst-row .inst-nom{flex:1.3 1 0}
 .inst-ed{max-height:60vh;overflow-y:auto}
 .cua-p.entera{border-left:3px solid var(--purple)}
+.cua-accesos{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.cua-acceso{display:flex;align-items:center;gap:11px;width:100%;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:12px 13px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .15s,background .15s}
+.cua-acceso:hover{border-color:var(--purple);background:var(--surface)}
+.cua-acceso>.ic:first-child{color:var(--purple);flex:0 0 auto}
+.cua-acceso span{flex:1 1 auto;min-width:0}
+.cua-acceso b{display:block;font-size:13.5px;font-weight:500;color:var(--ink)}
+.cua-acceso i{display:block;font-style:normal;font-size:12px;color:var(--ink-3);margin-top:1px}
+.cua-acceso>.ic:last-child{color:var(--ink-3);flex:0 0 auto}
 .cua-pab th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:500;padding:7px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
 .cua-pab .cua-sub th{font-size:10px;padding:4px 8px;color:var(--ink-3);font-weight:400}
 .cua-pab .cua-fr-h{text-align:left}
@@ -4700,6 +4708,11 @@ window.SF = window.SF || {};
     });
     citas.sort(function (a, b) { return (a.e.date || '') < (b.e.date || '') ? -1 : 1; });
     var ag = el('<div class="card"><h3>Lo que viene</h3><p class="hint">Próximos partidos y entrenamientos.</p></div>');
+    var esCuadrantes = r.nav.indexOf('horarios') >= 0 && !esSalud;
+    if (esCuadrantes) {
+      ag.querySelector('h3').textContent = 'Cuadrantes';
+      ag.querySelector('.hint').textContent = 'Quién tiene pista y quién hace preparación física.';
+    }
 
     /* --- Resumen de los siete días, para quien lleva varios equipos ---
        Listar evento a evento no escala: con veinte equipos hay cincuenta
@@ -4708,28 +4721,60 @@ window.SF = window.SF || {};
     /* El fisioterapeuta y el preparador se quedan con la lista detallada: a
        ellos un partido les dice "con quién no cuento", y eso hay que verlo
        sin abrir nada. Quien dirige varios equipos necesita lo contrario. */
-    if (r.nav.indexOf('calendario') >= 0 && !esSalud) {
-      var hoy7 = new Date(); var tope = new Date(); tope.setDate(tope.getDate() + 7);
-      var f0 = iso(hoy7), f1 = iso(tope);
-      var nEnt = 0, nPar = 0, eqs = {};
+    if (esCuadrantes) {
+      /* Antes aquí había un recuento: "2 entrenamientos, 1 partido". Un número
+         no se usa para nada — no dice quién, ni dónde, ni a qué hora, y no
+         lleva a ninguna parte. Lo que de verdad se abre cada día son los dos
+         cuadrantes, así que son ellos los que ocupan este sitio. */
+      var accesos = el('<div class="cua-accesos"></div>');
+      [['entrenos', 'Cuadrante de entrenamientos', 'grid', 'Qué equipo tiene cada pista'],
+       ['pf', 'Preparación física', 'chart', 'Quién trabaja con cada equipo']].forEach(function (a) {
+        var b = el('<button class="cua-acceso">' + ico(a[2]) +
+          '<span><b>' + esc(a[1]) + '</b><i>' + esc(a[3]) + '</i></span>' + ico('arrow') + '</button>');
+        b.onclick = function () {
+          SF._agendaOpen = true; SF._agendaTab = a[0];
+          SF.router.render();
+          setTimeout(function () {
+            var n = document.querySelector('.agenda');
+            if (n) n.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }, 60);
+        };
+        accesos.appendChild(b);
+      });
+      ag.appendChild(accesos);
+
+      /* Los partidos del fin de semana, que es lo único con fecha que sí se
+         mira desde aquí. Los cargan los entrenadores desde su equipo; mientras
+         no haya ninguno, se dice de dónde salen en vez de dejar un hueco. */
+      var sab = new Date(); sab.setDate(sab.getDate() + ((6 - sab.getDay()) + 7) % 7);
+      var dom = new Date(sab); dom.setDate(dom.getDate() + 1);
+      var d0 = iso(sab), d1 = iso(dom);
+      var finde = [];
       SF.store.teams().forEach(function (t) {
         if (r.segments && r.segments !== 'all' && r.segments.indexOf(t.segment) < 0) return;
         (t.events || []).forEach(function (e) {
-          if (!e.date || e.date < f0 || e.date > f1) return;
-          if (e.type === 'partido') { nPar++; eqs[t.id] = 1; }
-          else if (e.type === 'entrenamiento') nEnt++;
+          if (e.type === 'partido' && e.date >= d0 && e.date <= d1) finde.push({ t: t, e: e });
         });
       });
-      var resumen = el('<div class="cal-res"><div><b>' + nEnt + '</b><span>' +
-        (nEnt === 1 ? 'entrenamiento' : 'entrenamientos') + '</span></div>' +
-        '<div><b>' + nPar + '</b><span>' + (nPar === 1 ? 'partido' : 'partidos') +
-        (nPar ? ' · ' + Object.keys(eqs).length + (Object.keys(eqs).length === 1 ? ' equipo' : ' equipos') : '') +
-        '</span></div></div>');
-      ag.appendChild(resumen);
-      ag.appendChild(el('<p class="hint">En los próximos siete días.</p>'));
-      var bCal = el('<button class="btn btn-light btn-sm">' + ico('cal') + 'Abrir el calendario</button>');
-      bCal.onclick = function () { location.hash = '#/calendario'; };
-      ag.appendChild(bCal);
+      finde.sort(function (a, b) {
+        return (a.e.date + (a.e.time || '')).localeCompare(b.e.date + (b.e.time || ''));
+      });
+      ag.appendChild(el('<p class="sec-label" style="margin-top:16px">Partidos del fin de semana</p>'));
+      if (!finde.length) {
+        ag.appendChild(el('<p class="hint">Todavía no hay ninguno cargado. Los añade cada entrenador desde su equipo.</p>'));
+      } else {
+        var lf = el('<div class="mini-list"></div>');
+        finde.slice(0, 6).forEach(function (x) {
+          var d = new Date(x.e.date + 'T00:00:00');
+          var row = el('<div class="mini-row"><span><b>' + esc(x.t.name) + '</b><br><span class="hint">vs ' +
+            esc(x.e.opponent || '—') + (x.e.place ? ' · ' + esc(x.e.place) : '') + '</span></span>' +
+            '<span class="hint">' + (isNaN(d) ? '' : SF_DIAS[d.getDay()]) +
+            (x.e.time ? ' ' + esc(x.e.time) : '') + '</span></div>');
+          row.onclick = function () { location.hash = '#/equipo/' + x.t.id; };
+          lf.appendChild(row);
+        });
+        ag.appendChild(lf);
+      }
       lado.appendChild(ag);
     } else {
 
