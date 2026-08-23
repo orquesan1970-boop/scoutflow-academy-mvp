@@ -876,6 +876,9 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .inst-row .inst-nom{flex:1.3 1 0}
 .inst-ed{max-height:60vh;overflow-y:auto}
 .cua-p.entera{border-left:3px solid var(--purple)}
+.eq-hor th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.eq-hor td{padding:9px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
+.eq-hor tr:last-child td{border-bottom:0}
 .cua-accesos{display:flex;flex-direction:column;gap:8px;margin-top:12px}
 .cua-acceso{display:flex;align-items:center;gap:11px;width:100%;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:12px 13px;cursor:pointer;font-family:inherit;text-align:left;transition:border-color .15s,background .15s}
 .cua-acceso:hover{border-color:var(--purple);background:var(--surface)}
@@ -9534,6 +9537,10 @@ window.SF = window.SF || {};
 
       view.appendChild(el('<p class="sec-label">' + esc(t.name) + ' · ' + roster.length + ' jugadores</p>'));
 
+      /* El entrenador entra por aquí, no por la ficha del equipo: su horario
+         tiene que estar donde aterriza, no a dos clics. */
+      horarioDeEquipo(view, t);
+
       /* --- Comunicados del club pendientes de reenviar --- */
       var meS = SF.store.staffMe();
       if (meS) {
@@ -9625,6 +9632,75 @@ window.SF = window.SF || {};
       view.appendChild(al);
     });
   };
+
+  /* ===================== EL HORARIO DE UN EQUIPO =====================
+     El cuadrante general sirve para repartir pistas: lo mira quien organiza.
+     Pero un entrenador, o una familia, no quiere la parrilla del club entera
+     para buscar su fila — quiere la suya. Es la misma información filtrada por
+     equipo, y puesta en el orden en que ocurre la semana. */
+  function horarioDeEquipo(view, team) {
+    if (!team) return;
+    var insts = SF.store.instalaciones();
+    function pab(id) { return (insts.filter(function (x) { return x.id === id; })[0] || {}).nombre || '—'; }
+
+    var franjas = SF.store.franjas();
+    var mios = SF.store.horario().filter(function (x) { return x.team_id === team.id; });
+    /* Si ocupa el pabellón entero hay una fila por pista, y enseñarlas todas
+       sería decir dos veces lo mismo: se juntan en una. */
+    var vistos = {}, entrenos = [];
+    mios.forEach(function (x) {
+      var k = x.dia + '|' + x.franja + '|' + x.inst + '|' + (x.completa ? 'todo' : x.pista);
+      if (vistos[k]) return;
+      vistos[k] = 1; entrenos.push(x);
+    });
+    entrenos.sort(function (a, b) { return (a.dia - b.dia) || (a.franja - b.franja); });
+
+    var pf = SF.store.pf().filter(function (x) { return x.team_id === team.id; })
+      .sort(function (a, b) { return (a.dia - b.dia) || (a.hora_ini || '').localeCompare(b.hora_ini || ''); });
+
+    view.appendChild(el('<p class="sec-label">Su horario · pistas y preparación física</p>'));
+
+    if (!entrenos.length && !pf.length) {
+      view.appendChild(el('<p class="hint">Este equipo todavía no tiene pista ni preparación física asignadas. ' +
+        'Se reparten desde Cuadrantes.</p>'));
+      return;
+    }
+
+    var t = el('<div class="cal-scroll"><table class="cua-tab eq-hor"><thead><tr>' +
+      '<th>Día</th><th>Horario</th><th>Dónde</th><th>Qué</th><th>Con quién</th>' +
+      '</tr></thead><tbody></tbody></table></div>');
+    var tb = t.querySelector('tbody');
+
+    /* Los dos tipos de sesión en una sola tabla y por orden de día: así se lee
+       la semana del equipo de un vistazo, que es lo que se quiere saber. */
+    var todo = entrenos.map(function (x) {
+      return { dia: x.dia, orden: (x.franja || 0) + 0.1, hora: franjas[x.franja] || '—',
+        donde: pab(x.inst) + (x.completa ? ' · pista entera' : ' · ' + x.pista),
+        que: 'Entrenamiento', quien: (team.coaches || []).join(', ') || '—' };
+    }).concat(pf.map(function (x) {
+      var pr = SF.store.staff().filter(function (s) { return s.id === x.prep_id; })[0];
+      return { dia: x.dia, orden: -1, hora: (x.hora_ini || '') + (x.hora_fin ? ' – ' + x.hora_fin : ''),
+        donde: pab(x.inst) + (x.pista ? ' · ' + x.pista : ''),
+        que: 'Preparación física', quien: pr ? pr.full_name : '—' };
+    })).sort(function (a, b) { return (a.dia - b.dia) || (a.orden - b.orden); });
+
+    var diaAnterior = null;
+    todo.forEach(function (x) {
+      var primero = x.dia !== diaAnterior; diaAnterior = x.dia;
+      tb.appendChild(el('<tr>' +
+        '<td>' + (primero ? '<b>' + esc(SF.DIAS_SEM[x.dia] || '—') + '</b>' : '') + '</td>' +
+        '<td>' + esc(x.hora) + '</td>' +
+        '<td>' + esc(x.donde) + '</td>' +
+        '<td>' + (x.que === 'Preparación física'
+          ? '<span class="tag tag-purple">PF</span>' : '<span class="tag tag-gray">Entreno</span>') + '</td>' +
+        '<td class="hint">' + esc(x.quien) + '</td></tr>'));
+    });
+    view.appendChild(t);
+
+    var nEnt = entrenos.length, nPf = pf.length;
+    view.appendChild(el('<p class="hint">' + nEnt + (nEnt === 1 ? ' sesión de pista' : ' sesiones de pista') +
+      ' y ' + nPf + (nPf === 1 ? ' de preparación física' : ' de preparación física') + ' a la semana.</p>'));
+  }
 
   pages.equipo = function (view, id) {
     var t = SF.store.teamGet(id);
@@ -9768,6 +9844,8 @@ window.SF = window.SF || {};
     if (!fams.length) fl.appendChild(el('<p class="hint">Ninguna familia con acceso activo en este equipo.</p>'));
     fams.forEach(function (p) { fl.appendChild(el('<div class="mini-row"><span><b>' + esc(p.family.contact) + '</b> · ' + esc(p.family.relation || '') + '</span><span class="hint">' + esc(p.full_name) + '</span></div>')); });
     view.appendChild(fl);
+
+    horarioDeEquipo(view, t);
 
     // Calendario — entrenamientos y partidos
     view.appendChild(el('<p class="sec-label">Calendario — entrenamientos y partidos</p>'));
