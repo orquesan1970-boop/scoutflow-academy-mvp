@@ -876,6 +876,19 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .inst-row .inst-nom{flex:1.3 1 0}
 .inst-ed{max-height:60vh;overflow-y:auto}
 .cua-p.entera{border-left:3px solid var(--purple)}
+.pf-leyenda{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.pf-ley-t{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-3)}
+.pf-ley{font-size:12px;padding:3px 9px;border-radius:20px;border:1px solid transparent}
+.pf-tab th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+.pf-tab td{padding:8px 10px;font-size:13px;border-bottom:1px solid var(--line)}
+.pf-tab tr.pf-corte td{border-top:2px solid var(--line-2)}
+.pf-tab .pf-dia{white-space:nowrap;min-width:88px}
+.pf-tab .pf-prep{font-weight:500}
+.pf-verde{background:#E7F4EC;color:#1F6B43}
+.pf-naranja{background:#FCEDE3;color:#9A5426}
+.pf-azul{background:#E6F0FA;color:#1F4E79}
+.pf-morado{background:#EFEBFF;color:var(--purple-d)}
+.mini-row.pf-verde,.mini-row.pf-naranja,.mini-row.pf-azul,.mini-row.pf-morado{border-left:3px solid currentColor}
 .eq-hor th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 .eq-hor td{padding:9px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
 .eq-hor tr:last-child td{border-bottom:0}
@@ -2978,10 +2991,17 @@ SF.store = (function () {
         { id: 'h8', dia: 4, franja: 0, inst: 'i1', pista: 'Pista 1', team_id: 't4', nota: '' },
         { id: 'h9', dia: 4, franja: 2, inst: 'i1', pista: 'Pista 1', team_id: 't1', nota: '' }
       ],
+      /* Sesiones de 50 minutos con 10 de transición antes de saltar a pista,
+         que es como las reparte la coordinación deportiva. */
       pf: [
-        { id: 'pfa', dia: 1, team_id: 't1', hora_ini: '19:00', hora_fin: '20:30', inst: 'i1', pista: 'Sala de fuerza', prep_id: 's4' },
-        { id: 'pfb', dia: 3, team_id: 't1', hora_ini: '20:15', hora_fin: '21:45', inst: 'i1', pista: 'Sala de fuerza', prep_id: 's4' },
-        { id: 'pfc', dia: 1, team_id: 't2', hora_ini: '17:30', hora_fin: '19:00', inst: 'i1', pista: 'Pista 2', prep_id: 's4' }
+        { id: 'pfa', dia: 0, team_id: 't2', hora_ini: '17:00', hora_fin: '17:50', hora_pista: '18:00', inst: 'i1', pista: 'Sala de fuerza', prep_id: 's4' },
+        { id: 'pfb', dia: 0, team_id: 't1', hora_ini: '19:30', hora_fin: '20:20', hora_pista: '20:30', inst: 'i1', pista: 'Sala de fuerza', prep_id: 's12' },
+        { id: 'pfc', dia: 1, team_id: 't1', hora_ini: '18:15', hora_fin: '19:05', hora_pista: '19:15', inst: 'i1', pista: 'Sala de fuerza', prep_id: 's4' },
+        { id: 'pfd', dia: 1, team_id: 't3', hora_ini: '17:00', hora_fin: '17:50', hora_pista: '18:00', inst: 'i2', pista: 'Pista 2', prep_id: 's12' },
+        { id: 'pfe', dia: 2, team_id: 't2', hora_ini: '18:15', hora_fin: '19:05', hora_pista: '19:15', inst: 'i1', pista: 'Sala de fuerza', prep_id: 's4' },
+        { id: 'pff', dia: 3, team_id: 't1', hora_ini: '20:15', hora_fin: '21:05', hora_pista: '21:15', inst: 'i1', pista: 'Sala de fuerza', prep_id: 's12' },
+        { id: 'pfg', dia: 4, team_id: 't4', hora_ini: '17:00', hora_fin: '17:50', hora_pista: '18:00', inst: 'i3', pista: 'Pista 1', prep_id: 's4' },
+        { id: 'pfh', dia: 4, team_id: 't1', hora_ini: '19:30', hora_fin: '20:20', hora_pista: '20:30', inst: 'i1', pista: 'Sala de fuerza', prep_id: 's12' }
       ],
       /* Una cita pedida, para que la agenda de la fisioterapeuta no aparezca
          vacía en una demostración. */
@@ -7252,12 +7272,48 @@ window.SF = window.SF || {};
     /* ---------- Cuadrante de preparación física ----------
        Aparte, porque lo lleva otra persona y los horarios no encajan en las
        franjas: una sesión de PF puede ser de 20:15 a 21:45. */
+    /* --- Cuadrante de preparación física ------------------------------------
+       Reproduce el documento que ya usa la coordinación deportiva del club:
+       día agrupado, horario de PF, la hora a la que el equipo salta a pista,
+       equipo y preparador con su color. Debajo, el resumen de días por equipo
+       y el control de carga, que es lo que mira quien reparte el trabajo.
+       Se copia su formato a propósito: si la app enseña otra cosa distinta a
+       lo que tienen encima de la mesa, no la usan. */
+    /* La lista va dentro: las funciones se declaran antes de ejecutarse, pero
+       una variable asignada más abajo todavía no existe cuando se llama. */
+    function colorPrep(id) {
+      var COLORES = ['verde', 'naranja', 'azul', 'morado'];
+      var preps = SF.store.staff().filter(function (s) {
+        return s.role === 'preparador_fisico' || s.role === 'fisio';
+      });
+      var i = preps.map(function (s) { return s.id; }).indexOf(id);
+      return COLORES[i >= 0 ? i % COLORES.length : 0];
+    }
+    function minutos(a, b) {
+      if (!a || !b) return 0;
+      function m(x) { var p = x.split(':'); return (+p[0]) * 60 + (+p[1] || 0); }
+      var d = m(b) - m(a);
+      return d > 0 ? d : 0;
+    }
+
     function pintaPF() {
       body.innerHTML = '';
       var puede = r.canEditPF;
       var lista = SF.store.pf().slice().sort(function (a, b) {
         return (a.dia - b.dia) || (a.hora_ini || '').localeCompare(b.hora_ini || '');
       });
+
+      /* --- Los preparadores, con su color, como la leyenda de la hoja --- */
+      var preps = SF.store.staff().filter(function (s) {
+        return s.role === 'preparador_fisico' || s.role === 'fisio';
+      });
+      if (preps.length) {
+        var leyenda = el('<div class="pf-leyenda"><span class="pf-ley-t">Preparadores</span></div>');
+        preps.forEach(function (s) {
+          leyenda.appendChild(el('<span class="pf-ley pf-' + colorPrep(s.id) + '">' + esc(s.full_name) + '</span>'));
+        });
+        body.appendChild(leyenda);
+      }
 
       if (puede) {
         var bAdd = el('<button class="btn btn-primary btn-sm" style="margin-bottom:12px">' + ico('plus') + 'Añadir sesión de PF</button>');
@@ -7270,33 +7326,37 @@ window.SF = window.SF || {};
         return;
       }
 
-      var porDia = {};
-      lista.forEach(function (x) { (porDia[x.dia] = porDia[x.dia] || []).push(x); });
       var t = el('<div class="cal-scroll"><table class="cua-tab pf-tab"><thead><tr>' +
-        '<th>Día</th><th>Horario</th><th>Pista</th><th>Equipo</th><th>Preparador</th><th></th></tr></thead><tbody></tbody></table></div>');
+        '<th>Día</th><th>Horario PF</th><th>Pista</th><th>Equipo</th><th>Preparador</th><th></th>' +
+        '</tr></thead><tbody></tbody></table></div>');
       var tb = t.querySelector('tbody');
-      Object.keys(porDia).sort(function (a, b) { return a - b; }).forEach(function (d) {
-        porDia[d].forEach(function (x, i) {
-          var eq = SF.store.teamGet(x.team_id);
-          var pr = SF.store.staff().filter(function (s) { return s.id === x.prep_id; })[0];
-          var ins = insts.filter(function (y) { return y.id === x.inst; })[0];
-          var tr = el('<tr>' +
-            '<td>' + (i === 0 ? '<b>' + esc(SF.DIAS_SEM[d]) + '</b>' : '') + '</td>' +
-            '<td>' + esc((x.hora_ini || '') + (x.hora_fin ? ' – ' + x.hora_fin : '')) + '</td>' +
-            '<td>' + esc((ins ? ins.nombre.replace('Pabellón ', '') + ' · ' : '') + (x.pista || '')) + '</td>' +
-            '<td>' + esc(eq ? eq.name : '—') + '</td>' +
-            '<td>' + esc(pr ? pr.full_name : '—') + '</td>' +
-            '<td>' + (puede ? '<span class="row-actions"><button class="lnk-del" data-x>' + ico('x') + '</button></span>' : '') + '</td></tr>');
-          if (puede) tr.querySelector('[data-x]').onclick = function () {
-            SF.store.pfRemove(x.id); U.toast('Sesión quitada'); SF.router.render();
-          };
-          tb.appendChild(tr);
-        });
+
+      var diaAnterior = null;
+      lista.forEach(function (x) {
+        var eq = SF.store.teamGet(x.team_id);
+        var pr = SF.store.staff().filter(function (s) { return s.id === x.prep_id; })[0];
+        /* El día se escribe una vez y se deja en blanco en las siguientes, como
+           en la hoja: así se ve de un golpe dónde empieza cada jornada. */
+        var primero = x.dia !== diaAnterior;
+        var tr = el('<tr' + (primero && diaAnterior !== null ? ' class="pf-corte"' : '') + '>' +
+          '<td class="pf-dia">' + (primero ? '<b>' + esc(SF.DIAS_SEM[x.dia] || '') + '</b>' : '') + '</td>' +
+          '<td>' + esc((x.hora_ini || '') + (x.hora_fin ? ' – ' + x.hora_fin : '')) + '</td>' +
+          '<td>' + esc(x.hora_pista || '—') + '</td>' +
+          '<td>' + esc(eq ? eq.name : '—') + '</td>' +
+          '<td class="pf-prep pf-' + colorPrep(x.prep_id) + '">' + esc(pr ? pr.full_name : '—') + '</td>' +
+          '<td>' + (puede ? '<span class="row-actions"><button class="lnk-del" data-x>' + ico('x') + '</button></span>' : '') + '</td></tr>');
+        diaAnterior = x.dia;
+        if (puede) tr.querySelector('[data-x]').onclick = function () {
+          SF.store.pfRemove(x.id); U.toast('Sesión quitada'); SF.router.render();
+        };
+        tb.appendChild(tr);
       });
       body.appendChild(t);
+      body.appendChild(el('<p class="hint">La columna «Pista» es la hora a la que el equipo salta a pista, ' +
+        'después de la preparación física.</p>'));
 
-      /* El resumen que tiene tu documento: días de PF por equipo. */
-      body.appendChild(el('<p class="sec-label">Días de preparación física por equipo</p>'));
+      /* --- Resumen de días por equipo --- */
+      body.appendChild(el('<p class="sec-label">Resumen de días de PF por equipo</p>'));
       var rl = el('<div class="mini-list"></div>');
       equipos.forEach(function (eq) {
         var mias = lista.filter(function (x) { return x.team_id === eq.id; });
@@ -7304,10 +7364,29 @@ window.SF = window.SF || {};
         rl.appendChild(el('<div class="mini-row"><span><b>' + esc(eq.name) + '</b></span><span class="hint">' +
           esc(mias.map(function (x) { return SF.DIAS_SEM[x.dia]; }).join(', ')) + '</span></div>'));
       });
-      var sinPF = equipos.filter(function (eq) { return !lista.some(function (x) { return x.team_id === eq.id; }); });
       body.appendChild(rl);
+      var sinPF = equipos.filter(function (eq) { return !lista.some(function (x) { return x.team_id === eq.id; }); });
       if (sinPF.length) body.appendChild(el('<p class="hint">Sin preparación física asignada: ' +
         esc(sinPF.map(function (e) { return e.name; }).join(', ')) + '.</p>'));
+
+      /* --- Control de carga. La pregunta de quien reparte no es "¿quién da
+             qué?", sino "¿está repartido parejo?". Por eso los minutos y no
+             solo el número de sesiones: cuatro de 50 no son dos de 90. --- */
+      body.appendChild(el('<p class="sec-label">Criterios de organización y resumen de carga</p>'));
+      var cl = el('<div class="mini-list"></div>');
+      cl.appendChild(el('<div class="mini-row"><span>Sesiones totales de la semana</span>' +
+        '<span class="hint">' + lista.length + (lista.length === 1 ? ' sesión' : ' sesiones') + '</span></div>'));
+      preps.forEach(function (sp) {
+        var suyas = lista.filter(function (x) { return x.prep_id === sp.id; });
+        var min = suyas.reduce(function (a, x) { return a + minutos(x.hora_ini, x.hora_fin); }, 0);
+        cl.appendChild(el('<div class="mini-row pf-' + colorPrep(sp.id) + '"><span>Carga de ' + esc(sp.full_name) + '</span>' +
+          '<span class="hint">' + suyas.length + (suyas.length === 1 ? ' sesión' : ' sesiones') +
+          (min ? ' · ' + min + ' minutos' : '') + '</span></div>'));
+      });
+      var sinPrep = lista.filter(function (x) { return !x.prep_id; }).length;
+      if (sinPrep) cl.appendChild(el('<div class="mini-row"><span>Sin preparador asignado</span>' +
+        '<span class="tag tag-warn">' + sinPrep + '</span></div>'));
+      body.appendChild(cl);
     }
 
     function formPF() {
@@ -7327,6 +7406,8 @@ window.SF = window.SF || {};
           return '<option value="' + x.id + '">' + esc(x.nombre) + '</option>';
         }).join('') + '</select></div>' +
         '<div class="frow"><label>Pista</label><input id="pi" placeholder="Pista 1 o sala"></div>' +
+        '<div class="frow"><label>Salta a pista a las</label><input id="hp" type="time">' +
+        '<span class="hint">La hora a la que empieza su entrenamiento en pista.</span></div>' +
         '<div class="frow" style="grid-column:1/-1"><label>Preparador</label><select id="pr">' +
         (preps.length ? preps.map(function (s) { return '<option value="' + s.id + '">' + esc(s.full_name) + '</option>'; }).join('')
                       : '<option value="">— no hay preparadores dados de alta —</option>') + '</select></div>' +
@@ -7338,6 +7419,7 @@ window.SF = window.SF || {};
           dia: +box.querySelector('#d').value, team_id: box.querySelector('#eq').value,
           hora_ini: box.querySelector('#hi').value, hora_fin: box.querySelector('#hf').value,
           inst: box.querySelector('#in').value, pista: box.querySelector('#pi').value.trim(),
+          hora_pista: box.querySelector('#hp').value,
           prep_id: box.querySelector('#pr').value
         });
         U.closeModal(); U.toast('Sesión añadida'); SF.router.render();
