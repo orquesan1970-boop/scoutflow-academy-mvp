@@ -1613,7 +1613,17 @@ SF.ROLES = {
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: false, segments: 'all'
   },
   psicologo: {
-    label: 'Psicólogo/a deportivo',
+    /* El nombre del ÁREA, no el título de la persona. Dos motivos:
+       1. "Psicólogo" es título protegido en España: solo lo usa quien está
+          colegiado. Con un nombre de área, el puesto vale igual si lo ocupa
+          una psicóloga colegiada que si lo ocupa una entrenadora mental.
+       2. A una familia, ver "Psicólogo" junto al nombre de su hijo la pone en
+          guardia: suena a que pasa algo. Esto suena a apoyo.
+       La titulación real de la persona vive en su ficha de staff, con su
+       número de colegiada, igual que hacemos con la fisioterapeuta.
+       La clave interna sigue siendo 'psicologo' a propósito: cambiarla
+       rompería los datos ya guardados sin ganar nada. */
+    label: 'Bienestar y rendimiento mental',
     nav: ['inicio', 'jugadores', 'equipos', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'seguimiento', 'informes'],
     canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: true,
@@ -1763,11 +1773,18 @@ SF.STAFF = [
     experience: [], training: [], cv_file: '' },
   { id: 's5', num: 5, full_name: 'Nuria Palau', role: 'psicologo',
     email: 'nuria@cbja.es', phone: '+34 600 100 005', team_ids: [],
-    bio: 'Psicóloga deportiva. Trabajo de grupo y acompañamiento individual.',
+    /* En pantalla el área se llama "Bienestar y rendimiento mental", neutro.
+       Aquí, en su ficha, consta lo que ella es de verdad y con qué número.
+       Esa es la separación: el área no presume de un título; la persona sí lo
+       acredita. */
+    bio: 'Psicóloga deportiva colegiada. Trabajo de grupo con los equipos y acompañamiento individual cuando hace falta.',
     qualification: 'Grado en Psicología · Máster en Psicología del Deporte', qual_entity: 'UAM', qual_year: 2020, qual_number: 'COP M-28114',
     languages: 'Español, Catalán',
     licence: { season: '', number: '', category: '', valid_until: '', status: 'no_aplica' },
-    clearance: { season: '', cleared: false, checked_on: '', checked_by: '' },
+    /* Trabaja con menores: le toca el certificado de delitos igual que a
+       cualquiera. Antes constaba sin comprobar y eso la dejaba sin habilitar
+       sin que nadie se enterara. */
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-04', checked_by: 'Marta Soler' },
     experience: [], training: [], cv_file: '' },
   { id: 's6', num: 6, full_name: 'Javier Sanz', role: 'delegado_equipo',
     email: 'javier@cbja.es', phone: '+34 600 100 006', team_ids: ['t3'],
@@ -7588,7 +7605,11 @@ window.SF = window.SF || {};
     sec('Titulación y currículum');
     view.appendChild(el('<div class="field-grid">' +
       fld('Titulación', s.qualification) + fld('Entidad', s.qual_entity) +
-      fld('Año', s.qual_year) + fld('Nº de título', s.qual_number) +
+      /* El mismo campo sirve para el número de título de un entrenador
+         (TD2-1188) y para el de colegiada de una fisioterapeuta o una
+         psicóloga (COL-8842). Conviene que el rótulo lo diga: la colegiación
+         es lo que acredita a un sanitario y un club querrá poder enseñarla. */
+      fld('Año', s.qual_year) + fld('Nº de título o colegiada', s.qual_number) +
       fld('Idiomas', s.languages) + '</div>'));
     if (s.bio) view.appendChild(el('<p class="hint">' + esc(s.bio) + '</p>'));
     if (canEditPro) {
@@ -7596,7 +7617,8 @@ window.SF = window.SF || {};
       be.onclick = function () {
         U.modal('Titulación y currículum', smallForm([
           { name: 'qualification', label: 'Titulación' }, { name: 'qual_entity', label: 'Entidad' },
-          { name: 'qual_year', label: 'Año', type: 'number' }, { name: 'qual_number', label: 'Nº de título' },
+          { name: 'qual_year', label: 'Año', type: 'number' },
+          { name: 'qual_number', label: 'Nº de título o colegiada', hint: 'Si eres sanitario, tu número de colegiado' },
           { name: 'languages', label: 'Idiomas' }, { name: 'bio', label: 'Presentación', type: 'textarea' }
         ], s, function (d) { saveProfile(d, 'Editada la titulación / currículum'); }));
       };
