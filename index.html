@@ -543,6 +543,40 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .fh-sub{font-size:13px;color:var(--ink-2);margin:4px 0 8px}
 .fh-tags{display:flex;gap:7px;flex-wrap:wrap}
 .tabs{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:0;margin-bottom:18px}
+/* --- Agenda del scout --- */
+.ag-list{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden;margin-bottom:18px}
+.ag-row{display:flex;align-items:flex-start;gap:12px;background:var(--surface);padding:13px 15px}
+.ag-row.is-tarde{background:#FFFBF5}
+.ag-ic{color:var(--purple);display:flex;flex:0 0 auto;margin-top:2px}
+.ag-row.is-tarde .ag-ic{color:#C2740B}
+.ag-main{flex:1;min-width:0}
+.ag-t{font-size:14px;color:var(--ink);display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ag-s{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.ag-p{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px}
+.chip-p{border:1px solid var(--line);background:var(--bg);color:var(--ink-2);font-family:inherit;font-size:12px;padding:3px 9px;border-radius:999px;cursor:pointer}
+.chip-p:hover{border-color:var(--purple);color:var(--purple-d)}
+.ag-when{font-size:12.5px;color:var(--ink-2);white-space:nowrap;flex:0 0 auto}
+.ag-acc{display:flex;gap:10px;flex:0 0 auto;align-items:center}
+.ag-viaje{margin-bottom:16px}
+.ag-viaje.is-pasado{opacity:.72}
+.ag-vhead{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:12px}
+.ag-vhead h3{margin:0}
+.ag-vlist{margin-top:14px}
+.ag-vacc{margin-top:12px;display:flex;gap:14px;flex-wrap:wrap}
+.ag-hecho{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:12px 15px;margin-bottom:8px}
+.ag-hhead{font-size:13.5px;margin-bottom:5px}
+.ag-hinf{font-size:13px;color:var(--ink-2);margin:0;white-space:pre-wrap}
+.ag-sel{grid-column:1/-1;margin-top:4px}
+.ag-selq{width:100%;margin-bottom:8px}
+.ag-selist{display:flex;flex-wrap:wrap;gap:6px;max-height:190px;overflow:auto}
+.ag-selp{border:1px solid var(--line);background:var(--surface);color:var(--ink-2);font-family:inherit;font-size:12.5px;text-align:left;padding:6px 10px;border-radius:8px;cursor:pointer}
+.ag-selp.on{border-color:var(--purple);background:#F3F1FE;color:var(--purple-d)}
+@media(max-width:720px){
+  .ag-row{flex-wrap:wrap}
+  .ag-when{order:-1;flex:1 1 100%;color:var(--purple-d);font-weight:500}
+  .ag-ic{order:-2}
+  .ag-acc{flex:1 1 100%;justify-content:flex-end}
+}
 .tab{border:0;background:none;font-family:inherit;font-size:13.5px;color:var(--ink-2);padding:8px 12px;cursor:pointer;border-radius:8px 8px 0 0;border-bottom:2px solid transparent;margin-bottom:-1px}
 .tab:hover{color:var(--ink)}
 .tab.on{color:var(--purple-d);border-bottom-color:var(--purple);font-weight:500}
@@ -1629,6 +1663,101 @@ SF.evolucionSkills = function (p, filas) {
    problema en junio. */
 SF.INTERVIEW_TYPES = ['Con la familia', 'Con el jugador', 'Familia y jugador', 'Videollamada', 'Visita al club', 'Prueba deportiva'];
 
+/* ===================== AGENDA DEL SCOUT =====================
+   Cuatro cosas distintas con la misma pregunta detrás: "¿qué tengo esta
+   semana?". Estaban repartidas en cuatro sitios —las entrevistas dentro de
+   cada ficha, el seguimiento en otra pestaña, y los partidos que iba a ver
+   en ninguno— así que la respuesta no existía en la app.
+   `SF.agendaScout()` las junta en una sola lista ordenada por fecha. No
+   duplica nada: lee de donde ya vive cada cosa. */
+
+SF.OJEO_TIPOS = ['Partido', 'Entrenamiento', 'Torneo', 'Prueba en el club', 'Videollamada'];
+
+/* El ámbito de un viaje. Los cuatro primeros son los que pidió el club; los
+   dos últimos cierran la escala hacia abajo para que no haya que meter un
+   desplazamiento a la ciudad de al lado como si fuera un europeo. */
+SF.VIAJE_AMBITOS = [
+  'Torneo europeo',
+  'Torneo sudamericano',
+  'Mundial de equipos de formación',
+  'Torneo de federación nacional',
+  'Torneo autonómico',
+  'Visita a un club'
+];
+
+SF.agendaScout = function (staffId, jugadores) {
+  var ev = [];
+  var idx = {};
+  (jugadores || []).forEach(function (p) { idx[p.id] = p; });
+
+  /* 1. Ojeos: lo que él ha puesto en la agenda. */
+  SF.store.ojeos().forEach(function (o) {
+    if (staffId && o.scout_id && o.scout_id !== staffId) return;
+    ev.push({
+      k: 'ojeo', id: o.id, fecha: o.fecha, hora: o.hora || '',
+      titulo: o.competicion || o.tipo || 'Ojeo',
+      sub: [o.local, o.visitante].filter(Boolean).join(' vs ') || o.lugar || '',
+      lugar: [o.lugar, o.ciudad].filter(Boolean).join(' · '),
+      players: (o.player_ids || []).map(function (i) { return idx[i]; }).filter(Boolean),
+      estado: o.estado, raw: o
+    });
+  });
+
+  /* 2. Entrevistas: viven en la ficha del jugador y ahí se quedan. Aquí solo
+        se miran, para que no se le pase ninguna. */
+  (jugadores || []).forEach(function (p) {
+    SF.interviews(p).forEach(function (e) {
+      if (e.done) return;
+      ev.push({
+        k: 'entrevista', id: e.id, fecha: e.date, hora: e.time || '',
+        titulo: e.type || 'Entrevista', sub: p.full_name,
+        lugar: e.place || '', players: [p], player: p, estado: 'previsto', raw: e
+      });
+    });
+  });
+
+  /* 3. Seguimiento: el "próximo paso" que ya se anotaba en la pestaña de
+        Seguimiento y que nadie volvía a mirar hasta que era tarde. */
+  (jugadores || []).forEach(function (p) {
+    var n = (p.tracking || {}).next;
+    if (!n || !n.date || !n.action) return;
+    /* Cuando el próximo paso ES la entrevista que ya está programada, se
+       cuenta una sola vez. Si no, la agenda enseña la misma cita dos veces
+       con dos nombres distintos y parece que hay el doble de trabajo. */
+    var duplica = SF.interviews(p).some(function (x) { return !x.done && x.date === n.date; });
+    if (duplica) return;
+    ev.push({
+      k: 'seguimiento', id: p.id + '-next', fecha: n.date, hora: '',
+      titulo: n.action, sub: p.full_name, lugar: '',
+      players: [p], player: p, estado: 'previsto', raw: n
+    });
+  });
+
+  /* 4. Viajes y torneos: ocupan un bloque de días, no un punto. Entran por su
+        fecha de inicio y llevan dentro los ojeos de esos días. */
+  SF.store.viajes().forEach(function (v) {
+    if (staffId && v.scout_id && v.scout_id !== staffId) return;
+    ev.push({
+      k: 'viaje', id: v.id, fecha: v.desde, hasta: v.hasta, hora: '',
+      titulo: v.nombre || v.ambito || 'Viaje',
+      sub: v.ambito || '', lugar: [v.ciudad, v.pais].filter(Boolean).join(', '),
+      players: (v.player_ids || []).map(function (i) { return idx[i]; }).filter(Boolean),
+      estado: 'previsto', raw: v
+    });
+  });
+
+  return ev.filter(function (x) { return x.fecha; })
+    .sort(function (a, b) {
+      return (a.fecha + (a.hora || '')).localeCompare(b.fecha + (b.hora || ''));
+    });
+};
+
+/* Los días que ocupa un viaje, para poder decir "estás fuera" en el calendario. */
+SF.viajeCubre = function (v, iso) {
+  if (!v || !v.desde) return false;
+  return iso >= v.desde && iso <= (v.hasta || v.desde);
+};
+
 SF.interviews = function (p) { return (p && p.interviews) || []; };
 
 /* La próxima que aún no se ha celebrado. */
@@ -1785,9 +1914,16 @@ SF.ROLES = {
   },
   scout: {
     label: 'Scout',
-    nav: ['inicio', 'jugadores', 'importar', 'captacion', 'documentos', 'economia', 'mis-avisos'],
+    nav: ['inicio', 'agenda', 'jugadores', 'importar', 'captacion', 'documentos', 'economia', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, segments: 'all', canCreatePlayers: true
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false,
+    /* Ve SU cartera, no el club entero. Antes le salían las 277 fichas del
+       club, que para su trabajo no dicen nada. Ahora ve los que ha subido él
+       y los que le hayan asignado. Es el mismo principio que el `team_scope`
+       del entrenador, pero el vínculo no es el equipo: es quién lo captó y
+       quién lo lleva. */
+    scout_scope: true, canAskCita: true,
+    segments: 'all', staff: true, canCreatePlayers: true
   },
   entrenador: {
     label: 'Entrenador',
@@ -2220,6 +2356,19 @@ SF.STAFF = [
     languages: 'Español',
     licence: { season: '2026/2027', number: 'FBM-PF-219', category: '—', valid_until: '2027-06-30', status: 'vigente' },
     clearance: { season: '', cleared: false, checked_on: '', checked_by: '' },
+    experience: [], training: [], cv_file: '' },
+
+  /* El scout del club. El rol existía desde el principio pero no había
+     ninguna persona que lo ocupara, así que `staffMe()` devolvía null y el
+     scout no tenía identidad: no se podía saber qué jugadores eran suyos.
+     Con ficha propia ya es alguien concreto, con su cartera y su agenda. */
+  { id: 's26', num: 26, full_name: 'Laura Pérez', role: 'scout',
+    email: 'laura.perez@cbja.es', phone: '+34 600 100 034', team_ids: [],
+    bio: 'Captación y seguimiento de prospectos. Trabajo de campo en torneos nacionales e internacionales.',
+    qualification: 'TD1 Baloncesto', qual_entity: 'FEB', qual_year: 2021, qual_number: 'TD1-2277',
+    languages: 'Español, Inglés, Portugués',
+    licence: { season: '2026/2027', number: 'FBM-SC-104', category: '—', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-02', checked_by: 'Marta Soler' },
     experience: [], training: [], cv_file: '' }
 ];
 
@@ -3475,6 +3624,41 @@ SF.store = (function () {
         pedida_por: { id: 's1', name: 'Carlos Gorosito', role: 'Entrenador' },
         creada_at: '2026-08-21T09:20:00'
       }],
+      /* Agenda de la scout. Las fechas se calculan sobre HOY, no van escritas:
+         una demo con fechas fijas se queda vieja al mes y enseña una agenda
+         entera en rojo, que es justo lo contrario de lo que se quiere enseñar. */
+      ojeos: (function () {
+        function dia(n) { return new Date(Date.now() + n * 864e5).toISOString().slice(0, 10); }
+        return [
+          { id: 'oj-demo1', scout_id: 's26', fecha: dia(2), hora: '18:00', tipo: 'Partido',
+            competicion: 'Liga EBA · jornada 3', local: 'CB Zamora', visitante: 'Estudiantes B',
+            lugar: 'Pabellón Ángel Nieto', ciudad: 'Zamora', viaje_id: '',
+            objetivo: 'El base del Zamora, 2008. Ver si sostiene el ritmo los 40 minutos.',
+            player_ids: [], estado: 'previsto', informe: '', creado_at: dia(-4) + 'T10:00:00' },
+          { id: 'oj-demo2', scout_id: 's26', fecha: dia(9), hora: '11:30', tipo: 'Torneo',
+            competicion: 'Torneo de Navidad U16', local: 'Selección Madrid', visitante: 'Selección Cataluña',
+            lugar: 'Pabellón Municipal', ciudad: 'Alcobendas', viaje_id: 'vj-demo1',
+            objetivo: 'Confirmar lo que se vio en vídeo.', player_ids: ['px2'],
+            estado: 'previsto', informe: '', creado_at: dia(-2) + 'T17:30:00' },
+          { id: 'oj-demo3', scout_id: 's26', fecha: dia(-12), hora: '19:00', tipo: 'Partido',
+            competicion: 'Liga Provincial U15', local: 'Quilmes MdP', visitante: 'Peñarol',
+            lugar: 'Polideportivo Once Unidos', ciudad: 'Mar del Plata', viaje_id: '',
+            objetivo: '', player_ids: ['px1'], estado: 'hecho',
+            informe: 'Mejor de lo que parecía en el vídeo. Lee muy bien el bloqueo directo y no pierde la cabeza cuando le aprietan. Sigue flojo de cuerpo: en el uno contra uno con contacto lo sacan del sitio. Con dos años de gimnasio, jugador.',
+            creado_at: dia(-20) + 'T09:00:00' }
+        ];
+      })(),
+      viajes: (function () {
+        function dia(n) { return new Date(Date.now() + n * 864e5).toISOString().slice(0, 10); }
+        return [
+          { id: 'vj-demo1', scout_id: 's26', nombre: 'Torneo de Navidad U16',
+            ambito: 'Torneo de federación nacional', competicion: 'Fase final U16',
+            desde: dia(8), hasta: dia(11), ciudad: 'Alcobendas', pais: 'España',
+            sede: 'Pabellón Municipal', categorias: 'U16 masculino y femenino',
+            notas: 'Van las ocho selecciones autonómicas. Es donde más se ve en menos días.',
+            player_ids: ['px2'], creado_at: dia(-6) + 'T12:00:00' }
+        ];
+      })(),
       expenses: JSON.parse(JSON.stringify(SF.EXPENSES || [])),
       staff: JSON.parse(JSON.stringify(SF.STAFF || [])),
       role: 'director',
@@ -3627,6 +3811,24 @@ SF.store = (function () {
       d._club_v3 = true;
       write(d);
     }
+    /* El scout pasa a ver solo su cartera. Para que eso signifique algo hace
+       falta que los prospectos que ya existen tengan dueño: hasta ahora el
+       captador solo constaba como texto en `responsible`, y un texto no sirve
+       para filtrar. Aquí se casa ese nombre con la ficha de staff del scout,
+       una vez, y a partir de entonces manda el id.
+       Los que no casen se quedan sin dueño a propósito: prefiero que dirección
+       los asigne a mano antes que adjudicárselos a alguien por parecido. */
+    if (!d._scout_v1) {
+      fusionar(d, faltanEn(d, seed()));   // trae la ficha de staff del scout si falta
+      var scouts = (d.staff || []).filter(function (x) { return x.role === 'scout'; });
+      (d.players || []).forEach(function (p) {
+        if (p.scout_id) return;
+        var quien = scouts.filter(function (x) { return x.full_name === p.responsible; })[0];
+        if (quien) p.scout_id = quien.id;
+      });
+      d._scout_v1 = true;
+      write(d);
+    }
     return d;
   }
 
@@ -3649,7 +3851,8 @@ SF.store = (function () {
     var out = [];
     [['players', 'jugadores'], ['teams', 'equipos'], ['staff', 'personal'],
      ['horario', 'franjas del cuadrante'], ['pf', 'sesiones de preparación física'],
-     ['expenses', 'gastos'], ['citas', 'citas']].forEach(function (par) {
+     ['expenses', 'gastos'], ['citas', 'citas'],
+     ['ojeos', 'ojeos'], ['viajes', 'viajes y torneos']].forEach(function (par) {
       var tengo = {};
       (d[par[0]] || []).forEach(function (x) { if (x && x.id) tengo[x.id] = 1; });
       var nuevos = (s[par[0]] || []).filter(function (x) { return x && x.id && !tengo[x.id]; });
@@ -3859,6 +4062,19 @@ SF.store = (function () {
       if (!obj.full_name) obj.full_name = ((obj.first_name || '') + ' ' + (obj.last_name || '')).trim();
       if (obj.birth_date && !obj.birth_year) obj.birth_year = new Date(obj.birth_date).getFullYear();
       obj.created_at = new Date().toISOString();
+      /* Quién sube la ficha queda sellado en ella. Es lo que después permite
+         decirle al scout "estos son los tuyos" sin que nadie tenga que
+         acordarse de rellenar un campo. Si lo da de alta administración o
+         dirección, no se sella nada: la ficha no es de nadie en concreto. */
+      var quien = d.staff.filter(function (x) { return x.role === d.role; })[0];
+      if (quien) {
+        obj.created_by_staff_id = quien.id;
+        if (d.role === 'scout') {
+          if (!obj.scout_id) obj.scout_id = quien.id;
+          if (!obj.responsible) obj.responsible = quien.full_name;
+          if (!obj.capture_date) obj.capture_date = new Date().toISOString().slice(0, 10);
+        }
+      }
       d.players.unshift(obj);
       save(d);
       return obj;
@@ -4103,6 +4319,58 @@ SF.store = (function () {
     citasDeJugador: function (pid) {
       return (db().citas || []).filter(function (c) { return c.player_id === pid; })
         .sort(function (a, b) { return (b.creada_at || '').localeCompare(a.creada_at || ''); });
+    },
+
+    /* ---- OJEOS ----
+       Ir a ver jugar a alguien. Es el trabajo de campo del scout y hasta ahora
+       no tenía sitio donde vivir: se apuntaba fuera de la app, en el móvil.
+       Un ojeo puede ir suelto o colgar de un viaje (`viaje_id`), que es lo que
+       pasa en un torneo: seis partidos en cuatro días, un solo desplazamiento. */
+    ojeos: function () { return (db().ojeos || []).slice(); },
+    ojeoCreate: function (data) {
+      var d = db(); d.ojeos = d.ojeos || [];
+      var o = Object.assign({
+        id: 'oj' + Date.now(), estado: 'previsto', player_ids: [], informe: '',
+        creado_at: new Date().toISOString()
+      }, data);
+      d.ojeos.push(o); save(d); return o;
+    },
+    ojeoUpdate: function (id, patch) {
+      var d = db();
+      (d.ojeos || []).forEach(function (o) { if (o.id === id) Object.assign(o, patch); });
+      save(d);
+    },
+    ojeoRemove: function (id) {
+      var d = db(); d.ojeos = (d.ojeos || []).filter(function (o) { return o.id !== id; }); save(d);
+    },
+
+    /* ---- VIAJES Y TORNEOS ----
+       Un bloque de fechas fuera de casa. El `ambito` no es decoración: un
+       europeo de formación y un torneo de federación no cuestan lo mismo ni
+       se preparan igual, y el club querrá saber dónde se está gastando el
+       desplazamiento. */
+    viajes: function () { return (db().viajes || []).slice(); },
+    viajeCreate: function (data) {
+      var d = db(); d.viajes = d.viajes || [];
+      var v = Object.assign({
+        id: 'vj' + Date.now(), player_ids: [], notas: '',
+        creado_at: new Date().toISOString()
+      }, data);
+      d.viajes.push(v); save(d); return v;
+    },
+    viajeUpdate: function (id, patch) {
+      var d = db();
+      (d.viajes || []).forEach(function (v) { if (v.id === id) Object.assign(v, patch); });
+      save(d);
+    },
+    viajeRemove: function (id) {
+      var d = db();
+      d.viajes = (d.viajes || []).filter(function (v) { return v.id !== id; });
+      /* Los ojeos que colgaban del viaje no se borran: se quedan sueltos.
+         Borrar el viaje es cancelar el desplazamiento, no negar que fuiste a
+         ver esos partidos ni tirar los informes que ya escribiste. */
+      (d.ojeos || []).forEach(function (o) { if (o.viaje_id === id) o.viaje_id = ''; });
+      save(d);
     },
 
     setDispo: function (playerId, datos, quien) {
@@ -4492,6 +4760,19 @@ window.SF = window.SF || {};
         return (t.coaches || []).indexOf(nombre) >= 0;
       }).map(function (t) { return t.id; });
       return all.filter(function (p) { return myTeams.indexOf(p.team_id) >= 0; });
+    }
+    /* Alcance del scout: su cartera. Dos vías, y basta con una:
+         · lo captó él      -> `scout_id`, que se sella solo al crear la ficha;
+         · se lo asignaron  -> `lleva_scout_id`, que pone dirección.
+       Se compara por id de staff, nunca por nombre: un nombre se puede
+       reescribir, y el día que alguien corrija una tilde la cartera del
+       scout se vaciaría sola sin que nadie entienda por qué. */
+    if (r.scout_scope) {
+      var yo = SF.store.staffMe();
+      if (!yo) return [];
+      return all.filter(function (p) {
+        return p.scout_id === yo.id || p.lleva_scout_id === yo.id;
+      });
     }
     if (r.segments && r.segments !== 'all') {
       var seg = {};
@@ -5055,8 +5336,170 @@ window.SF = window.SF || {};
     view.appendChild(tl);
   }
 
+  /* El Inicio del scout. El panel general del club no le sirve: le contaba
+     277 jugadores de los que 270 no son asunto suyo. Aquí solo hay dos
+     preguntas, que son las suyas: qué tengo hoy, y a quién de los míos hay
+     que empujar. */
+  function inicioScout(view) {
+    var yo = SF.store.staffMe();
+    var u = SF.store.currentUser();
+    var mios = scopedPlayers();
+    var hoy = new Date().toISOString().slice(0, 10);
+
+    view.innerHTML = '<div class="dash-hero"><div class="dash-hi">' + saludo() + ', ' + esc(u.name.split(' ')[0]) + '</div>' +
+      '<p class="dash-date">' + fechaLarga() + ' · ' + esc(u.label) +
+      ' · ' + mios.length + (mios.length === 1 ? ' jugador en tu cartera' : ' jugadores en tu cartera') + '</p></div>';
+
+    if (!yo) {
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('alert') + '</div>' +
+        '<h3>Todavía no tienes ficha de personal</h3>' +
+        '<p>Tu cartera y tu agenda son personales, así que hace falta saber quién eres. ' +
+        'Pídele a dirección que te dé de alta en Staff.</p></div>'));
+      return;
+    }
+
+    if (!mios.length) {
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('target') + '</div>' +
+        '<h3>Tu cartera está vacía</h3>' +
+        '<p>Aquí van a estar los jugadores que tú captes y los que dirección te asigne. ' +
+        'Puedes crear una ficha a mano o pegar el mensaje que te llegó por WhatsApp y dejar que la arme sola.</p>' +
+        '<div class="row-c"><button class="btn btn-primary" id="s1">' + ico('plus') + 'Añadir jugador</button>' +
+        '<button class="btn" id="s2">' + ico('ai') + 'Pegar un mensaje</button></div></div>'));
+      view.querySelector('#s1').onclick = function () { openCreate(); };
+      view.querySelector('#s2').onclick = function () { location.hash = '#/importar'; };
+      return;
+    }
+
+    var agenda = SF.agendaScout(yo.id, mios);
+    var pendientes = agenda.filter(function (e) { return e.estado !== 'hecho' && e.estado !== 'cancelado'; });
+    var tarde = pendientes.filter(function (e) { return (e.hasta || e.fecha) < hoy; });
+    var deHoy = pendientes.filter(function (e) { return e.fecha === hoy; });
+    var proximos = pendientes.filter(function (e) { return (e.hasta || e.fecha) >= hoy; });
+
+    var prospectos = mios.filter(SF.esProspecto);
+    var sinVideo = mios.filter(function (p) { return !(p.videos || []).length; });
+    var incompletos = mios.filter(function (p) { return p.status === 'Datos incompletos'; });
+    var sinTocar = prospectos.filter(function (p) {
+      var n = (p.tracking || {}).next;
+      return !n || !n.date;
+    });
+
+    /* --- FOCO: una sola cosa. --- */
+    var foco = null;
+    if (tarde.length) {
+      foco = { cls: 'is-warn', ic: 'alert',
+        t: tarde.length + (tarde.length === 1 ? ' cosa se pasó de fecha' : ' cosas se pasaron de fecha'),
+        s: esc(tarde.slice(0, 3).map(function (e) { return e.titulo; }).join(', ')) + '. Ciérralas o cámbiales la fecha.',
+        btn: 'Ver la agenda', go: function () { location.hash = '#/agenda'; } };
+    } else if (deHoy.length) {
+      foco = { cls: '', ic: 'cal', t: 'Hoy: ' + deHoy[0].titulo,
+        s: [deHoy[0].sub, deHoy[0].hora, deHoy[0].lugar].filter(Boolean).join(' · ') +
+           (deHoy.length > 1 ? ' · y ' + (deHoy.length - 1) + ' más' : ''),
+        btn: 'Ver la agenda', go: function () { location.hash = '#/agenda'; } };
+    } else if (sinTocar.length) {
+      foco = { cls: '', ic: 'target',
+        t: sinTocar.length + (sinTocar.length === 1 ? ' prospecto sin próximo paso' : ' prospectos sin próximo paso'),
+        s: 'Están abiertos pero no tienen nada agendado. Un prospecto sin siguiente paso se enfría solo.',
+        btn: 'Ver el tablero', go: function () { location.hash = '#/captacion'; } };
+    }
+    if (foco) {
+      var fnode = el('<div class="foco ' + foco.cls + '"><div class="foco-ic">' + ico(foco.ic) + '</div>' +
+        '<div class="foco-body"><p class="foco-t">' + esc(foco.t) + '</p><p class="foco-s">' + foco.s + '</p></div>' +
+        '<button class="btn btn-primary">' + esc(foco.btn) + '</button></div>');
+      fnode.querySelector('button').onclick = foco.go;
+      view.appendChild(fnode);
+    }
+
+    /* --- Recuento. Todo sobre SU cartera. --- */
+    var kwrap = el('<div class="kpis"></div>');
+    [{ n: prospectos.length, l: 'Prospectos abiertos', c: 'purple', f: 'todavía sin equipo', q: '' },
+     { n: incompletos.length, l: 'Datos incompletos', c: 'warn', f: 'les falta información', q: '@Datos incompletos' },
+     { n: sinVideo.length, l: 'Sin vídeo', c: 'warn', f: 'no hay nada que ver', q: '' },
+     { n: proximos.length, l: 'En tu agenda', c: 'info', f: 'por delante', q: null }
+    ].forEach(function (x) {
+      var cero = x.n === 0;
+      var b = el('<button class="kpi is-btn ' + (cero ? 'ok' : x.c) + '">' +
+        '<div class="kpi-top"><span>' + esc(x.l) + '</span>' + ico('arrow') + '</div>' +
+        '<div class="kpi-num">' + x.n + '</div>' +
+        '<div class="kpi-foot">' + esc(cero ? 'al día' : x.f) + '</div></button>');
+      b.onclick = function () {
+        if (x.q === null) { location.hash = '#/agenda'; return; }
+        if (x.q) SF._jugQuery = x.q;
+        location.hash = '#/jugadores';
+      };
+      kwrap.appendChild(b);
+    });
+    view.appendChild(kwrap);
+
+    /* --- Su embudo, no el del club --- */
+    view.appendChild(el('<p class="sec-label">Tu captación · de prospecto a jugador</p>'));
+    var funnel = el('<div class="funnel"></div>');
+    var fcol = { 'Nuevo': 'gray', 'Datos incompletos': 'warn', 'En evaluación': 'info', 'Entrevista': 'purple', 'Oferta enviada': 'teal', 'Inscrito': 'green' };
+    SF.PIPELINE.forEach(function (st) {
+      var n = prospectos.filter(function (p) { return p.status === st; }).length;
+      var b = el('<button class="stage st-' + fcol[st] + '"><div class="n">' + n + '</div><div class="l">' +
+        esc(st.replace('Datos incompletos', 'Incompleto').replace('Oferta enviada', 'Oferta')) + '</div></button>');
+      b.onclick = function () { location.hash = '#/captacion'; };
+      funnel.appendChild(b);
+    });
+    view.appendChild(funnel);
+
+    var cols = el('<div class="cols"></div>');
+
+    /* Columna 1: a quién empujar. Una fila por persona, no por problema. */
+    var att = el('<div class="card"><h3>A quién empujar</h3>' +
+      '<p class="hint">Los tuyos que están parados. Toca para abrir la ficha.</p><div class="at-list"></div></div>');
+    var lista = att.querySelector('.at-list');
+    var bruto = [];
+    mios.forEach(function (p) {
+      var m = [];
+      if (p.status === 'Datos incompletos') m.push('faltan datos');
+      if (!(p.videos || []).length) m.push('sin vídeo');
+      if (SF.esProspecto(p) && !((p.tracking || {}).next || {}).date) m.push('sin próximo paso');
+      var t = SF.overdueInterview(p);
+      if (t) m.push('entrevista del ' + fmtDate(t.date) + ' sin cerrar');
+      if (m.length) bruto.push({ p: p, m: m });
+    });
+    bruto.sort(function (a, b) { return b.m.length - a.m.length; });
+    if (!bruto.length) {
+      lista.appendChild(el('<p class="hint">Nada parado. Toda tu cartera está al día.</p>'));
+    } else {
+      bruto.slice(0, 7).forEach(function (x) {
+        var row = el('<button class="at-row"><span class="at-n">' + esc(x.p.full_name) + '</span>' +
+          '<span class="at-m">' + esc(x.m.join(' · ')) + '</span></button>');
+        row.onclick = function () { location.hash = '#/jugador/' + x.p.id; };
+        lista.appendChild(row);
+      });
+      if (bruto.length > 7) lista.appendChild(el('<p class="hint">y ' + (bruto.length - 7) + ' más.</p>'));
+    }
+    cols.appendChild(att);
+
+    /* Columna 2: lo que viene, resumido. El detalle está en la Agenda. */
+    var prox = el('<div class="card"><h3>Lo que viene</h3>' +
+      '<p class="hint">Tus próximas cinco citas. El resto, en la Agenda.</p><div class="mini-list"></div></div>');
+    var pl = prox.querySelector('.mini-list');
+    if (!proximos.length) {
+      pl.appendChild(el('<p class="hint">No tienes nada agendado.</p>'));
+    } else {
+      var etiq = { ojeo: 'Ojeo', entrevista: 'Entrevista', seguimiento: 'Seguimiento', viaje: 'Viaje' };
+      proximos.slice(0, 5).forEach(function (e) {
+        var row = el('<div class="mini-row"><span><b>' + esc(e.titulo) + '</b>' +
+          (e.sub ? ' · ' + esc(e.sub) : '') + '</span>' +
+          '<span class="row-actions"><span class="hint">' + etiq[e.k] + ' · ' + fmtDate(e.fecha) + '</span></span></div>');
+        pl.appendChild(row);
+      });
+    }
+    var ba = el('<div class="row-actions"><button class="lnk">Abrir la agenda</button></div>');
+    ba.querySelector('button').onclick = function () { location.hash = '#/agenda'; };
+    prox.appendChild(ba);
+    cols.appendChild(prox);
+
+    view.appendChild(cols);
+  }
+
   pages.inicio = function (view) {
     var rk = SF.store.role();
+    if (rk === 'scout') return inicioScout(view);
     if (rk === 'entrenador') return inicioEntrenador(view);
     if (rk === 'administrativo') return inicioAdministrativo(view);
     if (rk.indexOf('dt_') === 0) return inicioDT(view);
@@ -6538,7 +6981,35 @@ window.SF = window.SF || {};
             '<b>Cuidado con los enlaces públicos</b> de menores: si el vídeo es privado o no listado, que siga siéndolo.</p>'));
         }
       } else if (cur === 'captacion') {
-        body.appendChild(el('<div class="field-grid">' + fld('Canal de origen', p.channel) + fld('Fecha de captación', p.capture_date) + fld('Responsable', p.responsible) + fld('Objetivo', p.objective) + '</div>'));
+        var scoutsClub = SF.store.staff().filter(function (x) { return x.role === 'scout'; });
+        var quienCapto = scoutsClub.filter(function (x) { return x.id === p.scout_id; })[0];
+        var quienLleva = scoutsClub.filter(function (x) { return x.id === p.lleva_scout_id; })[0];
+        body.appendChild(el('<div class="field-grid">' + fld('Canal de origen', p.channel) + fld('Fecha de captación', p.capture_date) +
+          fld('Lo captó', quienCapto ? quienCapto.full_name : p.responsible) +
+          fld('Lo lleva', quienLleva ? quienLleva.full_name : (quienCapto ? quienCapto.full_name + ' (quien lo captó)' : '')) +
+          fld('Objetivo', p.objective) + '</div>'));
+
+        /* Asignar un jugador a un scout. Sin esto, la cartera del scout solo
+           puede crecer con lo que sube él mismo, y dirección no tiene forma de
+           pasarle un chaval que llegó por otra vía. Lo cambia quien manda
+           sobre el club, no el propio scout: si no, cualquiera se adjudicaría
+           las fichas de los demás. */
+        if (r.canManageTeams && scoutsClub.length) {
+          var asig = el('<div class="row-actions"><button class="lnk">' +
+            (quienLleva ? 'Cambiar el scout que lo lleva' : 'Asignar a un scout') + '</button></div>');
+          asig.querySelector('button').onclick = function () {
+            var f2 = smallForm([{ name: 'scout', label: 'Scout que lo lleva', type: 'select',
+              options: scoutsClub.map(function (x) { return x.full_name; }) }],
+              { scout: quienLleva ? quienLleva.full_name : '' }, function (d) {
+                var elegido = scoutsClub.filter(function (x) { return x.full_name === d.scout; })[0];
+                SF.store.update(p.id, { lleva_scout_id: elegido ? elegido.id : '' });
+                U.toast(elegido ? 'Asignado a ' + elegido.full_name : 'Sin scout asignado');
+                p = SF.store.get(p.id); paint();
+              });
+            U.modal('Quién lleva a ' + p.full_name, f2);
+          };
+          body.appendChild(asig);
+        }
 
         /* --- Entrevistas: las que vienen y las que ya se hicieron ---
            Guardar lo que se habló y cuándo no es burocracia: es lo que te
@@ -7103,6 +7574,410 @@ window.SF = window.SF || {};
         (d.place ? '\nLugar: ' + d.place : '') +
         '\n\nSi no os viene bien, contestad y buscamos otro momento.'
     }, [p.id]);
+  }
+
+  /* ===================== AGENDA DEL SCOUT =====================
+     El scout trabaja fuera: pabellones, torneos, llamadas a familias que
+     están en otro huso horario. Su pregunta de cada mañana no es "¿cuántos
+     jugadores hay en el club?" sino "¿dónde tengo que estar hoy y a quién voy
+     a ver". Hasta ahora esa respuesta no estaba en ScoutFlow: las entrevistas
+     vivían dentro de cada ficha, el próximo paso en otra pestaña, y los
+     partidos que iba a ver, en su móvil.
+
+     Esta pantalla no inventa un almacén nuevo para todo: lee de donde ya vive
+     cada cosa (`SF.agendaScout`) y solo añade dos tipos que no existían, el
+     ojeo y el viaje. Lo que se edita aquí se edita en su sitio de siempre. */
+  pages.agenda = function (view) {
+    var r = role();
+    var yo = SF.store.staffMe();
+    var mios = scopedPlayers();
+    var hoy = new Date().toISOString().slice(0, 10);
+
+    var acciones = '<button class="btn btn-primary" id="a-ojeo">' + ico('plus') + 'Nuevo ojeo</button>' +
+      '<button class="btn" id="a-viaje">' + ico('cal') + 'Viaje o torneo</button>';
+    view.innerHTML = head('Agenda', 'Dónde tienes que estar y a quién vas a ver. Ojeos, entrevistas, seguimientos y viajes, en una sola lista.', acciones);
+
+    if (!yo) {
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('alert') + '</div>' +
+        '<h3>Tu rol todavía no tiene ficha de personal</h3>' +
+        '<p>La agenda es personal: para saber qué es tuyo hace falta saber quién eres. ' +
+        'Pídele a dirección que te cree la ficha en Staff.</p></div>'));
+      return;
+    }
+
+    var todo = SF.agendaScout(yo.id, mios);
+    var futuro = todo.filter(function (e) { return (e.hasta || e.fecha) >= hoy && e.estado !== 'hecho' && e.estado !== 'cancelado'; });
+    var tarde = todo.filter(function (e) { return (e.hasta || e.fecha) < hoy && e.estado !== 'hecho' && e.estado !== 'cancelado'; });
+
+    view.querySelector('#a-ojeo').onclick = function () { ojeoModal(null, mios, yo); };
+    view.querySelector('#a-viaje').onclick = function () { viajeModal(null, mios, yo); };
+
+    /* --- Foco: una sola cosa. Lo atrasado manda sobre lo de hoy: una visita
+           que se pasó sin cerrar es lo que de verdad se pierde. --- */
+    var deHoy = futuro.filter(function (e) { return e.fecha === hoy; });
+    if (tarde.length) {
+      view.appendChild(el('<div class="foco is-warn"><div class="foco-ic">' + ico('alert') + '</div><div class="foco-body">' +
+        '<p class="foco-t">' + tarde.length + (tarde.length === 1 ? ' cosa se pasó de fecha' : ' cosas se pasaron de fecha') + '</p>' +
+        '<p class="foco-s">' + esc(tarde.slice(0, 3).map(function (e) { return e.titulo + ' (' + fmtDate(e.fecha) + ')'; }).join(', ')) +
+        '. Ciérralas con lo que pasó, o cámbiales la fecha.</p></div></div>'));
+    } else if (deHoy.length) {
+      view.appendChild(el('<div class="foco"><div class="foco-ic">' + ico('cal') + '</div><div class="foco-body">' +
+        '<p class="foco-t">Hoy: ' + esc(deHoy[0].titulo) + '</p>' +
+        '<p class="foco-s">' + esc([deHoy[0].sub, deHoy[0].hora, deHoy[0].lugar].filter(Boolean).join(' · ')) +
+        (deHoy.length > 1 ? ' · y ' + (deHoy.length - 1) + ' más' : '') + '</p></div></div>'));
+    }
+
+    /* --- Recuento: lo suyo, no lo del club --- */
+    var k = el('<div class="kpis"></div>');
+    [{ n: mios.length, l: 'En tu cartera', f: 'jugadores que llevas' },
+     { n: futuro.length, l: 'Por delante', f: 'citas y ojeos', c: 'purple' },
+     { n: tarde.length, l: 'Sin cerrar', f: 'pasó la fecha', c: 'warn' },
+     { n: SF.store.viajes().filter(function (v) { return v.scout_id === yo.id && (v.hasta || v.desde) >= hoy; }).length,
+       l: 'Viajes', f: 'programados', c: 'info' }
+    ].forEach(function (x) {
+      k.appendChild(el('<div class="kpi ' + (x.n === 0 ? 'ok' : (x.c || '')) + '"><div class="kpi-top"><span>' + esc(x.l) + '</span></div>' +
+        '<div class="kpi-num">' + x.n + '</div><div class="kpi-foot">' + esc(x.n === 0 ? 'nada pendiente' : x.f) + '</div></div>'));
+    });
+    view.appendChild(k);
+
+    var tabbar = el('<div class="tabs"></div>');
+    var body = el('<div class="tab-body"></div>');
+    var cur = SF._agendaTab || 'proximo';
+    [['proximo', 'Lo que viene'], ['viajes', 'Viajes y torneos'], ['hecho', 'Ya hecho']].forEach(function (t) {
+      var b = el('<button class="tab' + (t[0] === cur ? ' on' : '') + '">' + t[1] + '</button>');
+      b.onclick = function () {
+        cur = t[0]; SF._agendaTab = t[0];
+        tabbar.querySelectorAll('.tab').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on'); paint();
+      };
+      tabbar.appendChild(b);
+    });
+    view.appendChild(tabbar); view.appendChild(body);
+
+    /* Una fila de agenda. El mismo formato para las cuatro cosas: si cada tipo
+       se pintara distinto, la lista dejaría de leerse de un vistazo. */
+    function fila(e, opts) {
+      opts = opts || {};
+      var icos = { ojeo: 'target', entrevista: 'family', seguimiento: 'bell', viaje: 'cal' };
+      var etiq = { ojeo: 'Ojeo', entrevista: 'Entrevista', seguimiento: 'Seguimiento', viaje: 'Viaje' };
+      var cuando = e.k === 'viaje'
+        ? fmtDate(e.fecha) + (e.hasta && e.hasta !== e.fecha ? ' → ' + fmtDate(e.hasta) : '')
+        : fmtDate(e.fecha) + (e.hora ? ' · ' + esc(e.hora) : '');
+
+      var row = el('<div class="ag-row' + (opts.tarde ? ' is-tarde' : '') + '">' +
+        '<div class="ag-ic">' + ico(icos[e.k] || 'cal') + '</div>' +
+        '<div class="ag-main">' +
+          '<div class="ag-t">' + esc(e.titulo) + ' <span class="tag tag-gray">' + etiq[e.k] + '</span></div>' +
+          '<div class="ag-s">' + esc([e.sub, e.lugar].filter(Boolean).join(' · ') || '—') + '</div>' +
+          /* Los chips solo cuando aportan: en una entrevista o un seguimiento el
+             jugador ya va en el subtítulo, y repetirlo debajo es ruido. */
+          (e.players && e.players.length && !e.player
+            ? '<div class="ag-p">' + e.players.slice(0, 4).map(function (p) {
+                return '<button class="chip-p" data-p="' + p.id + '">' + esc(p.full_name) + '</button>';
+              }).join('') + (e.players.length > 4 ? '<span class="hint"> +' + (e.players.length - 4) + '</span>' : '') + '</div>'
+            : '') +
+        '</div>' +
+        '<div class="ag-when">' + cuando + '</div>' +
+        '<div class="ag-acc"></div></div>');
+
+      row.querySelectorAll('[data-p]').forEach(function (b) {
+        b.onclick = function () { location.hash = '#/jugador/' + b.getAttribute('data-p'); };
+      });
+
+      var acc = row.querySelector('.ag-acc');
+      if (e.k === 'ojeo') {
+        var bE = el('<button class="lnk">editar</button>');
+        bE.onclick = function () { ojeoModal(e.raw, mios, yo); };
+        acc.appendChild(bE);
+        if (e.estado !== 'hecho') {
+          var bH = el('<button class="lnk">cerrar</button>');
+          bH.onclick = function () { cerrarOjeoModal(e.raw); };
+          acc.appendChild(bH);
+        }
+      } else if (e.k === 'viaje') {
+        var bV = el('<button class="lnk">editar</button>');
+        bV.onclick = function () { viajeModal(e.raw, mios, yo); };
+        acc.appendChild(bV);
+      } else if (e.k === 'entrevista' && e.player) {
+        var bI = el('<button class="lnk">abrir</button>');
+        bI.onclick = function () { SF._openTab = 'captacion'; location.hash = '#/jugador/' + e.player.id; };
+        acc.appendChild(bI);
+      } else if (e.k === 'seguimiento' && e.player) {
+        var bS = el('<button class="lnk">abrir</button>');
+        bS.onclick = function () { SF._openTab = 'seguimiento'; location.hash = '#/jugador/' + e.player.id; };
+        acc.appendChild(bS);
+      }
+      return row;
+    }
+
+    function paint() {
+      body.innerHTML = '';
+
+      if (cur === 'proximo') {
+        if (tarde.length) {
+          body.appendChild(el('<p class="sec-label">Se pasó de fecha</p>'));
+          var lt = el('<div class="ag-list"></div>');
+          tarde.forEach(function (e) { lt.appendChild(fila(e, { tarde: true })); });
+          body.appendChild(lt);
+        }
+        if (!futuro.length) {
+          body.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('cal') + '</div>' +
+            '<h3>No tienes nada por delante</h3>' +
+            '<p>Apunta un partido al que vayas a ir, o un torneo entero, y aparecerá aquí ' +
+            'junto con las entrevistas y los seguimientos de tus jugadores.</p>' +
+            '<div class="row-c"><button class="btn btn-primary" id="v1">' + ico('plus') + 'Nuevo ojeo</button></div></div>'));
+          body.querySelector('#v1').onclick = function () { ojeoModal(null, mios, yo); };
+          return;
+        }
+        /* Agrupado por cercanía, no por fecha exacta: lo útil es "esta semana",
+           no una cabecera distinta para cada día. */
+        var finSemana = new Date(Date.now() + 7 * 864e5).toISOString().slice(0, 10);
+        var grupos = [
+          ['Hoy', futuro.filter(function (e) { return e.fecha === hoy; })],
+          ['Los próximos 7 días', futuro.filter(function (e) { return e.fecha > hoy && e.fecha <= finSemana; })],
+          ['Más adelante', futuro.filter(function (e) { return e.fecha > finSemana; })]
+        ];
+        grupos.forEach(function (g) {
+          if (!g[1].length) return;
+          body.appendChild(el('<p class="sec-label">' + g[0] + '</p>'));
+          var l = el('<div class="ag-list"></div>');
+          g[1].forEach(function (e) { l.appendChild(fila(e)); });
+          body.appendChild(l);
+        });
+        body.appendChild(el('<p class="hint">Las <b>entrevistas</b> y los <b>seguimientos</b> se editan en la ficha del jugador: ' +
+          'aquí solo se miran, para que no se te pase ninguno. Los <b>ojeos</b> y los <b>viajes</b> son tuyos y se editan aquí.</p>'));
+
+      } else if (cur === 'viajes') {
+        var vs = SF.store.viajes().filter(function (v) { return v.scout_id === yo.id; })
+          .sort(function (a, b) { return (b.desde || '').localeCompare(a.desde || ''); });
+        if (!vs.length) {
+          body.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('cal') + '</div>' +
+            '<h3>Ningún viaje programado</h3>' +
+            '<p>Un torneo son varios días y varios partidos. Créalo una vez y ' +
+            'cuelga de él los ojeos de esos días, en vez de apuntar seis partidos sueltos.</p>' +
+            '<div class="row-c"><button class="btn btn-primary" id="v2">' + ico('plus') + 'Nuevo viaje o torneo</button></div></div>'));
+          body.querySelector('#v2').onclick = function () { viajeModal(null, mios, yo); };
+          return;
+        }
+        vs.forEach(function (v) {
+          var dentro = SF.store.ojeos().filter(function (o) { return o.viaje_id === v.id; })
+            .sort(function (a, b) { return (a.fecha + (a.hora || '')).localeCompare(b.fecha + (b.hora || '')); });
+          var pasado = (v.hasta || v.desde) < hoy;
+          var c = el('<div class="card ag-viaje' + (pasado ? ' is-pasado' : '') + '">' +
+            '<div class="ag-vhead"><div>' +
+              '<h3>' + esc(v.nombre || v.ambito || 'Viaje') + '</h3>' +
+              '<p class="hint">' + esc(v.ambito || '') + (v.competicion ? ' · ' + esc(v.competicion) : '') + '</p>' +
+            '</div><span class="tag tag-' + (pasado ? 'gray' : 'purple') + '">' +
+              fmtDate(v.desde) + (v.hasta && v.hasta !== v.desde ? ' → ' + fmtDate(v.hasta) : '') + '</span></div>' +
+            '<div class="field-grid">' +
+              fld('Dónde', [v.ciudad, v.pais].filter(Boolean).join(', ')) +
+              fld('Sede', v.sede) +
+              fld('Categorías', v.categorias) +
+              fld('Ojeos dentro', dentro.length ? String(dentro.length) : '—') +
+            '</div>' +
+            (v.notas ? '<p class="hint">' + esc(v.notas) + '</p>' : '') +
+            '<div class="ag-vlist"></div>' +
+            '<div class="row-actions ag-vacc"></div></div>');
+
+          var vl = c.querySelector('.ag-vlist');
+          if (dentro.length) {
+            vl.appendChild(el('<p class="sec-label">Partidos de este viaje</p>'));
+            dentro.forEach(function (o) {
+              var e = SF.agendaScout(yo.id, mios).filter(function (x) { return x.k === 'ojeo' && x.id === o.id; })[0];
+              if (e) vl.appendChild(fila(e));
+            });
+          }
+          var acc = c.querySelector('.ag-vacc');
+          var b1 = el('<button class="lnk">añadir ojeo a este viaje</button>');
+          b1.onclick = function () { ojeoModal(null, mios, yo, v.id); };
+          var b2 = el('<button class="lnk">editar</button>');
+          b2.onclick = function () { viajeModal(v, mios, yo); };
+          var b3 = el('<button class="lnk lnk-danger">borrar</button>');
+          b3.onclick = function () {
+            if (!confirm('¿Borrar "' + (v.nombre || 'este viaje') + '"? Los ojeos que cuelgan de él se quedan, sueltos.')) return;
+            SF.store.viajeRemove(v.id); U.toast('Viaje borrado'); SF.router.render();
+          };
+          acc.appendChild(b1); acc.appendChild(b2); acc.appendChild(b3);
+          body.appendChild(c);
+        });
+
+      } else {
+        var hechos = SF.store.ojeos().filter(function (o) { return o.scout_id === yo.id && o.estado === 'hecho'; })
+          .sort(function (a, b) { return (b.fecha || '').localeCompare(a.fecha || ''); });
+        var entrev = [];
+        mios.forEach(function (p) {
+          SF.interviews(p).forEach(function (e) { if (e.done) entrev.push({ p: p, e: e }); });
+        });
+        entrev.sort(function (a, b) { return (b.e.date || '').localeCompare(a.e.date || ''); });
+
+        if (!hechos.length && !entrev.length) {
+          body.appendChild(el('<p class="hint">Todavía no has cerrado nada. Cuando marques un ojeo como hecho ' +
+            'y escribas qué viste, aparecerá aquí: es tu historial de trabajo de campo.</p>'));
+          return;
+        }
+        if (hechos.length) {
+          body.appendChild(el('<p class="sec-label">Ojeos cerrados</p>'));
+          var lh = el('<div class="mini-list"></div>');
+          hechos.forEach(function (o) {
+            var quienes = (o.player_ids || []).map(function (i) {
+              var p = mios.filter(function (x) { return x.id === i; })[0];
+              return p ? p.full_name : null;
+            }).filter(Boolean);
+            var row = el('<div class="ag-hecho"><div class="ag-hhead"><b>' +
+              esc(o.competicion || o.tipo || 'Ojeo') + '</b> <span class="hint">' + fmtDate(o.fecha) +
+              (quienes.length ? ' · ' + esc(quienes.join(', ')) : '') + '</span></div>' +
+              '<p class="ag-hinf">' + esc(o.informe || 'Sin notas.') + '</p></div>');
+            lh.appendChild(row);
+          });
+          body.appendChild(lh);
+        }
+        if (entrev.length) {
+          body.appendChild(el('<p class="sec-label">Entrevistas celebradas</p>'));
+          var le = el('<div class="mini-list"></div>');
+          entrev.forEach(function (x) {
+            var row = el('<div class="ag-hecho"><div class="ag-hhead"><b>' + esc(x.e.type || 'Entrevista') +
+              '</b> <span class="hint">' + fmtDate(x.e.date) + ' · ' + esc(x.p.full_name) + '</span></div>' +
+              '<p class="ag-hinf">' + esc(x.e.outcome || 'Sin resultado anotado.') + '</p></div>');
+            row.onclick = function () { SF._openTab = 'captacion'; location.hash = '#/jugador/' + x.p.id; };
+            le.appendChild(row);
+          });
+          body.appendChild(le);
+        }
+      }
+    }
+    paint();
+  };
+
+  /* Elegir a qué jugadores de su cartera va a ver. Con checkboxes y no con un
+     `select` múltiple: en el móvil un select múltiple es inservible, y el
+     scout trabaja desde la grada. */
+  function selectorJugadores(lista, marcados, titulo) {
+    marcados = (marcados || []).slice();
+    var box = el('<div class="ag-sel"><p class="sec-label">' + esc(titulo || 'A quién vas a ver') + '</p>' +
+      '<input class="ag-selq" type="search" placeholder="Buscar en tu cartera…"><div class="ag-selist"></div></div>');
+    var cont = box.querySelector('.ag-selist');
+    var q = box.querySelector('.ag-selq');
+    function pinta() {
+      var t = SF.norm(q.value || '');
+      cont.innerHTML = '';
+      var vis = lista.filter(function (p) { return !t || SF.norm(p.full_name).indexOf(t) >= 0; }).slice(0, 40);
+      if (!vis.length) { cont.appendChild(el('<p class="hint">Nadie con ese nombre en tu cartera.</p>')); return; }
+      vis.forEach(function (p) {
+        var on = marcados.indexOf(p.id) >= 0;
+        var b = el('<button class="ag-selp' + (on ? ' on' : '') + '">' + esc(p.full_name) +
+          '<span class="hint"> ' + (p.birth_year || '') + (p.primary_position ? ' · ' + esc(p.primary_position) : '') + '</span></button>');
+        b.onclick = function (ev) {
+          ev.preventDefault();
+          var i = marcados.indexOf(p.id);
+          if (i >= 0) marcados.splice(i, 1); else marcados.push(p.id);
+          b.classList.toggle('on');
+        };
+        cont.appendChild(b);
+      });
+    }
+    q.oninput = pinta; pinta();
+    return { node: box, get: function () { return marcados; } };
+  }
+
+  function ojeoModal(o, mios, yo, viajeId) {
+    var esNuevo = !o;
+    o = o || {};
+    var sel = selectorJugadores(mios, o.player_ids, 'A quién vas a ver');
+    var viajes = SF.store.viajes().filter(function (v) { return v.scout_id === yo.id; });
+
+    var campos = [
+      { name: 'fecha', label: 'Fecha', type: 'date' },
+      { name: 'hora', label: 'Hora', type: 'time' },
+      { name: 'tipo', label: 'Qué es', type: 'select', options: SF.OJEO_TIPOS },
+      { name: 'competicion', label: 'Competición' },
+      { name: 'local', label: 'Equipo local' },
+      { name: 'visitante', label: 'Equipo visitante' },
+      { name: 'lugar', label: 'Pabellón' },
+      { name: 'ciudad', label: 'Ciudad' },
+      { name: 'objetivo', label: 'Qué vas a mirar', type: 'textarea' }
+    ];
+    if (viajes.length) {
+      campos.splice(2, 0, { name: 'viaje_id_label', label: 'Dentro del viaje', type: 'select',
+        options: viajes.map(function (v) { return v.nombre || v.ambito; }) });
+    }
+
+    var actual = Object.assign({}, o);
+    if (viajeId) {
+      var vv = viajes.filter(function (v) { return v.id === viajeId; })[0];
+      if (vv) actual.viaje_id_label = vv.nombre || vv.ambito;
+    } else if (o.viaje_id) {
+      var vo = viajes.filter(function (v) { return v.id === o.viaje_id; })[0];
+      if (vo) actual.viaje_id_label = vo.nombre || vo.ambito;
+    }
+
+    var f = smallForm(campos, actual, function (d) {
+      if (!d.fecha) { U.toast('Ponle fecha: si no, no aparece en la agenda'); return false; }
+      var vsel = viajes.filter(function (v) { return (v.nombre || v.ambito) === d.viaje_id_label; })[0];
+      d.viaje_id = vsel ? vsel.id : '';
+      delete d.viaje_id_label;
+      d.player_ids = sel.get();
+      d.scout_id = yo.id;
+      if (esNuevo) SF.store.ojeoCreate(d);
+      else SF.store.ojeoUpdate(o.id, d);
+      U.toast(esNuevo ? 'Ojeo apuntado' : 'Ojeo guardado');
+      SF.router.render();
+    });
+    /* El selector va DENTRO del formulario pero POR ENCIMA de los botones:
+       si se añade al final queda debajo de "Guardar" y nadie lo ve. */
+    var pie = f.querySelector('.modal-actions');
+    f.insertBefore(sel.node, pie);
+
+    if (!esNuevo) {
+      var bd = el('<div class="row-actions"><button class="lnk lnk-danger">Borrar este ojeo</button></div>');
+      bd.querySelector('button').onclick = function () {
+        if (!confirm('¿Borrar este ojeo?')) return;
+        SF.store.ojeoRemove(o.id); U.closeModal(); U.toast('Ojeo borrado'); SF.router.render();
+      };
+      f.insertBefore(bd, pie);
+    }
+    U.modal(esNuevo ? 'Nuevo ojeo' : 'Ojeo — ' + (o.competicion || fmtDate(o.fecha)), f);
+  }
+
+  /* Cerrar un ojeo es lo que lo convierte en información. Un partido al que
+     fuiste y del que no anotaste nada no vale para nada dentro de tres meses. */
+  function cerrarOjeoModal(o) {
+    var f = smallForm([
+      { name: 'informe', label: 'Qué viste', type: 'textarea' }
+    ], { informe: o.informe || '' }, function (d) {
+      if (!d.informe) { U.toast('Escribe aunque sea una línea: dentro de tres meses no te acordarás'); return false; }
+      SF.store.ojeoUpdate(o.id, { informe: d.informe, estado: 'hecho' });
+      U.toast('Ojeo cerrado'); SF.router.render();
+    });
+    U.modal('Cerrar el ojeo — ' + (o.competicion || fmtDate(o.fecha)), f);
+  }
+
+  function viajeModal(v, mios, yo) {
+    var esNuevo = !v;
+    v = v || {};
+    var sel = selectorJugadores(mios, v.player_ids, 'A quién vas a ver en este viaje');
+    var f = smallForm([
+      { name: 'nombre', label: 'Cómo se llama' },
+      { name: 'ambito', label: 'Qué tipo de torneo', type: 'select', options: SF.VIAJE_AMBITOS },
+      { name: 'competicion', label: 'Competición' },
+      { name: 'desde', label: 'Desde', type: 'date' },
+      { name: 'hasta', label: 'Hasta', type: 'date' },
+      { name: 'ciudad', label: 'Ciudad' },
+      { name: 'pais', label: 'País' },
+      { name: 'sede', label: 'Sede o pabellón' },
+      { name: 'categorias', label: 'Categorías (ej. U16 masculino)' },
+      { name: 'notas', label: 'Notas', type: 'textarea' }
+    ], v, function (d) {
+      if (!d.desde) { U.toast('Ponle al menos la fecha de inicio'); return false; }
+      if (d.hasta && d.hasta < d.desde) { U.toast('La fecha de vuelta es anterior a la de ida'); return false; }
+      d.player_ids = sel.get();
+      d.scout_id = yo.id;
+      if (esNuevo) SF.store.viajeCreate(d);
+      else SF.store.viajeUpdate(v.id, d);
+      U.toast(esNuevo ? 'Viaje creado' : 'Viaje guardado');
+      SF.router.render();
+    });
+    f.insertBefore(sel.node, f.querySelector('.modal-actions'));
+    U.modal(esNuevo ? 'Nuevo viaje o torneo' : 'Viaje — ' + (v.nombre || v.ambito || ''), f);
   }
 
   pages.captacion = function (view) {
@@ -11787,7 +12662,8 @@ SF.router = (function () {
   var root, view;
 
   var NAV = [
-    ['inicio', 'Inicio', 'home'], ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'],
+    ['inicio', 'Inicio', 'home'], ['agenda', 'Agenda', 'cal'],
+    ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'],
     ['importar', 'Importar', 'ai'],
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
@@ -11802,7 +12678,7 @@ SF.router = (function () {
      El primer grupo no tiene título ni se pliega: es el trabajo de cada día y
      tiene que estar siempre a la vista. */
   var NAV_GRUPOS = [
-    { id: 'dia',      label: '',                keys: ['inicio', 'mi-equipo', 'jugadores', 'equipos'] },
+    { id: 'dia',      label: '',                keys: ['inicio', 'agenda', 'mi-equipo', 'jugadores', 'equipos'] },
     { id: 'captacion',label: 'Captación',       keys: ['captacion', 'importar'] },
     { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos'] },
     { id: 'personas', label: 'Personas',        keys: ['staff', 'family', 'comunicados'] },
@@ -11823,7 +12699,7 @@ SF.router = (function () {
   }
 
   var ROUTE_PAGE = {
-    inicio: 'inicio', jugadores: 'jugadores', jugador: 'jugador', equipos: 'equipos', equipo: 'equipo',
+    inicio: 'inicio', agenda: 'agenda', jugadores: 'jugadores', jugador: 'jugador', equipos: 'equipos', equipo: 'equipo',
     calendario: 'calendario', horarios: 'horarios',
     importar: 'sec-importar', captacion: 'captacion', documentos: 'sec-documentos', informes: 'informes',
     family: 'family', finanzas: 'sec-finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
