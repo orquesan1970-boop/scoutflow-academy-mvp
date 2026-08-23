@@ -875,6 +875,18 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .inst-row input:focus{outline:none;border-color:var(--purple)}
 .inst-row .inst-nom{flex:1.3 1 0}
 .inst-ed{max-height:60vh;overflow-y:auto}
+.cua-p.entera{border-left:3px solid var(--purple)}
+.cua-pab th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:500;padding:7px 8px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.cua-pab .cua-sub th{font-size:10px;padding:4px 8px;color:var(--ink-3);font-weight:400}
+.cua-pab .cua-fr-h{text-align:left}
+.cua-pab td.cua-x{border:1px solid var(--line);padding:7px 9px;font-size:12px;text-align:center;vertical-align:middle;min-width:104px}
+.cua-pab td.cua-x i{color:var(--ink-3);font-style:normal;opacity:.6}
+.cua-pab td.cua-x b{font-weight:500;color:var(--ink);display:block;line-height:1.25}
+.cua-pab td.cua-x .cua-nota{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.cua-pab td.cua-x.lleno{background:var(--purple-soft,#F1EEFF)}
+.cua-pab td.cua-x.entera{background:#E9E4FF}
+.cua-pab td.cua-x.editable{cursor:pointer}
+.cua-pab td.cua-x.editable:hover{outline:2px solid var(--purple);outline-offset:-2px}
 @media(max-width:680px){.inst-row{flex-wrap:wrap}.inst-row input{flex:1 1 100%}}
 .sf-cuenta button{background:none;border:0;color:inherit;font-family:inherit;font-size:11.5px;cursor:pointer;text-decoration:underline;padding:0;opacity:.8}
 @media(max-width:980px){.sf-cuenta{display:none}}
@@ -1880,14 +1892,21 @@ SF.TEAMS = [
    error clásico.
 
    Franjas de hora y media desde las 16:00, que es cuando salen del colegio. */
-SF.FRANJAS = ['16:00 – 17:30', '17:30 – 19:00', '19:00 – 20:30', '20:30 – 22:00'];
+SF.FRANJAS = ['17:00 – 18:30', '18:30 – 19:45', '19:45 – 21:00', '21:00 – 22:15', '22:15 – 23:30'];
 SF.DIAS_SEM = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
 /* Pabellones y sus pistas. Se editan en Configuración: un club alquila en
    sitios distintos y eso cambia cada temporada. */
+/* Los pabellones del club. Se editan en Configuración → Pabellones y horarios;
+   esto es solo el punto de partida.
+   El Pabellón Juan de Austria se parte a lo ancho en dos pistas cuando entrenan
+   los pequeños, y se usa entero a lo largo para los mayores: eso se marca en
+   cada asignación, no aquí, porque cambia según la franja. */
 SF.INSTALACIONES = [
-  { id: 'i1', nombre: 'Pabellón Príncipe Felipe', pistas: ['Pista 1', 'Pista 2'] },
-  { id: 'i2', nombre: 'Pabellón Pozuelo', pistas: ['Pista 1'] }
+  { id: 'i1', nombre: 'Pabellón Juan de Austria', pistas: ['Pista 1', 'Pista 2'] },
+  { id: 'i2', nombre: 'Cubierta Juan de Austria', pistas: ['Pista 1', 'Pista 2'] },
+  { id: 'i3', nombre: 'Pabellón San Gabriel', pistas: ['Pista 1', 'Pista 2'] },
+  { id: 'i4', nombre: 'Colegio (pendiente de nombre)', pistas: ['Pista 1'] }
 ];
 
 SF.ACADEMY = { name: 'CBJA Academy', country: 'España', city: 'Madrid', primary_sport: 'baloncesto', plan: 'Pro',
@@ -6969,13 +6988,17 @@ window.SF = window.SF || {};
     var tab = SF._cuadrante || 'entrenos';
     view.innerHTML = embed ? '' : head('Cuadrantes', 'El horario fijo de la temporada: qué equipo entrena cuándo y en qué pista.');
 
-    var tabs = el('<div class="tabbar"></div>');
-    [['entrenos', 'Entrenamientos'], ['pf', 'Preparación física']].forEach(function (t) {
-      var b = el('<button class="tab' + (tab === t[0] ? ' on' : '') + '">' + t[1] + '</button>');
-      b.onclick = function () { SF._cuadrante = t[0]; SF.router.render(); };
-      tabs.appendChild(b);
-    });
-    view.appendChild(tabs);
+    /* Embebido en Inicio, las pestañas las pone el desplegable de fuera. Dos
+       filas de pestañas, una encima de otra, es una pantalla que no se lee. */
+    if (!embed) {
+      var tabs = el('<div class="tabbar"></div>');
+      [['entrenos', 'Entrenamientos'], ['pf', 'Preparación física']].forEach(function (t) {
+        var b = el('<button class="tab' + (tab === t[0] ? ' on' : '') + '">' + t[1] + '</button>');
+        b.onclick = function () { SF._cuadrante = t[0]; SF.router.render(); };
+        tabs.appendChild(b);
+      });
+      view.appendChild(tabs);
+    }
 
     var insts = SF.store.instalaciones();
     var equipos = SF.store.teams().filter(function (t) {
@@ -7007,33 +7030,67 @@ window.SF = window.SF || {};
         })[0] || null;
       }
 
-      var cab = '<th>Franja</th>' + SF.DIAS_SEM.map(function (d) { return '<th>' + d + '</th>'; }).join('');
-      var t = el('<div class="cal-scroll"><table class="cua-tab"><thead><tr>' + cab + '</tr></thead><tbody></tbody></table></div>');
-      var tb = t.querySelector('tbody');
+      /* --- Un cuadrante por pabellón ---------------------------------------
+         Antes había una sola tabla y dentro de cada celda se apilaban TODAS
+         las pistas de TODOS los pabellones. Con cuatro pabellones a dos pistas
+         eso son ocho líneas por celda: una pared. Y no es como se mira, ni como
+         está escrito en las hojas del club, que llevan una tabla por pabellón
+         con una columna por pista y día.
+         Ahora igual: una tabla por pabellón, días arriba, pistas debajo y las
+         franjas como filas. */
+      insts.forEach(function (ins) {
+        var pistas = ins.pistas || [];
+        if (!pistas.length) return;
+        var varias = pistas.length > 1;
 
-      SF.store.franjas().forEach(function (fr, fi) {
-        var tr = el('<tr><td class="cua-fr">' + esc(fr) + '</td></tr>');
-        SF.DIAS_SEM.forEach(function (dn, di) {
-          var td = el('<td class="cua-c"></td>');
-          insts.forEach(function (ins) {
-            (ins.pistas || []).forEach(function (pi) {
-              var oc = ocupa(di, fi, ins.id, pi);
+        body.appendChild(el('<p class="sec-label">' + esc(ins.nombre) + '</p>'));
+
+        var cab1 = '<th rowspan="' + (varias ? 2 : 1) + '" class="cua-fr-h">Franja</th>' +
+          SF.DIAS_SEM.map(function (d) {
+            return '<th colspan="' + pistas.length + '">' + esc(d) + '</th>';
+          }).join('');
+        var cab2 = varias
+          ? '<tr class="cua-sub">' + SF.DIAS_SEM.map(function () {
+              return pistas.map(function (pi) { return '<th>' + esc(pi) + '</th>'; }).join('');
+            }).join('') + '</tr>'
+          : '';
+        var t = el('<div class="cal-scroll"><table class="cua-tab cua-pab"><thead><tr>' + cab1 + '</tr>' +
+          cab2 + '</thead><tbody></tbody></table></div>');
+        var tb = t.querySelector('tbody');
+
+        SF.store.franjas().forEach(function (fr, fi) {
+          var tr = el('<tr><td class="cua-fr">' + esc(fr) + '</td></tr>');
+          SF.DIAS_SEM.forEach(function (dn, di) {
+            var ocs = pistas.map(function (pi) { return ocupa(di, fi, ins.id, pi); });
+            /* Hay pabellones que se parten a lo ancho para los pequeños y se
+               usan enteros a lo largo para los mayores. Cuando un equipo tiene
+               todas las pistas de un pabellón en la misma franja, no son dos
+               reservas: es la pista entera, y ocupa una sola celda. */
+            var entera = varias && ocs.every(function (o) {
+              return o && o.completa && ocs[0] && o.team_id === ocs[0].team_id;
+            });
+            if (entera) {
+              var eqE = SF.store.teamGet(ocs[0].team_id);
+              var tdE = el('<td class="cua-x lleno entera" colspan="' + pistas.length + '">' +
+                '<b>' + esc(eqE ? eqE.name : '—') + '</b><span class="cua-nota">pista entera</span></td>');
+              if (puede) { tdE.classList.add('editable'); tdE.onclick = function () { asignar(di, fi, ins, pistas[0], ocs[0]); }; }
+              tr.appendChild(tdE);
+              return;
+            }
+            pistas.forEach(function (pi, k) {
+              var oc = ocs[k];
               var eq = oc ? SF.store.teamGet(oc.team_id) : null;
-              var cel = el('<div class="cua-p' + (eq ? ' lleno' : '') + '">' +
-                '<span class="cua-pn">' + esc(ins.pistas.length > 1 ? ins.nombre.replace('Pabellón ', '') + ' · ' + pi : ins.nombre.replace('Pabellón ', '')) + '</span>' +
-                (eq ? '<b>' + esc(eq.name) + '</b>' : '<i>libre</i>') + '</div>');
-              if (puede) {
-                cel.classList.add('editable');
-                cel.onclick = function () { asignar(di, fi, ins, pi, oc); };
-              }
-              td.appendChild(cel);
+              var td = el('<td class="cua-x' + (eq ? ' lleno' : '') + '">' +
+                (eq ? '<b>' + esc(eq.name) + '</b>' + (oc.nota ? '<span class="cua-nota">' + esc(oc.nota) + '</span>' : '')
+                    : '<i>libre</i>') + '</td>');
+              if (puede) { td.classList.add('editable'); td.onclick = function () { asignar(di, fi, ins, pi, oc); }; }
+              tr.appendChild(td);
             });
           });
-          tr.appendChild(td);
+          tb.appendChild(tr);
         });
-        tb.appendChild(tr);
+        body.appendChild(t);
       });
-      body.appendChild(t);
 
       body.appendChild(el('<p class="hint">' + (puede
         ? 'Toca cualquier pista para asignarle un equipo o dejarla libre. Una pista solo puede tener un equipo en cada franja.'
@@ -7058,17 +7115,45 @@ window.SF = window.SF || {};
       var opts = '<option value="">— dejar libre —</option>' + equipos.map(function (e) {
         return '<option value="' + e.id + '"' + (actual && actual.team_id === e.id ? ' selected' : '') + '>' + esc(e.name) + '</option>';
       }).join('');
+      var varias = (ins.pistas || []).length > 1;
       var box = el('<div><p class="hint">' + esc(SF.DIAS_SEM[dia]) + ' · ' + esc(SF.store.franjas()[franja]) + ' · ' +
-        esc(ins.nombre) + ' · ' + esc(pista) + '</p>' +
-        '<div class="form-grid"><div class="frow" style="grid-column:1/-1"><label>Equipo</label><select id="eq">' + opts + '</select></div>' +
+        esc(ins.nombre) + (varias ? '' : ' · ' + esc(pista)) + '</p>' +
+        '<div class="form-grid">' +
+        (varias
+          ? '<div class="frow" style="grid-column:1/-1"><label>Pista</label><select id="dnd">' +
+              (ins.pistas || []).map(function (x) {
+                return '<option value="' + esc(x) + '"' + (!(actual && actual.completa) && x === pista ? ' selected' : '') + '>' + esc(x) + '</option>';
+              }).join('') +
+              '<option value="__todas__"' + (actual && actual.completa ? ' selected' : '') + '>Pista entera (a lo largo)</option>' +
+            '</select><span class="hint">Los pequeños entrenan a lo ancho y caben dos. Los mayores juegan a lo largo y ocupan el pabellón entero.</span></div>'
+          : '') +
+        '<div class="frow" style="grid-column:1/-1"><label>Equipo</label><select id="eq">' + opts + '</select></div>' +
         '<div class="frow" style="grid-column:1/-1"><label>Nota <span class="hint">opcional</span></label><input id="nt" value="' + esc(actual ? actual.nota || '' : '') + '" placeholder="Comparten pista con el infantil"></div></div></div>');
       var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
       foot.children[0].onclick = U.closeModal;
       foot.children[1].onclick = function () {
-        SF.store.horarioSet({
-          dia: dia, franja: franja, inst: ins.id, pista: pista,
-          team_id: box.querySelector('#eq').value, nota: box.querySelector('#nt').value.trim()
-        });
+        var eq = box.querySelector('#eq').value;
+        var nota = box.querySelector('#nt').value.trim();
+        var sel = box.querySelector('#dnd');
+        var destino = sel ? sel.value : pista;
+        var pistas = ins.pistas || [pista];
+
+        function libera(pi) { SF.store.horarioSet({ dia: dia, franja: franja, inst: ins.id, pista: pi, team_id: '', nota: '' }); }
+
+        if (destino === '__todas__') {
+          /* Ocupar el pabellón entero es escribir la misma reserva en todas
+             sus pistas. Así el hueco deja de estar libre de verdad, y no solo
+             de cara a la galería. */
+          pistas.forEach(function (pi) {
+            SF.store.horarioSet({ dia: dia, franja: franja, inst: ins.id, pista: pi, team_id: eq, nota: nota, completa: true });
+          });
+        } else {
+          /* Venía ocupando el pabellón entero y ahora se queda con una pista:
+             hay que soltar las demás o quedarían reservadas sin que se vea. */
+          if (actual && actual.completa) pistas.forEach(function (pi) { if (pi !== destino) libera(pi); });
+          if (destino !== pista) libera(pista);
+          SF.store.horarioSet({ dia: dia, franja: franja, inst: ins.id, pista: destino, team_id: eq, nota: nota, completa: false });
+        }
         U.closeModal(); U.toast('Cuadrante actualizado'); SF.router.render();
       };
       box.appendChild(foot);
@@ -10772,9 +10857,15 @@ window.SF = window.SF || {};
   function bloqueAgenda(view) {
     if (!view) return;
     var r = role();
+    /* Lo primero son los cuadrantes, que es lo que se mira a diario: qué
+       equipo tiene pista y quién hace preparación física. El calendario de la
+       semana va al final, detrás de los dos. */
     var tabs = [];
-    if (r.nav.indexOf('calendario') >= 0) tabs.push(['semana', 'Esta semana', 'calendario']);
-    if (r.nav.indexOf('horarios') >= 0) tabs.push(['cuadrante', 'Cuadrantes', 'horarios']);
+    if (r.nav.indexOf('horarios') >= 0) {
+      tabs.push(['entrenos', 'Entrenamientos', 'horarios']);
+      tabs.push(['pf', 'Preparación física', 'horarios']);
+    }
+    if (r.nav.indexOf('calendario') >= 0) tabs.push(['semana', 'Calendario', 'calendario']);
     if (!tabs.length) return;
 
     var abierto = SF._agendaOpen === true;
@@ -10782,12 +10873,12 @@ window.SF = window.SF || {};
     if (!tabs.some(function (t) { return t[0] === cual; })) cual = tabs[0][0];
 
     var box = el('<div class="agenda"></div>');
-    var sub = tabs.length > 1
-      ? 'La semana del club y el horario fijo de pistas'
-      : (cual === 'semana' ? 'Entrenamientos y partidos, semana a semana' : 'El horario fijo de la temporada');
+    var soloCal = tabs.length === 1 && tabs[0][0] === 'semana';
+    var titulo = soloCal ? 'Calendario' : 'Cuadrantes';
+    var sub = soloCal ? 'Entrenamientos y partidos, semana a semana'
+      : 'Quién tiene pista y quién hace preparación física';
     var cab = el('<button class="agenda-head" aria-expanded="' + (abierto ? 'true' : 'false') + '">' +
-      ico('cal') + '<span class="agenda-t">' +
-      (tabs.length > 1 ? 'Calendario y cuadrantes' : esc(tabs[0][1] === 'Esta semana' ? 'Calendario' : 'Cuadrantes')) +
+      ico('cal') + '<span class="agenda-t">' + esc(titulo) +
       '</span><span class="agenda-s">' + esc(sub) + '</span>' +
       '<span class="agenda-x">' + ico('chev') + '</span></button>');
     cab.onclick = function () { SF._agendaOpen = !abierto; SF.router.render(); };
@@ -10807,7 +10898,9 @@ window.SF = window.SF || {};
       var cont = el('<div></div>');
       body.appendChild(cont);
       box.appendChild(body);
-      var pg = tabs.filter(function (t) { return t[0] === cual; })[0][2];
+      var elegida = tabs.filter(function (t) { return t[0] === cual; })[0];
+      var pg = elegida[2];
+      if (pg === 'horarios') SF._cuadrante = (elegida[0] === 'pf') ? 'pf' : 'entrenos';
       /* embed = true: la vista se pinta sin su cabecera de página, porque la
          cabecera aquí ya la pone el propio desplegable. */
       try { pages[pg](cont, null, null, true); }
