@@ -1914,7 +1914,7 @@ SF.INSTALACIONES = [
   { id: 'i1', nombre: 'Pabellón Juan de Austria', pistas: ['Pista 1', 'Pista 2'] },
   { id: 'i2', nombre: 'Cubierta Juan de Austria', pistas: ['Pista 1', 'Pista 2'] },
   { id: 'i3', nombre: 'Pabellón San Gabriel', pistas: ['Pista 1', 'Pista 2'] },
-  { id: 'i4', nombre: 'Colegio (pendiente de nombre)', pistas: ['Pista 1'] }
+  { id: 'i4', nombre: 'Pabellón Miguel Hernández', pistas: ['Pista 1', 'Pista 2'] }
 ];
 
 SF.ACADEMY = { name: 'CBJA Academy', country: 'España', city: 'Madrid', primary_sport: 'baloncesto', plan: 'Pro',
@@ -3010,6 +3010,31 @@ SF.store = (function () {
       d.players.forEach(function (p) { if (p.ficha == null) p.ficha = ++max; });
       write(d);
     }
+    /* Los pabellones de fábrica eran dos inventados. Cuando supimos cuáles son
+       los del club de verdad se cambiaron, pero a quien ya estaba trabajando no
+       le llega: los datos de ejemplo solo se escriben en un almacén vacío, y su
+       cuadrante seguía enseñando pistas de otro club.
+       Se cambian solo si nadie los ha tocado —mismo id y mismo nombre que los
+       de fábrica viejos—. Si el club ya puso los suyos, aquí no se toca nada.
+       Los ids se conservan (i1, i2), así que lo que hubiera asignado en el
+       cuadrante sigue apuntando a donde apuntaba. */
+    if (!d._inst_v2) {
+      var VIEJOS = [{ id: 'i1', nombre: 'Pabellón Príncipe Felipe' }, { id: 'i2', nombre: 'Pabellón Pozuelo' }];
+      var act = d.academy.instalaciones || [];
+      var sinTocar = act.length === VIEJOS.length && VIEJOS.every(function (v, k) {
+        return act[k] && act[k].id === v.id && act[k].nombre === v.nombre;
+      });
+      if (sinTocar) d.academy.instalaciones = JSON.parse(JSON.stringify(SF.INSTALACIONES));
+
+      var FR_VIEJAS = ['16:00 – 17:30', '17:30 – 19:00', '19:00 – 20:30', '20:30 – 22:00'];
+      var fa = d.academy.franjas || [];
+      var frSinTocar = fa.length === FR_VIEJAS.length && FR_VIEJAS.every(function (v, k) { return fa[k] === v; });
+      if (frSinTocar || !fa.length) d.academy.franjas = (SF.FRANJAS || []).slice();
+
+      d._inst_v2 = true;
+      write(d);
+    }
+
     /* Migración de la escala de evaluación: de 0-5 a 0-10.
        Se multiplica por 2, que conserva exactamente la proporción (un 3 sobre 5
        es un 6 sobre 10) y no pierde ni inventa nada. Se hace una sola vez y
