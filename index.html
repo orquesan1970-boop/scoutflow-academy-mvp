@@ -1914,7 +1914,7 @@ SF.INSTALACIONES = [
   { id: 'i1', nombre: 'Pabellón Juan de Austria', pistas: ['Pista 1', 'Pista 2'] },
   { id: 'i2', nombre: 'Cubierta Juan de Austria', pistas: ['Pista 1', 'Pista 2'] },
   { id: 'i3', nombre: 'Pabellón San Gabriel', pistas: ['Pista 1', 'Pista 2'] },
-  { id: 'i4', nombre: 'Pabellón Miguel Hernández', pistas: ['Pista 1', 'Pista 2'] }
+  { id: 'i4', nombre: 'Pabellón Miguel Hernández', pistas: ['Pista 1'] }
 ];
 
 SF.ACADEMY = { name: 'CBJA Academy', country: 'España', city: 'Madrid', primary_sport: 'baloncesto', plan: 'Pro',
@@ -3032,6 +3032,22 @@ SF.store = (function () {
       if (frSinTocar || !fa.length) d.academy.franjas = (SF.FRANJAS || []).slice();
 
       d._inst_v2 = true;
+      write(d);
+    }
+
+    /* El Miguel Hernández se dio de alta con dos pistas por suponerlo, y tiene
+       una. Se corrige solo si sigue como se dejó y no hay nada asignado a la
+       segunda: si el club ya la usa, será que sí existe y no somos quién. */
+    if (!d._inst_v3) {
+      var mh = (d.academy.instalaciones || []).filter(function (x) { return x.id === 'i4'; })[0];
+      if (mh && mh.nombre === 'Pabellón Miguel Hernández' &&
+          (mh.pistas || []).length === 2 && mh.pistas[1] === 'Pista 2') {
+        var usada = (d.horario || []).concat(d.pf || []).some(function (x) {
+          return x.inst === 'i4' && x.pista === 'Pista 2';
+        });
+        if (!usada) mh.pistas = ['Pista 1'];
+      }
+      d._inst_v3 = true;
       write(d);
     }
 
