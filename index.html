@@ -1959,7 +1959,7 @@ SF.SEASON = '2026/2027';
    pantalla es lo último o una página vieja guardada por el navegador, que
    ya nos ha costado una evaluación mal guardada. Se ve en Configuración
    y en el pie del menú. */
-SF.BUILD = '2026-08-22';
+SF.BUILD = '2026-08-23';
 
 SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'psicologo', 'fisio',
   'scout', 'delegado_equipo', 'delegado_campo', 'dt_general', 'dt_femenino',
@@ -3329,6 +3329,17 @@ SF.store = (function () {
       d.conv_multi_v1 = true;
       write(d);
     }
+    /* El club entero (27 plantillas y 274 fichas) entra solo.
+       Los datos de ejemplo solo se escriben cuando el almacén está vacío, así
+       que quien ya estaba trabajando se quedaba con las 7 fichas del principio
+       y tenía que acordarse de pulsar un botón escondido en Configuración.
+       Aquí se hace solo, una única vez: se añade únicamente lo que falta,
+       comparando por id, y no se toca ni se borra nada de lo que ya hubiera. */
+    if (!d._club_v1) {
+      fusionar(d, faltanEn(d, seed()));
+      d._club_v1 = true;
+      write(d);
+    }
     return d;
   }
 
@@ -3345,8 +3356,10 @@ SF.store = (function () {
      no está. Nunca pisa ni modifica nada existente: si un jugador ya está, se
      deja exactamente como esté, con las evaluaciones y los cambios que le
      hayas hecho. Por eso se puede pulsar las veces que haga falta. */
-  function faltaDeLaSemilla() {
-    var d = db(), s = seed(), out = [];
+  function faltaDeLaSemilla() { return faltanEn(db(), seed()); }
+
+  function faltanEn(d, s) {
+    var out = [];
     [['players', 'jugadores'], ['teams', 'equipos'], ['staff', 'personal'],
      ['horario', 'franjas del cuadrante'], ['pf', 'sesiones de preparación física'],
      ['expenses', 'gastos'], ['citas', 'citas']].forEach(function (par) {
@@ -3356,6 +3369,23 @@ SF.store = (function () {
       if (nuevos.length) out.push({ k: par[0], label: par[1], items: nuevos });
     });
     return out;
+  }
+
+  /* Mete en `d` todo lo que esté en los datos de ejemplo y no esté en `d`.
+     No pisa nada: compara por id y solo añade lo que falta. Devuelve cuántos. */
+  function fusionar(d, falta) {
+    var n = 0;
+    falta.forEach(function (g) {
+      d[g.k] = (d[g.k] || []).concat(JSON.parse(JSON.stringify(g.items)));
+      n += g.items.length;
+    });
+    if (!d.academy.instalaciones && SF.INSTALACIONES) {
+      d.academy.instalaciones = JSON.parse(JSON.stringify(SF.INSTALACIONES));
+    }
+    var maxF = (d.players || []).reduce(function (m, x) { return Math.max(m, x.ficha || 0); }, 0);
+    (d.players || []).forEach(function (x) { if (x.ficha == null) x.ficha = ++maxF; });
+    d.seq = Math.max(d.seq || 0, (SF.SEED_PLAYERS ? SF.SEED_PLAYERS.length + 1 : 8));
+    return n;
   }
 
   function age(birth_date) {
@@ -3375,19 +3405,7 @@ SF.store = (function () {
     queFalta: faltaDeLaSemilla,
 
     completarDemo: function () {
-      var d = db(), falta = faltaDeLaSemilla(), n = 0;
-      falta.forEach(function (g) {
-        d[g.k] = (d[g.k] || []).concat(JSON.parse(JSON.stringify(g.items)));
-        n += g.items.length;
-      });
-      if (!d.academy.instalaciones && SF.INSTALACIONES) {
-        d.academy.instalaciones = JSON.parse(JSON.stringify(SF.INSTALACIONES));
-      }
-      /* Número de ficha correlativo para los que entren sin él, sin repetir
-         ninguno de los que ya estaban. */
-      var maxF = (d.players || []).reduce(function (m, x) { return Math.max(m, x.ficha || 0); }, 0);
-      (d.players || []).forEach(function (x) { if (x.ficha == null) x.ficha = ++maxF; });
-      d.seq = Math.max(d.seq || 0, (SF.SEED_PLAYERS ? SF.SEED_PLAYERS.length + 1 : 8));
+      var d = db(), n = fusionar(d, faltanEn(d, seed()));
       save(d);
       return n;
     },
