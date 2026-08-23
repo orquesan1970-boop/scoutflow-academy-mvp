@@ -39,6 +39,13 @@ h1,h2,h3{font-weight:600;margin:0}
 .nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
 .nav-item{display:flex;align-items:center;gap:11px;width:100%;background:none;border:0;color:var(--sb-ink);padding:10px 12px;border-radius:var(--r);font-size:13.5px;cursor:pointer;text-align:left;transition:background .15s,color .15s;font-family:inherit}
 .nav-item .ic{opacity:.85}
+.nav-g{display:flex;flex-direction:column}
+.nav-g-items{display:flex;flex-direction:column;gap:3px}
+.nav-g-items[hidden]{display:none}
+.nav-grupo{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;background:none;border:0;font-family:inherit;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--sb-ink-2);padding:14px 12px 6px;cursor:pointer;text-align:left}
+.nav-grupo:hover{color:var(--sb-ink)}
+.nav-grupo .ic{width:14px;height:14px;opacity:.6;transition:transform .15s}
+.nav-grupo[aria-expanded="false"] .ic{transform:rotate(-90deg)}
 .nav-item:hover{background:var(--sb-active);color:#fff}
 .nav-item.active{background:var(--purple);color:#fff}
 .sb-foot{flex:0 0 auto;padding:0 8px}
@@ -701,6 +708,8 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 @media (max-width:920px){
   .app{grid-template-columns:64px 1fr}
   .brand h1,.brand p,.nav-item span,.sb-academy{display:none}
+  .nav-grupo{display:none}
+  .nav-g-items{display:flex !important}
   .nav-item{justify-content:center;padding:11px}
   .logo{width:38px;height:38px}
   .cols{grid-template-columns:1fr}
@@ -10612,6 +10621,32 @@ SF.router = (function () {
     ['importar-datos', 'Importar datos', 'chart'], ['mis-avisos', 'Mis avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
     ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
+  /* Los grupos del menú lateral. Con 18 entradas seguidas no se lee: hay que
+     recorrerlas todas para encontrar una. Agrupadas por la pregunta que
+     responden, se busca por bloque y no por lista.
+     El primer grupo no tiene título ni se pliega: es el trabajo de cada día y
+     tiene que estar siempre a la vista. */
+  var NAV_GRUPOS = [
+    { id: 'dia',      label: '',                keys: ['inicio', 'mi-equipo', 'jugadores', 'equipos'] },
+    { id: 'captacion',label: 'Captación',       keys: ['captacion', 'importar'] },
+    { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos', 'licencias'] },
+    { id: 'personas', label: 'Personas',        keys: ['staff', 'family', 'comunicados'] },
+    { id: 'dinero',   label: 'Dinero',          keys: ['finanzas', 'economia', 'presupuesto'] },
+    { id: 'ajustes',  label: 'Ajustes',         keys: ['permisos', 'config', 'importar-datos'] },
+    { id: 'mio',      label: 'Lo mío',          keys: ['mis-avisos', 'mi-ficha', 'portal-family', 'portal-jugador'] }
+  ];
+
+  /* Qué grupos ha plegado el usuario. En sessionStorage y no en los datos:
+     es una preferencia de cómo mira la pantalla, no información de la
+     academia, y no tiene por qué viajar a la nube ni entre dispositivos. */
+  var plegadoMem = {};
+  function plegado(id) {
+    try { return sessionStorage.getItem('sf_nav_' + id) === '0'; } catch (e) { return !!plegadoMem[id]; }
+  }
+  function plegar(id, v) {
+    try { sessionStorage.setItem('sf_nav_' + id, v ? '0' : '1'); } catch (e) { plegadoMem[id] = v; }
+  }
+
   var ROUTE_PAGE = {
     inicio: 'inicio', jugadores: 'jugadores', jugador: 'jugador', equipos: 'equipos', equipo: 'equipo',
     calendario: 'calendario', horarios: 'horarios',
@@ -10716,16 +10751,50 @@ SF.router = (function () {
 
     // nav filtrada por rol
     var nav = document.getElementById('nav');
-    NAV.forEach(function (n) {
-      if (r.nav.indexOf(n[0]) < 0) return;
-      var b = el('<button class="nav-item" data-key="' + n[0] + '" title="' + n[1] + '">' + ico(n[2]) + '<span>' + n[1] + '</span></button>');
+    var visibles = NAV.filter(function (n) { return r.nav.indexOf(n[0]) >= 0; });
+    var actual = NAV_OF[parse().route] || parse().route;
+
+    function boton(n) {
+      var b = el('<button class="nav-item" data-key="' + n[0] + '" title="' + esc(n[1]) + '">' +
+        ico(n[2]) + '<span>' + esc(n[1]) + '</span></button>');
       b.onclick = function () { location.hash = '#/' + n[0]; };
-      nav.appendChild(b);
-    });
-    if (r.nav.indexOf('portal-family') >= 0) {
-      var pf = el('<button class="nav-item" data-key="portal-family" title="Portal Family">' + ico('family') + '<span>Portal Family</span></button>');
-      pf.onclick = function () { location.hash = '#/portal-family'; };
-      nav.appendChild(pf);
+      return b;
+    }
+
+    /* Con pocas entradas, agrupar estorba más que ayuda: la familia y el
+       jugador tienen una o dos y no necesitan que nadie se las ordene. */
+    if (visibles.length <= 6) {
+      visibles.forEach(function (n) { nav.appendChild(boton(n)); });
+    } else {
+      var colocadas = {};
+      NAV_GRUPOS.forEach(function (g) {
+        var items = g.keys.map(function (k) {
+          return visibles.filter(function (n) { return n[0] === k; })[0];
+        }).filter(Boolean);
+        if (!items.length) return;
+        items.forEach(function (n) { colocadas[n[0]] = 1; });
+
+        if (!g.label) {                       // el bloque de cada día, sin título
+          items.forEach(function (n) { nav.appendChild(boton(n)); });
+          return;
+        }
+        /* El grupo donde está la sección abierta se muestra siempre desplegado,
+           aunque el usuario lo hubiera plegado: si no, al entrar en Finanzas no
+           vería dónde está parado. */
+        var tieneActual = items.some(function (n) { return n[0] === actual; });
+        var abierto = tieneActual || !plegado(g.id);
+
+        var caja = el('<div class="nav-g"></div>');
+        var cab = el('<button class="nav-grupo" aria-expanded="' + (abierto ? 'true' : 'false') + '">' +
+          '<span>' + esc(g.label) + '</span>' + ico('chev') + '</button>');
+        var cont = el('<div class="nav-g-items"' + (abierto ? '' : ' hidden') + '></div>');
+        items.forEach(function (n) { cont.appendChild(boton(n)); });
+        cab.onclick = function () { plegar(g.id, abierto); renderShell(); };
+        caja.appendChild(cab); caja.appendChild(cont); nav.appendChild(caja);
+      });
+      /* Nada se queda fuera por olvidarse de meterlo en un grupo. */
+      visibles.filter(function (n) { return !colocadas[n[0]]; })
+        .forEach(function (n) { nav.appendChild(boton(n)); });
     }
 
     // selector de rol
