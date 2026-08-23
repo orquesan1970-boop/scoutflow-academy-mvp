@@ -945,6 +945,40 @@ SF.audienciaReal = function (audiencia, p) {
    registro de lo que se habló. Se le dice a la familia en la propia pantalla,
    porque una supervisión que no se avisa es otra cosa. */
 
+/* ===================== QUIÉN VE A ESTE JUGADOR =====================
+   La pregunta que antes o después hace una familia: "¿quién puede ver la
+   ficha de mi hijo?". Hasta ahora la respuesta estaba repartida entre el rol,
+   el equipo y la ficha de staff, y no había forma de contestarla sin abrir
+   tres pantallas.
+
+   Devuelve las personas con acceso Y EL MOTIVO, porque el motivo es lo que
+   permite cambiarlo: si alguien no debería estar, se le quita del equipo. */
+SF.quienLoVe = function (p) {
+  if (!p) return [];
+  var equipo = p.team_id ? SF.store.teamGet(p.team_id) : null;
+  return SF.store.staff().map(function (s) {
+    var rol = SF.ROLES[s.role]; if (!rol) return null;
+    var lleva = equipo && (s.team_ids || []).indexOf(equipo.id) >= 0;
+
+    /* Alcance por equipo: solo si le han asignado ese equipo. */
+    if (rol.team_scope) {
+      return lleva ? { s: s, rol: rol, motivo: 'Está asignado a ' + equipo.name } : null;
+    }
+    /* Alcance por segmento: dirección técnica de esa sección. */
+    if (rol.segments && rol.segments !== 'all') {
+      if (!equipo || rol.segments.indexOf(equipo.segment) < 0) return null;
+      return { s: s, rol: rol, motivo: 'Dirige ' + (SF.SEGMENTS[equipo.segment] || equipo.segment) };
+    }
+    /* Alcance total: dirección, administración y quien lleve todo el club.
+       Se marca aparte porque no depende del equipo y no se quita quitándolo
+       de él: se quita cambiándole el rol. */
+    if (lleva) return { s: s, rol: rol, motivo: 'Está asignado a ' + equipo.name };
+    return { s: s, rol: rol, motivo: 'Ve todo el club por su cargo', global: true };
+  }).filter(Boolean).sort(function (a, b) {
+    return (a.global ? 1 : 0) - (b.global ? 1 : 0);
+  });
+};
+
 /* Personas del club a las que puede escribir la familia de un jugador. */
 SF.destinatariosFamilia = function (p) {
   if (!p || !p.team_id) return [];
@@ -4933,6 +4967,26 @@ window.SF = window.SF || {};
 
         body.appendChild(el('<div class="field-grid">' + fld('Club', p.club) + fld('Liga', p.league) + fld('Categoría', p.category) + fld('Equipo', teamName(p)) +
           fld('Dorsal', p.dorsal) + fld('Edad de inicio', p.start_age ? p.start_age + ' años' : '') + '</div>'));
+
+        /* --- Quién lo lleva y quién lo ve ---
+           Solo para quien gestiona el club: un entrenador no necesita la lista
+           de quién más tiene acceso, y a una familia no se le enseña aquí. */
+        if (role().canManageTeams || role().tabs === 'all') (function () {
+          var ve = SF.quienLoVe(p);
+          if (!ve.length) return;
+          body.appendChild(el('<p class="sec-label">Quién lo lleva</p>'));
+          var vl = el('<div class="mini-list"></div>');
+          ve.forEach(function (x) {
+            vl.appendChild(el('<div class="mini-row"><span><b>' + esc(x.s.full_name) + '</b> · ' +
+              esc(roleLabel(x.s.role)) + '<br><span class="hint">' + esc(x.motivo) + '</span></span>' +
+              '<span class="row-actions"><button class="lnk" data-s>Ver ficha</button></span></div>'));
+            vl.lastChild.querySelector('[data-s]').onclick = function () { location.hash = '#/staff/' + x.s.id; };
+          });
+          body.appendChild(vl);
+          body.appendChild(el('<p class="hint">Estas son las personas del club que pueden abrir esta ficha. ' +
+            'Las que lo ven <b>por estar asignadas al equipo</b> dejan de verla en cuanto se las quita de él, ' +
+            'desde la pantalla del equipo. Las que lo ven por su cargo solo cambian cambiándoles el rol.</p>'));
+        })();
         /* Altura: se distingue la medida de la estimada a ojo por el scout.
            Nunca se pisan: la del preparador físico manda. */
         if (p.height_cm || p.height_est_cm) {
@@ -9279,8 +9333,17 @@ window.SF = window.SF || {};
       var stt = SF.staffStatus(s);
       var cls = stt.level === 'ok' ? 'tag-green' : (stt.level === 'warn' ? 'tag-warn' : 'tag-danger');
       var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> · ' + esc(roleLabel(s.role)) + ' <span class="hint">' + SF.staffCode(s.num) + '</span></span>' +
-        '<span class="row-actions"><span class="tag ' + cls + '">' + stt.label + '</span><button class="lnk" data-open>Ver ficha</button></span></div>');
+        '<span class="row-actions"><span class="tag ' + cls + '">' + stt.label + '</span><button class="lnk" data-open>Ver ficha</button>' +
+        (can ? '<button class="lnk-del" data-q title="Quitar del equipo">' + ico('x') + '</button>' : '') + '</span></div>');
       row.querySelector('[data-open]').onclick = function () { location.hash = '#/staff/' + s.id; };
+      /* Quitar a alguien del equipo NO es cosmético: deja de ver a esos
+         jugadores. Por eso se avisa de lo que implica antes de hacerlo. */
+      if (can) row.querySelector('[data-q]').onclick = function () {
+        if (!confirm('¿Quitar a ' + s.full_name + ' de ' + t.name + '?\n\n' +
+          'Dejará de ver las fichas de los ' + roster.length + ' jugadores de este equipo.')) return;
+        SF.store.staffAssign(s.id, t.id, false);
+        U.toast(s.full_name + ' ya no está en ' + t.name); SF.router.render();
+      };
       sl.appendChild(row);
     });
     view.appendChild(sl);
