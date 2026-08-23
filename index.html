@@ -2928,6 +2928,192 @@ SF.buildSquad = function () {
 
 SF.SEED_PLAYERS = SF.SEED_PLAYERS.concat(SF.buildSquad());
 
+/* ===================== LA PLANTILLA COMPLETA DEL CLUB =====================
+   Veintitrés equipos y sus fichas, para poder enseñar la plataforma con algo
+   que se parezca a un club de verdad y no a cuatro nombres sueltos.
+
+   Se genera con un programa y no a mano por dos razones. Una: doscientas
+   cincuenta fichas escritas a mano son doscientas cincuenta ocasiones de
+   equivocarse. Y dos: el generador es DETERMINISTA —usa un número de semilla,
+   no azar— así que cada carga produce exactamente las mismas fichas. Si fuera
+   aleatorio, los datos cambiarían solos entre una visita y la siguiente, y
+   "Completar con datos de ejemplo" no sabría qué es nuevo y qué ya estaba.
+
+   Todo es ficticio. Los nombres se componen de dos listas y las medidas salen
+   de rangos por categoría y sexo, para que un alevín no mida como un sub-22. */
+SF.CLUB_EQUIPOS = [
+  /* --- Categoría Especial de la Federación de Madrid --- */
+  { id: 'ce1', name: 'Cadete Femenino A',    seg: 'femenino',  cat: 'Cadete',   g: 'F', y: [2011, 2012], n: 10, liga: 'Liga Cadete Especial FBM' },
+  { id: 'ce2', name: 'Cadete Femenino B',    seg: 'femenino',  cat: 'Cadete',   g: 'F', y: [2011, 2012], n: 12, liga: 'Liga Cadete Especial FBM' },
+  { id: 'ce3', name: 'Infantil Femenino A',  seg: 'femenino',  cat: 'Infantil', g: 'F', y: [2013, 2014], n: 10, liga: 'Liga Infantil Especial FBM' },
+  { id: 'ce4', name: 'Infantil Femenino B',  seg: 'femenino',  cat: 'Infantil', g: 'F', y: [2013, 2014], n: 12, liga: 'Liga Infantil Especial FBM' },
+  { id: 'ce5', name: 'Alevín Masculino A',   seg: 'masculino', cat: 'Mini',     g: 'M', y: [2015, 2016], n: 10, liga: 'Liga Alevín FBM' },
+  { id: 'ce6', name: 'Alevín Femenino A',    seg: 'femenino',  cat: 'Mini',     g: 'F', y: [2015, 2016], n: 10, liga: 'Liga Alevín FBM' },
+  { id: 'ce7', name: 'Alevín Femenino B',    seg: 'femenino',  cat: 'Mini',     g: 'F', y: [2015, 2016], n: 12, liga: 'Liga Alevín FBM' },
+  { id: 'ce8', name: 'Junior Femenino A',    seg: 'femenino',  cat: 'Junior',   g: 'F', y: [2009, 2010], n: 10, liga: 'Liga Junior Especial FBM' },
+  { id: 'ce9', name: 'Junior Femenino B',    seg: 'femenino',  cat: 'Junior',   g: 'F', y: [2009, 2010], n: 12, liga: 'Liga Junior Especial FBM' },
+  { id: 'ce10', name: 'Junior Masculino A',  seg: 'masculino', cat: 'Junior',   g: 'M', y: [2009, 2010], n: 10, liga: 'Liga Junior Especial FBM' },
+  { id: 'ce11', name: 'Sub-22 Masculino',    seg: 'masculino', cat: 'Sub-22',   g: 'M', y: [2005, 2008], n: 10, liga: 'Liga Sub-22 FBM' },
+  { id: 'ce12', name: 'Sub-22 Femenino',     seg: 'femenino',  cat: 'Sub-22',   g: 'F', y: [2005, 2008], n: 10, liga: 'Liga Sub-22 FBM' },
+  /* --- Preferente --- */
+  { id: 'cp1', name: 'Cadete Masculino Preferente', seg: 'masculino', cat: 'Cadete', g: 'M', y: [2011, 2012], n: 12, liga: 'Liga Cadete Preferente FBM' },
+  { id: 'cp2', name: 'Cadete Femenino Preferente',  seg: 'femenino',  cat: 'Cadete', g: 'F', y: [2011, 2012], n: 12, liga: 'Liga Cadete Preferente FBM' },
+  { id: 'cp3', name: 'Junior Masculino Preferente', seg: 'masculino', cat: 'Junior', g: 'M', y: [2009, 2010], n: 12, liga: 'Liga Junior Preferente FBM' },
+  { id: 'cp4', name: 'Junior Femenino Preferente',  seg: 'femenino',  cat: 'Junior', g: 'F', y: [2009, 2010], n: 12, liga: 'Liga Junior Preferente FBM' },
+  /* --- Primera Nacional --- */
+  { id: 'cn1', name: 'Nacional Masculino', seg: 'masculino', cat: 'Senior', g: 'M', y: [1999, 2006], n: 10, liga: 'Primera Nacional Masculina' },
+  { id: 'cn2', name: 'Nacional Femenino',  seg: 'femenino',  cat: 'Senior', g: 'F', y: [1999, 2006], n: 10, liga: 'Primera Nacional Femenina' },
+  /* --- Escuelas --- */
+  { id: 'cs1', name: 'Escuela Cervantes',       seg: 'escuelas', cat: 'Premini', g: 'X', y: [2017, 2018], n: 12, liga: 'Escuela' },
+  { id: 'cs2', name: 'Escuela San Gabriel',     seg: 'escuelas', cat: 'Premini', g: 'X', y: [2017, 2018], n: 12, liga: 'Escuela' },
+  { id: 'cs3', name: 'Escuela Juan de Austria', seg: 'escuelas', cat: 'Premini', g: 'X', y: [2017, 2018], n: 12, liga: 'Escuela' },
+  { id: 'cs4', name: 'Escuela Santo Tomás',     seg: 'escuelas', cat: 'Premini', g: 'X', y: [2017, 2018], n: 12, liga: 'Escuela' },
+  { id: 'cs5', name: 'Escuela Cisneros',        seg: 'escuelas', cat: 'Premini', g: 'X', y: [2017, 2018], n: 12, liga: 'Escuela' }
+];
+
+SF.buildClub = function () {
+  var NOM_M = ['Adrián', 'Álvaro', 'Andrés', 'Antonio', 'Bruno', 'Carlos', 'Daniel', 'David', 'Diego', 'Eduardo',
+    'Enrique', 'Fernando', 'Gonzalo', 'Guillermo', 'Héctor', 'Hugo', 'Ignacio', 'Iker', 'Javier', 'Jorge',
+    'Juan', 'Leo', 'Lucas', 'Manuel', 'Marcos', 'Mario', 'Martín', 'Mateo', 'Miguel', 'Nicolás',
+    'Óscar', 'Pablo', 'Pedro', 'Rafael', 'Raúl', 'Rodrigo', 'Rubén', 'Samuel', 'Sergio', 'Tomás'];
+  var NOM_F = ['Adriana', 'Aitana', 'Alba', 'Alicia', 'Ana', 'Andrea', 'Beatriz', 'Blanca', 'Carla', 'Carmen',
+    'Claudia', 'Cristina', 'Daniela', 'Elena', 'Elsa', 'Emma', 'Eva', 'Gemma', 'Inés', 'Irene',
+    'Julia', 'Laura', 'Lucía', 'Marina', 'Marta', 'Miriam', 'Nerea', 'Noelia', 'Nuria', 'Olivia',
+    'Paula', 'Pilar', 'Raquel', 'Rocío', 'Sandra', 'Sara', 'Silvia', 'Sofía', 'Teresa', 'Valeria'];
+  var APE = ['Alonso', 'Arribas', 'Benítez', 'Blanco', 'Bravo', 'Cabrera', 'Calvo', 'Campos', 'Cano', 'Carrasco',
+    'Castaño', 'Cortés', 'Crespo', 'Cuesta', 'Delgado', 'Duarte', 'Esteban', 'Ferrer', 'Gallego', 'Garrido',
+    'Gil', 'Herrera', 'Ibáñez', 'Iglesias', 'Lozano', 'Marín', 'Molina', 'Montero', 'Nieto', 'Ortega',
+    'Pardo', 'Prieto', 'Quintana', 'Reyes', 'Rivas', 'Salas', 'Serrano', 'Soler', 'Vega', 'Vidal'];
+  var POS = ['Base', 'Escolta', 'Alero', 'Ala-pívot', 'Pívot'];
+  var COLES = ['IES Vicente Aleixandre', 'Colegio Santa María', 'IES Pozuelo', 'Colegio San Gabriel',
+    'IES Juan de Austria', 'Colegio Cervantes', 'IES Santo Tomás', 'Colegio Cisneros'];
+  var CIUDADES = ['Madrid', 'Alcalá de Henares', 'Pozuelo', 'Getafe', 'Leganés', 'Móstoles', 'Alcorcón'];
+  var SKILLS = ['Tiro', 'Bote', 'Pase', 'Finalización', 'Ataque 1x1', 'Juego sin balón', 'Rebote', 'Defensa',
+    'Robo de balón', 'Lectura de juego', 'Fuerza explosiva', 'Velocidad', 'Velocidad de reacción', 'Potencia',
+    'Flexibilidad', 'Coordinación', 'Resistencia aeróbica', 'Resistencia anaeróbica', 'Liderazgo',
+    'Competitividad', 'Disciplina', 'Adaptación'];
+  /* Alturas por categoría y sexo. Un alevín no mide como un sub-22, y si la
+     app enseña lo contrario deja de servir para hablar de jugadores. */
+  var ALTURA = {
+    'Premini':  { M: [122, 138], F: [120, 136] },
+    'Mini':     { M: [142, 162], F: [140, 158] },
+    'Infantil': { M: [156, 180], F: [150, 172] },
+    'Cadete':   { M: [168, 194], F: [158, 180] },
+    'Junior':   { M: [176, 202], F: [164, 184] },
+    'Sub-22':   { M: [180, 206], F: [167, 187] },
+    'Senior':   { M: [181, 207], F: [168, 189] }
+  };
+
+  /* Semilla fija: mismas fichas en cada carga. Sin esto, los datos cambiarían
+     solos entre una visita y la siguiente. */
+  var sem = 20260823;
+  function az() { sem = (sem * 1103515245 + 12345) % 2147483648; return sem / 2147483648; }
+  function ent(a, b) { return a + Math.floor(az() * (b - a + 1)); }
+  function elige(lista) { return lista[Math.floor(az() * lista.length)]; }
+
+  var equipos = [], jugadores = [], nFicha = 0;
+
+  SF.CLUB_EQUIPOS.forEach(function (E, ie) {
+    equipos.push({
+      id: E.id, name: E.name, sport: 'baloncesto', segment: E.seg, category: E.cat,
+      coaches: [], wall: [], events: []
+    });
+
+    for (var k = 0; k < E.n; k++) {
+      nFicha++;
+      var esF = E.g === 'F' || (E.g === 'X' && az() < 0.48);
+      var nombre = elige(esF ? NOM_F : NOM_M);
+      var ape1 = elige(APE), ape2 = elige(APE);
+      var anyo = ent(E.y[0], E.y[1]);
+      var mes = ent(1, 12), dia = ent(1, 28);
+      var rango = (ALTURA[E.cat] || ALTURA['Cadete'])[esF ? 'F' : 'M'];
+      var alt = ent(rango[0], rango[1]);
+      /* El peso sale del índice de masa corporal por categoría, no de una
+         regla lineal: un senior de 1,88 no pesa lo mismo que un cadete de
+         1,88, y una tabla que diga que sí no la usa ningún preparador. */
+      var IMC = { 'Premini': 16, 'Mini': 17.5, 'Infantil': 19, 'Cadete': 20.5,
+                  'Junior': 22, 'Sub-22': 23, 'Senior': 23.5 };
+      var imc = (IMC[E.cat] || 21) - (esF ? 1 : 0);
+      var peso = Math.round(Math.pow(alt / 100, 2) * imc) + ent(-2, 2);
+
+      /* Uno de cada diez entra con la ficha a medias, que es lo que pasa de
+         verdad cuando llegan por WhatsApp y aún no han mandado los papeles. */
+      var incompleto = az() < 0.10;
+
+      var notas = {};
+      /* Los mayores puntúan algo más alto: no porque sean mejores personas,
+         sino porque llevan más años entrenando y la escala es de club. */
+      var base = E.cat === 'Premini' ? 3 : E.cat === 'Mini' ? 4 : E.cat === 'Infantil' ? 5
+        : E.cat === 'Cadete' ? 6 : E.cat === 'Junior' ? 6 : 7;
+      SKILLS.forEach(function (h) { notas[h] = Math.max(2, Math.min(10, base + ent(-2, 2))); });
+      var media = SKILLS.reduce(function (a, h) { return a + notas[h]; }, 0) / SKILLS.length;
+
+      var nom = nombre.toLowerCase().replace(/[áéíóú]/g, function (c) { return 'aeiou'['áéíóú'.indexOf(c)]; });
+      var ap = ape1.toLowerCase().replace(/[áéíóúñ]/g, function (c) { return 'aeioun'['áéíóúñ'.indexOf(c)]; });
+      var tel = '+34 6' + ent(10, 99) + ' ' + ent(100, 999) + ' ' + ent(100, 999);
+
+      jugadores.push(P({
+        id: E.id + '-' + (k + 1),
+        scoutflow_id: 'SF-2026-' + ('000' + (100 + nFicha)).slice(-4),
+        first_name: nombre, last_name: ape1 + ' ' + ape2,
+        full_name: nombre + ' ' + ape1 + ' ' + ape2,
+        birth_date: anyo + '-' + ('0' + mes).slice(-2) + '-' + ('0' + dia).slice(-2),
+        birth_year: anyo, gender: esF ? 'F' : 'M', nationality: ['España'],
+        residence_country: 'España', city: elige(CIUDADES),
+        sport: 'baloncesto', primary_position: elige(POS),
+        height_cm: alt, weight_kg: peso, wingspan_cm: alt + ent(0, 8),
+        dominant_hand: az() < 0.85 ? 'Derecha' : 'Izquierda',
+        dorsal: String(ent(4, 15)),
+        team_id: E.id, club: 'CBJA Academy', league: E.liga, category: E.cat,
+        status: incompleto ? 'Datos incompletos' : 'Inscrito',
+        scout_score: Math.round(media * 10),
+        channel: elige(['Referencia', 'Scout', 'Evento', 'WhatsApp', 'Web']),
+        capture_date: (anyo + 12) + '-09-05',
+        dni: incompleto ? '' : String(ent(40, 59)) + String(ent(100000, 999999)) + 'K',
+        address: incompleto ? '' : 'Calle Mayor ' + ent(1, 120) + ', Madrid',
+        phone: E.cat === 'Senior' || E.cat === 'Sub-22' ? tel : '',
+        email: E.cat === 'Senior' || E.cat === 'Sub-22' ? nom + '.' + ap + '@example.com' : '',
+        school: E.cat === 'Senior' || E.cat === 'Sub-22' ? '' : elige(COLES),
+        course: '', gpa: '', english: elige(['Básico', 'Intermedio', 'Avanzado']),
+        family_active: !incompleto && az() < 0.7,
+        family: E.cat === 'Senior' || E.cat === 'Sub-22' ? { contact: '', relation: '', phone: '', email: '' } : {
+          contact: elige(az() < 0.5 ? NOM_F : NOM_M) + ' ' + ape1,
+          relation: az() < 0.5 ? 'Madre' : 'Padre',
+          phone: incompleto ? '' : tel,
+          email: incompleto ? '' : nom + '.' + ap + '@example.com'
+        },
+        documents: {
+          pasaporte: incompleto ? 'pendiente' : 'validado',
+          expediente: incompleto ? 'pendiente' : (az() < 0.85 ? 'validado' : 'pendiente'),
+          video_highlights: az() < 0.55 ? 'recibido' : 'pendiente',
+          seguro_medico: incompleto ? 'pendiente' : 'validado'
+        },
+        finance: { fee: E.cat === 'Premini' ? 55 : E.cat === 'Senior' ? 0 : 85,
+          status: az() < 0.12 ? 'pendiente' : 'pagado', matricula: !incompleto },
+        stats: notas,
+        /* Todas las evaluaciones hechas: es lo que se quiere enseñar. */
+        eval_log: [{
+          by: 'Carlos Gorosito', role: 'Entrenador', date: '2026-06-10', season: '2026/2027',
+          stats: JSON.parse(JSON.stringify(notas))
+        }],
+        measure_log: [{
+          by: 'Diego Sosa', role: 'Preparador Físico', date: '2026-07-10', season: '2026/2027',
+          height_cm: alt, weight_kg: peso, wingspan_cm: alt + ent(0, 8)
+        }]
+      }));
+    }
+  });
+
+  return { teams: equipos, players: jugadores };
+};
+
+(function () {
+  var club = SF.buildClub();
+  SF.TEAMS = (SF.TEAMS || []).concat(club.teams);
+  SF.SEED_PLAYERS = SF.SEED_PLAYERS.concat(club.players);
+})();
+
+
 </script>
   <script>
 /* js/store.js */
