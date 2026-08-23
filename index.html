@@ -6481,8 +6481,21 @@ window.SF = window.SF || {};
   pages.calendario = function (view) {
     var r = role();
     /* La semana que se está mirando se guarda para que al volver de una ficha
-       no te devuelva a la de hoy. */
-    if (!SF._calLunes) SF._calLunes = iso(lunesDe(new Date()));
+       no te devuelva a la de hoy.
+       Al entrar por primera vez se abre en la semana de la PRÓXIMA cita, no
+       necesariamente en la de hoy: si entras un domingo por la tarde, la
+       semana en curso está agotada y abrir en una parrilla vacía hace pensar
+       que la pantalla no funciona. */
+    if (!SF._calLunes) {
+      var hoyIso = iso(new Date()), prox = null;
+      SF.store.teams().forEach(function (t) {
+        (t.events || []).forEach(function (e) {
+          if (!e.date || e.date < hoyIso) return;
+          if (!prox || e.date < prox) prox = e.date;
+        });
+      });
+      SF._calLunes = iso(lunesDe(prox ? new Date(prox + 'T00:00:00') : new Date()));
+    }
     var lunes = new Date(SF._calLunes + 'T00:00:00');
     var dias = DIAS.map(function (n, i) {
       var d = new Date(lunes); d.setDate(d.getDate() + i);
