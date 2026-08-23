@@ -6212,8 +6212,8 @@ window.SF = window.SF || {};
     return String(v);
   }
 
-  pages.importar = function (view) {
-    view.innerHTML = head('Importar desde un mensaje',
+  pages.importar = function (view, _p, _r, embed) {
+    view.innerHTML = embed ? '' : head('Importar desde un mensaje',
       'Pega un WhatsApp, un correo o una nota. La app saca los datos y te dice si es alguien nuevo o si completa una ficha que ya tienes.');
     var wrap = el('<div class="import-wrap"></div>');
     var ta = el('<textarea class="import-ta" placeholder="Pega aquí el mensaje tal cual llegó, con sus faltas y su desorden. Por ejemplo:&#10;&#10;[21:14, 3/9/2026] Ángel Prieto: buenas Jorge te paso el chaval del q te hablé&#10;[21:14] Ángel Prieto: Martin Rios, del 2009, juega de 3&#10;[21:15] Ángel Prieto: mide 1.92 ya, esta en el juventud alcala&#10;[21:16] Ángel Prieto: el padre se llama Roberto, tlf 600111222"></textarea>');
@@ -6517,8 +6517,8 @@ window.SF = window.SF || {};
      LO QUE FALTA, en jugadores y en staff, y sirve para pedirlo.
      El recordatorio se manda uno a uno: cada familia recibe solo lo suyo,
      nunca una lista con los nombres de los demás. */
-  pages.documentos = function (view) {
-    view.innerHTML = head('Documentos', 'Solo lo que falta. Desde aquí se pide.');
+  pages.documentos = function (view, _p, _r, embed) {
+    view.innerHTML = embed ? '' : head('Documentos', 'Solo lo que falta. Desde aquí se pide.');
     /* Por defecto avisan dirección y administración. Si el director le da el
        permiso "Gestionar documentación" a otra persona, aquí lo hereda sola. */
     var puedeAvisar = role().canDocs || ['director', 'administrativo'].indexOf(SF.store.role()) >= 0;
@@ -6756,7 +6756,7 @@ window.SF = window.SF || {};
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
-  pages.calendario = function (view, _p, embed) {
+  pages.calendario = function (view, _p, _ruta, embed) {
     var r = role();
     /* La semana que se está mirando se guarda para que al volver de una ficha
        no te devuelva a la de hoy.
@@ -6905,7 +6905,7 @@ window.SF = window.SF || {};
        · el horario de entrenamientos (día × franja × pista),
        · el cuadrante de preparación física (con su preparador).
      Son el horario FIJO de la temporada, no las citas con fecha. */
-  pages.horarios = function (view, _p, embed) {
+  pages.horarios = function (view, _p, _ruta, embed) {
     var r = role();
     var tab = SF._cuadrante || 'entrenos';
     view.innerHTML = embed ? '' : head('Cuadrantes', 'El horario fijo de la temporada: qué equipo entrena cuándo y en qué pista.');
@@ -7454,9 +7454,9 @@ window.SF = window.SF || {};
   }
 
   /* ===================== FINANZAS ===================== */
-  pages.finanzas = function (view) {
+  pages.finanzas = function (view, _p, _r, embed) {
     if (!role().canSeeFinance) { view.innerHTML = head('Finanzas', '') + '<div class="empty-panel"><p>Tu rol no tiene acceso a finanzas.</p></div>'; return; }
-    view.innerHTML = head('Finanzas', 'Planes de pago de la academia: inscripción, cuotas y torneos.');
+    view.innerHTML = embed ? '' : head('Finanzas', 'Planes de pago de la academia: inscripción, cuotas y torneos.');
     var ps = SF.store.players();
     var sum = { paid: 0, pending: 0, overdue: 0 };
     ps.forEach(function (p) { var t = SF.finTotals(p); sum.paid += t.paid; sum.pending += t.pending; sum.overdue += t.overdue; });
@@ -9161,8 +9161,8 @@ window.SF = window.SF || {};
     });
   }
 
-  pages['importar-datos'] = function (view) {
-    view.innerHTML = head('Importar datos de partido', 'Desde Excel o desde la app de anotación. Power BI no es la fuente: se importa lo que hay detrás.');
+  pages['importar-datos'] = function (view, _p, _r, embed) {
+    view.innerHTML = embed ? '' : head('Importar datos de partido', 'Desde Excel o desde la app de anotación. Power BI no es la fuente: se importa lo que hay detrás.');
     statsImport(view, null);
   };
 
@@ -9672,7 +9672,7 @@ window.SF = window.SF || {};
     return t;
   }
 
-  pages.presupuesto = function (view) {
+  pages.presupuesto = function (view, _p, _r, embed) {
     var r = role();
     if (!r.canManageFinance) {
       view.innerHTML = head('Presupuesto', '') + '<div class="empty-panel"><p>Tu rol no gestiona el presupuesto del club.</p></div>';
@@ -9681,7 +9681,7 @@ window.SF = window.SF || {};
     var temp = SF._presTemp || SF.SEASON;
     var b = SF.store.budget(temp);
 
-    view.innerHTML = head('Presupuesto ' + esc(temp), 'Lo que prevés ingresar y gastar, partida a partida. La columna «real» se rellena sola con lo cobrado y los gastos aprobados.');
+    view.innerHTML = embed ? '' : head('Presupuesto ' + esc(temp), 'Lo que prevés ingresar y gastar, partida a partida. La columna «real» se rellena sola con lo cobrado y los gastos aprobados.');
 
     function linea(k) { return b.lines[k] || {}; }
     function previsto(k) { return +linea(k).previsto || 0; }
@@ -9995,9 +9995,9 @@ window.SF = window.SF || {};
   };
 
   /* ===================== LICENCIAS ===================== */
-  pages.licencias = function (view) {
+  pages.licencias = function (view, _p, _r, embed) {
     var r = role();
-    view.innerHTML = head('Licencias federativas ' + esc(SF.SEASON),
+    view.innerHTML = embed ? '' : head('Licencias federativas ' + esc(SF.SEASON),
       'Quién está listo para federar y a quién le falta algo. Aquí no se tramita nada: se prepara.');
 
     var ps = scopedPlayers().filter(function (p) { return p.status !== 'Rechazado'; });
@@ -10530,6 +10530,60 @@ window.SF = window.SF || {};
      router está en otro bloque y también los necesita: el menú y el control
      de rutas tienen que ver exactamente lo mismo que las pantallas. */
   SF.perms = role;
+  /* ===================== SECCIONES CON PESTAÑAS =====================
+     Había entradas distintas del menú que respondían a la misma pregunta. El
+     dinero del club estaba repartido en dos sitios (lo que entra de las
+     familias y lo que estaba previsto), y traer información de fuera, en otros
+     dos. Eso no es tener más funciones: es tener la misma función escondida en
+     más sitios, y obliga a recordar en cuál está cada cosa.
+
+     Aquí se juntan bajo una entrada con pestañas. Tres cosas que se respetan:
+       · Las direcciones antiguas siguen vivas. #/presupuesto, #/licencias y
+         #/importar-datos abren su pestaña, así que ningún enlace guardado ni
+         ningún botón de otra pantalla se rompe.
+       · Cada rol ve solo las pestañas a las que llega. Un scout no tiene por
+         qué saber que existe la importación de actas.
+       · Si a un rol le queda una sola pestaña, no se pinta la barra: para él
+         eso no es una elección, es una pantalla. */
+  SF.SECCIONES = [
+    { host: 'finanzas', titulo: 'Finanzas',
+      sub: 'Lo que entra de las familias y lo que estaba previsto para la temporada.',
+      tabs: [['finanzas', 'Cuotas y planes'], ['presupuesto', 'Presupuesto']] },
+    { host: 'importar', titulo: 'Importar',
+      sub: 'Traer información de fuera y convertirla en fichas y en estadísticas.',
+      tabs: [['importar', 'Desde un mensaje'], ['importar-datos', 'Datos de partido']] },
+    { host: 'documentos', titulo: 'Documentos y licencias',
+      sub: 'Qué le falta a cada jugador para estar en regla.',
+      tabs: [['documentos', 'Documentos'], ['licencias', 'Licencias federativas']] }
+  ];
+
+  SF.SECCIONES.forEach(function (sec) {
+    pages['sec-' + sec.host] = function (view, param, ruta) {
+      var r = role();
+      var disp = sec.tabs.filter(function (t) { return (r.nav || []).indexOf(t[0]) >= 0; });
+      if (!disp.length) {
+        view.innerHTML = head(sec.titulo, '') +
+          '<div class="empty-panel"><p>Tu rol no tiene acceso a esta sección.</p></div>';
+        return;
+      }
+      var activa = disp.filter(function (t) { return t[0] === ruta; })[0] || disp[0];
+      if (disp.length === 1) { pages[activa[0]](view, param, ruta); return; }
+
+      view.innerHTML = head(sec.titulo, sec.sub);
+      var tb = el('<div class="tabbar"></div>');
+      disp.forEach(function (t) {
+        var b = el('<button class="tab' + (t[0] === activa[0] ? ' on' : '') + '">' + esc(t[1]) + '</button>');
+        b.onclick = function () { location.hash = '#/' + t[0]; };
+        tb.appendChild(b);
+      });
+      view.appendChild(tb);
+      var cont = el('<div></div>');
+      view.appendChild(cont);
+      try { pages[activa[0]](cont, param, ruta, true); }
+      catch (e) { cont.innerHTML = '<div class="empty-panel"><p>Error al pintar esta pestaña.</p></div>'; console.error(e); }
+    };
+  });
+
   /* ===================== CALENDARIO Y CUADRANTES, DENTRO DE LA PANTALLA =====================
      Eran dos entradas más del menú lateral, y el menú se había vuelto
      interminable. En el fondo responden a la misma pregunta —quién entrena y
@@ -10580,7 +10634,7 @@ window.SF = window.SF || {};
       var pg = tabs.filter(function (t) { return t[0] === cual; })[0][2];
       /* embed = true: la vista se pinta sin su cabecera de página, porque la
          cabecera aquí ya la pone el propio desplegable. */
-      try { pages[pg](cont, null, true); }
+      try { pages[pg](cont, null, null, true); }
       catch (e) { cont.innerHTML = '<p class="hint">No se pudo pintar esta vista.</p>'; console.error(e); }
     }
     view.appendChild(box);
@@ -10612,13 +10666,12 @@ SF.router = (function () {
 
   var NAV = [
     ['inicio', 'Inicio', 'home'], ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'],
-    ['importar', 'Importar mensaje', 'ai'],
+    ['importar', 'Importar', 'ai'],
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
     ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'],
-    ['presupuesto', 'Presupuesto', 'chart'], ['licencias', 'Licencias', 'shield'],
-    ['importar-datos', 'Importar datos', 'chart'], ['mis-avisos', 'Mis avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
+    ['mis-avisos', 'Mis avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
     ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
   /* Los grupos del menú lateral. Con 18 entradas seguidas no se lee: hay que
@@ -10629,10 +10682,10 @@ SF.router = (function () {
   var NAV_GRUPOS = [
     { id: 'dia',      label: '',                keys: ['inicio', 'mi-equipo', 'jugadores', 'equipos'] },
     { id: 'captacion',label: 'Captación',       keys: ['captacion', 'importar'] },
-    { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos', 'licencias'] },
+    { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos'] },
     { id: 'personas', label: 'Personas',        keys: ['staff', 'family', 'comunicados'] },
-    { id: 'dinero',   label: 'Dinero',          keys: ['finanzas', 'economia', 'presupuesto'] },
-    { id: 'ajustes',  label: 'Ajustes',         keys: ['permisos', 'config', 'importar-datos'] },
+    { id: 'dinero',   label: 'Dinero',          keys: ['finanzas', 'economia'] },
+    { id: 'ajustes',  label: 'Ajustes',         keys: ['permisos', 'config'] },
     { id: 'mio',      label: 'Lo mío',          keys: ['mis-avisos', 'mi-ficha', 'portal-family', 'portal-jugador'] }
   ];
 
@@ -10650,15 +10703,16 @@ SF.router = (function () {
   var ROUTE_PAGE = {
     inicio: 'inicio', jugadores: 'jugadores', jugador: 'jugador', equipos: 'equipos', equipo: 'equipo',
     calendario: 'calendario', horarios: 'horarios',
-    importar: 'importar', captacion: 'captacion', documentos: 'documentos', informes: 'informes',
-    family: 'family', finanzas: 'finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
+    importar: 'sec-importar', captacion: 'captacion', documentos: 'sec-documentos', informes: 'informes',
+    family: 'family', finanzas: 'sec-finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
     staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo',
-    comunicados: 'comunicados', 'importar-datos': 'importar-datos', 'mis-avisos': 'mis-avisos',
-    buscar: 'buscar', presupuesto: 'presupuesto', licencias: 'licencias', inscripcion: 'inscripcion'
+    comunicados: 'comunicados', 'importar-datos': 'sec-importar', 'mis-avisos': 'mis-avisos',
+    buscar: 'buscar', presupuesto: 'sec-finanzas', licencias: 'sec-documentos', inscripcion: 'inscripcion'
   };
   // a qué item de nav corresponde resaltar
-  var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff' };
+  var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff',
+    presupuesto: 'finanzas', licencias: 'documentos', 'importar-datos': 'importar' };
 
   function parse() {
     var h = (location.hash || '').replace(/^#\/?/, '');
@@ -10683,6 +10737,20 @@ SF.router = (function () {
   }
 
   /* ¿El rol actual puede acceder a esta ruta? */
+  /* Una sección con pestañas se abre si el rol llega a alguna de ellas.
+     Sin esto, quien tuviera "Datos de partido" pero no "Desde un mensaje"
+     se quedaba fuera de la sección entera: la puerta llevaba el nombre de una
+     pestaña que él no tenía. */
+  function miembrosDe(clave) {
+    var sec = (SF.SECCIONES || []).filter(function (x) { return x.host === clave; })[0];
+    return sec ? sec.tabs.map(function (t) { return t[0]; }) : null;
+  }
+  function alcanza(clave, r) {
+    var m = miembrosDe(clave);
+    if (!m) return r.nav.indexOf(clave) >= 0;
+    return m.some(function (k) { return r.nav.indexOf(k) >= 0; });
+  }
+
   function canAccess(route, r) {
     r = r || SF.perms();   // y también puede entrar por la URL, no solo por el menú
     // Los resultados de búsqueda: quien puede ver jugadores o personal
@@ -10696,7 +10764,7 @@ SF.router = (function () {
     }
     // La ficha de staff: la abre quien ve el listado, o cualquiera la suya.
     if (route === 'staff-ficha') return r.nav.indexOf('staff') >= 0 || r.nav.indexOf('mi-ficha') >= 0;
-    return r.nav.indexOf(route) >= 0;
+    return alcanza(route, r);
   }
 
   /* La campana: el aviso de que ha entrado algo. Va en la barra superior
@@ -10751,7 +10819,7 @@ SF.router = (function () {
 
     // nav filtrada por rol
     var nav = document.getElementById('nav');
-    var visibles = NAV.filter(function (n) { return r.nav.indexOf(n[0]) >= 0; });
+    var visibles = NAV.filter(function (n) { return alcanza(n[0], r); });
     var actual = NAV_OF[parse().route] || parse().route;
 
     function boton(n) {
@@ -10861,7 +10929,7 @@ SF.router = (function () {
     // pasar query global a jugadores
     if (p.route === 'jugadores' && SF._jugQuery) { /* handled in page via closure variable */ }
     view.innerHTML = '';
-    try { fn(view, p.param); } catch (e) { view.innerHTML = '<div class="empty-panel"><p>Error al pintar la sección.</p></div>'; console.error(e); }
+    try { fn(view, p.param, p.route); } catch (e) { view.innerHTML = '<div class="empty-panel"><p>Error al pintar la sección.</p></div>'; console.error(e); }
 
     document.querySelectorAll('.nav-item').forEach(function (b) { b.classList.toggle('active', b.dataset.key === navKey); });
     view.scrollTop = 0;
