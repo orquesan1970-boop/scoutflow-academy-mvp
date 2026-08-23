@@ -1640,6 +1640,11 @@ SF.ROLES = {
     /* Firma disponibilidad, pero NO ve antecedentes médicos: para decir que
        hoy entrena al 50 % no hace falta saber si tiene una cardiopatía. */
     canSetAvailability: true, canAskCita: true,
+    /* Ve los jugadores de los equipos que le hayan asignado, no todo el club.
+       Antes veía a todos y quitarle un equipo no le quitaba nada: el botón
+       de "quitar del equipo" mentía. Si lleva todos los equipos, se le
+       asignan todos, y entonces el dato dice la verdad. */
+    team_scope: true,
     canManageTeams: false, segments: 'all', staff: true
   },
   dt_femenino: {
@@ -9339,8 +9344,17 @@ window.SF = window.SF || {};
       /* Quitar a alguien del equipo NO es cosmético: deja de ver a esos
          jugadores. Por eso se avisa de lo que implica antes de hacerlo. */
       if (can) row.querySelector('[data-q]').onclick = function () {
-        if (!confirm('¿Quitar a ' + s.full_name + ' de ' + t.name + '?\n\n' +
-          'Dejará de ver las fichas de los ' + roster.length + ' jugadores de este equipo.')) return;
+        /* El aviso depende del alcance de SU rol. A un entrenador quitarle el
+           equipo le quita el acceso; a una dirección técnica no, porque ve
+           por sección. Decir lo contrario sería mentir en un cuadro de
+           confirmación, que es el peor sitio para mentir. */
+        var rs = SF.ROLES[s.role] || {};
+        var efecto = rs.team_scope
+          ? 'Dejará de ver las fichas de los ' + roster.length + ' jugadores de este equipo.'
+          : (rs.segments && rs.segments !== 'all')
+            ? 'Seguirá viendo a estos jugadores: su cargo le da acceso a toda la sección. Solo deja de figurar en el cuerpo técnico.'
+            : 'Seguirá viendo a estos jugadores por su cargo. Solo deja de figurar en el cuerpo técnico.';
+        if (!confirm('¿Quitar a ' + s.full_name + ' de ' + t.name + '?\n\n' + efecto)) return;
         SF.store.staffAssign(s.id, t.id, false);
         U.toast(s.full_name + ' ya no está en ' + t.name); SF.router.render();
       };
