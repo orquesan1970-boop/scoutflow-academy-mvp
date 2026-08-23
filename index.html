@@ -8289,6 +8289,13 @@ window.SF = window.SF || {};
       var ptt = SF.store.teamGet(p.team_id);
       if (ptt) {
         var pnm = teamUpcoming(ptt, 'partido')[0], pnt = teamUpcoming(ptt, 'entrenamiento')[0];
+        /* La familia pregunta dos cosas: cuándo entrena y dónde. Estaba solo
+           lo puntual —la próxima cita— y no el horario fijo de la semana, que
+           es lo que de verdad organiza a una casa con un hijo en el club. */
+        b.appendChild(el('<p class="ph-sec">Su horario de la semana</p>'));
+        horarioCompacto(b, sesionesDeEquipo(pteam),
+          'Todavía no hay horario publicado para su equipo.');
+
         b.appendChild(el('<p class="ph-sec">Próximas citas</p>'));
         if (!pnm && !pnt) b.appendChild(el('<p class="hint">Sin citas próximas.</p>'));
         if (pnm) b.appendChild(el('<div class="ph-pay"><b>Partido · ' + esc(pnm.opponent || 'rival') + '</b><span>' + fmtDate(pnm.date) + (pnm.time ? ' · ' + pnm.time : '') + (pnm.place ? ' · ' + esc(pnm.place) : '') + (pnm.competition ? ' · ' + esc(pnm.competition) : '') + '</span></div>'));
@@ -8835,6 +8842,9 @@ window.SF = window.SF || {};
     });
     view.appendChild(hl);
     if (hist.length > 30) view.appendChild(el('<p class="hint">Mostrando los 30 cambios más recientes de ' + hist.length + '.</p>'));
+
+    /* Su semana: lo que le toca de todos los equipos que lleva. */
+    horarioDeStaff(view, s);
   };
 
   /* ===================== PORTAL JUGADOR (mobile) =====================
@@ -8879,6 +8889,11 @@ window.SF = window.SF || {};
     var t = p.team_id ? SF.store.teamGet(p.team_id) : null;
 
     b.appendChild(el('<div class="ph-hero"><div class="ph-photo">' + U.initials(p.full_name) + '</div><div><div class="ph-name">' + esc(p.full_name) + '</div><div class="ph-sub">' + (t ? esc(t.name) : 'Sin equipo') + '</div></div></div>'));
+
+    /* El jugador mayor de edad no tiene familia detrás que le organice: su
+       horario tiene que estar en su propio portal. */
+    b.appendChild(el('<p class="ph-sec">Tu horario de la semana</p>'));
+    horarioCompacto(b, sesionesDeEquipo(t), 'Todavía no hay horario publicado para tu equipo.');
 
     b.appendChild(el('<p class="ph-sec">Próximas citas</p>'));
     if (t) {
@@ -9720,6 +9735,50 @@ window.SF = window.SF || {};
      Pero un entrenador, o una familia, no quiere la parrilla del club entera
      para buscar su fila — quiere la suya. Es la misma información filtrada por
      equipo, y puesta en el orden en que ocurre la semana. */
+  /* Las sesiones de un equipo, ya ordenadas y listas para pintar. Se saca
+     aparte porque el mismo dato hace falta en cuatro sitios distintos —la
+     ficha del equipo, la del entrenador, el portal de la familia y el del
+     jugador— y no puede calcularse de cuatro maneras que se contradigan. */
+  function sesionesDeEquipo(team) {
+    if (!team) return [];
+    var insts = SF.store.instalaciones();
+    function pab(id) { return (insts.filter(function (x) { return x.id === id; })[0] || {}).nombre || '—'; }
+    var franjas = SF.store.franjas();
+
+    var vistos = {}, entrenos = [];
+    SF.store.horario().filter(function (x) { return x.team_id === team.id; }).forEach(function (x) {
+      var k = x.dia + '|' + x.franja + '|' + x.inst + '|' + (x.completa ? 'todo' : x.pista);
+      if (vistos[k]) return;
+      vistos[k] = 1; entrenos.push(x);
+    });
+
+    var salida = entrenos.map(function (x) {
+      return { dia: x.dia, orden: (x.franja || 0) + 0.1, tipo: 'entreno', hora: franjas[x.franja] || '—',
+        donde: pab(x.inst) + (x.completa ? ' · pista entera' : ' · ' + x.pista),
+        quien: (team.coaches || []).join(', ') || '—', equipo: team.name };
+    });
+    SF.store.pf().filter(function (x) { return x.team_id === team.id; }).forEach(function (x) {
+      var pr = SF.store.staff().filter(function (sp) { return sp.id === x.prep_id; })[0];
+      salida.push({ dia: x.dia, orden: -1, tipo: 'pf',
+        hora: (x.hora_ini || '') + (x.hora_fin ? ' – ' + x.hora_fin : ''),
+        donde: pab(x.inst) + (x.pista ? ' · ' + x.pista : ''),
+        pista_a_las: x.hora_pista || '', quien: pr ? pr.full_name : '—', equipo: team.name });
+    });
+    return salida.sort(function (a, b) { return (a.dia - b.dia) || (a.orden - b.orden); });
+  }
+
+  /* La misma semana, en formato de móvil: una línea por sesión. Una tabla de
+     cinco columnas no cabe en el portal de una familia. */
+  function horarioCompacto(cont, sesiones, vacio) {
+    if (!sesiones.length) { cont.appendChild(el('<p class="hint">' + esc(vacio) + '</p>')); return; }
+    sesiones.forEach(function (x) {
+      cont.appendChild(el('<div class="ph-pay"><b>' + esc(SF.DIAS_SEM[x.dia] || '') + ' · ' + esc(x.hora) +
+        (x.tipo === 'pf' ? ' <span class="tag tag-purple">PF</span>' : '') + '</b>' +
+        '<span>' + esc(x.donde) +
+        (x.pista_a_las ? ' · a pista a las ' + esc(x.pista_a_las) : '') + '</span></div>'));
+    });
+  }
+
   function horarioDeEquipo(view, team) {
     if (!team) return;
     var insts = SF.store.instalaciones();
@@ -9782,6 +9841,61 @@ window.SF = window.SF || {};
     var nEnt = entrenos.length, nPf = pf.length;
     view.appendChild(el('<p class="hint">' + nEnt + (nEnt === 1 ? ' sesión de pista' : ' sesiones de pista') +
       ' y ' + nPf + (nPf === 1 ? ' de preparación física' : ' de preparación física') + ' a la semana.</p>'));
+  }
+
+  /* El horario de una persona del cuerpo técnico: lo de todos los equipos que
+     lleva, más las sesiones de preparación física que da él. Un preparador
+     puede no ser entrenador de ningún equipo y aun así tener media semana
+     ocupada; si solo miráramos sus equipos, su horario saldría vacío. */
+  function horarioDeStaff(view, s) {
+    if (!s) return;
+    var suyos = SF.store.teams().filter(function (t) {
+      return (s.team_ids || []).indexOf(t.id) >= 0 || (t.coaches || []).indexOf(s.full_name) >= 0;
+    });
+    var todo = [];
+    suyos.forEach(function (t) {
+      sesionesDeEquipo(t).forEach(function (x) {
+        /* De sus equipos se queda con lo que le toca: si es entrenador, la
+           pista; la preparación física la da el preparador, no él. */
+        if (x.tipo === 'pf' && x.quien !== s.full_name) return;
+        todo.push(x);
+      });
+    });
+    /* Y la PF que da él en equipos que no lleva. */
+    SF.store.pf().filter(function (x) { return x.prep_id === s.id; }).forEach(function (x) {
+      if (todo.some(function (y) { return y.tipo === 'pf' && y.dia === x.dia && y.hora.indexOf(x.hora_ini) === 0; })) return;
+      var eq = SF.store.teamGet(x.team_id);
+      var insts = SF.store.instalaciones();
+      var pb = (insts.filter(function (i) { return i.id === x.inst; })[0] || {}).nombre || '—';
+      todo.push({ dia: x.dia, orden: -1, tipo: 'pf',
+        hora: (x.hora_ini || '') + (x.hora_fin ? ' – ' + x.hora_fin : ''),
+        donde: pb + (x.pista ? ' · ' + x.pista : ''), pista_a_las: x.hora_pista || '',
+        quien: s.full_name, equipo: eq ? eq.name : '—' });
+    });
+    todo.sort(function (a, b) { return (a.dia - b.dia) || (a.orden - b.orden); });
+
+    view.appendChild(el('<p class="sec-label">Su horario semanal</p>'));
+    if (!todo.length) {
+      view.appendChild(el('<p class="hint">No tiene pistas ni sesiones asignadas todavía.</p>'));
+      return;
+    }
+    var t = el('<div class="cal-scroll"><table class="cua-tab eq-hor"><thead><tr>' +
+      '<th>Día</th><th>Horario</th><th>Equipo</th><th>Dónde</th><th>Qué</th>' +
+      '</tr></thead><tbody></tbody></table></div>');
+    var tb = t.querySelector('tbody');
+    var ant = null;
+    todo.forEach(function (x) {
+      var primero = x.dia !== ant; ant = x.dia;
+      tb.appendChild(el('<tr>' +
+        '<td>' + (primero ? '<b>' + esc(SF.DIAS_SEM[x.dia] || '') + '</b>' : '') + '</td>' +
+        '<td>' + esc(x.hora) + '</td>' +
+        '<td>' + esc(x.equipo) + '</td>' +
+        '<td>' + esc(x.donde) + '</td>' +
+        '<td>' + (x.tipo === 'pf' ? '<span class="tag tag-purple">PF</span>' : '<span class="tag tag-gray">Entreno</span>') + '</td></tr>'));
+    });
+    view.appendChild(t);
+    view.appendChild(el('<p class="hint">' + todo.length + (todo.length === 1 ? ' sesión' : ' sesiones') +
+      ' a la semana, entre ' + suyos.length + (suyos.length === 1 ? ' equipo' : ' equipos') + ' y preparación física.</p>'));
   }
 
   pages.equipo = function (view, id) {
