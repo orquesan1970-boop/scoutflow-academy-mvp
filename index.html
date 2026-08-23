@@ -27,17 +27,21 @@ h1,h2,h3{font-weight:600;margin:0}
 .app{display:grid;grid-template-columns:236px 1fr;min-height:100vh}
 
 /* Sidebar */
-.sidebar{background:var(--sidebar);color:var(--sb-ink);padding:22px 14px;display:flex;flex-direction:column;gap:24px;position:sticky;top:0;height:100vh}
+.sidebar{background:var(--sidebar);color:var(--sb-ink);padding:22px 14px;display:flex;flex-direction:column;gap:24px;position:sticky;top:0;height:100vh;overflow:hidden}
 .brand{display:flex;align-items:center;gap:11px;padding:0 6px}
 .logo{width:46px;height:46px;flex-shrink:0;object-fit:contain;display:block}
 .brand h1{font-size:16px;color:#fff}
 .brand p{margin:2px 0 0;font-size:11px;color:var(--sb-ink-2)}
-.nav{display:flex;flex-direction:column;gap:3px}
+/* El menú se lleva el espacio sobrante y hace scroll si no cabe, para que
+   el pie (academia, versión, cuenta) quede siempre anclado y accesible. */
+.nav{display:flex;flex-direction:column;gap:3px;flex:1 1 auto;min-height:0;overflow-y:auto;scrollbar-width:thin;scrollbar-color:rgba(255,255,255,.18) transparent}
+.nav::-webkit-scrollbar{width:6px}
+.nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.18);border-radius:3px}
 .nav-item{display:flex;align-items:center;gap:11px;width:100%;background:none;border:0;color:var(--sb-ink);padding:10px 12px;border-radius:var(--r);font-size:13.5px;cursor:pointer;text-align:left;transition:background .15s,color .15s;font-family:inherit}
 .nav-item .ic{opacity:.85}
 .nav-item:hover{background:var(--sb-active);color:#fff}
 .nav-item.active{background:var(--purple);color:#fff}
-.sb-foot{margin-top:auto;padding:0 8px}
+.sb-foot{flex:0 0 auto;padding:0 8px}
 .sb-academy{font-size:11px;color:var(--sb-ink-2)}
 
 /* Main + topbar */
@@ -122,7 +126,19 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 
 /* Cards / listas */
 .cols{display:grid;grid-template-columns:1.4fr 1fr;gap:20px;margin-top:16px;align-items:start}
+.cols>*{min-width:0}
+.card{max-width:100%}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:18px 20px;margin-bottom:16px}
+/* Calendario y cuadrantes, plegados dentro de la pantalla de trabajo */
+.agenda{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);margin:16px 0;overflow:hidden}
+.agenda-head{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;font-family:inherit;font-size:14px;color:var(--ink);padding:14px 18px;cursor:pointer;text-align:left}
+.agenda-head:hover{background:var(--bg)}
+.agenda-t{font-weight:500;white-space:nowrap}
+.agenda-s{color:var(--ink-3);font-size:12.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agenda-x{color:var(--ink-3);display:flex;transition:transform .15s}
+.agenda-head[aria-expanded="true"] .agenda-x{transform:rotate(180deg)}
+.agenda-body{padding:4px 18px 18px;border-top:1px solid var(--line)}
+@media(max-width:720px){.agenda-s{display:none}.agenda-body{padding:4px 12px 14px}}
 .card h3{font-size:15px;margin-bottom:4px}
 .att{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line);cursor:pointer}
 .att:first-of-type{border-top:none}
@@ -820,9 +836,39 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .today-t{font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--ink-2);font-weight:700}
 .today-s{font-size:14px;font-weight:650;margin-top:5px;line-height:1.35}
 
+/* ---- Nube: pantalla de acceso y pie de cuenta ---- */
+.sf-gate{position:fixed;inset:0;z-index:9999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:24px}
+.sf-gate-box{width:100%;max-width:380px}
+.sf-gate-brand{display:flex;align-items:center;gap:12px;margin-bottom:26px}
+.sf-gate-brand img{width:42px;height:42px;border-radius:11px}
+.sf-gate-brand h1{font-size:19px;line-height:1.15;margin:0}
+.sf-gate-brand p{font-size:12.5px;color:var(--ink-3);margin:2px 0 0}
+.sf-gate-card{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:24px}
+.sf-gate-card h2{font-size:16px;margin:0 0 4px}
+.sf-gate-card .hint{margin-bottom:18px}
+.sf-gate-card label{display:block;font-size:12.5px;color:var(--ink-2);margin:0 0 5px}
+.sf-gate-card input{width:100%;padding:10px 12px;border:1px solid var(--line-2);border-radius:var(--r);font-family:inherit;font-size:14px;color:var(--ink);background:var(--surface);margin-bottom:14px}
+.sf-gate-card input:focus{outline:none;border-color:var(--purple)}
+.sf-gate-card .btn{width:100%;justify-content:center}
+.sf-gate-msg{font-size:12.5px;padding:10px 12px;border-radius:var(--r);margin-bottom:14px;display:none}
+.sf-gate-msg.on{display:block}
+.sf-gate-msg.err{background:#FDECEC;color:#9B2C2C}
+.sf-gate-msg.ok{background:#E8F6EE;color:#1F6B43}
+.sf-gate-alt{text-align:center;font-size:12.5px;color:var(--ink-3);margin-top:14px}
+.sf-gate-alt button{background:none;border:0;color:var(--purple);font-family:inherit;font-size:12.5px;cursor:pointer;text-decoration:underline;padding:0}
+.sf-gate-foot{text-align:center;font-size:11.5px;color:var(--ink-3);margin-top:18px;line-height:1.5}
+.sf-cuenta{display:block;margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,.08);font-size:11.5px;color:var(--sb-ink);opacity:.75;line-height:1.5}
+.sf-cuenta b{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sf-cuenta .est{display:block;opacity:.7;margin-bottom:3px}
+.sf-cuenta button{background:none;border:0;color:inherit;font-family:inherit;font-size:11.5px;cursor:pointer;text-decoration:underline;padding:0;opacity:.8}
+@media(max-width:980px){.sf-cuenta{display:none}}
+
 </style>
 </head>
 <body>
+  <!-- Cliente de Supabase. Si no carga (sin red, CDN bloqueado), la app sigue
+       funcionando en modo local: se avisa y se guarda en el navegador. -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <div id="app-root"></div>
   <script>
 /* js/logo.js */
@@ -2842,7 +2888,14 @@ SF.store = (function () {
   }
   var LS = canLS();
 
+  /* Una sola puerta de entrada y salida de datos. Cuando hay sesión en la
+     nube, esa puerta da a Supabase; si no, al navegador, exactamente como
+     antes. El resto de la aplicación —las 20 secciones, los 16 roles— no se
+     entera de nada y no ha habido que tocarla. */
+  function enNube() { return !!(window.SF && SF.cloud && SF.cloud.activa()); }
+
   function read() {
+    if (enNube()) return SF.cloud.leer();
     if (LS) {
       var raw = localStorage.getItem(KEY);
       return raw ? JSON.parse(raw) : null;
@@ -2850,6 +2903,7 @@ SF.store = (function () {
     return mem;
   }
   function write(db) {
+    if (enNube()) { SF.cloud.escribir(db); return; }
     if (LS) localStorage.setItem(KEY, JSON.stringify(db));
     else mem = db;
   }
@@ -2987,6 +3041,30 @@ SF.store = (function () {
 
   function save(d) { write(d); }
 
+  /* --- Completar con los datos de ejemplo que falten ------------------------
+     Los datos de ejemplo solo se escriben cuando el almacén está VACÍO. De ahí
+     salía un problema silencioso: todo lo que se añadiera a la semilla después
+     —una plantilla entera, un preparador físico, un cuadrante— no llegaba
+     nunca a quien ya estaba trabajando. Su navegador se quedaba en la versión
+     del día que empezó, y parecía que faltaban cosas o que se habían borrado.
+
+     Esto lo arregla comparando las dos listas por `id` y añadiendo SOLO lo que
+     no está. Nunca pisa ni modifica nada existente: si un jugador ya está, se
+     deja exactamente como esté, con las evaluaciones y los cambios que le
+     hayas hecho. Por eso se puede pulsar las veces que haga falta. */
+  function faltaDeLaSemilla() {
+    var d = db(), s = seed(), out = [];
+    [['players', 'jugadores'], ['teams', 'equipos'], ['staff', 'personal'],
+     ['horario', 'franjas del cuadrante'], ['pf', 'sesiones de preparación física'],
+     ['expenses', 'gastos'], ['citas', 'citas']].forEach(function (par) {
+      var tengo = {};
+      (d[par[0]] || []).forEach(function (x) { if (x && x.id) tengo[x.id] = 1; });
+      var nuevos = (s[par[0]] || []).filter(function (x) { return x && x.id && !tengo[x.id]; });
+      if (nuevos.length) out.push({ k: par[0], label: par[1], items: nuevos });
+    });
+    return out;
+  }
+
   function age(birth_date) {
     if (!birth_date) return null;
     var b = new Date(birth_date), n = new Date();
@@ -2999,6 +3077,27 @@ SF.store = (function () {
   return {
     persistent: LS,
     reset: function () { if (LS) localStorage.removeItem(KEY); mem = null; },
+
+    /* Qué se añadiría, sin añadir nada. Sirve para enseñarlo antes de tocar. */
+    queFalta: faltaDeLaSemilla,
+
+    completarDemo: function () {
+      var d = db(), falta = faltaDeLaSemilla(), n = 0;
+      falta.forEach(function (g) {
+        d[g.k] = (d[g.k] || []).concat(JSON.parse(JSON.stringify(g.items)));
+        n += g.items.length;
+      });
+      if (!d.academy.instalaciones && SF.INSTALACIONES) {
+        d.academy.instalaciones = JSON.parse(JSON.stringify(SF.INSTALACIONES));
+      }
+      /* Número de ficha correlativo para los que entren sin él, sin repetir
+         ninguno de los que ya estaban. */
+      var maxF = (d.players || []).reduce(function (m, x) { return Math.max(m, x.ficha || 0); }, 0);
+      (d.players || []).forEach(function (x) { if (x.ficha == null) x.ficha = ++maxF; });
+      d.seq = Math.max(d.seq || 0, (SF.SEED_PLAYERS ? SF.SEED_PLAYERS.length + 1 : 8));
+      save(d);
+      return n;
+    },
     age: age,
 
     academy: function () { return db().academy; },
@@ -3682,6 +3781,7 @@ SF.SPRITE = '<svg width="0" height="0" style="position:absolute" aria-hidden="tr
   '<symbol id="i-list" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></symbol>' +
   '<symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13"/></symbol>' +
   '<symbol id="i-edit" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M14 6l4 4"/></symbol>' +
+  '<symbol id="i-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></symbol>' +
   '<symbol id="i-back" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></symbol>' +
   '<symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11"/><path d="M7 11l5 4 5-4"/><path d="M5 20h14"/></symbol>' +
   '<symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V5"/><path d="M7 9l5-4 5 4"/><path d="M5 19h14"/></symbol>' +
@@ -6647,7 +6747,7 @@ window.SF = window.SF || {};
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
-  pages.calendario = function (view) {
+  pages.calendario = function (view, _p, embed) {
     var r = role();
     /* La semana que se está mirando se guarda para que al volver de una ficha
        no te devuelva a la de hoy.
@@ -6680,7 +6780,7 @@ window.SF = window.SF || {};
       return r.segments.indexOf(t.segment) >= 0;
     });
 
-    view.innerHTML = head('Calendario', 'Los entrenamientos y los partidos de todo el club, semana a semana.');
+    view.innerHTML = embed ? '' : head('Calendario', 'Los entrenamientos y los partidos de todo el club, semana a semana.');
 
     /* --- Navegación de semanas --- */
     var nav = el('<div class="cal-nav"></div>');
@@ -6796,10 +6896,10 @@ window.SF = window.SF || {};
        · el horario de entrenamientos (día × franja × pista),
        · el cuadrante de preparación física (con su preparador).
      Son el horario FIJO de la temporada, no las citas con fecha. */
-  pages.horarios = function (view) {
+  pages.horarios = function (view, _p, embed) {
     var r = role();
     var tab = SF._cuadrante || 'entrenos';
-    view.innerHTML = head('Cuadrantes', 'El horario fijo de la temporada: qué equipo entrena cuándo y en qué pista.');
+    view.innerHTML = embed ? '' : head('Cuadrantes', 'El horario fijo de la temporada: qué equipo entrena cuándo y en qué pista.');
 
     var tabs = el('<div class="tabbar"></div>');
     [['entrenos', 'Entrenamientos'], ['pf', 'Preparación física']].forEach(function (t) {
@@ -7481,7 +7581,7 @@ window.SF = window.SF || {};
     form.appendChild(save);
     view.appendChild(form);
 
-    var data = el('<div class="card"><h3>Datos</h3><p class="hint">Exporta o importa todos los jugadores en JSON. Restablece para volver a los datos de ejemplo.</p><div class="row-c"></div></div>');
+    var data = el('<div class="card"><h3>Datos</h3><p class="hint">Exporta o importa todos los jugadores en JSON. "Completar" añade lo que falte de los datos de ejemplo sin tocar tu trabajo. "Restablecer" borra todo y vuelve al principio.</p><div class="row-c"></div></div>');
     var rc = data.querySelector('.row-c');
     var exp = el('<button class="btn">' + ico('download') + 'Exportar JSON</button>');
     exp.onclick = function () {
@@ -7494,9 +7594,39 @@ window.SF = window.SF || {};
       rd.onload = function () { try { SF.store.importJSON(rd.result); U.toast('Importado'); SF.router.render(); } catch (err) { U.toast('JSON inválido'); } };
       rd.readAsText(file);
     };
+    /* Añadir lo que falte de la semilla. Va ANTES del botón rojo a propósito:
+       casi siempre que alguien echa de menos datos, lo que necesita es esto y
+       no un restablecimiento que se lleva por delante su trabajo. */
+    var bDemo = el('<button class="btn">' + ico('plus') + 'Completar con datos de ejemplo</button>');
+    bDemo.onclick = function () {
+      var falta = SF.store.queFalta();
+      var total = falta.reduce(function (a, g) { return a + g.items.length; }, 0);
+      if (!total) { U.toast('Ya tienes todos los datos de ejemplo'); return; }
+      var cuerpo = el('<div><p class="hint">Se van a <b>añadir</b> estas cosas. ' +
+        'No se toca ni se pisa nada de lo que ya tienes: los jugadores que ya estén se quedan ' +
+        'exactamente como están, con sus evaluaciones y sus cambios.</p><div class="mini-list"></div></div>');
+      var lst = cuerpo.querySelector('.mini-list');
+      falta.forEach(function (g) {
+        var nombres = g.items.map(function (x) { return x.full_name || x.name || x.nombre || ''; })
+          .filter(Boolean).slice(0, 4).join(', ');
+        lst.appendChild(el('<div class="mini-row"><span><b>' + g.items.length + '</b> ' + esc(g.label) + '</span>' +
+          '<span class="hint">' + esc(nombres) + (g.items.length > 4 ? '…' : '') + '</span></div>'));
+      });
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+        '<button class="btn btn-primary">Añadir ' + total + '</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        var n = SF.store.completarDemo();
+        U.closeModal(); U.toast(n + (n === 1 ? ' elemento añadido' : ' elementos añadidos'));
+        SF.router.render();
+      };
+      cuerpo.appendChild(foot);
+      U.modal('Completar con datos de ejemplo', cuerpo);
+    };
+
     var rst = el('<button class="btn btn-danger">Restablecer datos</button>');
     rst.onclick = function () { if (confirm('¿Volver a los datos de ejemplo?')) { SF.store.reset(); U.toast('Restablecido'); SF.router.render(); } };
-    rc.appendChild(exp); rc.appendChild(impl); rc.appendChild(rst);
+    rc.appendChild(exp); rc.appendChild(impl); rc.appendChild(bDemo); rc.appendChild(rst);
     view.appendChild(data);
 
     view.appendChild(el('<p class="hint" style="margin-top:16px">Almacenamiento: ' + (SF.store.persistent ? 'localStorage (persiste al cerrar)' : 'memoria (este entorno no permite localStorage; persistirá al subir a tu hosting)') + '.</p>'));
@@ -10391,6 +10521,75 @@ window.SF = window.SF || {};
      router está en otro bloque y también los necesita: el menú y el control
      de rutas tienen que ver exactamente lo mismo que las pantallas. */
   SF.perms = role;
+  /* ===================== CALENDARIO Y CUADRANTES, DENTRO DE LA PANTALLA =====================
+     Eran dos entradas más del menú lateral, y el menú se había vuelto
+     interminable. En el fondo responden a la misma pregunta —quién entrena y
+     juega, y cuándo— vista de dos maneras: la semana concreta (Calendario) y
+     el horario fijo de la temporada (Cuadrantes). Así que van juntas, en un
+     desplegable cerrado, dentro de la pantalla por la que cada rol pasa: Inicio
+     para la dirección, Equipos o Mi equipo para quien no tiene Inicio.
+     Las rutas #/calendario y #/horarios siguen existiendo: quien las tenga
+     guardadas, o quiera la parrilla a pantalla completa, sigue llegando. */
+  function bloqueAgenda(view) {
+    if (!view) return;
+    var r = role();
+    var tabs = [];
+    if (r.nav.indexOf('calendario') >= 0) tabs.push(['semana', 'Esta semana', 'calendario']);
+    if (r.nav.indexOf('horarios') >= 0) tabs.push(['cuadrante', 'Cuadrantes', 'horarios']);
+    if (!tabs.length) return;
+
+    var abierto = SF._agendaOpen === true;
+    var cual = SF._agendaTab;
+    if (!tabs.some(function (t) { return t[0] === cual; })) cual = tabs[0][0];
+
+    var box = el('<div class="agenda"></div>');
+    var sub = tabs.length > 1
+      ? 'La semana del club y el horario fijo de pistas'
+      : (cual === 'semana' ? 'Entrenamientos y partidos, semana a semana' : 'El horario fijo de la temporada');
+    var cab = el('<button class="agenda-head" aria-expanded="' + (abierto ? 'true' : 'false') + '">' +
+      ico('cal') + '<span class="agenda-t">' +
+      (tabs.length > 1 ? 'Calendario y cuadrantes' : esc(tabs[0][1] === 'Esta semana' ? 'Calendario' : 'Cuadrantes')) +
+      '</span><span class="agenda-s">' + esc(sub) + '</span>' +
+      '<span class="agenda-x">' + ico('chev') + '</span></button>');
+    cab.onclick = function () { SF._agendaOpen = !abierto; SF.router.render(); };
+    box.appendChild(cab);
+
+    if (abierto) {
+      var body = el('<div class="agenda-body"></div>');
+      if (tabs.length > 1) {
+        var tbar = el('<div class="tabbar"></div>');
+        tabs.forEach(function (t) {
+          var b = el('<button class="tab' + (cual === t[0] ? ' on' : '') + '">' + esc(t[1]) + '</button>');
+          b.onclick = function () { SF._agendaTab = t[0]; SF._agendaOpen = true; SF.router.render(); };
+          tbar.appendChild(b);
+        });
+        body.appendChild(tbar);
+      }
+      var cont = el('<div></div>');
+      body.appendChild(cont);
+      box.appendChild(body);
+      var pg = tabs.filter(function (t) { return t[0] === cual; })[0][2];
+      /* embed = true: la vista se pinta sin su cabecera de página, porque la
+         cabecera aquí ya la pone el propio desplegable. */
+      try { pages[pg](cont, null, true); }
+      catch (e) { cont.innerHTML = '<p class="hint">No se pudo pintar esta vista.</p>'; console.error(e); }
+    }
+    view.appendChild(box);
+  }
+
+  /* Se engancha por fuera, envolviendo las páginas ya escritas, para no
+     repetir la llamada en cada variante de Inicio (dirección, DT,
+     administrativo, entrenador) ni tocarlas una a una. */
+  ['inicio', 'equipos', 'mi-equipo'].forEach(function (k) {
+    var original = pages[k];
+    if (!original) return;
+    pages[k] = function (view, param) {
+      original.call(pages, view, param);
+      bloqueAgenda(view);
+    };
+  });
+
+
 })();
 
 </script>
@@ -10404,7 +10603,7 @@ SF.router = (function () {
 
   var NAV = [
     ['inicio', 'Inicio', 'home'], ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'],
-    ['calendario', 'Calendario', 'cal'], ['horarios', 'Cuadrantes', 'grid'], ['importar', 'Importar mensaje', 'ai'],
+    ['importar', 'Importar mensaje', 'ai'],
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
@@ -10433,11 +10632,19 @@ SF.router = (function () {
   }
 
   function defaultRoute() {
-    var r = SF.store.role();
-    if (r === 'padre') return '#/portal-family';
-    if (r === 'jugador') return '#/portal-jugador';
-    if (r === 'entrenador') return '#/mi-equipo';
-    return '#/inicio';
+    var rk = SF.store.role();
+    if (rk === 'padre') return '#/portal-family';
+    if (rk === 'jugador') return '#/portal-jugador';
+    if (rk === 'entrenador') return '#/mi-equipo';
+    var r = SF.perms();
+    if (r.nav.indexOf('inicio') >= 0) return '#/inicio';
+    /* Hay roles que no tienen Inicio —el delegado de equipo, por ejemplo— y
+       aterrizaban en una pantalla que su propio rol no puede ver: entraban y
+       lo primero que leían era "Tu rol no tiene acceso a esta sección".
+       En vez de ir añadiendo excepciones una a una cada vez que se cree un
+       rol, se le manda a la primera sección de su menú a la que sí llega. */
+    var primera = (r.nav || []).filter(function (n) { return canAccess(n, r); })[0];
+    return primera ? '#/' + primera : '#/inicio';
   }
 
   /* ¿El rol actual puede acceder a esta ruta? */
@@ -10487,7 +10694,8 @@ SF.router = (function () {
       '<div class="brand"><img class="logo" src="' + SF.LOGO + '" alt="ScoutFlow"><div><h1>ScoutFlow</h1><p>From Prospect to Player</p></div></div>' +
       '<nav class="nav" id="nav"></nav>' +
       '<div class="sb-foot"><span class="sb-academy">' + esc(a.name) + ' · ' + esc((SF.SPORTS[a.primary_sport] || {}).label || '') +
-      '<br><span style="opacity:.55">v' + esc(SF.BUILD) + '</span></span></div>' +
+      '<br><span style="opacity:.55">v' + esc(SF.BUILD) + '</span></span>' +
+      (SF.cloud ? SF.cloud.pieHTML() : '') + '</div>' +
       '</aside>' +
       '<main class="main">' +
       '<header class="topbar">' +
@@ -10621,13 +10829,237 @@ SF.router = (function () {
 
 </script>
   <script>
+/* =========================================================================
+   ScoutFlow · La nube (Supabase) — Paso 1
+   -------------------------------------------------------------------------
+   Qué resuelve: hasta ahora los datos vivían en el navegador. Eso significaba
+   que se perdían al limpiarlo, que no se veían desde el móvil y que no había
+   copia de nada. Ahora viven en Supabase.
+
+   Cómo, sin reescribir la aplicación: el `store` tenía una sola puerta de
+   entrada y salida (`read` y `write`). Este módulo se pone detrás de esa
+   puerta. Las 20 secciones y los 16 roles siguen pidiendo los datos igual y no
+   saben —ni les hace falta— de dónde salen.
+
+   Si Supabase no está disponible (sin red, CDN bloqueado), la app NO se queda
+   en blanco: entra en modo local, avisa, y guarda en el navegador como antes.
+   Un fallo de red no puede dejar a un club sin poder trabajar.
+   ========================================================================= */
+window.SF = window.SF || {};
+SF.cloud = (function () {
+  var URL_PROYECTO = 'https://cnejpriixstcfworzkx.supabase.co';
+  /* Clave publicable. Es pública por diseño: puede estar a la vista en el
+     código porque por sí sola no abre nada. Quien decide qué se puede leer y
+     escribir son las reglas RLS del servidor, no esta cadena. */
+  var CLAVE = 'sb_publishable_KnnAXURjbcItWx_ebyUXRQ_gq4q5X_3';
+
+  var CACHE = 'scoutflow:cache:v1';   // copia local, por si se cae la red
+  var LOCAL = 'scoutflow:db:v2';      // el almacén de siempre del navegador
+
+  var cli = null, usuario = null, datos = null, modoLocal = false;
+  var temporizador = null, estado = 'listo', guardando = false, pendiente = false;
+
+  function el(h) { var d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstChild; }
+  function esc(t) { return String(t == null ? '' : t).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+  /* ---------------- estado visible ---------------- */
+  function marcar(e) {
+    estado = e;
+    var n = document.getElementById('sf-cloud-est');
+    if (n) n.textContent = texto();
+  }
+  function texto() {
+    if (modoLocal) return 'solo en este navegador';
+    if (estado === 'guardando') return 'guardando…';
+    if (estado === 'error') return 'no se pudo guardar';
+    return 'guardado en la nube';
+  }
+
+  /* ---------------- lo que usa el store ---------------- */
+  function activa() { return !!(cli && usuario && !modoLocal); }
+  function leer() { return datos; }
+  function escribir(d) {
+    datos = d;
+    /* Copia local inmediata. Si el navegador se cierra antes de que suba,
+       no se pierde: al volver a entrar se sube lo que quedó pendiente. */
+    try { localStorage.setItem(CACHE, JSON.stringify(d)); } catch (e) {}
+    clearTimeout(temporizador);
+    /* No se sube en cada tecla: se espera a que pare de escribir. Subir 40
+       veces mientras rellena una ficha no aporta nada y gasta cuota. */
+    temporizador = setTimeout(subir, 1200);
+    marcar('guardando');
+  }
+
+  function subir() {
+    if (!activa() || !datos) return;
+    if (guardando) { pendiente = true; return; }
+    guardando = true;
+    cli.from('academy_data')
+      .upsert({ owner_id: usuario.id, data: datos }, { onConflict: 'owner_id' })
+      .then(function (r) {
+        guardando = false;
+        if (r.error) { console.error('[ScoutFlow] al guardar:', r.error); marcar('error'); }
+        else marcar('listo');
+        if (pendiente) { pendiente = false; subir(); }
+      });
+  }
+
+  /* Al cerrar la pestaña, si quedaba algo por subir, se sube ya sin esperar. */
+  window.addEventListener('pagehide', function () { clearTimeout(temporizador); subir(); });
+
+  /* ---------------- carga inicial ---------------- */
+  function cargar() {
+    return cli.from('academy_data').select('data').eq('owner_id', usuario.id).maybeSingle()
+      .then(function (r) {
+        if (r.error) throw r.error;
+        if (r.data && r.data.data && Object.keys(r.data.data).length) {
+          datos = r.data.data;
+          return;
+        }
+        /* Primera vez en la nube: en vez de empezar de cero, se sube lo que
+           este navegador ya tenía. Así el trabajo hecho hasta hoy viaja con
+           el usuario en lugar de quedarse atrás. */
+        var previo = null;
+        try { previo = JSON.parse(localStorage.getItem(CACHE) || localStorage.getItem(LOCAL) || 'null'); } catch (e) {}
+        datos = previo;                       // si es null, el store siembra y se sube solo
+        if (datos) { subir(); }
+      });
+  }
+
+  /* ---------------- pie de la barra lateral ---------------- */
+  function pieHTML() {
+    if (modoLocal) {
+      return '<span class="sf-cuenta"><b>Modo local</b><span class="est">sin conexión con la nube</span></span>';
+    }
+    if (!usuario) return '';
+    return '<span class="sf-cuenta"><b>' + esc(usuario.email) + '</b>' +
+      '<span class="est" id="sf-cloud-est">' + esc(texto()) + '</span>' +
+      '<button id="sf-salir">Cerrar sesión</button></span>';
+  }
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest && e.target.closest('#sf-salir');
+    if (!b || !cli) return;
+    clearTimeout(temporizador); subir();
+    cli.auth.signOut().then(function () { location.reload(); });
+  });
+
+  /* ---------------- pantalla de acceso ---------------- */
+  function puerta(seguir) {
+    var registro = false;
+    var g = el('<div class="sf-gate"><div class="sf-gate-box">' +
+      '<div class="sf-gate-brand"><img src="' + SF.LOGO + '" alt=""><div>' +
+      '<h1>ScoutFlow Academy</h1><p>From Prospect to Player</p></div></div>' +
+      '<div class="sf-gate-card">' +
+      '<h2 id="g-t">Entrar</h2><p class="hint" id="g-s">Tus datos, en la nube y en todos tus dispositivos.</p>' +
+      '<div class="sf-gate-msg" id="g-m"></div>' +
+      '<label for="g-e">Correo electrónico</label><input id="g-e" type="email" autocomplete="email" placeholder="tu@correo.com">' +
+      '<label for="g-p">Contraseña</label><input id="g-p" type="password" autocomplete="current-password" placeholder="Mínimo 6 caracteres">' +
+      '<button class="btn btn-primary" id="g-ok">Entrar</button>' +
+      '<p class="sf-gate-alt">¿No tienes cuenta? <button id="g-alt">Crear una</button></p>' +
+      '</div>' +
+      '<p class="sf-gate-foot">Los datos se guardan en Frankfurt, dentro de la Unión Europea.</p>' +
+      '</div></div>');
+    document.body.appendChild(g);
+
+    var iT = g.querySelector('#g-t'), iS = g.querySelector('#g-s'), iM = g.querySelector('#g-m');
+    var iE = g.querySelector('#g-e'), iP = g.querySelector('#g-p');
+    var bOk = g.querySelector('#g-ok'), bAlt = g.querySelector('#g-alt');
+
+    function msg(t, clase) { iM.textContent = t; iM.className = 'sf-gate-msg on ' + clase; }
+    function limpiar() { iM.className = 'sf-gate-msg'; }
+
+    bAlt.onclick = function () {
+      registro = !registro; limpiar();
+      iT.textContent = registro ? 'Crear cuenta' : 'Entrar';
+      iS.textContent = registro ? 'Se creará tu academia al entrar por primera vez.' : 'Tus datos, en la nube y en todos tus dispositivos.';
+      bOk.textContent = registro ? 'Crear cuenta' : 'Entrar';
+      bAlt.textContent = registro ? 'Entrar' : 'Crear una';
+      bAlt.previousSibling.textContent = registro ? '¿Ya tienes cuenta? ' : '¿No tienes cuenta? ';
+      iP.setAttribute('autocomplete', registro ? 'new-password' : 'current-password');
+    };
+
+    function enviar() {
+      var correo = (iE.value || '').trim(), clave = iP.value || '';
+      if (!correo) { msg('Escribe tu correo.', 'err'); iE.focus(); return; }
+      if (clave.length < 6) { msg('La contraseña necesita al menos 6 caracteres.', 'err'); iP.focus(); return; }
+      limpiar(); bOk.disabled = true; bOk.textContent = 'Un momento…';
+
+      var accion = registro
+        ? cli.auth.signUp({ email: correo, password: clave })
+        : cli.auth.signInWithPassword({ email: correo, password: clave });
+
+      accion.then(function (r) {
+        bOk.disabled = false;
+        bOk.textContent = registro ? 'Crear cuenta' : 'Entrar';
+        if (r.error) { msg(traducir(r.error.message), 'err'); return; }
+        if (!r.data.session) {
+          msg('Te hemos enviado un correo para confirmar la cuenta. Ábrelo y vuelve aquí.', 'ok');
+          return;
+        }
+        usuario = r.data.session.user;
+        bOk.disabled = true; bOk.textContent = 'Cargando tus datos…';
+        cargar().then(function () { g.remove(); seguir(); })
+          .catch(function (err) {
+            console.error('[ScoutFlow] al cargar:', err);
+            bOk.disabled = false; bOk.textContent = 'Entrar';
+            msg('Has entrado, pero no se pudieron leer los datos. ¿Ejecutaste el SQL de la tabla?', 'err');
+          });
+      });
+    }
+    bOk.onclick = enviar;
+    [iE, iP].forEach(function (i) { i.addEventListener('keydown', function (e) { if (e.key === 'Enter') enviar(); }); });
+    iE.focus();
+  }
+
+  /* Los mensajes de Supabase vienen en inglés y de técnico. Aquí se dicen en
+     castellano y en persona, que es como hay que hablarle a quien usa la app. */
+  function traducir(m) {
+    m = String(m || '');
+    if (/Invalid login credentials/i.test(m)) return 'Correo o contraseña incorrectos.';
+    if (/User already registered/i.test(m)) return 'Ya existe una cuenta con ese correo. Prueba a entrar.';
+    if (/Password should be/i.test(m)) return 'La contraseña necesita al menos 6 caracteres.';
+    if (/Email not confirmed/i.test(m)) return 'Falta confirmar la cuenta. Mira tu correo.';
+    if (/rate limit|too many/i.test(m)) return 'Demasiados intentos seguidos. Espera un minuto.';
+    if (/fetch|network/i.test(m)) return 'No hay conexión con el servidor.';
+    return m;
+  }
+
+  /* ---------------- arranque ---------------- */
+  function arrancar(seguir) {
+    if (!window.supabase || !window.supabase.createClient) {
+      modoLocal = true;
+      console.warn('[ScoutFlow] Supabase no disponible: se trabaja en local.');
+      seguir();
+      return;
+    }
+    cli = window.supabase.createClient(URL_PROYECTO, CLAVE);
+    cli.auth.getSession().then(function (r) {
+      var ses = r.data && r.data.session;
+      if (!ses) { puerta(seguir); return; }
+      usuario = ses.user;
+      cargar().then(seguir).catch(function (err) {
+        console.error('[ScoutFlow] al cargar:', err);
+        usuario = null; puerta(seguir);
+      });
+    });
+  }
+
+  return { arrancar: arrancar, activa: activa, leer: leer, escribir: escribir, pieHTML: pieHTML };
+})();
+
+</script>
+  <script>
 /* js/app.js */
 /* Arranque de la app */
 (function () {
   // inyecta el sprite de iconos
   var s = document.createElement('div'); s.innerHTML = SF.SPRITE; document.body.appendChild(s.firstChild);
-  // arranca el router en el contenedor raíz
-  SF.router.start(document.getElementById('app-root'));
+  /* Primero la nube: pide sesión si hace falta y deja los datos cargados.
+     Solo cuando hay datos se pinta la app, para que nadie vea por un instante
+     una academia vacía que no es la suya. */
+  SF.cloud.arrancar(function () {
+    SF.router.start(document.getElementById('app-root'));
+  });
 })();
 
 </script>
