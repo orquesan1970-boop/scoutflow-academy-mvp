@@ -951,6 +951,16 @@ SF.STATUSES = [
 ];
 SF.PIPELINE = ['Nuevo', 'Datos incompletos', 'En evaluación', 'Entrevista', 'Oferta enviada', 'Inscrito'];
 
+/* Quién sale en Captación y quién no.
+   Captación es el tablero del scout: gente de FUERA a la que se está
+   siguiendo. Un jugador que ya tiene equipo no se está captando, se está
+   entrenando, y su sitio es Jugadores o la ficha de su equipo.
+   Con 274 fichas cargadas el tablero enseñaba 237 "Inscritos" que ya llevaban
+   meses en el club: ruido puro, imposible ver a los tres que de verdad hay que
+   atender. La regla es una sola y no hay que mantenerla a mano: mientras no
+   tenga equipo, está en captación; el día que se le asigna uno, sale solo. */
+SF.esProspecto = function (p) { return !!p && !p.team_id; };
+
 /* ===================== INSCRIPCIÓN EN EL CLUB =====================
    El formulario que hoy se rellena en un papel y luego alguien pasa a mano.
    Aquí se rellena una vez y la ficha nace completa.
@@ -1717,6 +1727,10 @@ SF.SEGMENTS = { femenino: 'Femenino', masculino: 'Masculino', escuelas: 'Escuela
 /* Entrenadores disponibles para asignar a equipos (demo) */
 SF.COACHES = ['Carlos Gorosito', 'Laura Méndez', 'Diego Pérez'];
 
+/* Quién entra en Captación: el scout, que es quien lo trabaja, y la dirección
+   técnica —general y las cuatro de sección—, que es quien decide. Nadie más:
+   ni entrenadores, ni administración, ni familias. Un prospecto es alguien de
+   otro club al que se está mirando, y eso no se enseña por el pasillo. */
 SF.ROLES = {
   director: {
     label: 'Director',
@@ -1747,26 +1761,26 @@ SF.ROLES = {
   },
   dt_femenino: {
     label: 'Dirección Técnica Femenino',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['femenino'], canCreatePlayers: true
   },
   dt_masculino: {
     label: 'Dirección Técnica Masculino',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['masculino'], canCreatePlayers: true
   },
   dt_escuelas: {
     label: 'Dirección Técnica Escuelas',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['escuelas'], canCreatePlayers: true
   },
   dt_minis: {
     label: 'Dirección Técnica Minis',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'seguimiento', 'informes'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['minis'], canCreatePlayers: true
   },
   scout: {
@@ -1959,7 +1973,7 @@ SF.SEASON = '2026/2027';
    pantalla es lo último o una página vieja guardada por el navegador, que
    ya nos ha costado una evaluación mal guardada. Se ve en Configuración
    y en el pie del menú. */
-SF.BUILD = '2026-08-23b';
+SF.BUILD = '2026-08-23c';
 
 SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'psicologo', 'fisio',
   'scout', 'delegado_equipo', 'delegado_campo', 'dt_general', 'dt_femenino',
@@ -2773,7 +2787,141 @@ SF.SEED_PLAYERS = [
   P({ id: 'p7', scoutflow_id: 'SF-2026-0007', first_name: 'Valentina', last_name: 'Cruz', full_name: 'Valentina Cruz',
     birth_date: '2010-12-01', birth_year: 2010, gender: 'F', nationality: ['Colombia'], residence_country: 'Colombia',
     city: 'Bogotá', sport: 'baloncesto', primary_position: 'Alero', height_cm: 178, status: 'Nuevo', channel: 'TikTok',
-    capture_date: '2026-06-12', documents: { pasaporte: 'pendiente', expediente: 'pendiente', video_highlights: 'pendiente', seguro_medico: 'pendiente' } })
+    capture_date: '2026-06-12', documents: { pasaporte: 'pendiente', expediente: 'pendiente', video_highlights: 'pendiente', seguro_medico: 'pendiente' } }),
+
+  /* --- Prospectos del scout ------------------------------------------------
+     Captación es el tablero de Laura, la scout: gente de fuera a la que se
+     está siguiendo. Estos tres vienen de tres sitios distintos y están en tres
+     puntos distintos del proceso, para que el tablero enseñe el recorrido
+     entero y no una sola casilla. Ninguno tiene equipo todavía: el día que lo
+     tenga, sale del tablero solo.
+
+     TODO ES INVENTADO: nombres, teléfonos y correos no son de nadie. --- */
+  P({ id: 'px1', scoutflow_id: 'SF-2026-0101', first_name: 'Thiago', last_name: 'Bordón', full_name: 'Thiago Bordón',
+    birth_date: '2010-04-09', birth_year: 2010, gender: 'M', nationality: ['Argentina'],
+    residence_country: 'Argentina', city: 'Mar del Plata', sport: 'baloncesto',
+    primary_position: 'Base', secondary_position: 'Escolta', height_est_cm: 184, weight_kg: 72,
+    dominant_hand: 'Derecha', status: 'En evaluación', scout_score: 78,
+    club: 'Quilmes de Mar del Plata', league: 'Liga Provincial U15', category: 'Cadete',
+    channel: 'Instagram', capture_date: '2026-07-02', responsible: 'Laura Pérez',
+    instagram: '@thiagobordon10', phone: '+54 9 223 555 0101', email: 'familia.bordon@example.com',
+    languages: ['Español'], english: 'Básico', school: 'Colegio Illia', course: '3º secundaria', gpa: '8.1',
+    objective: 'Temporada internacional',
+    career_history: [{ club: 'Quilmes de Mar del Plata', seasons: [
+      { season: '2024/2025', category: 'U13', competition: 'Liga Provincial' },
+      { season: '2025/2026', category: 'U15', competition: 'Liga Provincial', finish: '3º' }] }],
+    selections: { local: 'Sí', provincial: 'Sí', regional: '', national: '' },
+    stats: { 'Tiro': 3, 'Bote': 5, 'Pase': 5, 'Finalización': 3, 'Ataque 1x1': 4, 'Juego sin balón': 3,
+      'Rebote': 2, 'Defensa': 3, 'Robo de balón': 4, 'Lectura de juego': 5, 'Velocidad': 4,
+      'Fuerza explosiva': 3, 'Coordinación': 4, 'Resistencia aeróbica': 4, 'Liderazgo': 4, 'Competitividad': 4 },
+    family: { contact: 'Mariela Bordón', relation: 'Madre', phone: '+54 9 223 555 0101', email: 'familia.bordon@example.com' },
+    documents: { pasaporte: 'validado', expediente: 'pendiente', video_highlights: 'recibido', seguro_medico: 'pendiente' },
+    videos: [{ id: 'vx1', type: 'Highlights', title: 'Highlights Liga Provincial U15', url: 'https://youtu.be/ejemplo-thiago',
+      date: '2026-06-30', notes: 'Lo mandó el club. Buen manejo con las dos manos.', by: 'Laura Pérez', added_at: '2026-07-02' }],
+    interviews: [
+      { id: 'ex1a', date: '2026-07-14', time: '18:00', type: 'Videollamada', place: 'Zoom', with: 'Laura Pérez',
+        notes: 'Primer contacto con la familia.', done: true,
+        outcome: 'Muy interesados. La madre pregunta por el colegio y por el alojamiento. Pide presupuesto por escrito.',
+        created_at: '2026-07-05' },
+      { id: 'ex1b', date: '2026-09-04', time: '17:30', type: 'Familia y jugador', place: 'Videollamada',
+        with: 'Laura Pérez', notes: 'Repasar el informe deportivo y resolver lo del colegio.', done: false,
+        outcome: '', created_at: '2026-08-20' }
+    ],
+    tracking: { steps: {
+        'Nuevo': { done: true, date: '2026-07-02', by: 'Laura Pérez', note: 'Llegó por Instagram: vídeo enviado por su entrenador.' },
+        'Datos incompletos': { done: true, date: '2026-07-08', by: 'Laura Pérez', note: 'Faltaba el pasaporte. Ya lo mandaron.' },
+        'En evaluación': { done: true, date: '2026-07-20', by: 'Laura Pérez', note: 'Base con mucha lectura de juego. Falta cuerpo.' } },
+      log: [{ date: '2026-08-20', by: 'Laura Pérez', text: 'Pedido el expediente académico traducido. Sin respuesta todavía.' }],
+      next: { action: 'Entrevista con familia y jugador', date: '2026-09-04' } },
+    notes_internal: 'Interesante. La familia puede asumir parte del coste, pero necesitaría beca parcial.' }),
+
+  P({ id: 'px2', scoutflow_id: 'SF-2026-0102', first_name: 'Emil', last_name: 'Haugen', full_name: 'Emil Haugen',
+    birth_date: '2009-11-22', birth_year: 2009, gender: 'M', nationality: ['Noruega'],
+    residence_country: 'Noruega', city: 'Bergen', sport: 'baloncesto',
+    primary_position: 'Pívot', secondary_position: 'Ala-pívot', height_est_cm: 206, weight_kg: 94,
+    dominant_hand: 'Derecha', status: 'Entrevista', scout_score: 82,
+    club: 'Gimle BBK', league: 'BLNO U19', category: 'Junior',
+    channel: 'Scout', capture_date: '2026-06-18', responsible: 'Laura Pérez',
+    phone: '+47 400 55 101', email: 'haugen.family@example.com',
+    languages: ['Noruego', 'Inglés'], english: 'Avanzado', other_languages: 'Noruego, Inglés',
+    school: 'Bergen Katedralskole', course: 'VG2', gpa: '4.6 (escala noruega)',
+    objective: 'Beca universitaria',
+    career_history: [{ club: 'Gimle BBK', seasons: [
+      { season: '2024/2025', category: 'U16', competition: 'Liga regional' },
+      { season: '2025/2026', category: 'U19', competition: 'BLNO U19', finish: '2º' }] }],
+    selections: { local: '', provincial: '', regional: '', national: 'Preselección U18 Noruega' },
+    competitions: [{ date: '2026-05', name: 'Nordic Youth Cup', place: 'Oslo', ranking: '3º', result: '' }],
+    stats: { 'Tiro': 3, 'Bote': 2, 'Pase': 3, 'Finalización': 5, 'Ataque 1x1': 3, 'Juego sin balón': 4,
+      'Rebote': 5, 'Defensa': 4, 'Robo de balón': 2, 'Lectura de juego': 3, 'Velocidad': 2,
+      'Fuerza explosiva': 4, 'Potencia': 5, 'Coordinación': 3, 'Resistencia aeróbica': 3,
+      'Liderazgo': 3, 'Competitividad': 4 },
+    family: { contact: 'Ingrid Haugen', relation: 'Madre', phone: '+47 400 55 101', email: 'haugen.family@example.com' },
+    documents: { pasaporte: 'validado', expediente: 'recibido', video_highlights: 'validado', seguro_medico: 'pendiente' },
+    videos: [
+      { id: 'vx2', type: 'Highlights', title: 'Highlights BLNO U19 2025/26', url: 'https://youtu.be/ejemplo-emil',
+        date: '2026-06-15', notes: '', by: 'Laura Pérez', added_at: '2026-06-18' },
+      { id: 'vx3', type: 'Partido completo', title: 'Gimle - Ulriken, final regional', url: 'https://youtu.be/ejemplo-emil-partido',
+        date: '2026-05-24', notes: '24 puntos y 15 rebotes.', by: 'Laura Pérez', added_at: '2026-06-20' }
+    ],
+    interviews: [
+      { id: 'ex2a', date: '2026-07-01', time: '16:00', type: 'Videollamada', place: 'Google Meet', with: 'Laura Pérez',
+        notes: 'Presentación del club y del proyecto.', done: true,
+        outcome: 'Habla inglés perfectamente. Quiere jugar en Europa un año antes de intentar la NCAA.', created_at: '2026-06-24' },
+      { id: 'ex2b', date: '2026-08-28', time: '19:00', type: 'Prueba deportiva', place: 'Pabellón Juan de Austria',
+        with: 'Laura Pérez', notes: 'Viene con su padre. Entrenamiento con el Nacional Masculino y comida con la dirección.',
+        done: false, outcome: '', created_at: '2026-08-10' }
+    ],
+    tracking: { steps: {
+        'Nuevo': { done: true, date: '2026-06-18', by: 'Laura Pérez', note: 'Visto en el Nordic Youth Cup por un contacto en Oslo.' },
+        'Datos incompletos': { done: true, date: '2026-06-26', by: 'Laura Pérez', note: '' },
+        'En evaluación': { done: true, date: '2026-07-10', by: 'Rubén Ortega', note: 'Perfil de cinco puro. Encaja en el Nacional Masculino.' },
+        'Entrevista': { done: true, date: '2026-08-10', by: 'Laura Pérez', note: 'Viaje confirmado para el 28 de agosto.' } },
+      log: [{ date: '2026-08-10', by: 'Laura Pérez', text: 'Vuelo y alojamiento a cargo del club. Confirmado con administración.' }],
+      next: { action: 'Prueba deportiva en el club', date: '2026-08-28' } },
+    notes_internal: 'El más avanzado de los tres. Si la prueba sale bien, oferta inmediata. Presupuesto estimado: alojamiento + colegio internacional.' }),
+
+  P({ id: 'px3', scoutflow_id: 'SF-2026-0103', first_name: 'Ximena', last_name: 'Robles', full_name: 'Ximena Robles',
+    birth_date: '2010-08-30', birth_year: 2010, gender: 'F', nationality: ['México'],
+    residence_country: 'México', city: 'Monterrey', sport: 'baloncesto',
+    primary_position: 'Escolta', secondary_position: 'Alero', height_est_cm: 179, weight_kg: 66,
+    dominant_hand: 'Izquierda', status: 'Oferta enviada', scout_score: 80,
+    club: 'Fuerza Regia Academy', league: 'Liga Estatal Sub-16', category: 'Cadete',
+    channel: 'Evento', capture_date: '2026-05-11', responsible: 'Laura Pérez',
+    instagram: '@ximerobles', phone: '+52 81 5555 0102', email: 'robles.familia@example.com',
+    languages: ['Español', 'Inglés'], english: 'Intermedio',
+    school: 'Prepa Tec Monterrey', course: '1º prepa', gpa: '9.2',
+    objective: 'Desarrollo deportivo',
+    career_history: [{ club: 'Fuerza Regia Academy', seasons: [
+      { season: '2024/2025', category: 'Sub-14', competition: 'Liga Estatal' },
+      { season: '2025/2026', category: 'Sub-16', competition: 'Liga Estatal', finish: 'Campeona' }] }],
+    selections: { local: 'Sí', provincial: 'Sí', regional: 'Selección Nuevo León', national: '' },
+    competitions: [{ date: '2026-04', name: 'Torneo Internacional de Monterrey', place: 'Monterrey',
+      ranking: 'Campeona', result: 'Mejor tiradora del torneo' }],
+    stats: { 'Tiro': 5, 'Bote': 4, 'Pase': 4, 'Finalización': 4, 'Ataque 1x1': 4, 'Juego sin balón': 5,
+      'Rebote': 3, 'Defensa': 3, 'Robo de balón': 3, 'Lectura de juego': 4, 'Velocidad': 4,
+      'Fuerza explosiva': 3, 'Coordinación': 5, 'Resistencia aeróbica': 4, 'Liderazgo': 4, 'Competitividad': 5 },
+    family: { contact: 'Alejandro Robles', relation: 'Padre', phone: '+52 81 5555 0102', email: 'robles.familia@example.com' },
+    documents: { pasaporte: 'validado', expediente: 'validado', video_highlights: 'validado', seguro_medico: 'recibido' },
+    videos: [{ id: 'vx4', type: 'Highlights', title: 'Torneo Internacional de Monterrey 2026', url: 'https://youtu.be/ejemplo-ximena',
+      date: '2026-04-28', notes: 'Zurda, tiro muy rápido.', by: 'Laura Pérez', added_at: '2026-05-11' }],
+    interviews: [
+      { id: 'ex3a', date: '2026-05-30', time: '17:00', type: 'Videollamada', place: 'Zoom', with: 'Laura Pérez',
+        notes: 'Primera toma de contacto tras el torneo.', done: true,
+        outcome: 'El padre viaja a Madrid en septiembre por trabajo. Quiere ver el club en persona.', created_at: '2026-05-20' },
+      { id: 'ex3b', date: '2026-07-18', time: '18:30', type: 'Familia y jugador', place: 'Videollamada',
+        with: 'Jorge Andrés', notes: 'Presentación de la oferta.', done: true,
+        outcome: 'Oferta enviada por correo: plaza en Cadete Femenino A con beca del 40 %. Responden antes del 15 de septiembre.',
+        created_at: '2026-07-10' }
+    ],
+    tracking: { steps: {
+        'Nuevo': { done: true, date: '2026-05-11', by: 'Laura Pérez', note: 'Vista en directo en el Torneo Internacional de Monterrey.' },
+        'Datos incompletos': { done: true, date: '2026-05-25', by: 'Laura Pérez', note: '' },
+        'En evaluación': { done: true, date: '2026-06-08', by: 'Sergio Beltrán', note: 'Tiradora de verdad. Encaja en Cadete Femenino A.' },
+        'Entrevista': { done: true, date: '2026-07-18', by: 'Jorge Andrés', note: '' },
+        'Oferta enviada': { done: true, date: '2026-07-20', by: 'Jorge Andrés', note: 'Beca del 40 %. Plazo hasta el 15 de septiembre.' } },
+      log: [{ date: '2026-08-19', by: 'Laura Pérez', text: 'El padre confirma que viaja el 10 de septiembre. Quedamos en enseñarle el pabellón.' }],
+      next: { action: 'Esperar respuesta a la oferta', date: '2026-09-15' } },
+    notes_internal: 'La familia puede pagar el 60 %. Si acepta, entra en Cadete Femenino A. Prioridad alta.' })
 ];
 
 /* ===================== PLANTILLA DE DEMOSTRACIÓN =====================
@@ -3464,7 +3612,7 @@ SF.store = (function () {
        y tenía que acordarse de pulsar un botón escondido en Configuración.
        Aquí se hace solo, una única vez: se añade únicamente lo que falta,
        comparando por id, y no se toca ni se borra nada de lo que ya hubiera. */
-    if (!d._club_v2) {
+    if (!d._club_v3) {
       fusionar(d, faltanEn(d, seed()));
       /* Los equipos que ya estaban guardados se quedaron con la lista de
          entrenadores vacía, porque añadir lo que falta nunca pisa lo que hay.
@@ -3476,7 +3624,7 @@ SF.store = (function () {
           return m.role === 'entrenador' && (m.team_ids || []).indexOf(t.id) >= 0;
         }).map(function (m) { return m.full_name; });
       });
-      d._club_v2 = true;
+      d._club_v3 = true;
       write(d);
     }
     return d;
@@ -5031,7 +5179,7 @@ window.SF = window.SF || {};
       var funnel = el('<div class="funnel"></div>');
       var fcol = { 'Nuevo': 'gray', 'Datos incompletos': 'warn', 'En evaluación': 'info', 'Entrevista': 'purple', 'Oferta enviada': 'teal', 'Inscrito': 'green' };
       SF.PIPELINE.forEach(function (s) {
-        var n = mios.filter(function (p) { return p.status === s; }).length;
+        var n = mios.filter(SF.esProspecto).filter(function (p) { return p.status === s; }).length;
         var b = el('<button class="stage st-' + fcol[s] + '"><div class="n">' + n + '</div><div class="l">' +
           esc(s.replace('Datos incompletos', 'Incompleto').replace('Oferta enviada', 'Oferta')) + '</div></button>');
         b.onclick = function () { location.hash = '#/captacion'; };
@@ -6959,8 +7107,8 @@ window.SF = window.SF || {};
 
   pages.captacion = function (view) {
     var r = role();
-    view.innerHTML = head('Captación', 'De prospecto a jugador. La etapa dice por dónde va; las etiquetas, qué le falta.');
-    var ps = scopedPlayers();
+    view.innerHTML = head('Captación', 'De prospecto a jugador. Solo quien todavía no tiene equipo: al asignárselo, sale del tablero.');
+    var ps = scopedPlayers().filter(SF.esProspecto);
     var hoy = new Date().toISOString().slice(0, 10);
 
     /* Lo que hay que atender hoy, antes del tablero: una entrevista que se
@@ -7036,7 +7184,9 @@ window.SF = window.SF || {};
       board.appendChild(col);
     });
     view.appendChild(board);
-    view.appendChild(el('<p class="hint">La <b>etapa</b> es una sola: por dónde va. Lo que le falta —papeles, vídeo, pagos— sale como etiqueta ' +
+    view.appendChild(el('<p class="hint">Aquí solo está quien <b>todavía no tiene equipo</b>. En cuanto se le asigna uno, ' +
+      'deja de ser un prospecto y desaparece de este tablero: pasa a Jugadores y a la ficha de su equipo. ' +
+      'La <b>etapa</b> es una sola: por dónde va. Lo que le falta —papeles, vídeo, pagos— sale como etiqueta ' +
       'y no depende de la etapa: se puede tener una oferta enviada y deber documentación a la vez. ' +
       'El botón del calendario programa la entrevista y, si quieres, avisa a la familia.</p>'));
   };
