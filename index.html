@@ -10984,7 +10984,7 @@ SF.router = (function () {
    ========================================================================= */
 window.SF = window.SF || {};
 SF.cloud = (function () {
-  var URL_PROYECTO = 'https://cnejpriixstcfworzkx.supabase.co';
+  var URL_PROYECTO = 'https://cnejpriixstcfwrorzkx.supabase.co';
   /* Clave publicable. Es pública por diseño: puede estar a la vista en el
      código porque por sí sola no abre nada. Quien decide qué se puede leer y
      escribir son las reglas RLS del servidor, no esta cadena. */
@@ -11157,7 +11157,10 @@ SF.cloud = (function () {
     if (/Password should be/i.test(m)) return 'La contraseña necesita al menos 6 caracteres.';
     if (/Email not confirmed/i.test(m)) return 'Falta confirmar la cuenta. Mira tu correo.';
     if (/rate limit|too many/i.test(m)) return 'Demasiados intentos seguidos. Espera un minuto.';
-    if (/fetch|network/i.test(m)) return 'No hay conexión con el servidor.';
+    if (/fetch|network|Load failed/i.test(m)) {
+      return 'No se llega al servidor. Comprueba tu conexión; si va bien, es que la dirección ' +
+             'del proyecto de Supabase configurada en la app no responde.';
+    }
     return m;
   }
 
