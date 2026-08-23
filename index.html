@@ -355,6 +355,26 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .cal-res>div{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px}
 .cal-res b{display:block;font-size:26px;line-height:1.1;color:var(--purple-d)}
 .cal-res span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px}
+
+/* ===== Cuadrantes: el horario fijo de la temporada ===== */
+.cua-tab{width:100%;border-collapse:collapse;font-size:12.5px;min-width:840px}
+.cua-tab th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);
+  font-weight:600;padding:9px 8px;border-bottom:1px solid var(--line-2);text-align:left;background:#FAF9FE}
+.cua-tab td{padding:6px;border-bottom:1px solid var(--line);border-left:1px solid var(--line);vertical-align:top}
+.cua-tab td:first-child{border-left:none}
+.cua-tab tbody tr:last-child td{border-bottom:none}
+.cua-fr{white-space:nowrap;font-weight:600;background:#FAF9FE;min-width:104px}
+.cua-c{min-width:150px}
+.cua-p{border:1px solid var(--line);border-radius:8px;padding:5px 7px;margin-bottom:5px;background:var(--bg)}
+.cua-p:last-child{margin-bottom:0}
+.cua-p.lleno{background:#F1EEFC;border-color:#DCD5F6}
+.cua-p.editable{cursor:pointer}
+.cua-p.editable:hover{border-color:var(--purple)}
+.cua-pn{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3)}
+.cua-p b{font-size:12px;color:var(--purple-d);line-height:1.3}
+.cua-p i{font-size:11.5px;color:var(--ink-3);font-style:normal}
+.pf-tab{min-width:660px}
+.pf-tab td{border-left:none}
 .evo-lead{font-size:14px;color:var(--ink-2);margin:0 0 14px;line-height:1.55}
 .evo-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px}
 .evo-tab{width:100%;border-collapse:collapse;font-size:13px;min-width:340px}
@@ -1701,6 +1721,26 @@ SF.ROLES = {
   if (r.nav.indexOf('calendario') < 0) r.nav.splice(i >= 0 ? i + 1 : r.nav.length, 0, 'calendario');
 });
 
+/* Los cuadrantes de horarios los VE todo el cuerpo técnico —un entrenador
+   necesita saber cuándo tiene pista— pero solo los EDITA quien reparte las
+   pistas: dirección técnica y dirección. El preparador edita además el suyo
+   de preparación física, que es su trabajo. */
+['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis',
+  'preparador_fisico', 'fisio', 'psicologo', 'entrenador', 'administrativo',
+  'delegado_equipo'].forEach(function (k) {
+  var r = SF.ROLES[k]; if (!r) return;
+  if (r.nav.indexOf('horarios') < 0) {
+    var i = r.nav.indexOf('calendario');
+    r.nav.splice(i >= 0 ? i + 1 : Math.min(3, r.nav.length), 0, 'horarios');
+  }
+});
+['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis'].forEach(function (k) {
+  if (SF.ROLES[k]) SF.ROLES[k].canEditHorario = true;
+});
+['director', 'dt_general', 'preparador_fisico'].forEach(function (k) {
+  if (SF.ROLES[k]) SF.ROLES[k].canEditPF = true;
+});
+
 SF.USERS = {
   director: 'Jorge Andrés', administrativo: 'Marta Soler',
   entrenador: 'Carlos Gorosito', scout: 'Laura Pérez', padre: 'Familia',
@@ -1727,6 +1767,26 @@ SF.TEAMS = [
   { id: 't2', name: 'Infantil Femenino', sport: 'baloncesto', segment: 'femenino', category: 'Infantil', coaches: ['Laura Méndez'], wall: [] },
   { id: 't3', name: 'Mini Mixto', sport: 'baloncesto', segment: 'minis', category: 'Mini', coaches: ['Diego Pérez'], wall: [] },
   { id: 't4', name: 'Escuela 2015', sport: 'baloncesto', segment: 'escuelas', category: 'Escuela', coaches: [], wall: [] }
+];
+
+/* ===================== CUADRANTE DE HORARIOS =====================
+   El papel que todo club tiene pegado en el despacho: qué equipo entrena qué
+   día, a qué hora y en qué pista.
+
+   OJO a la diferencia con el Calendario: aquel muestra citas con FECHA (el
+   partido del 27). Esto es el horario FIJO de la temporada, que se repite
+   cada semana. Son dos cosas distintas y meterlas en la misma tabla sería el
+   error clásico.
+
+   Franjas de hora y media desde las 16:00, que es cuando salen del colegio. */
+SF.FRANJAS = ['16:00 – 17:30', '17:30 – 19:00', '19:00 – 20:30', '20:30 – 22:00'];
+SF.DIAS_SEM = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+/* Pabellones y sus pistas. Se editan en Configuración: un club alquila en
+   sitios distintos y eso cambia cada temporada. */
+SF.INSTALACIONES = [
+  { id: 'i1', nombre: 'Pabellón Príncipe Felipe', pistas: ['Pista 1', 'Pista 2'] },
+  { id: 'i2', nombre: 'Pabellón Pozuelo', pistas: ['Pista 1'] }
 ];
 
 SF.ACADEMY = { name: 'CBJA Academy', country: 'España', city: 'Madrid', primary_sport: 'baloncesto', plan: 'Pro',
@@ -2766,6 +2826,24 @@ SF.store = (function () {
       academy: JSON.parse(JSON.stringify(SF.ACADEMY)),
       players: seedPlayers,
       teams: JSON.parse(JSON.stringify(SF.TEAMS || [])),
+      /* Cuadrante de ejemplo: los peques temprano, los mayores al final, que
+         es como se reparte una pista de verdad. */
+      horario: [
+        { id: 'h1', dia: 0, franja: 0, inst: 'i1', pista: 'Pista 1', team_id: 't4', nota: '' },
+        { id: 'h2', dia: 0, franja: 1, inst: 'i1', pista: 'Pista 1', team_id: 't3', nota: '' },
+        { id: 'h3', dia: 0, franja: 2, inst: 'i1', pista: 'Pista 1', team_id: 't1', nota: '' },
+        { id: 'h4', dia: 0, franja: 2, inst: 'i1', pista: 'Pista 2', team_id: 't2', nota: '' },
+        { id: 'h5', dia: 2, franja: 1, inst: 'i1', pista: 'Pista 1', team_id: 't3', nota: '' },
+        { id: 'h6', dia: 2, franja: 2, inst: 'i1', pista: 'Pista 1', team_id: 't1', nota: '' },
+        { id: 'h7', dia: 2, franja: 2, inst: 'i2', pista: 'Pista 1', team_id: 't2', nota: 'Pista alquilada' },
+        { id: 'h8', dia: 4, franja: 0, inst: 'i1', pista: 'Pista 1', team_id: 't4', nota: '' },
+        { id: 'h9', dia: 4, franja: 2, inst: 'i1', pista: 'Pista 1', team_id: 't1', nota: '' }
+      ],
+      pf: [
+        { id: 'pfa', dia: 1, team_id: 't1', hora_ini: '19:00', hora_fin: '20:30', inst: 'i1', pista: 'Sala de fuerza', prep_id: 's4' },
+        { id: 'pfb', dia: 3, team_id: 't1', hora_ini: '20:15', hora_fin: '21:45', inst: 'i1', pista: 'Sala de fuerza', prep_id: 's4' },
+        { id: 'pfc', dia: 1, team_id: 't2', hora_ini: '17:30', hora_fin: '19:00', inst: 'i1', pista: 'Pista 2', prep_id: 's4' }
+      ],
       /* Una cita pedida, para que la agenda de la fisioterapeuta no aparezca
          vacía en una demostración. */
       citas: [{
@@ -3181,6 +3259,38 @@ SF.store = (function () {
     /* Cambiar la disponibilidad deja rastro: quién lo firmó y cuándo. Si un
        día hay que explicar por qué un chaval jugó lesionado, tiene que
        poder saberse quién dio el alta. */
+    /* ---- CUADRANTES: horario fijo de la temporada ----
+       Una fila es "este equipo, este día, esta franja, esta pista". */
+    instalaciones: function () {
+      var d = db();
+      if (!d.academy.instalaciones) { d.academy.instalaciones = JSON.parse(JSON.stringify(SF.INSTALACIONES)); save(d); }
+      return d.academy.instalaciones;
+    },
+    instalSet: function (lista) {
+      var d = db(); d.academy.instalaciones = lista; save(d);
+    },
+    horario: function () { return db().horario || []; },
+    horarioSet: function (fila) {
+      var d = db(); d.horario = d.horario || [];
+      /* Una pista, un día y una franja solo pueden tener un equipo. Al
+         asignar se sustituye lo que hubiera: es lo que hace un DT cuando
+         reorganiza el cuadrante, y avisar de un choque que él mismo está
+         provocando sería estorbar. */
+      d.horario = d.horario.filter(function (x) {
+        return !(x.dia === fila.dia && x.franja === fila.franja && x.inst === fila.inst && x.pista === fila.pista);
+      });
+      if (fila.team_id) d.horario.push(Object.assign({ id: 'h' + Date.now() }, fila));
+      save(d);
+    },
+    pf: function () { return db().pf || []; },
+    pfAdd: function (fila) {
+      var d = db(); d.pf = d.pf || [];
+      d.pf.push(Object.assign({ id: 'pf' + Date.now() }, fila)); save(d);
+    },
+    pfRemove: function (id) {
+      var d = db(); d.pf = (d.pf || []).filter(function (x) { return x.id !== id; }); save(d);
+    },
+
     /* ---- CITAS ---- */
     citaCreate: function (data) {
       var d = db(); d.citas = d.citas || [];
@@ -6622,6 +6732,220 @@ window.SF = window.SF || {};
     view.appendChild(el('<p class="hint">Las citas las programa cada entrenador desde su equipo. Aquí se ven todas juntas.</p>'));
   };
 
+  /* ===================== CUADRANTES =====================
+     Dos tablas que hoy viven en un Excel pegado en el despacho:
+       · el horario de entrenamientos (día × franja × pista),
+       · el cuadrante de preparación física (con su preparador).
+     Son el horario FIJO de la temporada, no las citas con fecha. */
+  pages.horarios = function (view) {
+    var r = role();
+    var tab = SF._cuadrante || 'entrenos';
+    view.innerHTML = head('Cuadrantes', 'El horario fijo de la temporada: qué equipo entrena cuándo y en qué pista.');
+
+    var tabs = el('<div class="tabbar"></div>');
+    [['entrenos', 'Entrenamientos'], ['pf', 'Preparación física']].forEach(function (t) {
+      var b = el('<button class="tab' + (tab === t[0] ? ' on' : '') + '">' + t[1] + '</button>');
+      b.onclick = function () { SF._cuadrante = t[0]; SF.router.render(); };
+      tabs.appendChild(b);
+    });
+    view.appendChild(tabs);
+
+    var insts = SF.store.instalaciones();
+    var equipos = SF.store.teams().filter(function (t) {
+      if (!r.segments || r.segments === 'all') return true;
+      return r.segments.indexOf(t.segment) >= 0;
+    });
+    var body = el('<div></div>');
+    view.appendChild(body);
+
+    if (tab === 'entrenos') pintaEntrenos(); else pintaPF();
+
+    /* ---------- Cuadrante de entrenamientos ----------
+       Filas = franjas, columnas = días. Dentro de cada celda, una línea por
+       pista. Se hizo así y no con una columna por pista porque un club con
+       cuatro pabellones tendría veinte columnas y no cabría en ninguna
+       pantalla; y porque lo que se pregunta de verdad es "¿qué hay el martes
+       a las siete?", no "¿qué pasa en la pista 3 toda la semana?". */
+    function pintaEntrenos() {
+      body.innerHTML = '';
+      var puede = r.canEditHorario;
+      if (!insts.length) {
+        body.appendChild(el('<div class="empty-panel"><p>No hay pabellones dados de alta. Se configuran en Configuración.</p></div>'));
+        return;
+      }
+      var filas = SF.store.horario();
+      function ocupa(dia, franja, inst, pista) {
+        return filas.filter(function (x) {
+          return x.dia === dia && x.franja === franja && x.inst === inst && x.pista === pista;
+        })[0] || null;
+      }
+
+      var cab = '<th>Franja</th>' + SF.DIAS_SEM.map(function (d) { return '<th>' + d + '</th>'; }).join('');
+      var t = el('<div class="cal-scroll"><table class="cua-tab"><thead><tr>' + cab + '</tr></thead><tbody></tbody></table></div>');
+      var tb = t.querySelector('tbody');
+
+      SF.FRANJAS.forEach(function (fr, fi) {
+        var tr = el('<tr><td class="cua-fr">' + esc(fr) + '</td></tr>');
+        SF.DIAS_SEM.forEach(function (dn, di) {
+          var td = el('<td class="cua-c"></td>');
+          insts.forEach(function (ins) {
+            (ins.pistas || []).forEach(function (pi) {
+              var oc = ocupa(di, fi, ins.id, pi);
+              var eq = oc ? SF.store.teamGet(oc.team_id) : null;
+              var cel = el('<div class="cua-p' + (eq ? ' lleno' : '') + '">' +
+                '<span class="cua-pn">' + esc(ins.pistas.length > 1 ? ins.nombre.replace('Pabellón ', '') + ' · ' + pi : ins.nombre.replace('Pabellón ', '')) + '</span>' +
+                (eq ? '<b>' + esc(eq.name) + '</b>' : '<i>libre</i>') + '</div>');
+              if (puede) {
+                cel.classList.add('editable');
+                cel.onclick = function () { asignar(di, fi, ins, pi, oc); };
+              }
+              td.appendChild(cel);
+            });
+          });
+          tr.appendChild(td);
+        });
+        tb.appendChild(tr);
+      });
+      body.appendChild(t);
+
+      body.appendChild(el('<p class="hint">' + (puede
+        ? 'Toca cualquier pista para asignarle un equipo o dejarla libre. Una pista solo puede tener un equipo en cada franja.'
+        : 'Solo la dirección técnica reparte las pistas. Aquí puedes consultar el cuadrante.') + '</p>'));
+
+      /* Resumen: cuántas sesiones tiene cada equipo. Un equipo con una sola
+         sesión a la semana es un problema y conviene que salte a la vista. */
+      body.appendChild(el('<p class="sec-label">Sesiones por equipo</p>'));
+      var rl = el('<div class="mini-list"></div>');
+      equipos.forEach(function (eq) {
+        var mias = filas.filter(function (x) { return x.team_id === eq.id; });
+        var dias = mias.map(function (x) { return SF.DIAS_SEM[x.dia]; });
+        rl.appendChild(el('<div class="mini-row"><span><b>' + esc(eq.name) + '</b> <span class="hint">' +
+          (dias.length ? esc(dias.join(', ')) : 'sin horario asignado') + '</span></span>' +
+          '<span class="tag ' + (mias.length >= 2 ? 'tag-green' : mias.length === 1 ? 'tag-warn' : 'tag-danger') + '">' +
+          mias.length + (mias.length === 1 ? ' sesión' : ' sesiones') + '</span></div>'));
+      });
+      body.appendChild(rl);
+    }
+
+    function asignar(dia, franja, ins, pista, actual) {
+      var opts = '<option value="">— dejar libre —</option>' + equipos.map(function (e) {
+        return '<option value="' + e.id + '"' + (actual && actual.team_id === e.id ? ' selected' : '') + '>' + esc(e.name) + '</option>';
+      }).join('');
+      var box = el('<div><p class="hint">' + esc(SF.DIAS_SEM[dia]) + ' · ' + esc(SF.FRANJAS[franja]) + ' · ' +
+        esc(ins.nombre) + ' · ' + esc(pista) + '</p>' +
+        '<div class="form-grid"><div class="frow" style="grid-column:1/-1"><label>Equipo</label><select id="eq">' + opts + '</select></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Nota <span class="hint">opcional</span></label><input id="nt" value="' + esc(actual ? actual.nota || '' : '') + '" placeholder="Comparten pista con el infantil"></div></div></div>');
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        SF.store.horarioSet({
+          dia: dia, franja: franja, inst: ins.id, pista: pista,
+          team_id: box.querySelector('#eq').value, nota: box.querySelector('#nt').value.trim()
+        });
+        U.closeModal(); U.toast('Cuadrante actualizado'); SF.router.render();
+      };
+      box.appendChild(foot);
+      U.modal('Asignar pista', box);
+    }
+
+    /* ---------- Cuadrante de preparación física ----------
+       Aparte, porque lo lleva otra persona y los horarios no encajan en las
+       franjas: una sesión de PF puede ser de 20:15 a 21:45. */
+    function pintaPF() {
+      body.innerHTML = '';
+      var puede = r.canEditPF;
+      var lista = SF.store.pf().slice().sort(function (a, b) {
+        return (a.dia - b.dia) || (a.hora_ini || '').localeCompare(b.hora_ini || '');
+      });
+
+      if (puede) {
+        var bAdd = el('<button class="btn btn-primary btn-sm" style="margin-bottom:12px">' + ico('plus') + 'Añadir sesión de PF</button>');
+        bAdd.onclick = function () { formPF(null); };
+        body.appendChild(bAdd);
+      }
+
+      if (!lista.length) {
+        body.appendChild(el('<p class="hint">Todavía no hay sesiones de preparación física en el cuadrante.</p>'));
+        return;
+      }
+
+      var porDia = {};
+      lista.forEach(function (x) { (porDia[x.dia] = porDia[x.dia] || []).push(x); });
+      var t = el('<div class="cal-scroll"><table class="cua-tab pf-tab"><thead><tr>' +
+        '<th>Día</th><th>Horario</th><th>Pista</th><th>Equipo</th><th>Preparador</th><th></th></tr></thead><tbody></tbody></table></div>');
+      var tb = t.querySelector('tbody');
+      Object.keys(porDia).sort(function (a, b) { return a - b; }).forEach(function (d) {
+        porDia[d].forEach(function (x, i) {
+          var eq = SF.store.teamGet(x.team_id);
+          var pr = SF.store.staff().filter(function (s) { return s.id === x.prep_id; })[0];
+          var ins = insts.filter(function (y) { return y.id === x.inst; })[0];
+          var tr = el('<tr>' +
+            '<td>' + (i === 0 ? '<b>' + esc(SF.DIAS_SEM[d]) + '</b>' : '') + '</td>' +
+            '<td>' + esc((x.hora_ini || '') + (x.hora_fin ? ' – ' + x.hora_fin : '')) + '</td>' +
+            '<td>' + esc((ins ? ins.nombre.replace('Pabellón ', '') + ' · ' : '') + (x.pista || '')) + '</td>' +
+            '<td>' + esc(eq ? eq.name : '—') + '</td>' +
+            '<td>' + esc(pr ? pr.full_name : '—') + '</td>' +
+            '<td>' + (puede ? '<span class="row-actions"><button class="lnk-del" data-x>' + ico('x') + '</button></span>' : '') + '</td></tr>');
+          if (puede) tr.querySelector('[data-x]').onclick = function () {
+            SF.store.pfRemove(x.id); U.toast('Sesión quitada'); SF.router.render();
+          };
+          tb.appendChild(tr);
+        });
+      });
+      body.appendChild(t);
+
+      /* El resumen que tiene tu documento: días de PF por equipo. */
+      body.appendChild(el('<p class="sec-label">Días de preparación física por equipo</p>'));
+      var rl = el('<div class="mini-list"></div>');
+      equipos.forEach(function (eq) {
+        var mias = lista.filter(function (x) { return x.team_id === eq.id; });
+        if (!mias.length) return;
+        rl.appendChild(el('<div class="mini-row"><span><b>' + esc(eq.name) + '</b></span><span class="hint">' +
+          esc(mias.map(function (x) { return SF.DIAS_SEM[x.dia]; }).join(', ')) + '</span></div>'));
+      });
+      var sinPF = equipos.filter(function (eq) { return !lista.some(function (x) { return x.team_id === eq.id; }); });
+      body.appendChild(rl);
+      if (sinPF.length) body.appendChild(el('<p class="hint">Sin preparación física asignada: ' +
+        esc(sinPF.map(function (e) { return e.name; }).join(', ')) + '.</p>'));
+    }
+
+    function formPF() {
+      var preps = SF.store.staff().filter(function (s) {
+        return s.role === 'preparador_fisico' || s.role === 'fisio';
+      });
+      var box = el('<div><div class="form-grid">' +
+        '<div class="frow"><label>Día</label><select id="d">' + SF.DIAS_SEM.map(function (n, i) {
+          return '<option value="' + i + '">' + n + '</option>';
+        }).join('') + '</select></div>' +
+        '<div class="frow"><label>Equipo</label><select id="eq">' + equipos.map(function (e) {
+          return '<option value="' + e.id + '">' + esc(e.name) + '</option>';
+        }).join('') + '</select></div>' +
+        '<div class="frow"><label>Desde</label><input id="hi" type="time" value="19:00"></div>' +
+        '<div class="frow"><label>Hasta</label><input id="hf" type="time" value="20:30"></div>' +
+        '<div class="frow"><label>Pabellón</label><select id="in">' + insts.map(function (x) {
+          return '<option value="' + x.id + '">' + esc(x.nombre) + '</option>';
+        }).join('') + '</select></div>' +
+        '<div class="frow"><label>Pista</label><input id="pi" placeholder="Pista 1 o sala"></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Preparador</label><select id="pr">' +
+        (preps.length ? preps.map(function (s) { return '<option value="' + s.id + '">' + esc(s.full_name) + '</option>'; }).join('')
+                      : '<option value="">— no hay preparadores dados de alta —</option>') + '</select></div>' +
+        '</div></div>');
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Añadir</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        SF.store.pfAdd({
+          dia: +box.querySelector('#d').value, team_id: box.querySelector('#eq').value,
+          hora_ini: box.querySelector('#hi').value, hora_fin: box.querySelector('#hf').value,
+          inst: box.querySelector('#in').value, pista: box.querySelector('#pi').value.trim(),
+          prep_id: box.querySelector('#pr').value
+        });
+        U.closeModal(); U.toast('Sesión añadida'); SF.router.render();
+      };
+      box.appendChild(foot);
+      U.modal('Sesión de preparación física', box);
+    }
+  };
+
   pages.family = function (view) {
     view.innerHTML = head('Family', 'Quién tiene acceso al portal, y qué ve cada familia.');
     /* SIN filtrar por "tiene contacto familiar". Antes, quien no lo tenía
@@ -10003,7 +10327,7 @@ SF.router = (function () {
 
   var NAV = [
     ['inicio', 'Inicio', 'home'], ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'],
-    ['calendario', 'Calendario', 'cal'], ['importar', 'Importar mensaje', 'ai'],
+    ['calendario', 'Calendario', 'cal'], ['horarios', 'Cuadrantes', 'grid'], ['importar', 'Importar mensaje', 'ai'],
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
@@ -10014,7 +10338,7 @@ SF.router = (function () {
   ];
   var ROUTE_PAGE = {
     inicio: 'inicio', jugadores: 'jugadores', jugador: 'jugador', equipos: 'equipos', equipo: 'equipo',
-    calendario: 'calendario',
+    calendario: 'calendario', horarios: 'horarios',
     importar: 'importar', captacion: 'captacion', documentos: 'documentos', informes: 'informes',
     family: 'family', finanzas: 'finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
