@@ -331,6 +331,30 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .fam-bar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px}
 .fam-bar input{flex:1 1 320px;min-width:0}
 .fam-bar select{flex:0 0 auto}
+
+/* ===== Calendario: la parrilla del club ===== */
+.cal-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+.cal-rot{font-size:14px;font-weight:600;color:var(--ink);min-width:170px;text-align:center}
+.cal-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:18px;
+  border:1px solid var(--line);border-radius:var(--r-lg);background:var(--surface)}
+.cal-tab{width:100%;border-collapse:collapse;font-size:12.5px;min-width:620px}
+.cal-tab th{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-3);
+  font-weight:600;padding:9px 8px;border-bottom:1px solid var(--line-2);text-align:left;background:#FAF9FE}
+.cal-tab .cal-d{text-align:center;min-width:78px;vertical-align:top}
+.cal-tab th.cal-d span{display:block;font-size:13px;color:var(--ink);font-weight:700}
+.cal-tab th.hoy,.cal-tab td.hoy{background:#F4F2FC}
+.cal-tab td{padding:8px;border-bottom:1px solid var(--line)}
+.cal-tab tbody tr:last-child td{border-bottom:none}
+.cal-eq{font-weight:600;white-space:nowrap;min-width:170px}
+.cal-eq .lnk{font-weight:600}
+.cal-hay b{display:block;font-size:13px;color:var(--purple-d)}
+.cal-hay span{display:block;font-size:11px;color:var(--ink-3);line-height:1.35}
+.cal-dia{font-size:13.5px;font-weight:600;margin:14px 0 6px;color:var(--ink)}
+/* Resumen de la semana en Inicio: dos números, no cincuenta filas. */
+.cal-res{display:flex;gap:12px;margin:6px 0 2px}
+.cal-res>div{flex:1;background:var(--bg);border:1px solid var(--line);border-radius:var(--r);padding:11px 13px}
+.cal-res b{display:block;font-size:26px;line-height:1.1;color:var(--purple-d)}
+.cal-res span{display:block;font-size:11.5px;color:var(--ink-3);margin-top:2px}
 .evo-lead{font-size:14px;color:var(--ink-2);margin:0 0 14px;line-height:1.55}
 .evo-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px}
 .evo-tab{width:100%;border-collapse:collapse;font-size:13px;min-width:340px}
@@ -1663,6 +1687,20 @@ SF.ROLES = {
 
 /* Usuarios demo por rol (para el registro de quién hace cada evaluación).
    En v0.3 esto vendrá del usuario realmente autenticado. */
+/* El Calendario es la vista de conjunto del club: quién entrena qué día y los
+   partidos del fin de semana en una parrilla. Lo necesita quien dirige o
+   coordina a varios equipos.
+   El entrenador NO lo lleva: él tiene "Mi equipo", que es lo suyo, y meterle
+   los cincuenta partidos del club sería ruido.
+   Se inyecta aquí, después de definir los roles, para no repetir la palabra
+   en ocho listas y arriesgarse a olvidar una. */
+['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis',
+  'preparador_fisico', 'fisio', 'psicologo'].forEach(function (k) {
+  var r = SF.ROLES[k]; if (!r) return;
+  var i = r.nav.indexOf('equipos');
+  if (r.nav.indexOf('calendario') < 0) r.nav.splice(i >= 0 ? i + 1 : r.nav.length, 0, 'calendario');
+});
+
 SF.USERS = {
   director: 'Jorge Andrés', administrativo: 'Marta Soler',
   entrenador: 'Carlos Gorosito', scout: 'Laura Pérez', padre: 'Familia',
@@ -4326,6 +4364,39 @@ window.SF = window.SF || {};
     });
     citas.sort(function (a, b) { return (a.e.date || '') < (b.e.date || '') ? -1 : 1; });
     var ag = el('<div class="card"><h3>Lo que viene</h3><p class="hint">Próximos partidos y entrenamientos.</p></div>');
+
+    /* --- Resumen de los siete días, para quien lleva varios equipos ---
+       Listar evento a evento no escala: con veinte equipos hay cincuenta
+       partidos un fin de semana y esta caja se convierte en un muro. Lo que
+       sirve es el recuento y una puerta a la parrilla. */
+    /* El fisioterapeuta y el preparador se quedan con la lista detallada: a
+       ellos un partido les dice "con quién no cuento", y eso hay que verlo
+       sin abrir nada. Quien dirige varios equipos necesita lo contrario. */
+    if (r.nav.indexOf('calendario') >= 0 && !esSalud) {
+      var hoy7 = new Date(); var tope = new Date(); tope.setDate(tope.getDate() + 7);
+      var f0 = iso(hoy7), f1 = iso(tope);
+      var nEnt = 0, nPar = 0, eqs = {};
+      SF.store.teams().forEach(function (t) {
+        if (r.segments && r.segments !== 'all' && r.segments.indexOf(t.segment) < 0) return;
+        (t.events || []).forEach(function (e) {
+          if (!e.date || e.date < f0 || e.date > f1) return;
+          if (e.type === 'partido') { nPar++; eqs[t.id] = 1; }
+          else if (e.type === 'entrenamiento') nEnt++;
+        });
+      });
+      var resumen = el('<div class="cal-res"><div><b>' + nEnt + '</b><span>' +
+        (nEnt === 1 ? 'entrenamiento' : 'entrenamientos') + '</span></div>' +
+        '<div><b>' + nPar + '</b><span>' + (nPar === 1 ? 'partido' : 'partidos') +
+        (nPar ? ' · ' + Object.keys(eqs).length + (Object.keys(eqs).length === 1 ? ' equipo' : ' equipos') : '') +
+        '</span></div></div>');
+      ag.appendChild(resumen);
+      ag.appendChild(el('<p class="hint">En los próximos siete días.</p>'));
+      var bCal = el('<button class="btn btn-light btn-sm">' + ico('cal') + 'Abrir el calendario</button>');
+      bCal.onclick = function () { location.hash = '#/calendario'; };
+      ag.appendChild(bCal);
+      lado.appendChild(ag);
+    } else {
+
     if (!citas.length) {
       var vacio = el('<div class="at-empty" style="color:var(--ink-3)">' + ico('cal') + '<span>Nada en el calendario.</span></div>');
       ag.appendChild(vacio);
@@ -4360,6 +4431,7 @@ window.SF = window.SF || {};
       ag.appendChild(row);
     });
     lado.appendChild(ag);
+    }
 
     if (esSalud) {
       /* "Últimos jugadores · recién añadidos" no le dice nada a quien lleva la
@@ -6384,6 +6456,159 @@ window.SF = window.SF || {};
   /* Un club de novecientos jugadores tiene novecientas familias. Una lista
      entera no se gestiona: se busca. Por eso esta pantalla es un buscador con
      resultados, no un listado con scroll. */
+  /* ===================== CALENDARIO DEL CLUB =====================
+     Una lista de eventos no sirve para dirigir. Con veinte equipos hay
+     cincuenta partidos un fin de semana, y leerlos uno debajo de otro no
+     dice nada.
+
+     Lo que un director necesita es la vista de conjunto: qué día y a qué hora
+     entrena cada equipo, en una parrilla; y el fin de semana entero de un
+     vistazo. Por eso esto es una planilla, no un listado. */
+  var DIAS = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+
+  /* Lunes de la semana que contiene esa fecha. En España la semana empieza en
+     lunes; getDay() devuelve 0 para domingo, de ahí el ajuste. */
+  function lunesDe(d) {
+    var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    var dow = (x.getDay() + 6) % 7;
+    x.setDate(x.getDate() - dow);
+    return x;
+  }
+  function iso(d) {
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  pages.calendario = function (view) {
+    var r = role();
+    /* La semana que se está mirando se guarda para que al volver de una ficha
+       no te devuelva a la de hoy. */
+    if (!SF._calLunes) SF._calLunes = iso(lunesDe(new Date()));
+    var lunes = new Date(SF._calLunes + 'T00:00:00');
+    var dias = DIAS.map(function (n, i) {
+      var d = new Date(lunes); d.setDate(d.getDate() + i);
+      return { nombre: n, fecha: iso(d), num: d.getDate(), mes: SF_MON[d.getMonth()] };
+    });
+    var domingo = dias[6].fecha;
+    var hoy = iso(new Date());
+
+    /* Solo los equipos de su ámbito: una DT de femenino no dirige el
+       calendario del masculino. */
+    var equipos = SF.store.teams().filter(function (t) {
+      if (!r.segments || r.segments === 'all') return true;
+      return r.segments.indexOf(t.segment) >= 0;
+    });
+
+    view.innerHTML = head('Calendario', 'Los entrenamientos y los partidos de todo el club, semana a semana.');
+
+    /* --- Navegación de semanas --- */
+    var nav = el('<div class="cal-nav"></div>');
+    var bAnt = el('<button class="btn btn-light btn-sm">' + ico('back') + 'Semana anterior</button>');
+    var bHoy = el('<button class="btn btn-light btn-sm">Esta semana</button>');
+    var bSig = el('<button class="btn btn-light btn-sm">Semana siguiente</button>');
+    var rot = el('<span class="cal-rot">' + dias[0].num + ' ' + dias[0].mes + ' — ' + dias[6].num + ' ' + dias[6].mes + '</span>');
+    function mueve(n) {
+      var x = new Date(lunes); x.setDate(x.getDate() + n * 7);
+      SF._calLunes = iso(x); SF.router.render();
+    }
+    bAnt.onclick = function () { mueve(-1); };
+    bSig.onclick = function () { mueve(1); };
+    bHoy.onclick = function () { SF._calLunes = iso(lunesDe(new Date())); SF.router.render(); };
+    nav.appendChild(bAnt); nav.appendChild(rot); nav.appendChild(bSig); nav.appendChild(bHoy);
+    view.appendChild(nav);
+
+    if (!equipos.length) {
+      view.appendChild(el('<div class="empty-panel"><p>No hay equipos en tu ámbito.</p></div>'));
+      return;
+    }
+
+    /* Todos los eventos de la semana, de todos los equipos. */
+    function eventosDe(tipo) {
+      var out = [];
+      equipos.forEach(function (t) {
+        (t.events || []).forEach(function (e) {
+          if (e.type !== tipo) return;
+          if (e.date < dias[0].fecha || e.date > domingo) return;
+          out.push({ t: t, e: e });
+        });
+      });
+      return out;
+    }
+    var entrenos = eventosDe('entrenamiento');
+    var partidos = eventosDe('partido');
+
+    /* ---------- Entrenamientos: la parrilla ----------
+       Filas = equipos, columnas = días. Es la hoja de cálculo que un director
+       tiene hoy en papel pegada en el despacho. */
+    view.appendChild(el('<p class="sec-label">Entrenamientos · ' + entrenos.length +
+      (entrenos.length === 1 ? ' sesión' : ' sesiones') + '</p>'));
+
+    if (!entrenos.length) {
+      view.appendChild(el('<p class="hint">Ningún entrenamiento programado esta semana.</p>'));
+    } else {
+      var cab = '<th>Equipo</th>' + dias.map(function (d) {
+        return '<th class="cal-d' + (d.fecha === hoy ? ' hoy' : '') + '">' + d.nombre.slice(0, 3) +
+          '<span>' + d.num + '</span></th>';
+      }).join('');
+      var tabla = el('<div class="cal-scroll"><table class="cal-tab"><thead><tr>' + cab + '</tr></thead><tbody></tbody></table></div>');
+      var tb = tabla.querySelector('tbody');
+      equipos.forEach(function (t) {
+        var mios = entrenos.filter(function (x) { return x.t.id === t.id; });
+        if (!mios.length) return;                    // equipos sin entrenos no ocupan fila
+        var celdas = dias.map(function (d) {
+          var hay = mios.filter(function (x) { return x.e.date === d.fecha; });
+          if (!hay.length) return '<td class="cal-d' + (d.fecha === hoy ? ' hoy' : '') + '"></td>';
+          return '<td class="cal-d cal-hay' + (d.fecha === hoy ? ' hoy' : '') + '">' +
+            hay.map(function (x) {
+              return '<b>' + esc(x.e.time || '—') + '</b>' + (x.e.place ? '<span>' + esc(x.e.place) + '</span>' : '');
+            }).join('') + '</td>';
+        }).join('');
+        var tr = el('<tr><td class="cal-eq"><button class="lnk">' + esc(t.name) + '</button></td>' + celdas + '</tr>');
+        tr.querySelector('button').onclick = function () { location.hash = '#/equipo/' + t.id; };
+        tb.appendChild(tr);
+      });
+      view.appendChild(tabla);
+    }
+
+    /* ---------- Partidos: el fin de semana entero ---------- */
+    view.appendChild(el('<p class="sec-label">Partidos · ' + partidos.length +
+      (partidos.length === 1 ? ' partido' : ' partidos') + '</p>'));
+
+    if (!partidos.length) {
+      view.appendChild(el('<p class="hint">Ningún partido esta semana.</p>'));
+    } else {
+      partidos.sort(function (a, b) {
+        return (a.e.date + (a.e.time || '')).localeCompare(b.e.date + (b.e.time || ''));
+      });
+      var porDia = {};
+      partidos.forEach(function (x) { (porDia[x.e.date] = porDia[x.e.date] || []).push(x); });
+      Object.keys(porDia).sort().forEach(function (f) {
+        var d = dias.filter(function (x) { return x.fecha === f; })[0];
+        var lista = porDia[f];
+        view.appendChild(el('<p class="cal-dia">' + esc(d ? d.nombre + ' ' + d.num + ' de ' + d.mes.toLowerCase() : f) +
+          ' <span class="hint">· ' + lista.length + (lista.length === 1 ? ' partido' : ' partidos') + '</span></p>'));
+        var ml = el('<div class="mini-list"></div>');
+        lista.forEach(function (x) {
+          /* Para el director, lo útil de un partido no es solo la hora: es a
+             quién NO puede alinear ese equipo. */
+          var fuera = scopedPlayers().filter(function (p) {
+            return p.team_id === x.t.id && SF.dispo(p).activa;
+          });
+          var row = el('<div class="mini-row"><span><b>' + esc(x.e.time || '—') + '</b> · ' + esc(x.t.name) +
+            ' <span class="hint">vs ' + esc(x.e.opponent || 'rival') + (x.e.place ? ' · ' + esc(x.e.place) : '') +
+            (x.e.competition ? ' · ' + esc(x.e.competition) : '') + '</span>' +
+            (fuera.length ? '<br><span class="hint">' + fuera.length + (fuera.length === 1 ? ' jugador tocado: ' : ' jugadores tocados: ') +
+              esc(fuera.map(function (p) { return p.full_name.split(' ')[0]; }).join(', ')) + '</span>' : '') +
+            '</span><span class="row-actions"><button class="lnk" data-e>Ver equipo</button></span></div>');
+          row.querySelector('[data-e]').onclick = function () { location.hash = '#/equipo/' + x.t.id; };
+          ml.appendChild(row);
+        });
+        view.appendChild(ml);
+      });
+    }
+
+    view.appendChild(el('<p class="hint">Las citas las programa cada entrenador desde su equipo. Aquí se ven todas juntas.</p>'));
+  };
+
   pages.family = function (view) {
     view.innerHTML = head('Family', 'Quién tiene acceso al portal, y qué ve cada familia.');
     /* SIN filtrar por "tiene contacto familiar". Antes, quien no lo tenía
@@ -9764,7 +9989,8 @@ SF.router = (function () {
   var root, view;
 
   var NAV = [
-    ['inicio', 'Inicio', 'home'], ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'], ['importar', 'Importar mensaje', 'ai'],
+    ['inicio', 'Inicio', 'home'], ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'],
+    ['calendario', 'Calendario', 'cal'], ['importar', 'Importar mensaje', 'ai'],
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
@@ -9775,6 +10001,7 @@ SF.router = (function () {
   ];
   var ROUTE_PAGE = {
     inicio: 'inicio', jugadores: 'jugadores', jugador: 'jugador', equipos: 'equipos', equipo: 'equipo',
+    calendario: 'calendario',
     importar: 'importar', captacion: 'captacion', documentos: 'documentos', informes: 'informes',
     family: 'family', finanzas: 'finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
