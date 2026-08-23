@@ -1959,7 +1959,7 @@ SF.SEASON = '2026/2027';
    pantalla es lo último o una página vieja guardada por el navegador, que
    ya nos ha costado una evaluación mal guardada. Se ve en Configuración
    y en el pie del menú. */
-SF.BUILD = '2026-08-23';
+SF.BUILD = '2026-08-23b';
 
 SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'psicologo', 'fisio',
   'scout', 'delegado_equipo', 'delegado_campo', 'dt_general', 'dt_femenino',
@@ -2089,8 +2089,131 @@ SF.STAFF = [
     languages: 'Español',
     licence: { season: '2026/2027', number: 'FBM-24010', category: 'Escuela', valid_until: '2027-06-30', status: 'vigente' },
     clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-03', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+
+  /* --- Cuerpo técnico del resto del club -------------------------------
+     Hasta ahora había tres entrenadores para veintisiete equipos: todo lo que
+     no fuera el Cadete Masculino A salía como "Sin entrenador". Estos diez
+     cubren los veintitrés equipos nuevos, agrupados como se hace de verdad
+     —quien lleva el A lleva también el B de su categoría— para que al mirar
+     un equipo se vea quién responde por él.
+     Dos casos no están al día a propósito: hacen falta para comprobar que la
+     habilitación avisa cuando toca. --- */
+  { id: 's13', num: 13, full_name: 'Sergio Beltrán', role: 'entrenador',
+    email: 'sergio.beltran@cbja.es', phone: '+34 600 100 021', team_ids: ['ce1', 'ce2'],
+    bio: 'Entrenador de cadete femenino. Lleva el A y el B para que el salto entre los dos equipos no sea un abismo.',
+    qualification: 'TD2 Baloncesto', qual_entity: 'FEB', qual_year: 2020, qual_number: 'TD2-1240',
+    languages: 'Español, Inglés',
+    licence: { season: '2026/2027', number: 'FBM-25101', category: 'Cadete', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-02', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's14', num: 14, full_name: 'Paula Arribas', role: 'entrenador',
+    email: 'paula.arribas@cbja.es', phone: '+34 600 100 022', team_ids: ['ce3', 'ce4'],
+    bio: 'Entrenadora de infantil femenino.',
+    qualification: 'TD1 Baloncesto', qual_entity: 'FBM', qual_year: 2022, qual_number: 'TD1-0904',
+    languages: 'Español',
+    licence: { season: '2026/2027', number: 'FBM-25118', category: 'Infantil', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-02', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's15', num: 15, full_name: 'Iván Cordero', role: 'entrenador',
+    email: 'ivan.cordero@cbja.es', phone: '+34 600 100 023', team_ids: ['ce5', 'ce6', 'ce7'],
+    bio: 'Entrenador de alevines. Trabaja los tres equipos de la categoría.',
+    qualification: 'TD1 Baloncesto', qual_entity: 'FBM', qual_year: 2023, qual_number: 'TD1-1120',
+    languages: 'Español',
+    licence: { season: '2026/2027', number: 'FBM-25133', category: 'Alevín', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-03', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's16', num: 16, full_name: 'Rocío Nieto', role: 'entrenador',
+    email: 'rocio.nieto@cbja.es', phone: '+34 600 100 024', team_ids: ['cs1', 'cs2', 'cs3', 'cs4', 'cs5'],
+    bio: 'Coordinadora de escuelas. Los cinco colegios dependen de ella.',
+    qualification: 'TD1 Baloncesto · Magisterio Ed. Física', qual_entity: 'FBM', qual_year: 2019, qual_number: 'TD1-0655',
+    languages: 'Español',
+    licence: { season: '2026/2027', number: 'FBM-25140', category: 'Escuela', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-03', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's17', num: 17, full_name: 'Marcos Ferrer', role: 'entrenador',
+    email: 'marcos.ferrer@cbja.es', phone: '+34 600 100 025', team_ids: ['ce8', 'ce9', 'cp4'],
+    bio: 'Entrenador de junior femenino: A, B y preferente.',
+    qualification: 'TD2 Baloncesto', qual_entity: 'FEB', qual_year: 2018, qual_number: 'TD2-0870',
+    languages: 'Español, Francés',
+    licence: { season: '2026/2027', number: 'FBM-25158', category: 'Junior', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-02', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's18', num: 18, full_name: 'Tomás Aguirre', role: 'entrenador',
+    email: 'tomas.aguirre@cbja.es', phone: '+34 600 100 026', team_ids: ['ce10', 'cp3'],
+    bio: 'Entrenador de junior masculino A y preferente.',
+    qualification: 'TD2 Baloncesto', qual_entity: 'FEB', qual_year: 2021, qual_number: 'TD2-1330',
+    languages: 'Español',
+    licence: { season: '2026/2027', number: 'FBM-25166', category: 'Junior', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-04', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's19', num: 19, full_name: 'Silvia Rincón', role: 'entrenador',
+    email: 'silvia.rincon@cbja.es', phone: '+34 600 100 027', team_ids: ['ce11', 'ce12'],
+    bio: 'Entrenadora de los dos Sub-22. Puente entre la cantera y los senior.',
+    qualification: 'TD2 Baloncesto', qual_entity: 'FEB', qual_year: 2019, qual_number: 'TD2-1002',
+    languages: 'Español, Inglés',
+    licence: { season: '2026/2027', number: 'FBM-25171', category: 'Sub-22', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-04', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's20', num: 20, full_name: 'Andrés Quiroga', role: 'entrenador',
+    email: 'andres.quiroga@cbja.es', phone: '+34 600 100 028', team_ids: ['cp1', 'cp2'],
+    bio: 'Entrenador de cadete preferente masculino y femenino.',
+    qualification: 'TD1 Baloncesto', qual_entity: 'FBM', qual_year: 2024, qual_number: 'TD1-1455',
+    languages: 'Español',
+    licence: { season: '2025/2026', number: 'FBM-24880', category: 'Cadete', valid_until: '2026-06-30', status: 'caducada' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-05', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's21', num: 21, full_name: 'Rubén Ortega', role: 'entrenador',
+    email: 'ruben.ortega@cbja.es', phone: '+34 600 100 029', team_ids: ['cn1'],
+    bio: 'Primer entrenador del Nacional Masculino. Dedicación exclusiva al primer equipo.',
+    qualification: 'TD3 Baloncesto', qual_entity: 'FEB', qual_year: 2014, qual_number: 'TD3-0410',
+    languages: 'Español, Inglés',
+    licence: { season: '2026/2027', number: 'FBM-25180', category: 'Sénior', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-01', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's22', num: 22, full_name: 'Natalia Guerra', role: 'entrenador',
+    email: 'natalia.guerra@cbja.es', phone: '+34 600 100 030', team_ids: ['cn2'],
+    bio: 'Primera entrenadora del Nacional Femenino.',
+    qualification: 'TD3 Baloncesto', qual_entity: 'FEB', qual_year: 2016, qual_number: 'TD3-0523',
+    languages: 'Español, Inglés',
+    licence: { season: '2026/2027', number: 'FBM-25185', category: 'Sénior', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-01', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+
+  /* --- Preparación física ----------------------------------------------
+     Tres, repartidos por secciones: masculina y primer equipo, femenina, y
+     escuelas/alevines. El de escuelas está sin habilitar todavía. --- */
+  { id: 's23', num: 23, full_name: 'Óscar Latorre', role: 'preparador_fisico',
+    email: 'oscar.latorre@cbja.es', phone: '+34 600 100 031', team_ids: ['ce5', 'ce10', 'ce11', 'cp1', 'cp3', 'cn1'],
+    bio: 'Preparador físico de la sección masculina y del primer equipo. Fuerza y prevención.',
+    qualification: 'Grado en CAFYD · Máster en Alto Rendimiento', qual_entity: 'UPM', qual_year: 2016, qual_number: 'CAF-2214',
+    languages: 'Español, Inglés',
+    licence: { season: '2026/2027', number: 'FBM-PF-204', category: '—', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-01', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's24', num: 24, full_name: 'Beatriz Salas', role: 'preparador_fisico',
+    email: 'beatriz.salas@cbja.es', phone: '+34 600 100 032', team_ids: ['ce1', 'ce2', 'ce3', 'ce4', 'ce6', 'ce7', 'ce8', 'ce9', 'ce12', 'cp2', 'cp4', 'cn2'],
+    bio: 'Preparadora física de la sección femenina. Especial atención a la prevención de rodilla.',
+    qualification: 'Grado en CAFYD', qual_entity: 'UEM', qual_year: 2019, qual_number: 'CAF-3081',
+    languages: 'Español',
+    licence: { season: '2026/2027', number: 'FBM-PF-211', category: '—', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-02', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's25', num: 25, full_name: 'Hugo Marín', role: 'preparador_fisico',
+    email: 'hugo.marin@cbja.es', phone: '+34 600 100 033', team_ids: ['cs1', 'cs2', 'cs3', 'cs4', 'cs5'],
+    bio: 'Preparador físico de escuelas y alevines. Trabajo motor y coordinación, sin cargas.',
+    qualification: 'Grado en CAFYD', qual_entity: 'UAM', qual_year: 2023, qual_number: 'CAF-4102',
+    languages: 'Español',
+    licence: { season: '2026/2027', number: 'FBM-PF-219', category: '—', valid_until: '2027-06-30', status: 'vigente' },
+    clearance: { season: '', cleared: false, checked_on: '', checked_by: '' },
     experience: [], training: [], cv_file: '' }
 ];
+
+/* La lista de entrenadores que se puede marcar en un equipo sale del propio
+   personal. Estaba escrita a mano con tres nombres y se quedaba corta cada vez
+   que entraba alguien nuevo. */
+SF.COACHES = SF.STAFF.filter(function (s) { return s.role === 'entrenador'; })
+  .map(function (s) { return s.full_name; });
 
 /* Estado de habilitación para la temporada en curso.
    Sin fila de esta temporada -> NO habilitado. La caducidad es automática. */
@@ -3016,7 +3139,13 @@ SF.buildClub = function () {
   SF.CLUB_EQUIPOS.forEach(function (E, ie) {
     equipos.push({
       id: E.id, name: E.name, sport: 'baloncesto', segment: E.seg, category: E.cat,
-      coaches: [], wall: [], events: []
+      /* Quién lleva el equipo no se escribe dos veces: sale del personal, de
+         los equipos que cada entrenador tiene asignados. Así no puede pasar
+         que la ficha del entrenador diga una cosa y la del equipo, otra. */
+      coaches: (SF.STAFF || []).filter(function (m) {
+        return m.role === 'entrenador' && (m.team_ids || []).indexOf(E.id) >= 0;
+      }).map(function (m) { return m.full_name; }),
+      wall: [], events: []
     });
 
     for (var k = 0; k < E.n; k++) {
@@ -3329,15 +3458,25 @@ SF.store = (function () {
       d.conv_multi_v1 = true;
       write(d);
     }
-    /* El club entero (27 plantillas y 274 fichas) entra solo.
+    /* El club entero (27 plantillas, 274 fichas y su cuerpo tecnico) entra solo.
        Los datos de ejemplo solo se escriben cuando el almacén está vacío, así
        que quien ya estaba trabajando se quedaba con las 7 fichas del principio
        y tenía que acordarse de pulsar un botón escondido en Configuración.
        Aquí se hace solo, una única vez: se añade únicamente lo que falta,
        comparando por id, y no se toca ni se borra nada de lo que ya hubiera. */
-    if (!d._club_v1) {
+    if (!d._club_v2) {
       fusionar(d, faltanEn(d, seed()));
-      d._club_v1 = true;
+      /* Los equipos que ya estaban guardados se quedaron con la lista de
+         entrenadores vacía, porque añadir lo que falta nunca pisa lo que hay.
+         Aquí se rellena a partir del personal, y SOLO si está vacía: si el
+         club ya puso a alguien a mano, esto no lo toca. */
+      (d.teams || []).forEach(function (t) {
+        if ((t.coaches || []).length) return;
+        t.coaches = (d.staff || []).filter(function (m) {
+          return m.role === 'entrenador' && (m.team_ids || []).indexOf(t.id) >= 0;
+        }).map(function (m) { return m.full_name; });
+      });
+      d._club_v2 = true;
       write(d);
     }
     return d;
