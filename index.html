@@ -2028,6 +2028,31 @@ SF.ROLES = {
   if (SF.ROLES[k]) SF.ROLES[k].canEditPF = true;
 });
 
+/* ===================== GRUPOS DE PERSONAL =====================
+   Para mandar algo "a los entrenadores" hay que poder decirlo en una palabra.
+   Estaban escritos a mano dentro de un botón, con un rol mal escrito
+   ('fisioterapeuta' en vez de 'fisio'), así que el atajo "cuerpo técnico"
+   dejaba fuera a la fisioterapeuta sin que nadie se diera cuenta.
+   Aquí viven una vez y los usan todas las pantallas que reparten mensajes. */
+SF.GRUPOS_STAFF = [
+  { k: 'todos',    label: 'Todo el club',      roles: null },
+  { k: 'tecnico',  label: 'Cuerpo técnico',    roles: ['entrenador', 'preparador_fisico', 'fisio', 'psicologo'] },
+  { k: 'direccion',label: 'Dirección técnica', roles: ['dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis'] },
+  { k: 'entren',   label: 'Entrenadores',      roles: ['entrenador'] },
+  { k: 'fisicos',  label: 'Preparadores',      roles: ['preparador_fisico'] },
+  { k: 'salud',    label: 'Salud y bienestar', roles: ['fisio', 'psicologo'] },
+  { k: 'delegados',label: 'Delegados',         roles: ['delegado_equipo', 'delegado_campo'] },
+  { k: 'gestion',  label: 'Gestión',           roles: ['administrativo', 'scout'] }
+];
+
+/* Los miembros de un grupo dentro de una lista dada. `roles: null` = todos. */
+SF.staffDeGrupo = function (lista, clave) {
+  var g = SF.GRUPOS_STAFF.filter(function (x) { return x.k === clave; })[0];
+  if (!g) return [];
+  if (!g.roles) return lista.slice();
+  return lista.filter(function (s) { return g.roles.indexOf(s.role) >= 0; });
+};
+
 SF.USERS = {
   director: 'Jorge Andrés', administrativo: 'Marta Soler',
   entrenador: 'Carlos Gorosito', scout: 'Laura Pérez', padre: 'Familia',
@@ -2369,6 +2394,27 @@ SF.STAFF = [
     languages: 'Español, Inglés, Portugués',
     licence: { season: '2026/2027', number: 'FBM-SC-104', category: '—', valid_until: '2027-06-30', status: 'vigente' },
     clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-02', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+
+  /* Dirección y administración tampoco tenían ficha, y eso no es un detalle
+     cosmético: `staffMe()` devolvía null, así que el director no podía abrir
+     una conversación con nadie ni recibir nada en su buzón. Mandaba mensajes
+     que no tenían remitente. Son personas del club como el resto. */
+  { id: 's27', num: 27, full_name: 'Jorge Andrés', role: 'director',
+    email: 'direccion@cbja.es', phone: '+34 600 100 035', team_ids: [],
+    bio: 'Dirección del club. Proyecto deportivo, personal y relación con las familias.',
+    qualification: '', qual_entity: '', qual_year: null, qual_number: '',
+    languages: 'Español, Inglés',
+    licence: { season: '', number: '', category: '', valid_until: '', status: 'no_aplica' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-01', checked_by: 'Marta Soler' },
+    experience: [], training: [], cv_file: '' },
+  { id: 's28', num: 28, full_name: 'Marta Soler', role: 'administrativo',
+    email: 'administracion@cbja.es', phone: '+34 600 100 036', team_ids: [],
+    bio: 'Administración del club: licencias, habilitaciones, cuotas y documentación.',
+    qualification: '', qual_entity: '', qual_year: null, qual_number: '',
+    languages: 'Español',
+    licence: { season: '', number: '', category: '', valid_until: '', status: 'no_aplica' },
+    clearance: { season: '2026/2027', cleared: true, checked_on: '2026-09-01', checked_by: 'Marta Soler' },
     experience: [], training: [], cv_file: '' }
 ];
 
@@ -3827,6 +3873,14 @@ SF.store = (function () {
         if (quien) p.scout_id = quien.id;
       });
       d._scout_v1 = true;
+      write(d);
+    }
+    /* Dirección y administración entran en el personal del club. Sin ficha,
+       `staffMe()` devolvía null para el director y no podía abrir hilos ni
+       tener buzón: los comunicados al personal salían sin remitente. */
+    if (!d._dir_v1) {
+      fusionar(d, faltanEn(d, seed()));
+      d._dir_v1 = true;
       write(d);
     }
     return d;
@@ -10879,88 +10933,87 @@ window.SF = window.SF || {};
   };
 
   /* ===================== COMUNICADOS DEL CLUB ===================== */
+  /* ===================== COMUNICADOS =====================
+     Dos públicos distintos y no se parecen en nada:
+
+     · Las FAMILIAS reciben avisos. O pasan por el entrenador, que decide
+       cuándo mandarlos, o van directos cuando son administrativos.
+     · El PERSONAL del club no siempre recibe: a veces tiene que contestar.
+       "¿Quién puede el sábado?" no es un aviso, es una pregunta, y hasta ahora
+       había que salir de aquí e irse a Mis avisos para poder hacerla.
+
+     Por eso el comunicado al personal decide si admite respuesta y, si la
+     admite, si todos se leen entre ellos o cada uno contesta solo a quien
+     preguntó. Un cuadrante se coordina en común; una renovación, no. */
   pages.comunicados = function (view) {
     var teams = scopeTeams();
     var r = SF.store.role();
-    view.innerHTML = head('Comunicados', 'Del club a los entrenadores, o directo a las familias.');
+    var yo = SF.store.staffMe();
+    var todoElClub = ['director', 'dt_general', 'administrativo'].indexOf(r) >= 0;
 
-    var alcance = (['director', 'dt_general', 'administrativo'].indexOf(r) >= 0)
-      ? 'Alcanzas a todo el club.'
-      : 'Tu alcance: ' + (teams.length ? teams.map(function (t) { return t.name; }).join(', ') : 'ningún equipo') + '.';
-    view.appendChild(el('<p class="hint">' + alcance + '</p>'));
+    view.innerHTML = head('Comunicados', 'Del club a las familias, y de dirección al personal.');
 
-    var bNew = el('<button class="btn btn-primary btn-sm">' + ico('ai') + 'Nuevo comunicado</button>');
-    bNew.onclick = function () {
-      var sel = {}; teams.forEach(function (t) { sel[t.id] = true; });
-      var box = el('<div></div>');
-      var f = el('<div class="form-grid">' +
-        '<div class="frow"><label>Título</label><input id="ti" placeholder="Torneo de Navidad"></div>' +
-        '<div class="frow"><label>Mensaje</label><textarea id="bo" rows="3"></textarea></div>' +
-        '<div class="frow"><label>¿Cómo se envía?</label><select id="md">' +
-        '<option value="reenviar">Al entrenador, para que lo reenvíe a su equipo</option>' +
-        '<option value="directo">Directo a las familias, sin pasar por el entrenador</option>' +
-        '</select></div></div>');
-      box.appendChild(f);
-      box.appendChild(el('<p class="hint" id="expl">El entrenador lo recibe y decide cuándo mandarlo a su equipo. Tú verás quién lo ha reenviado y quién no.</p>'));
-      f.querySelector('#md').onchange = function () {
-        box.querySelector('#expl').innerHTML = this.value === 'directo'
-          ? 'Va directamente a las familias de los equipos elegidos. Úsalo para avisos administrativos: equipación, plazos, pagos.'
-          : 'El entrenador lo recibe y decide cuándo mandarlo a su equipo. Tú verás quién lo ha reenviado y quién no.';
-      };
+    /* El personal al que alcanza quien está mirando. Dirección y administración
+       llegan a todos; una DT de sección, a la gente de sus equipos. Nadie se
+       manda un comunicado a sí mismo. */
+    function personalAlcanzable() {
+      var todos = SF.store.staff().filter(function (s) { return !yo || s.id !== yo.id; });
+      if (todoElClub) return todos;
+      var mis = teams.map(function (t) { return t.id; });
+      return todos.filter(function (s) {
+        return (s.team_ids || []).some(function (id) { return mis.indexOf(id) >= 0; });
+      });
+    }
+    var personal = personalAlcanzable();
 
-      box.appendChild(el('<p class="sec-label">¿A qué equipos?</p>'));
-      var list = el('<div class="att-list"></div>');
-      function paint() {
-        list.innerHTML = '';
-        teams.forEach(function (t) {
-          var on = !!sel[t.id];
-          var row = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span>' + (on ? '☑ ' : '☐ ') +
-            '<b>' + esc(t.name) + '</b> · ' + esc(SF.SEGMENTS[t.segment] || t.segment || '') + '</span></button>');
-          row.onclick = function () { sel[t.id] = !sel[t.id]; paint(); };
-          list.appendChild(row);
+    view.appendChild(el('<p class="hint">' +
+      (todoElClub
+        ? 'Alcanzas a todo el club: ' + teams.length + ' equipos y ' + personal.length + ' personas del personal.'
+        : 'Tu alcance: ' + (teams.length ? teams.map(function (t) { return t.name; }).join(', ') : 'ningún equipo') +
+          ' · ' + personal.length + ' personas del personal.') + '</p>'));
+
+    var botones = el('<div class="row-c" style="margin-bottom:6px"></div>');
+    var bFam = el('<button class="btn btn-primary btn-sm">' + ico('family') + 'Comunicado a las familias</button>');
+    bFam.onclick = function () { modalFamilias(teams); };
+    botones.appendChild(bFam);
+    if (personal.length) {
+      var bStaff = el('<button class="btn btn-primary btn-sm">' + ico('shield') + 'Comunicado al personal</button>');
+      bStaff.onclick = function () { modalPersonal(personal, yo); };
+      botones.appendChild(bStaff);
+    }
+    view.appendChild(botones);
+    if (!personal.length) {
+      view.appendChild(el('<p class="hint">No alcanzas a nadie del personal: tus equipos no tienen a nadie asignado todavía.</p>'));
+    }
+
+    /* --- Conversaciones abiertas por mí: lo que espera respuesta --- */
+    if (yo) {
+      var mios = SF.store.convsForStaff(yo.id).filter(function (c) {
+        return c.opened_by && c.opened_by.kind === 'staff' && c.opened_by.id === yo.id;
+      });
+      if (mios.length) {
+        view.appendChild(el('<p class="sec-label">Abiertos a respuesta</p>'));
+        var hl = el('<div class="mini-list" style="margin-bottom:18px"></div>');
+        mios.forEach(function (c) {
+          var ult = c.messages[c.messages.length - 1];
+          var respuestas = c.messages.length - 1;
+          var sinLeer = SF.store.convSinLeer(c, yo.id);
+          var dest = c.to_staff_ids || (c.to_staff ? [c.to_staff] : []);
+          var row = el('<div class="mini-row"><span><b>' + esc(c.subject) + '</b>' +
+            (sinLeer ? ' <span class="tag tag-purple">' + sinLeer + ' sin leer</span>' : '') +
+            (c.closed_at ? ' <span class="tag tag-green">cerrada</span>' : '') +
+            '<br><span class="hint">a ' + dest.length + (dest.length === 1 ? ' persona' : ' personas') +
+            ' · ' + (respuestas ? respuestas + (respuestas === 1 ? ' respuesta' : ' respuestas') : 'sin respuestas todavía') +
+            ' · ' + fmtDate((ult.at || '').slice(0, 10)) +
+            '</span></span><span class="row-actions"><button class="lnk" data-a>Abrir</button></span></div>');
+          row.querySelector('[data-a]').onclick = function () { abrirHilo(c, yo); };
+          hl.appendChild(row);
         });
+        view.appendChild(hl);
       }
-      paint(); box.appendChild(list);
+    }
 
-      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Enviar</button></div>');
-      foot.children[0].onclick = U.closeModal;
-      foot.children[1].onclick = function () {
-        var title = f.querySelector('#ti').value.trim();
-        if (!title) { U.toast('Ponle un título'); return; }
-        var ids = Object.keys(sel).filter(function (k) { return sel[k]; });
-        if (!ids.length) { U.toast('Elige al menos un equipo'); return; }
-        var mode = f.querySelector('#md').value;
-        var body = f.querySelector('#bo').value.trim();
-
-        if (mode === 'directo') {
-          // Sin intermediario: un aviso por equipo, a todos sus jugadores.
-          var tot = 0;
-          ids.forEach(function (tid) {
-            var roster = SF.store.players().filter(function (p) { return p.team_id === tid; });
-            if (!roster.length) return;
-            SF.store.annCreate(tid, { title: title, body: body, kind: 'club' }, roster.map(function (p) { return p.id; }));
-            tot += roster.length;
-          });
-          SF.store.commCreate({ mode: 'directo', title: title, body: body }, []);
-          U.closeModal(); U.toast('Enviado a ' + tot + ' familias'); SF.router.render();
-        } else {
-          // Cascada: llega a cada entrenador de esos equipos.
-          var tg = [];
-          ids.forEach(function (tid) {
-            SF.store.staffOfTeam(tid).filter(function (s) { return s.role === 'entrenador'; })
-              .forEach(function (s) { tg.push({ staff_id: s.id, team_id: tid }); });
-          });
-          if (!tg.length) { U.toast('Esos equipos no tienen entrenador asignado'); return; }
-          SF.store.commCreate({ mode: 'reenviar', title: title, body: body }, tg);
-          U.closeModal(); U.toast('Enviado a ' + tg.length + ' entrenadores'); SF.router.render();
-        }
-      };
-      var w = el('<div></div>'); w.appendChild(box); w.appendChild(foot);
-      U.modal('Nuevo comunicado', w);
-    };
-    view.appendChild(bNew);
-
-    /* Enviados, con el estado del reenvío: es lo que hace útil la cascada */
+    /* --- Enviados sin respuesta: los de siempre, con su acuse --- */
     view.appendChild(el('<p class="sec-label">Enviados</p>'));
     var cs = SF.store.comms();
     if (!cs.length) view.appendChild(el('<p class="hint">Todavía no has enviado ningún comunicado.</p>'));
@@ -10968,8 +11021,25 @@ window.SF = window.SF || {};
       var box = el('<div class="empty-panel" style="text-align:left;margin-bottom:10px"></div>');
       box.appendChild(el('<p><b>' + esc(c.title) + '</b> <span class="hint">' + fmtDate((c.created_at || '').slice(0, 10)) + ' · ' + esc(c.author) + '</span></p>'));
       if (c.body) box.appendChild(el('<p class="hint">' + esc(c.body) + '</p>'));
+
       if (c.mode === 'directo') {
         box.appendChild(el('<p class="hint"><span class="tag tag-purple">directo a familias</span></p>'));
+      } else if (c.mode === 'personal') {
+        /* Al personal no hay nada que reenviar: o lo han leído o no. */
+        var leidosP = (c.staff_targets || []).filter(function (t) { return t.read_at; }).length;
+        var totP = (c.staff_targets || []).length;
+        box.appendChild(el('<p class="hint"><span class="tag ' + (leidosP === totP ? 'tag-green' : 'tag-warn') + '">' +
+          leidosP + ' de ' + totP + ' lo han leído</span> · <span class="tag tag-gray">al personal</span></p>'));
+        var ulP = el('<div class="mini-list"></div>');
+        (c.staff_targets || []).forEach(function (t) {
+          var s = SF.store.staffGet(t.staff_id);
+          if (!s) return;
+          ulP.appendChild(el('<div class="mini-row"><span>' + esc(s.full_name) +
+            ' <span class="hint">' + esc(roleLabel(s.role)) + '</span></span>' +
+            '<span class="row-actions">' + (t.read_at ? '<span class="tag tag-green">leído</span>' : '<span class="tag tag-gray">sin leer</span>') +
+            '</span></div>'));
+        });
+        box.appendChild(ulP);
       } else {
         var rel = c.staff_targets.filter(function (t) { return t.relayed_at; }).length;
         var leidos = c.staff_targets.filter(function (t) { return t.read_at; }).length;
@@ -10988,6 +11058,179 @@ window.SF = window.SF || {};
       view.appendChild(box);
     });
   };
+
+  /* --- Comunicado a las familias: lo de siempre, sin tocar --- */
+  function modalFamilias(teams) {
+    var sel = {}; teams.forEach(function (t) { sel[t.id] = true; });
+    var box = el('<div></div>');
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>Título</label><input id="ti" placeholder="Torneo de Navidad"></div>' +
+      '<div class="frow"><label>Mensaje</label><textarea id="bo" rows="3"></textarea></div>' +
+      '<div class="frow"><label>¿Cómo se envía?</label><select id="md">' +
+      '<option value="reenviar">Al entrenador, para que lo reenvíe a su equipo</option>' +
+      '<option value="directo">Directo a las familias, sin pasar por el entrenador</option>' +
+      '</select></div></div>');
+    box.appendChild(f);
+    box.appendChild(el('<p class="hint" id="expl">El entrenador lo recibe y decide cuándo mandarlo a su equipo. Tú verás quién lo ha reenviado y quién no.</p>'));
+    f.querySelector('#md').onchange = function () {
+      box.querySelector('#expl').innerHTML = this.value === 'directo'
+        ? 'Va directamente a las familias de los equipos elegidos. Úsalo para avisos administrativos: equipación, plazos, pagos.'
+        : 'El entrenador lo recibe y decide cuándo mandarlo a su equipo. Tú verás quién lo ha reenviado y quién no.';
+    };
+
+    box.appendChild(el('<p class="sec-label">¿A qué equipos?</p>'));
+    var list = el('<div class="att-list"></div>');
+    function paint() {
+      list.innerHTML = '';
+      teams.forEach(function (t) {
+        var on = !!sel[t.id];
+        var row = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span>' + (on ? '☑ ' : '☐ ') +
+          '<b>' + esc(t.name) + '</b> · ' + esc(SF.SEGMENTS[t.segment] || t.segment || '') + '</span></button>');
+        row.onclick = function () { sel[t.id] = !sel[t.id]; paint(); };
+        list.appendChild(row);
+      });
+    }
+    paint(); box.appendChild(list);
+
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Enviar</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var title = f.querySelector('#ti').value.trim();
+      if (!title) { U.toast('Ponle un título'); return; }
+      var ids = Object.keys(sel).filter(function (k) { return sel[k]; });
+      if (!ids.length) { U.toast('Elige al menos un equipo'); return; }
+      var mode = f.querySelector('#md').value;
+      var body = f.querySelector('#bo').value.trim();
+
+      if (mode === 'directo') {
+        var tot = 0;
+        ids.forEach(function (tid) {
+          var roster = SF.store.players().filter(function (p) { return p.team_id === tid; });
+          if (!roster.length) return;
+          SF.store.annCreate(tid, { title: title, body: body, kind: 'club' }, roster.map(function (p) { return p.id; }));
+          tot += roster.length;
+        });
+        SF.store.commCreate({ mode: 'directo', title: title, body: body }, []);
+        U.closeModal(); U.toast('Enviado a ' + tot + ' familias'); SF.router.render();
+      } else {
+        var tg = [];
+        ids.forEach(function (tid) {
+          SF.store.staffOfTeam(tid).filter(function (s) { return s.role === 'entrenador'; })
+            .forEach(function (s) { tg.push({ staff_id: s.id, team_id: tid }); });
+        });
+        if (!tg.length) { U.toast('Esos equipos no tienen entrenador asignado'); return; }
+        SF.store.commCreate({ mode: 'reenviar', title: title, body: body }, tg);
+        U.closeModal(); U.toast('Enviado a ' + tg.length + ' entrenadores'); SF.router.render();
+      }
+    };
+    var w = el('<div></div>'); w.appendChild(box); w.appendChild(foot);
+    U.modal('Comunicado a las familias', w);
+  }
+
+  /* --- Comunicado al personal del club --- */
+  function modalPersonal(personal, yo) {
+    var sel = {};
+    var box = el('<div></div>');
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>Título</label><input id="ti" placeholder="Reunión de cuerpo técnico"></div>' +
+      '<div class="frow"><label>Mensaje</label><textarea id="bo" rows="3"></textarea></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>¿Pueden contestarte?</label><select id="rp">' +
+      '<option value="no">No, es solo un aviso</option>' +
+      '<option value="comun">Sí, en un hilo común: todos leen a todos</option>' +
+      '<option value="privado">Sí, pero en privado: cada uno te contesta solo a ti</option>' +
+      '</select></div></div>');
+    box.appendChild(f);
+    var expl = el('<p class="hint">Les llega al buzón y verás quién lo ha leído. Nadie puede responder.</p>');
+    box.appendChild(expl);
+    f.querySelector('#rp').onchange = function () {
+      expl.textContent = this.value === 'comun'
+        ? 'Se abre una conversación con todos dentro. Sirve para coordinar: se ven las respuestas entre ellos y nadie repite lo mismo.'
+        : this.value === 'privado'
+          ? 'Se abre una conversación con cada persona por separado. Nadie ve lo que contestan los demás. Para lo que no debe leer todo el club.'
+          : 'Les llega al buzón y verás quién lo ha leído. Nadie puede responder.';
+    };
+
+    box.appendChild(el('<p class="sec-label">¿A quién?</p>'));
+
+    /* Los grupos que existen de verdad en este club: si no hay ni un delegado,
+       no se enseña un botón que al pulsarlo no selecciona a nadie. */
+    var atajos = el('<div class="row-c" style="margin-bottom:8px;flex-wrap:wrap"></div>');
+    SF.GRUPOS_STAFF.forEach(function (g) {
+      var miembros = SF.staffDeGrupo(personal, g.k);
+      if (!miembros.length) return;
+      var b = el('<button class="btn btn-light btn-sm">' + esc(g.label) + ' <span class="hint">' + miembros.length + '</span></button>');
+      b.onclick = function () { miembros.forEach(function (s) { sel[s.id] = true; }); pinta(); };
+      atajos.appendChild(b);
+    });
+    var bNadie = el('<button class="btn btn-light btn-sm">Ninguno</button>');
+    bNadie.onclick = function () { sel = {}; pinta(); };
+    atajos.appendChild(bNadie);
+    box.appendChild(atajos);
+
+    var cuenta = el('<p class="hint"></p>');
+    var lista = el('<div class="att-list"></div>');
+    box.appendChild(cuenta); box.appendChild(lista);
+
+    function pinta() {
+      lista.innerHTML = '';
+      var porRol = {};
+      personal.forEach(function (s) { (porRol[s.role] = porRol[s.role] || []).push(s); });
+      Object.keys(porRol).forEach(function (rol) {
+        lista.appendChild(el('<p class="hint" style="margin:8px 0 2px">' + esc(roleLabel(rol)) + '</p>'));
+        porRol[rol].forEach(function (s) {
+          var on = !!sel[s.id];
+          var eq = (s.team_ids || []).map(function (id) { return (SF.store.teamGet(id) || {}).name; }).filter(Boolean);
+          var row = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span>' +
+            (on ? '☑ ' : '☐ ') + '<b>' + esc(s.full_name) + '</b>' +
+            (eq.length ? ' <span class="hint">· ' + esc(eq.slice(0, 3).join(', ')) + (eq.length > 3 ? ' +' + (eq.length - 3) : '') + '</span>' : '') +
+            '</span></button>');
+          row.onclick = function () { sel[s.id] = !sel[s.id]; pinta(); };
+          lista.appendChild(row);
+        });
+      });
+      var n = Object.keys(sel).filter(function (k) { return sel[k]; }).length;
+      cuenta.textContent = n ? (n === 1 ? '1 persona seleccionada' : n + ' personas seleccionadas') : 'Marca al menos una.';
+    }
+    pinta();
+
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Enviar</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var title = f.querySelector('#ti').value.trim();
+      var body = f.querySelector('#bo').value.trim();
+      var resp = f.querySelector('#rp').value;
+      var ids = Object.keys(sel).filter(function (k) { return sel[k]; });
+      if (!title) { U.toast('Ponle un título'); return; }
+      if (!ids.length) { U.toast('Elige al menos una persona'); return; }
+      /* Si esperas respuesta, el mensaje no puede ir vacío: nadie contesta a
+         un título suelto. */
+      if (resp !== 'no' && !body) { U.toast('Escribe el mensaje: les estás pidiendo que contesten'); return; }
+
+      if (resp === 'no') {
+        SF.store.commCreate({ mode: 'personal', title: title, body: body },
+          ids.map(function (id) { return { staff_id: id, team_id: null }; }));
+        U.closeModal();
+        U.toast('Enviado a ' + ids.length + (ids.length === 1 ? ' persona' : ' personas'));
+        SF.router.render(); SF.router.renderShell();
+        return;
+      }
+
+      if (!yo) { U.toast('Para abrir una conversación necesitas ficha de personal'); return; }
+      var de = { kind: 'staff', id: yo.id, name: yo.full_name, role: roleLabel(yo.role) };
+      var base = { player_id: null, team_id: null, subject: title, text: body, from: de };
+      if (resp === 'privado') {
+        ids.forEach(function (id) { SF.store.convCreate(Object.assign({}, base, { to_staff_ids: [id] })); });
+      } else {
+        SF.store.convCreate(Object.assign({}, base, { to_staff_ids: ids }));
+      }
+      U.closeModal();
+      U.toast('Enviado a ' + ids.length + (ids.length === 1 ? ' persona' : ' personas') +
+        (resp === 'privado' ? ', en privado' : ', en un hilo común'));
+      SF.router.render(); SF.router.renderShell();
+    };
+    var w = el('<div></div>'); w.appendChild(box); w.appendChild(foot);
+    U.modal('Comunicado al personal', w);
+  }
 
   pages['mi-equipo'] = function (view) {
     var mine = myTeams();
@@ -12214,11 +12457,12 @@ window.SF = window.SF || {};
     var bTec = el('<button class="btn btn-light btn-sm">Solo cuerpo técnico</button>');
     bTodos.onclick = function () { otros.forEach(function (s) { sel[s.id] = true; }); pinta(); };
     bNadie.onclick = function () { sel = {}; pinta(); };
+    /* Antes esta lista estaba escrita aquí a mano y decía 'fisioterapeuta',
+       que no es la clave del rol: es 'fisio'. Resultado, el atajo dejaba
+       fuera a la fisioterapeuta cada vez. Ahora sale de SF.GRUPOS_STAFF. */
     bTec.onclick = function () {
       sel = {};
-      otros.forEach(function (s) {
-        if (['entrenador', 'preparador_fisico', 'fisioterapeuta', 'psicologo'].indexOf(s.role) >= 0) sel[s.id] = true;
-      });
+      SF.staffDeGrupo(otros, 'tecnico').forEach(function (s) { sel[s.id] = true; });
       pinta();
     };
     atajos.appendChild(bTodos); atajos.appendChild(bTec); atajos.appendChild(bNadie);
