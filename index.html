@@ -844,6 +844,13 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .exp-main{display:flex;flex-direction:column;gap:1px;min-width:0}
 .exp-main b{font-size:13px}
 .exp-side{display:flex;align-items:center;gap:8px;white-space:nowrap;font-weight:650;font-size:13px}
+/* En movil el importe, la etiqueta y los botones no caben al lado del
+   concepto: `nowrap` los mantenia en la misma linea y empujaban la pantalla
+   128 px hacia la derecha. Se dejan bajar a su propia linea. */
+@media (max-width:560px){
+  .exp-row{flex-wrap:wrap}
+  .exp-side{width:100%;justify-content:flex-end;white-space:normal;flex-wrap:wrap}
+}
 .tk-prev{margin-top:6px}
 .tk-prev img{max-width:140px;max-height:120px;border-radius:8px;border:1px solid var(--line)}
 .tk-prev.big img{max-width:100%;max-height:60vh}
@@ -10642,19 +10649,45 @@ window.SF = window.SF || {};
       cats.forEach(function (c) { cb.appendChild(el('<div class="bar-row"><span class="bar-label">' + esc(c) + '</span><span class="bar-track"><span class="bar-fill" style="width:' + Math.round(byCat[c] / maxc * 100) + '%"></span></span><span class="bar-val">' + eur(byCat[c]) + '</span></div>')); });
       view.appendChild(cb);
 
-      view.appendChild(el('<p class="sec-label">Quién debe dinero</p>'));
+      /* ---------- Lo que falta por cobrar: LA CIFRA, no la lista ----------
+         Aqui habia una lista de deudores... cortada en 8 con un `slice` y sin
+         decirlo en ningun sitio. El titulo decia "Quien debe dinero" y
+         enseñaba ocho, asi que parecia la lista entera cuando en realidad
+         habia 36. Un numero que parece completo y no lo es hace mas daño que
+         no poner nada.
+
+         Y ademas estaba duplicado. Las dos pantallas responden a preguntas
+         distintas y conviene que se note:
+           · Finanzas  -> "¿a quien reclamo?"  Operativa, jugador a jugador,
+                          con el boton de avisar al lado.
+           · Economia  -> "¿como esta la caja?" Dinero que entra y que sale.
+         La deuda pinta en Economia como CIFRA —afecta a lo que el club va a
+         ingresar— pero la lista de nombres es trabajo, y el trabajo se hace en
+         Finanzas. Dos listas del mismo dato son dos listas que pueden
+         discrepar; de hecho ya discrepaban. */
       var debt = s.players.map(function (p) { var t = SF.finTotals(p); return { p: p, due: t.pending + t.overdue, venc: t.overdue }; })
-        .filter(function (x) { return x.due > 0; }).sort(function (a, b) { return b.venc - a.venc || b.due - a.due; });
-      var dl = el('<div class="mini-list"></div>');
-      if (!debt.length) dl.appendChild(el('<p class="hint">Nadie debe nada. Al día.</p>'));
-      debt.slice(0, 8).forEach(function (x) {
-        var row = el('<div class="mini-row"><span>' + esc(x.p.full_name) +
-          (x.venc ? ' <span class="tag tag-danger">vencido</span>' : '') + '</span>' +
-          '<span class="row-actions"><span class="hint">debe ' + eur(x.due) + '</span> <button class="lnk" data-v>ver plan</button></span></div>');
-        row.querySelector('[data-v]').onclick = function () { SF._openTab = 'finanzas'; location.hash = '#/jugador/' + x.p.id; };
-        dl.appendChild(row);
-      });
-      view.appendChild(dl);
+        .filter(function (x) { return x.due > 0; });
+      var totalDebt = debt.reduce(function (a, x) { return a + x.due; }, 0);
+      var totalVenc = debt.reduce(function (a, x) { return a + x.venc; }, 0);
+      var nVenc = debt.filter(function (x) { return x.venc > 0; }).length;
+
+      view.appendChild(el('<p class="sec-label">Lo que falta por cobrar</p>'));
+      if (!debt.length) {
+        view.appendChild(el('<p class="hint">Nadie debe nada. Todo el club al día.</p>'));
+      } else {
+        var caja2 = el('<div class="card"><div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">' +
+          '<div style="flex:1;min-width:190px">' +
+          '<div class="kpi-num" style="color:var(--warn)">' + eur(totalDebt) + '</div>' +
+          '<p class="hint">de <b>' + debt.length + '</b> ' + (debt.length === 1 ? 'jugador' : 'jugadores') +
+          (totalVenc ? ' · <b style="color:var(--danger)">' + eur(totalVenc) + ' vencido</b> en ' + nVenc +
+            (nVenc === 1 ? ' jugador' : ' jugadores') : '') + '</p></div></div></div>');
+        var bIr = el('<button class="btn btn-primary">' + ico('card') + 'Ver quién debe, en Finanzas</button>');
+        bIr.onclick = function () { location.hash = '#/finanzas'; };
+        caja2.querySelector('div > div').appendChild(bIr);
+        view.appendChild(caja2);
+        view.appendChild(el('<p class="hint">Los nombres y el botón de avisar están en Finanzas, ' +
+          'que es donde se reclama. Aquí solo la cifra, porque es la que afecta a la caja.</p>'));
+      }
     }
   };
 
