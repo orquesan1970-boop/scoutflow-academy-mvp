@@ -961,6 +961,28 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .pf-morado{background:#EFEBFF;color:var(--purple-d)}
 .mini-row.pf-verde,.mini-row.pf-naranja,.mini-row.pf-azul,.mini-row.pf-morado{border-left:3px solid currentColor}
 
+/* --- Permisos: la consola del director --- */
+.rol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:6px}
+.rol-card{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:14px;cursor:pointer;font-family:inherit;transition:.15s}
+.rol-card:hover{border-color:var(--purple-2);box-shadow:0 6px 18px rgba(111,90,239,.10)}
+.rol-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px}
+.rol-top b{font-size:14px}
+.perm-cols{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px 16px;margin:4px 0 2px}
+.perm-chk{align-items:flex-start;padding:4px 0}
+.perm-chk input{margin-top:2px}
+
+/* --- La puerta cerrada: el permiso, dicho en voz alta --- */
+.puerta{max-width:520px;margin:48px auto;text-align:center;background:var(--surface);
+  border:1px solid var(--line);border-radius:var(--r-lg);padding:32px 28px}
+.puerta-ic{width:52px;height:52px;border-radius:50%;background:var(--bg);color:var(--ink-3);
+  display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.puerta-ic .ic{width:24px;height:24px}
+.puerta h2{font-size:19px;margin:0 0 8px}
+.puerta p{font-size:13.5px;color:var(--ink-2);margin:0;line-height:1.6}
+.puerta-quien{font-size:12.5px;color:var(--ink-3);margin-top:14px !important;
+  border-top:1px solid var(--line);padding-top:14px}
+
 /* --- La hoja de preparación física, con el formato del club --- */
 .pf-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
 .pf-cab .pf-leyenda{margin-bottom:0}
@@ -1186,7 +1208,7 @@ SF.quienLoVe = function (p) {
   if (!p) return [];
   var equipo = p.team_id ? SF.store.teamGet(p.team_id) : null;
   return SF.store.staff().map(function (s) {
-    var rol = SF.ROLES[s.role]; if (!rol) return null;
+    var rol = SF.rolDe(s.role); if (!rol) return null;
     var lleva = equipo && (s.team_ids || []).indexOf(equipo.id) >= 0;
 
     /* Alcance por equipo: solo si le han asignado ese equipo. */
@@ -1215,10 +1237,10 @@ SF.destinatariosFamilia = function (p) {
   if (!equipo) return [];
   return SF.store.staff().filter(function (s) {
     var lleva = (s.team_ids || []).indexOf(p.team_id) >= 0;
-    if (s.role === 'entrenador' || s.role === 'preparador_fisico') return lleva;
+    if (s.role === 'entrenador' || s.role === 'preparador_fisico' || s.role === 'coord_pf') return lleva;
     /* El DT que corresponde sale del segmento del equipo, no de una lista
        que alguien tenga que mantener a mano. */
-    var segs = (SF.ROLES[s.role] || {}).segments;
+    var segs = (SF.rolDe(s.role) || {}).segments;
     if (!segs) return false;
     if (segs === 'all') return s.role === 'dt_general' && lleva;
     return segs.indexOf(equipo.segment) >= 0;
@@ -1240,7 +1262,7 @@ SF.supervisoresDe = function (teamId) {
   var equipo = teamId ? SF.store.teamGet(teamId) : null;
   return SF.store.staff().filter(function (s) {
     if (s.role === 'dt_general') return true;
-    var segs = (SF.ROLES[s.role] || {}).segments;
+    var segs = (SF.rolDe(s.role) || {}).segments;
     if (!segs || segs === 'all' || !equipo) return false;
     return segs.indexOf(equipo.segment) >= 0;
   });
@@ -2952,6 +2974,102 @@ SF.docVencido = function (d) { return !!(d.due && !SF.docListo(d) && d.due < new
         siempre sin que nadie la revise.
      3. Motivo obligatorio. Dentro de dos años hay que poder entender por qué.
      4. Hay permisos que no se delegan nunca (SF.PERM_NUNCA). */
+/* ===================== LOS ROLES SON DEL CLUB =====================
+   `SF.ROLES` es lo que trae la app de fabrica. Encima, cada club puede ajustar
+   lo suyo desde Permisos, y eso vive en sus datos -no en el codigo-, porque
+   ningun club se organiza igual: en uno el delegado pasa lista y en otro no lo
+   toca, y esperar a que alguien edite un archivo para eso es lo que hace que
+   la gente acabe compartiendo la contraseña del director.
+
+   `SF.rolDe(k)` es la UNICA forma correcta de preguntar que puede un rol. Leer
+   `SF.ROLES[k]` a pelo devuelve la version de fabrica y se salta lo que el club
+   haya decidido. Se deja para etiquetas y poco mas.
+
+   LO QUE NO SE PUEDE CAMBIAR, y es a proposito:
+     · Las notas internas (presupuesto, situacion economica de la familia) y la
+       gestion de permisos. Lo primero se cambia en el organigrama; lo segundo
+       permitiria a quien lo recibiera darselo todo.
+     · Los roles de familia y jugador. Estan fuera del club: abrirles una
+       seccion interna por descuido es la fuga que no se puede permitir, y
+       ningun ajuste rapido merece ese riesgo.
+     · El director. Si se le pudiera recortar, alguien podria dejar al club sin
+       nadie que administre nada. */
+/* Como se llama cada seccion en castellano. Vivia dentro del router, y hacia
+   falta fuera para poder decir "no tienes acceso a Finanzas" en vez de
+   "no tienes acceso a finanzas". */
+SF.SECCION_LABEL = {
+  inicio: 'Inicio', agenda: 'Agenda', jugadores: 'Jugadores', equipos: 'Equipos',
+  calendario: 'Calendario', horarios: 'Cuadrantes', importar: 'Importar',
+  'importar-datos': 'Datos de partido', captacion: 'Captación', documentos: 'Documentos',
+  licencias: 'Licencias', informes: 'Informes', family: 'Family', finanzas: 'Finanzas',
+  presupuesto: 'Presupuesto', economia: 'Economía', sueldos: 'Sueldos', permisos: 'Permisos',
+  config: 'Configuración', 'mi-equipo': 'Mi equipo', comunicados: 'Comunicados', staff: 'Staff',
+  'mis-avisos': 'Mis avisos', 'mi-ficha': 'Mi ficha', 'portal-family': 'Portal Family',
+  'portal-jugador': 'Mi ScoutFlow', jugador: 'la ficha de un jugador', equipo: 'la ficha de un equipo',
+  'staff-ficha': 'la ficha de una persona del club', buscar: 'la búsqueda', inscripcion: 'Inscripción'
+};
+SF.seccionLabel = function (k) { return SF.SECCION_LABEL[k] || k; };
+
+/* Que se puede repartir seccion a seccion. No estan todas: las de "lo mio" y
+   los portales no se conceden, se tienen por ser quien eres. */
+SF.SECCIONES_REPARTIBLES = ['inicio', 'agenda', 'jugadores', 'equipos', 'calendario', 'horarios',
+  'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family',
+  'finanzas', 'presupuesto', 'economia', 'sueldos', 'comunicados', 'staff', 'mi-equipo'];
+
+/* Las capacidades que se pueden dar o quitar a un rol, agrupadas por la
+   pregunta que responden. El orden es el de la conversacion real: primero que
+   ve, luego que puede tocar, luego el dinero. */
+SF.CAPACIDADES = [
+  { k: 'canSeeScore',       label: 'Ver el Scout Score',                grupo: 'Lo que ve' },
+  { k: 'canSeeFinance',     label: 'Ver las finanzas de sus jugadores', grupo: 'Lo que ve' },
+  { k: 'canSeeMedical',     label: 'Ver antecedentes médicos',          grupo: 'Lo que ve',
+    aviso: 'Dato de salud de un menor. Solo para quien lo necesite de verdad.' },
+  { k: 'canSeeStaff',       label: 'Ver el listado de personal',        grupo: 'Lo que ve' },
+  { k: 'canEvaluate',       label: 'Evaluar jugadores',                 grupo: 'Lo que puede hacer' },
+  { k: 'canEditPhysical',   label: 'Tomar y editar medidas físicas',    grupo: 'Lo que puede hacer' },
+  { k: 'canSetAvailability',label: 'Firmar si un jugador puede jugar',  grupo: 'Lo que puede hacer' },
+  { k: 'canCreatePlayers',  label: 'Dar de alta jugadores',             grupo: 'Lo que puede hacer' },
+  { k: 'canManageTeams',    label: 'Crear y gestionar equipos',         grupo: 'Lo que puede hacer' },
+  { k: 'canEditHorario',    label: 'Editar el cuadrante de pistas',     grupo: 'Lo que puede hacer' },
+  { k: 'canEditPF',         label: 'Editar el cuadrante de preparación física', grupo: 'Lo que puede hacer' },
+  { k: 'canDocs',           label: 'Gestionar documentación y reclamarla', grupo: 'Lo que puede hacer' },
+  { k: 'canAnnounce',       label: 'Enviar comunicados del club',       grupo: 'Lo que puede hacer' },
+  { k: 'canAskCita',        label: 'Pedir cita con salud',              grupo: 'Lo que puede hacer' },
+  { k: 'canManageFinance',  label: 'Gestionar cobros y planes de pago', grupo: 'Dinero' },
+  { k: 'canSeeSalaries',    label: 'Ver y gestionar los sueldos',       grupo: 'Dinero',
+    aviso: 'Lo que cobra cada persona del club.' }
+];
+
+/* Hay secciones que no son solo una puerta: llevan una capacidad detras.
+   Sueldos no es "entrar en Sueldos", es "ver lo que cobra la gente"; la
+   pantalla lo comprueba por su cuenta. Si se concediera solo la puerta, la
+   persona entraria a una pantalla que le dice que no puede ver nada -que es
+   la peor respuesta posible: parece un fallo-. Asi que quien reparte da la
+   capacidad, y la puerta viene con ella. */
+SF.permDeSeccion = function (sec) {
+  return (SF.PERM_KEYS || []).filter(function (k) {
+    return (k.nav || []).indexOf(sec) >= 0;
+  })[0] || null;
+};
+
+SF.ROLES_BLOQUEADOS = ['padre', 'jugador', 'director'];
+SF.LLAVES_BLOQUEADAS = ['canSeeNotes', 'canManagePermissions'];
+
+SF.rolDe = function (k) {
+  var base = SF.ROLES[k];
+  if (!base) return null;
+  var ov = (SF.store && SF.store.rolesOverride) ? SF.store.rolesOverride()[k] : null;
+  if (!ov) return base;
+  var r = Object.assign({}, base);
+  if (ov.nav) r.nav = ov.nav.slice();
+  Object.keys(ov).forEach(function (key) {
+    if (key === 'nav') return;
+    if (SF.LLAVES_BLOQUEADAS.indexOf(key) >= 0) return;
+    r[key] = ov[key];
+  });
+  return r;
+};
+
 SF.PERM_KEYS = [
   { key: 'canSeeFinance', label: 'Ver finanzas de sus jugadores' },
   { key: 'canManageFinance', label: 'Gestionar cobros y planes de pago', nav: ['finanzas'] },
@@ -5133,6 +5251,12 @@ SF.store = (function () {
 
     role: function () { return db().role; },
     setRole: function (r) { var d = db(); d.role = r; save(d); },
+    /* `me()` es lo mismo que `currentUser()`. Existe porque habia codigo
+       llamando a `SF.store.me()` -el boton de desbloquear una ficha de staff-
+       y esa funcion no existia: la pantalla se rompia en silencio y el boton
+       no hacia nada. En vez de cambiar solo esa linea se deja el nombre corto
+       vivo, que es el que la gente escribe. */
+    me: function () { return this.currentUser(); },
     currentUser: function () {
       var r = db().role;
       return { role: r, label: (SF.ROLES[r] || {}).label || r, name: (SF.USERS || {})[r] || (SF.ROLES[r] || {}).label || r };
@@ -5419,6 +5543,58 @@ SF.store = (function () {
       save(d);
     },
     pf: function () { return db().pf || []; },
+    /* --- Lo que el club ha cambiado de sus roles --- */
+    rolesOverride: function () { return (db().academy || {}).roles || {}; },
+    rolSet: function (k, patch, quien) {
+      if (SF.ROLES_BLOQUEADOS.indexOf(k) >= 0) return false;
+      var d = db(); d.academy = d.academy || {}; d.academy.roles = d.academy.roles || {};
+      var cur = d.academy.roles[k] || {};
+      Object.keys(patch).forEach(function (key) {
+        if (SF.LLAVES_BLOQUEADAS.indexOf(key) >= 0) return;
+        cur[key] = patch[key];
+      });
+      d.academy.roles[k] = cur;
+      d.academy.roles_log = d.academy.roles_log || [];
+      d.academy.roles_log.unshift({
+        at: new Date().toISOString(), rol: k, por: quien || '—',
+        que: Object.keys(patch).join(', ')
+      });
+      d.academy.roles_log = d.academy.roles_log.slice(0, 60);
+      save(d); return true;
+    },
+    rolReset: function (k, quien) {
+      var d = db();
+      if (!d.academy || !d.academy.roles || !d.academy.roles[k]) return false;
+      delete d.academy.roles[k];
+      d.academy.roles_log = d.academy.roles_log || [];
+      d.academy.roles_log.unshift({ at: new Date().toISOString(), rol: k, por: quien || '—', que: 'devuelto a como viene de fábrica' });
+      save(d); return true;
+    },
+    rolesLog: function () { return ((db().academy || {}).roles_log || []); },
+
+    /* --- Solicitudes de acceso ---
+       Cuando alguien se topa con una puerta cerrada puede llamar, en vez de
+       quedarse mirando. Es lo que convierte los permisos en algo que se
+       gestiona solo: el director no tiene que adivinar quien necesita que. */
+    accesos: function () { return db().accesos || []; },
+    accesoPedir: function (staffId, clave, motivo) {
+      var d = db(); d.accesos = d.accesos || [];
+      var ya = d.accesos.filter(function (x) {
+        return x.staff_id === staffId && x.clave === clave && x.estado === 'pendiente';
+      })[0];
+      if (ya) return ya;
+      var s = { id: 'ac' + Date.now(), staff_id: staffId, clave: clave, motivo: motivo || '',
+                estado: 'pendiente', at: new Date().toISOString() };
+      d.accesos.unshift(s); save(d); return s;
+    },
+    accesoResolver: function (id, estado, quien) {
+      var d = db();
+      (d.accesos || []).forEach(function (x) {
+        if (x.id === id) { x.estado = estado; x.resuelto_at = new Date().toISOString(); x.resuelto_por = quien || '—'; }
+      });
+      save(d);
+    },
+
     pfTextos: function () {
       var a = db().academy || {};
       return { criterios: a.pf_criterios || [], nota: a.pf_nota || '',
@@ -5921,7 +6097,8 @@ window.SF = window.SF || {};
      la delegación funciona en todas las pantallas sin tocarlas una a una.
      Es un OR: nunca resta nada de lo que el rol ya da. */
   function role() {
-    var base = SF.ROLES[SF.store.role()];
+    /* rolDe y no SF.ROLES: aqui manda lo que el club haya decidido. */
+    var base = SF.rolDe(SF.store.role());
     var me = SF.store.staffMe();
     if (!me) return base;
     var extra = SF.store.userPermsActive(me.id);
@@ -5929,6 +6106,18 @@ window.SF = window.SF || {};
     var merged = Object.assign({}, base);
     merged.nav = (base.nav || []).slice();
     extra.forEach(function (x) {
+      /* Una llave "nav:algo" no es una capacidad: es una seccion suelta que se
+         le ha abierto a esta persona. Asi se puede conceder cualquier pantalla
+         a alguien sin inventar una capacidad nueva por cada una. */
+      if (/^nav:/.test(x.perm)) {
+        var ruta = x.perm.slice(4);
+        if (merged.nav.indexOf(ruta) < 0) merged.nav.push(ruta);
+        /* Y si esa seccion tiene una capacidad detras, se enciende tambien:
+           abrir la puerta de una habitacion a oscuras no sirve de nada. */
+        var cubre = SF.permDeSeccion(ruta);
+        if (cubre) merged[cubre.key] = true;
+        return;
+      }
       merged[x.perm] = true;
       var def = SF.PERM_KEYS.filter(function (k) { return k.key === x.perm; })[0];
       (def && def.nav || []).forEach(function (n) { if (merged.nav.indexOf(n) < 0) merged.nav.push(n); });
@@ -7066,15 +7255,23 @@ window.SF = window.SF || {};
   }
 
   pages.jugadores = function (view) {
-    var actions = '<button class="btn" id="imp">' + ico('ai') + 'Importar mensaje</button>' +
-      '<button class="btn" id="insc">' + ico('file') + 'Inscripción</button>' +
-      '<button class="btn btn-primary" id="nuevo">' + ico('plus') + 'Nuevo jugador</button>';
+    /* Un boton que lleva a una puerta cerrada no deberia existir. El entrenador
+       veia aqui "Importar mensaje" e "Inscripcion", pulsaba, y se topaba con
+       que no son de su rol. Ofrecer algo y negarlo despues es peor que no
+       ofrecerlo: el que lo pulsa se queda pensando que la app falla, o que le
+       han quitado algo. Ahora cada boton se pinta solo si su destino es suyo. */
+    var r0 = role();
+    var actions =
+      (SF.router.puede('importar') ? '<button class="btn" id="imp">' + ico('ai') + 'Importar mensaje</button>' : '') +
+      (SF.router.puede('inscripcion') ? '<button class="btn" id="insc">' + ico('file') + 'Inscripción</button>' : '') +
+      (r0.canCreatePlayers ? '<button class="btn btn-primary" id="nuevo">' + ico('plus') + 'Nuevo jugador</button>' : '');
     view.innerHTML = head('Jugadores', 'Vista principal: tarjetas con foto', actions);
-    view.querySelector('#nuevo').onclick = openCreate;
-    view.querySelector('#imp').onclick = function () { location.hash = '#/importar'; };
+    var bN = view.querySelector('#nuevo'); if (bN) bN.onclick = openCreate;
+    var bI = view.querySelector('#imp'); if (bI) bI.onclick = function () { location.hash = '#/importar'; };
     /* Empieza siempre de cero: si alguien dejó una inscripción a medias, la
        siguiente familia no debe encontrarse los datos del anterior. */
-    view.querySelector('#insc').onclick = function () { SF._insDatos = null; SF._insPaso = 1; location.hash = '#/inscripcion'; };
+    var bS = view.querySelector('#insc');
+    if (bS) bS.onclick = function () { SF._insDatos = null; SF._insPaso = 1; location.hash = '#/inscripcion'; };
 
     var ps = scopedPlayers();
     var years = Array.from(new Set(ps.map(function (p) { return p.birth_year; }).filter(Boolean))).sort();
@@ -9334,14 +9531,14 @@ window.SF = window.SF || {};
               return '<span class="tag ' + (SF.docVencido(d) ? 'tag-danger' : 'tag-warn') + '">' + esc(d.label) +
                 (d.due ? ' · ' + fmtDate(d.due) : '') + '</span>';
             }).join(' ') + '</span>' +
-            '<span class="row-actions">' + av + '<button class="lnk" data-f>Ficha</button></span></div>');
-          row.querySelector('[data-f]').onclick = function () { location.hash = '#/jugador/' + x.p.id; };
+            '<span class="row-actions">' + av + (SF.router.puede('jugador') ? '<button class="lnk" data-f>Ficha</button>' : '') + '</span></div>');
+          if (SF.router.puede('jugador')) row.querySelector('[data-f]').onclick = function () { location.hash = '#/jugador/' + x.p.id; };
           if (puedeAvisar) {
             var b1 = el('<button class="lnk" data-r>Recordar</button>');
             b1.onclick = function () {
               if (enviarRecordatorio(x.p, x.pend)) { U.toast('Recordatorio enviado a ' + x.p.full_name); SF.router.render(); }
             };
-            row.querySelector('.row-actions').insertBefore(b1, row.querySelector('[data-f]'));
+            row.querySelector('.row-actions').insertBefore(b1, row.querySelector('[data-f]') || null);
           }
           l.appendChild(row);
         });
@@ -9351,6 +9548,14 @@ window.SF = window.SF || {};
       /* ---------- staff ---------- */
       var staffMal = SF.store.staff().map(function (s) { return { s: s, pend: SF.staffPend(s) }; })
         .filter(function (x) { return x.pend.length; });
+      /* El boton de abrir la ficha solo si esa persona puede abrirla. El scout
+         veia aqui veinticuatro botones "Ficha" y ninguno era suyo: pulsaba y se
+         topaba con la puerta. Ofrecer algo y negarlo despues es peor que no
+         ofrecerlo. */
+      /* Ojo con la ruta: la ficha de una persona se abre en `#/staff/<id>`, no
+         en `staff-ficha`. Preguntar por la ruta que no es deja el boton puesto
+         igual, que es exactamente el fallo que se venia a arreglar. */
+      var puedeFicha = SF.router.puede('staff');
       out.appendChild(el('<p class="sec-label">Staff</p>'));
       if (!staffMal.length) out.appendChild(el('<p class="hint">Todo el staff está al día.</p>'));
       var sl = el('<div class="mini-list"></div>');
@@ -9361,15 +9566,15 @@ window.SF = window.SF || {};
           x.pend.map(function (d) {
             return '<span class="tag ' + (d.grave ? 'tag-danger' : 'tag-warn') + '">' + esc(d.label) + '</span>';
           }).join(' ') + '</span>' +
-          '<span class="row-actions">' + av + '<button class="lnk" data-f>Ficha</button></span></div>');
-        row.querySelector('[data-f]').onclick = function () { location.hash = '#/staff/' + s.id; };
+          '<span class="row-actions">' + av + (puedeFicha ? '<button class="lnk" data-f>Ficha</button>' : '') + '</span></div>');
+        if (puedeFicha) row.querySelector('[data-f]').onclick = function () { location.hash = '#/staff/' + s.id; };
         if (puedeAvisar) {
           var br = el('<button class="lnk" data-r>Recordar</button>');
           br.onclick = function () {
             enviarRecordatorioStaff(s, x.pend);
             U.toast('Recordatorio enviado a ' + s.full_name); SF.router.render();
           };
-          row.querySelector('.row-actions').insertBefore(br, row.querySelector('[data-f]'));
+          row.querySelector('.row-actions').insertBefore(br, row.querySelector('[data-f]') || null);
         }
         sl.appendChild(row);
       });
@@ -12077,98 +12282,359 @@ window.SF = window.SF || {};
   }
 
   /* ===================== PERMISOS ===================== */
+  /* ===================== PERMISOS =====================
+     La pantalla desde la que el director decide quien ve que. Antes era una
+     tabla de consulta con siete columnas de "Si/No" y un boton para conceder
+     excepciones: servia para MIRAR, no para GESTIONAR. Para saber que podia
+     una persona habia que recorrer la lista entera; para cambiar lo que puede
+     un rol, habia que tocar el codigo.
+
+     Ahora tiene tres puertas, y estan en el orden en que aparece el trabajo:
+       1. Lo que alguien ha PEDIDO. Es lo unico que corre.
+       2. Lo que puede un ROL. Es donde se arreglan las cosas de una vez, para
+          todos los que hacen ese trabajo.
+       3. Lo que puede una PERSONA. Para la excepcion: el entrenador que ademas
+          lleva la caja de su equipo. Suma, caduca y queda escrito por que.
+     Y al final, la pregunta al reves -quien puede hacer cada cosa- y el
+     registro de cambios. */
   pages.permisos = function (view) {
-    view.innerHTML = head('Permisos', 'Lo que cada rol trae por defecto, y lo que el director concede aparte.');
-    var esDirector = SF.store.role() === 'director';
-    function yn(b) { return b ? '<span class="tag tag-green">Sí</span>' : '<span class="tag tag-gray">No</span>'; }
+    var esDirector = SF.store.role() === 'director' || !!role().canManagePermissions;
+    view.innerHTML = head('Permisos', esDirector
+      ? 'Quién ve qué. Se cambia aquí, sin tocar el código.'
+      : 'Quién ve qué en este club.');
 
-    /* ---------- 1. Por defecto ---------- */
-    view.appendChild(el('<p class="sec-label">Por defecto, según el rol</p>'));
-    var t = el('<table class="tbl"><thead><tr><th>Rol</th><th>Secciones</th><th>Evalúa</th><th>Medidas</th><th>Score</th><th>Finanzas</th><th>Notas internas</th></tr></thead><tbody></tbody></table>');
-    var tb = t.querySelector('tbody');
-    Object.keys(SF.ROLES).forEach(function (k) {
-      var r = SF.ROLES[k];
-      tb.appendChild(el('<tr><td><b>' + esc(r.label) + '</b></td><td>' + r.nav.length + (r.nav.length === 1 ? ' sección' : ' secciones') + '</td><td>' + yn(r.canEvaluate) + '</td><td>' + yn(r.canEditPhysical) + '</td><td>' + yn(r.canSeeScore) + '</td><td>' + yn(r.canSeeFinance) + '</td><td>' + yn(r.canSeeNotes) + '</td></tr>'));
+    var tab = SF._permTab || 'pide';
+    var pendientes = SF.store.accesos().filter(function (x) { return x.estado === 'pendiente'; });
+
+    var tabs = el('<div class="tabbar"></div>');
+    [['pide', 'Solicitudes' + (pendientes.length ? ' (' + pendientes.length + ')' : '')],
+     ['roles', 'Por rol'], ['personas', 'Por persona'], ['mapa', 'Quién puede qué']].forEach(function (t) {
+      var b = el('<button class="tab' + (tab === t[0] ? ' on' : '') + '">' + t[1] + '</button>');
+      b.onclick = function () { SF._permTab = t[0]; SF.router.render(); };
+      tabs.appendChild(b);
     });
-    view.appendChild(t);
+    view.appendChild(tabs);
 
-    /* ---------- 2. Permisos particulares ---------- */
-    view.appendChild(el('<p class="sec-label">Permisos particulares</p>'));
-    view.appendChild(el('<p class="hint">Para las excepciones: el entrenador que además lleva la caja de su equipo, o el scout que necesita ver el Scout Score. <b>Solo suman</b> sobre lo que ya da el rol, nunca quitan, y <b>caducan siempre</b>.</p>'));
-
-    if (esDirector) {
-      var bNew = el('<button class="btn btn-primary btn-sm">' + ico('shield') + 'Conceder un permiso</button>');
-      bNew.onclick = function () {
-        var staff = SF.store.staff();
-        var delegables = SF.PERM_KEYS.filter(function (p) { return SF.PERM_NUNCA.indexOf(p.key) < 0; });
-        var finTemporada = (new Date().getFullYear() + 1) + '-06-30';
-        U.modal('Conceder un permiso', smallForm([
-          { name: 'staff_id', label: '¿A quién?', type: 'select', options: staff.map(function (s) { return s.full_name + ' — ' + roleLabel(s.role); }) },
-          { name: 'perm', label: '¿Qué permiso?', type: 'select', options: delegables.map(function (p) { return p.label; }) },
-          { name: 'reason', label: '¿Por qué? (obligatorio)', type: 'textarea' },
-          { name: 'until', label: 'Caduca el', type: 'date' }
-        ], { until: finTemporada }, function (d) {
-          if (!d.reason || !d.reason.trim()) { U.toast('El motivo es obligatorio'); return false; }
-          if (!d.until) { U.toast('Hay que ponerle fecha de caducidad'); return false; }
-          var s = staff.filter(function (x) { return (x.full_name + ' — ' + roleLabel(x.role)) === d.staff_id; })[0];
-          var p = delegables.filter(function (x) { return x.label === d.perm; })[0];
-          if (!s || !p) { U.toast('Falta elegir persona y permiso'); return false; }
-          SF.store.userPermGrant(s.id, p.key, d.reason.trim(), d.until);
-          U.toast('Permiso concedido a ' + s.full_name); SF.router.render();
-        }));
-      };
-      view.appendChild(bNew);
-    } else {
-      view.appendChild(el('<p class="hint">Solo el director puede conceder permisos particulares.</p>'));
+    if (!esDirector) {
+      view.appendChild(el('<div class="foco"><div class="foco-ic">' + ico('shield') + '</div>' +
+        '<div class="foco-body"><p class="foco-t">Puedes mirar, no cambiar</p>' +
+        '<p class="foco-s">Los permisos los reparte la dirección del club. Si necesitas entrar en algo, ' +
+        've a esa sección y pulsa «Pedir acceso»: llegará aquí con tu nombre.</p></div></div>'));
     }
 
-    var todos = SF.store.userPerms().filter(function (x) { return !x.revoked_at; });
-    var hoy = new Date().toISOString().slice(0, 10);
-    if (!todos.length) view.appendChild(el('<p class="hint">No hay ningún permiso particular concedido.</p>'));
-    var l = el('<div class="mini-list"></div>');
-    todos.forEach(function (x) {
-      var s = SF.store.staffGet(x.staff_id); if (!s) return;
-      var caducado = x.until < hoy;
-      var dias = Math.round((new Date(x.until) - new Date(hoy)) / 86400000);
-      var estado = caducado ? '<span class="tag tag-gray">caducado</span>'
-        : (dias <= 30 ? '<span class="tag tag-warn">caduca en ' + dias + ' días</span>' : '<span class="tag tag-green">vigente</span>');
-      var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> <span class="hint">' + esc(roleLabel(s.role)) + '</span><br>' +
-        esc(SF.permLabel(x.perm)) + ' · ' + estado + ' <span class="hint">hasta ' + fmtDate(x.until) + '</span><br>' +
-        '<span class="hint"><i>"' + esc(x.reason) + '"</i> — concedido por ' + esc(x.granted_by) + ' el ' + fmtDate(x.granted_at) + '</span></span>' +
-        '<span class="row-actions"></span></div>');
-      if (esDirector) {
-        var bq = el('<button class="lnk-del">Retirar</button>');
-        bq.onclick = function () { SF.store.userPermRevoke(x.id); U.toast('Permiso retirado'); SF.router.render(); };
-        row.querySelector('.row-actions').appendChild(bq);
+    if (tab === 'pide') pintaPide();
+    else if (tab === 'roles') pintaRoles();
+    else if (tab === 'personas') pintaPersonas();
+    else pintaMapa();
+
+    /* ---------- 1. LO QUE ALGUIEN HA PEDIDO ---------- */
+    function pintaPide() {
+      if (!pendientes.length) {
+        view.appendChild(el('<div class="empty-panel"><p>No hay nada pendiente.</p>' +
+          '<p class="hint">Cuando alguien se tope con una sección que no es de su rol, podrá pedirla desde ahí ' +
+          'y aparecerá aquí con su nombre y el motivo.</p></div>'));
+      } else {
+        view.appendChild(el('<p class="hint">Alguien se ha topado con una puerta cerrada y ha llamado. ' +
+          'Conceder abre esa sección <b>solo a esa persona</b> y con fecha de caducidad.</p>'));
+        var l = el('<div class="mini-list"></div>');
+        pendientes.forEach(function (x) {
+          var s = SF.store.staffGet(x.staff_id);
+          var nombre = /^nav:/.test(x.clave) ? SF.seccionLabel(x.clave.slice(4)) : SF.permLabel(x.clave);
+          var row = el('<div class="mini-row"><span><b>' + esc(s ? s.full_name : '—') + '</b> ' +
+            '<span class="hint">' + esc(s ? roleLabel(s.role) : '') + '</span><br>' +
+            'Pide <b>' + esc(nombre) + '</b><br><span class="hint"><i>"' + esc(x.motivo) + '"</i> · ' +
+            fmtDate((x.at || '').slice(0, 10)) + '</span></span><span class="row-actions"></span></div>');
+          if (esDirector) {
+            var ok = el('<button class="btn btn-primary btn-sm">Conceder</button>');
+            ok.onclick = function () { conceder(s, x.clave, x.motivo, x.id); };
+            var no = el('<button class="lnk">Ahora no</button>');
+            no.onclick = function () {
+              SF.store.accesoResolver(x.id, 'rechazada', SF.store.me().name);
+              U.toast('Marcado. Díselo tú: la app no le manda nada'); SF.router.render();
+            };
+            row.querySelector('.row-actions').appendChild(ok);
+            row.querySelector('.row-actions').appendChild(no);
+          }
+          l.appendChild(row);
+        });
+        view.appendChild(l);
       }
-      l.appendChild(row);
-    });
-    view.appendChild(l);
+      var hechas = SF.store.accesos().filter(function (x) { return x.estado !== 'pendiente'; }).slice(0, 8);
+      if (hechas.length) {
+        view.appendChild(el('<p class="sec-label">Ya resueltas</p>'));
+        var l2 = el('<div class="mini-list"></div>');
+        hechas.forEach(function (x) {
+          var s = SF.store.staffGet(x.staff_id);
+          var nombre = /^nav:/.test(x.clave) ? SF.seccionLabel(x.clave.slice(4)) : SF.permLabel(x.clave);
+          l2.appendChild(el('<div class="mini-row"><span>' + esc(s ? s.full_name : '—') + ' · ' + esc(nombre) +
+            '</span><span class="row-actions"><span class="tag ' +
+            (x.estado === 'concedida' ? 'tag-green' : 'tag-gray') + '">' + esc(x.estado) + '</span></span></div>'));
+        });
+        view.appendChild(l2);
+      }
+    }
 
-    /* ---------- 3. La pregunta al revés ----------
-       "¿Quién puede ver las finanzas?" es la pregunta que te van a hacer
-       algún día. Con la matriz sola no se responde. */
-    view.appendChild(el('<p class="sec-label">¿Quién puede hacer cada cosa?</p>'));
-    var inv = el('<div class="mini-list"></div>');
-    SF.PERM_KEYS.forEach(function (p) {
-      /* Un rol "puede" si tiene la marca, o si tiene la sección que da acceso:
-         para las secciones, entrar ya es poder. */
-      var porRol = Object.keys(SF.ROLES).filter(function (k) {
-        var r = SF.ROLES[k];
-        if (r[p.key]) return true;
-        return (p.nav || []).some(function (n) { return r.nav.indexOf(n) >= 0; });
-      }).map(function (k) { return SF.ROLES[k].label; });
-      var porExc = todos.filter(function (x) { return x.perm === p.key && x.until >= hoy; })
-        .map(function (x) { var s = SF.store.staffGet(x.staff_id); return s ? s.full_name + ' (hasta ' + fmtDate(x.until) + ')' : ''; })
-        .filter(Boolean);
-      inv.appendChild(el('<div class="mini-row"><span><b>' + esc(p.label) + '</b><br>' +
-        '<span class="hint">Por rol: ' + (porRol.length ? esc(porRol.join(', ')) : 'nadie') + '</span>' +
-        (porExc.length ? '<br><span class="hint">Por excepción: ' + esc(porExc.join(', ')) + '</span>' : '') +
-        '</span></div>'));
-    });
-    view.appendChild(inv);
+    /* ---------- 2. LO QUE PUEDE UN ROL ----------
+       Aqui es donde se arreglan las cosas de verdad. Si el delegado de tu club
+       pasa lista, no se le concede a los cuatro delegados uno a uno: se cambia
+       el rol y ya. */
+    function pintaRoles() {
+      view.appendChild(el('<p class="hint">Lo que trae cada rol de fábrica y lo que este club haya cambiado. ' +
+        'Un cambio aquí vale para <b>todas</b> las personas con ese rol, ahora y las que entren después.</p>'));
+      var grid = el('<div class="rol-grid"></div>');
+      Object.keys(SF.ROLES).forEach(function (k) {
+        var r = SF.rolDe(k);
+        var tocado = !!SF.store.rolesOverride()[k];
+        var bloq = SF.ROLES_BLOQUEADOS.indexOf(k) >= 0;
+        var n = SF.store.staff().filter(function (s) { return s.role === k; }).length;
+        var card = el('<button class="rol-card"><div class="rol-top"><b>' + esc(r.label) + '</b>' +
+          (tocado ? '<span class="tag tag-purple">ajustado</span>' : '') +
+          (bloq ? '<span class="tag tag-gray">fijo</span>' : '') + '</div>' +
+          '<span class="hint">' + (r.nav || []).length + ' secciones · ' +
+          SF.CAPACIDADES.filter(function (c) { return r[c.k]; }).length + ' permisos · ' +
+          (n ? n + (n === 1 ? ' persona' : ' personas') : 'sin nadie') + '</span></button>');
+        card.onclick = function () { abrirRol(k); };
+        grid.appendChild(card);
+      });
+      view.appendChild(grid);
 
-    view.appendChild(el('<p class="hint"><b>No delegables nunca:</b> ver notas internas —incluye presupuesto y situación económica de la familia— y gestionar permisos. Lo primero se cambia en el organigrama, no con una excepción; lo segundo permitiría a quien lo recibiera dárselo todo.</p>'));
+      var log = SF.store.rolesLog();
+      if (log.length) {
+        view.appendChild(el('<p class="sec-label">Últimos cambios</p>'));
+        var ll = el('<div class="mini-list"></div>');
+        log.slice(0, 6).forEach(function (x) {
+          ll.appendChild(el('<div class="mini-row"><span><b>' + esc((SF.rolDe(x.rol) || {}).label || x.rol) + '</b>' +
+            '<br><span class="hint">' + esc(x.que) + '</span></span>' +
+            '<span class="row-actions"><span class="hint">' + fmtDate((x.at || '').slice(0, 10)) +
+            ' · ' + esc(x.por) + '</span></span></div>'));
+        });
+        view.appendChild(ll);
+      }
+    }
+
+    function abrirRol(k) {
+      var r = SF.rolDe(k);
+      var base = SF.ROLES[k];
+      var bloq = SF.ROLES_BLOQUEADOS.indexOf(k) >= 0;
+      var puede = esDirector && !bloq;
+      var nav = (r.nav || []).slice();
+      var caps = {};
+      SF.CAPACIDADES.forEach(function (c) { caps[c.k] = !!r[c.k]; });
+
+      var w = el('<div></div>');
+      if (bloq) {
+        w.appendChild(el('<div class="foco"><div class="foco-ic">' + ico('shield') + '</div>' +
+          '<div class="foco-body"><p class="foco-t">Este rol no se toca</p><p class="foco-s">' +
+          (k === 'director'
+            ? 'Si al director se le pudiera recortar, el club podría quedarse sin nadie que administre nada.'
+            : 'Las familias y los jugadores están fuera del club. Abrirles una sección interna por descuido es ' +
+              'la fuga que no nos podemos permitir, y ningún ajuste rápido merece ese riesgo.') +
+          '</p></div></div>'));
+      }
+
+      w.appendChild(el('<p class="sec-label">Secciones a las que entra</p>'));
+      var gs = el('<div class="perm-cols"></div>');
+      SF.SECCIONES_REPARTIBLES.forEach(function (sec) {
+        var on = nav.indexOf(sec) >= 0;
+        var lab = el('<label class="chk perm-chk"><input type="checkbox"' + (on ? ' checked' : '') +
+          (puede ? '' : ' disabled') + '> ' + esc(SF.seccionLabel(sec)) + '</label>');
+        lab.querySelector('input').onchange = function (e) {
+          if (e.target.checked) { if (nav.indexOf(sec) < 0) nav.push(sec); }
+          else nav = nav.filter(function (x) { return x !== sec; });
+        };
+        gs.appendChild(lab);
+      });
+      w.appendChild(gs);
+      w.appendChild(el('<p class="hint">«Lo mío» (mis avisos, mi ficha) y los portales de familia y jugador ' +
+        'no se reparten: los tiene quien es.</p>'));
+
+      var grupos = {};
+      SF.CAPACIDADES.forEach(function (c) { (grupos[c.grupo] = grupos[c.grupo] || []).push(c); });
+      Object.keys(grupos).forEach(function (g) {
+        w.appendChild(el('<p class="sec-label">' + esc(g) + '</p>'));
+        var gg = el('<div class="perm-cols"></div>');
+        grupos[g].forEach(function (c) {
+          var lab = el('<label class="chk perm-chk"><input type="checkbox"' + (caps[c.k] ? ' checked' : '') +
+            (puede ? '' : ' disabled') + '> <span>' + esc(c.label) +
+            (c.aviso ? '<br><span class="hint">' + esc(c.aviso) + '</span>' : '') + '</span></label>');
+          lab.querySelector('input').onchange = function (e) { caps[c.k] = e.target.checked; };
+          gg.appendChild(lab);
+        });
+        w.appendChild(gg);
+      });
+
+      w.appendChild(el('<p class="hint" style="margin-top:12px"><b>No se pueden dar nunca:</b> ver las notas internas ' +
+        '—que incluyen el presupuesto y la situación económica de la familia— y gestionar estos permisos. ' +
+        'Lo primero se cambia en el organigrama; lo segundo permitiría a quien lo recibiera dárselo todo.</p>'));
+
+      var foot = el('<div class="modal-actions"></div>');
+      if (puede && SF.store.rolesOverride()[k]) {
+        var bR = el('<button class="lnk">Volver a como viene de fábrica</button>');
+        bR.onclick = function () {
+          SF.store.rolReset(k, SF.store.me().name);
+          U.closeModal(); U.toast('Rol restaurado'); SF.router.render();
+        };
+        foot.appendChild(bR);
+      }
+      var bC = el('<button class="btn">' + (puede ? 'Cancelar' : 'Cerrar') + '</button>');
+      bC.onclick = U.closeModal;
+      foot.appendChild(bC);
+      if (puede) {
+        var bG = el('<button class="btn btn-primary">Guardar</button>');
+        bG.onclick = function () {
+          var patch = { nav: nav };
+          SF.CAPACIDADES.forEach(function (c) { patch[c.k] = caps[c.k]; });
+          SF.store.rolSet(k, patch, SF.store.me().name);
+          U.closeModal(); U.toast('Guardado. Vale para todo el que tenga ese rol'); SF.router.render();
+        };
+        foot.appendChild(bG);
+      }
+      w.appendChild(foot);
+      var back = U.modal(base.label, w);
+      back.querySelector('.modal').classList.add('modal-xl');
+    }
+
+    /* ---------- 3. LO QUE PUEDE UNA PERSONA ---------- */
+    function pintaPersonas() {
+      view.appendChild(el('<p class="hint">Para la excepción concreta: el entrenador que además lleva la caja de su ' +
+        'equipo, o quien cubre a la coordinación una semana. <b>Suma</b> sobre lo que da su rol —nunca quita—, ' +
+        '<b>caduca sola</b> y queda escrito por qué.</p>'));
+      var todos = SF.store.userPerms().filter(function (x) { return !x.revoked_at; });
+      var hoy = new Date().toISOString().slice(0, 10);
+      var l = el('<div class="mini-list"></div>');
+      SF.store.staff().forEach(function (s) {
+        var suyos = todos.filter(function (x) { return x.staff_id === s.id && x.until >= hoy; });
+        var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> ' +
+          '<span class="hint">' + esc(roleLabel(s.role)) + '</span>' +
+          (suyos.length ? '<br>' + suyos.map(function (x) {
+            var nombre = /^nav:/.test(x.perm) ? SF.seccionLabel(x.perm.slice(4)) : SF.permLabel(x.perm);
+            return '<span class="tag tag-purple">' + esc(nombre) + '</span>';
+          }).join(' ') : '') + '</span><span class="row-actions"></span></div>');
+        if (esDirector) {
+          var b = el('<button class="lnk">' + (suyos.length ? 'ver y cambiar' : 'dar algo') + '</button>');
+          b.onclick = function () { abrirPersona(s); };
+          row.querySelector('.row-actions').appendChild(b);
+        }
+        l.appendChild(row);
+      });
+      view.appendChild(l);
+    }
+
+    function abrirPersona(s) {
+      var hoy = new Date().toISOString().slice(0, 10);
+      var suyos = SF.store.userPerms().filter(function (x) {
+        return x.staff_id === s.id && !x.revoked_at && x.until >= hoy;
+      });
+      var w = el('<div></div>');
+      var r = SF.rolDe(s.role) || {};
+      w.appendChild(el('<p class="hint">Como <b>' + esc(r.label) + '</b> ya entra en ' + (r.nav || []).length +
+        ' secciones y tiene ' + SF.CAPACIDADES.filter(function (c) { return r[c.k]; }).length +
+        ' permisos. Lo de aquí abajo se suma a eso.</p>'));
+
+      w.appendChild(el('<p class="sec-label">Lo que tiene aparte</p>'));
+      if (!suyos.length) w.appendChild(el('<p class="hint">Nada. Solo lo de su rol.</p>'));
+      var l = el('<div class="mini-list"></div>');
+      suyos.forEach(function (x) {
+        var nombre = /^nav:/.test(x.perm) ? SF.seccionLabel(x.perm.slice(4)) : SF.permLabel(x.perm);
+        var dias = Math.round((new Date(x.until) - new Date(hoy)) / 86400000);
+        var row = el('<div class="mini-row"><span><b>' + esc(nombre) + '</b> ' +
+          (dias <= 30 ? '<span class="tag tag-warn">caduca en ' + dias + ' días</span>'
+                      : '<span class="tag tag-green">hasta ' + fmtDate(x.until) + '</span>') +
+          '<br><span class="hint"><i>"' + esc(x.reason) + '"</i> — ' + esc(x.granted_by) + '</span></span>' +
+          '<span class="row-actions"></span></div>');
+        var bq = el('<button class="lnk-del">Retirar</button>');
+        bq.onclick = function () {
+          SF.store.userPermRevoke(x.id); U.closeModal(); U.toast('Retirado'); SF.router.render();
+        };
+        row.querySelector('.row-actions').appendChild(bq);
+        l.appendChild(row);
+      });
+      w.appendChild(l);
+
+      var bAdd = el('<button class="btn btn-primary btn-sm" style="margin-top:12px">' + ico('plus') + 'Darle algo más</button>');
+      bAdd.onclick = function () { conceder(s, null, '', null); };
+      w.appendChild(bAdd);
+      U.modal(s.full_name, w);
+    }
+
+    /* Conceder. Una sola pantalla sirve para las dos formas de llegar: desde
+       una solicitud (ya se sabe quien y que) y desde cero. */
+    function conceder(s, clave, motivo, solicitudId) {
+      if (!s) { U.toast('No encuentro a esa persona'); return; }
+      var finTemporada = (new Date().getFullYear() + 1) + '-06-30';
+      /* Una cosa se ofrece UNA vez. Si Sueldos ya se da con "ver los sueldos",
+         no se ofrece ademas como seccion suelta: dos formas de dar lo mismo
+         es como se acaba con la mitad de la gente con medio permiso. */
+      var opciones = SF.SECCIONES_REPARTIBLES.filter(function (sec) { return !SF.permDeSeccion(sec); })
+        .map(function (sec) { return { v: 'nav:' + sec, t: 'Sección · ' + SF.seccionLabel(sec) }; })
+        .concat(SF.PERM_KEYS.filter(function (p) { return SF.PERM_NUNCA.indexOf(p.key) < 0; })
+        .map(function (p) { return { v: p.key, t: 'Permiso · ' + p.label }; }));
+
+      var w = el('<div><div class="form-grid">' +
+        '<div class="frow" style="grid-column:1/-1"><label>¿Qué le doy?</label><select id="cx">' +
+        opciones.map(function (o) {
+          return '<option value="' + esc(o.v) + '"' + (o.v === clave ? ' selected' : '') + '>' + esc(o.t) + '</option>';
+        }).join('') + '</select></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>¿Por qué? (queda escrito)</label>' +
+        '<textarea id="cm" rows="2">' + esc(motivo || '') + '</textarea></div>' +
+        '<div class="frow"><label>Caduca el</label><input id="cu" type="date" value="' + finTemporada + '"></div>' +
+        '</div></div>');
+      w.appendChild(el('<p class="hint">La caducidad no es opcional a propósito: un permiso que se da «un momento» ' +
+        'y no caduca sigue ahí tres temporadas después, cuando ya nadie recuerda por qué.</p>'));
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+        '<button class="btn btn-primary">Conceder</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        var m = w.querySelector('#cm').value.trim();
+        var u = w.querySelector('#cu').value;
+        if (!m) { U.toast('El motivo es obligatorio'); return; }
+        if (!u) { U.toast('Hay que ponerle fecha de caducidad'); return; }
+        SF.store.userPermGrant(s.id, w.querySelector('#cx').value, m, u);
+        if (solicitudId) SF.store.accesoResolver(solicitudId, 'concedida', SF.store.me().name);
+        U.closeModal(); U.toast('Concedido a ' + s.full_name); SF.router.render();
+      };
+      w.appendChild(foot);
+      U.modal('Dar acceso a ' + s.full_name, w);
+    }
+
+    /* ---------- 4. LA PREGUNTA AL REVÉS ----------
+       "¿Quién puede ver las finanzas?" es la pregunta que te van a hacer algún
+       día, probablemente por teléfono y con prisa. */
+    function pintaMapa() {
+      var todos = SF.store.userPerms().filter(function (x) { return !x.revoked_at; });
+      var hoy = new Date().toISOString().slice(0, 10);
+      view.appendChild(el('<p class="sec-label">Secciones</p>'));
+      var s1 = el('<div class="mini-list"></div>');
+      SF.SECCIONES_REPARTIBLES.forEach(function (sec) {
+        var roles = Object.keys(SF.ROLES).filter(function (k) {
+          return ((SF.rolDe(k) || {}).nav || []).indexOf(sec) >= 0;
+        }).map(function (k) { return SF.rolDe(k).label; });
+        var exc = todos.filter(function (x) { return x.perm === 'nav:' + sec && x.until >= hoy; })
+          .map(function (x) { var q = SF.store.staffGet(x.staff_id); return q ? q.full_name : ''; }).filter(Boolean);
+        s1.appendChild(el('<div class="mini-row"><span><b>' + esc(SF.seccionLabel(sec)) + '</b><br>' +
+          '<span class="hint">' + (roles.length ? esc(roles.join(' · ')) : 'nadie') + '</span>' +
+          (exc.length ? '<br><span class="hint">Aparte: ' + esc(exc.join(', ')) + '</span>' : '') +
+          '</span><span class="row-actions"><span class="hint">' + roles.length + '</span></span></div>'));
+      });
+      view.appendChild(s1);
+
+      view.appendChild(el('<p class="sec-label">Permisos</p>'));
+      var s2 = el('<div class="mini-list"></div>');
+      SF.CAPACIDADES.forEach(function (c) {
+        var roles = Object.keys(SF.ROLES).filter(function (k) { return !!(SF.rolDe(k) || {})[c.k]; })
+          .map(function (k) { return SF.rolDe(k).label; });
+        var exc = todos.filter(function (x) { return x.perm === c.k && x.until >= hoy; })
+          .map(function (x) { var q = SF.store.staffGet(x.staff_id); return q ? q.full_name : ''; }).filter(Boolean);
+        s2.appendChild(el('<div class="mini-row"><span><b>' + esc(c.label) + '</b><br>' +
+          '<span class="hint">' + (roles.length ? esc(roles.join(' · ')) : 'nadie') + '</span>' +
+          (exc.length ? '<br><span class="hint">Aparte: ' + esc(exc.join(', ')) + '</span>' : '') +
+          '</span><span class="row-actions"><span class="hint">' + roles.length + '</span></span></div>'));
+      });
+      view.appendChild(s2);
+
+      view.appendChild(el('<p class="hint">Las notas internas —presupuesto y situación económica de la familia— ' +
+        'las ve solo la dirección, y eso no se puede cambiar desde aquí.</p>'));
+    }
   };
 
   /* ===================== CONFIGURACIÓN ===================== */
@@ -12772,7 +13238,7 @@ window.SF = window.SF || {};
      Si cada uno pudiera marcarse su habilitación, la ficha no acreditaría nada. */
   function roleLabel(r) { return (SF.ROLES[r] || {}).label || r; }
   function isAdminRole() { return ['director', 'administrativo'].indexOf(SF.store.role()) >= 0; }
-  function canAssignTeams() { return !!(SF.ROLES[SF.store.role()] || {}).canManageTeams; }
+  function canAssignTeams() { return !!role().canManageTeams; }
 
   function staffBadge(s) {
     var st = SF.staffStatus(s);
@@ -14528,7 +14994,7 @@ window.SF = window.SF || {};
            equipo le quita el acceso; a una dirección técnica no, porque ve
            por sección. Decir lo contrario sería mentir en un cuadro de
            confirmación, que es el peor sitio para mentir. */
-        var rs = SF.ROLES[s.role] || {};
+        var rs = SF.rolDe(s.role) || {};
         var efecto = rs.team_scope
           ? 'Dejará de ver las fichas de los ' + roster.length + ' jugadores de este equipo.'
           : (rs.segments && rs.segments !== 'all')
@@ -16024,10 +16490,17 @@ SF.router = (function () {
 
     // selector de rol
     var sel = document.getElementById('role');
-    Object.keys(SF.ROLES).forEach(function (k) { sel.appendChild(el('<option value="' + k + '"' + (k === SF.store.role() ? ' selected' : '') + '>' + SF.ROLES[k].label + '</option>')); });
+    Object.keys(SF.ROLES).forEach(function (k) { sel.appendChild(el('<option value="' + k + '"' + (k === SF.store.role() ? ' selected' : '') + '>' + SF.rolDe(k).label + '</option>')); });
     /* Cambiar de rol es entrar como otra persona: pasa por recepción otra vez,
        y así se ve la entrada de cada rol al enseñar la plataforma. */
-    sel.onchange = function () { SF.store.setRole(sel.value); renderShell(); location.hash = defaultRoute(); render(); recepcion(); };
+    sel.onchange = function () {
+      /* Cambiar de rol es cambiar de identidad, no pedir una pantalla: si la
+         que estabas mirando no es del rol nuevo, se va a su sitio en vez de
+         enseñarle una puerta cerrada que el usuario no ha llamado. */
+      SF._cambioRol = true;
+      SF.store.setRole(sel.value); renderShell(); location.hash = defaultRoute(); render(); recepcion();
+      SF._cambioRol = false;
+    };
 
     var gs = document.getElementById('gsearch');
     /* El buscador tiene que responder a las TRES formas de usarlo: pulsar
@@ -16066,17 +16539,92 @@ SF.router = (function () {
     render();
   }
 
+  /* Quien SI puede entrar aqui. No es un adorno: sin esto, "no tienes acceso"
+     deja a la persona sin saber a quien preguntar, y acaba preguntandolo por
+     WhatsApp al primero que pilla. */
+  function quienEntra(ruta) {
+    return Object.keys(SF.ROLES).filter(function (k) {
+      var r = SF.rolDe(k);
+      return r && canAccess(ruta, r);
+    }).map(function (k) { return SF.rolDe(k).label; });
+  }
+
+  function puertaCerrada(ruta, r) {
+    view.innerHTML = '';
+    var nombre = SF.seccionLabel(ruta);
+    var yo = SF.store.staffMe();
+    var mio = SF.rolDe(SF.store.role()) || {};
+
+    var caja = el('<div class="puerta"><div class="puerta-ic">' + ico('shield') + '</div>' +
+      '<h2>' + esc(nombre) + ' no es de tu rol</h2>' +
+      '<p>Existe y funciona, pero <b>' + esc(mio.label || '') + '</b> no entra ahí. ' +
+      'No es un error ni un enlace roto: es el permiso.</p></div>');
+
+    var quien = quienEntra(ruta);
+    if (quien.length) caja.appendChild(el('<p class="puerta-quien">Ahí entran: ' +
+      esc(quien.join(' · ')) + '</p>'));
+
+    var acc = el('<div class="row-c" style="justify-content:center;margin-top:16px"></div>');
+    var bYo = el('<button class="btn btn-primary">Volver a lo mío</button>');
+    bYo.onclick = function () { location.hash = defaultRoute(); };
+    acc.appendChild(bYo);
+
+    /* Pedirlo solo tiene sentido si la app sabe quien eres: una solicitud sin
+       remitente no la puede conceder nadie. */
+    var repartible = SF.SECCIONES_REPARTIBLES.indexOf(ruta) >= 0;
+    var cubre = SF.permDeSeccion(ruta);
+    var clave = cubre ? cubre.key : 'nav:' + ruta;
+    if (yo && repartible && SF.PERM_NUNCA.indexOf(clave) < 0) {
+      var pend = SF.store.accesos().filter(function (x) {
+        return x.staff_id === yo.id && x.clave === clave && x.estado === 'pendiente';
+      })[0];
+      if (pend) {
+        caja.appendChild(el('<p class="puerta-quien"><b>Ya lo has pedido.</b> La dirección lo verá en Permisos.</p>'));
+      } else {
+        var bPide = el('<button class="btn btn-light">Pedir acceso a la dirección</button>');
+        bPide.onclick = function () { pedirAcceso(yo, clave, nombre); };
+        acc.appendChild(bPide);
+      }
+    }
+    caja.appendChild(acc);
+    view.appendChild(caja);
+  }
+
+  function pedirAcceso(yo, clave, nombre) {
+    var box = el('<div><p class="hint">Se lo verá la dirección en Permisos, con tu nombre y lo que escribas aquí. ' +
+      'Cuanto más concreto, antes se resuelve.</p>' +
+      '<div class="frow"><label>¿Para qué lo necesitas?</label>' +
+      '<textarea id="pa-m" rows="3" placeholder="Llevo la caja del equipo y necesito ver quién ha pagado la salida de noviembre."></textarea></div></div>');
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+      '<button class="btn btn-primary">Pedirlo</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var m = box.querySelector('#pa-m').value.trim();
+      if (!m) { U.toast('Escribe para qué lo necesitas: sin eso no hay nada que decidir'); return; }
+      SF.store.accesoPedir(yo.id, clave, m);
+      U.closeModal(); U.toast('Pedido. La dirección lo verá en Permisos'); SF.router.render();
+    };
+    box.appendChild(foot);
+    U.modal('Pedir acceso a ' + nombre, box);
+  }
+
   function render() {
     if (!view) return;
     var p = parse();
     if (!p.route) { location.hash = defaultRoute(); return; }
     var r = SF.perms();   // permisos efectivos, no solo los del rol
     var navKey = NAV_OF[p.route] || p.route;
-    // control de acceso por rol
+    /* --- El freno, dicho en voz alta -------------------------------------
+       Antes, pedir una seccion que no te toca te devolvia a tu inicio sin
+       decir nada: llegabas de un enlace, de un marcador o de un mensaje de un
+       companero y te encontrabas en otro sitio, sin saber si el enlace estaba
+       roto, si la seccion habia desaparecido o si eras tu. Ahora la puerta se
+       ve, dice de quien es y se puede llamar.
+       La excepcion es cambiar de rol a mano: ahi el usuario no ha pedido esa
+       pantalla, ha cambiado de identidad, y lo correcto es llevarle a su sitio. */
     if (!canAccess(p.route, r)) {
-      var dr = defaultRoute();
-      if (location.hash !== dr) { location.hash = dr; }
-      else if (view) { view.innerHTML = '<div class="empty-panel"><p>Tu rol no tiene acceso a esta sección.</p></div>'; }
+      if (SF._cambioRol) { SF._cambioRol = false; location.hash = defaultRoute(); return; }
+      puertaCerrada(p.route, r);
       return;
     }
 
@@ -16118,7 +16666,12 @@ SF.router = (function () {
     recepcion();
   }
 
-  return { start: start, render: render, renderShell: renderShell };
+  /* `puede(ruta)` se saca fuera para que cualquier pantalla pueda preguntar
+     antes de pintar un boton. Es la unica forma de que "no ofrecer lo que no
+     se puede" no dependa de que cada pantalla recuerde la regla. */
+  return { start: start, render: render, renderShell: renderShell,
+           puede: function (ruta, r) { return canAccess(ruta, r || SF.perms()); },
+           quienEntra: quienEntra };
 })();
 
 </script>
