@@ -1870,14 +1870,14 @@ SF.COACHES = ['Carlos Gorosito', 'Laura Méndez', 'Diego Pérez'];
 SF.ROLES = {
   director: {
     label: 'Director',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
-    tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, canSetAvailability: true, canSeeMedical: true, canAskCita: true, segments: 'all', canCreatePlayers: true
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
+    tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, canSetAvailability: true, canSeeMedical: true, canAskCita: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
   dt_general: {
     label: 'Dirección Técnica General',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'informes', 'economia', 'sueldos', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canAskCita: true, segments: 'all', staff: true, canCreatePlayers: true
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canAskCita: true, segments: 'all', staff: true, canCreatePlayers: true, canSeeSalaries: true
   },
   preparador_fisico: {
     label: 'Preparador Físico',
@@ -1940,9 +1940,9 @@ SF.ROLES = {
   },
   administrativo: {
     label: 'Administrativo',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'documentos', 'licencias', 'finanzas', 'economia', 'presupuesto', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'documentos', 'licencias', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
-    canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all', canCreatePlayers: true
+    canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
   padre: {
     label: 'Padre / Tutor',
@@ -2678,6 +2678,10 @@ SF.PERM_KEYS = [
   { key: 'canAnnounce', label: 'Enviar comunicados del club', nav: ['comunicados'] },
   { key: 'canImportData', label: 'Importar datos de partido', nav: ['importar-datos'] },
   { key: 'canSeeStaff', label: 'Ver el listado de staff', nav: ['staff'] },
+  /* Los sueldos van detras de su propia llave y no dentro de canManageFinance:
+     quien cobra a las familias no tiene por que saber lo que cobra el
+     entrenador. Asi el director puede darlo o quitarlo persona a persona. */
+  { key: 'canSeeSalaries', label: 'Ver y gestionar los sueldos del club', nav: ['sueldos'] },
   { key: 'canCreatePlayers', label: 'Dar de alta jugadores' }
 ];
 
@@ -2908,6 +2912,87 @@ SF.planCargos = function (plan, p, opts) {
       out.push({ id: 'pc' + now + (n++), type: it.type, label: it.label || it.type, month: '',
         amount: imp2, status: 'pendiente', plan_id: plan.id, plan_ver: plan.version || 1 });
     }
+  });
+  return out;
+};
+
+/* ===================== SUELDOS =====================
+   Lo que el club paga a las personas que lo hacen funcionar. Es el dato mas
+   sensible de la app despues de la situacion economica de una familia, y por
+   eso vive detras de su propio permiso (`canSeeSalaries`) y no dentro de
+   Finanzas: quien cobra a las familias no tiene por que saber lo que cobra
+   el entrenador.
+
+   DOS TIPOS DE PERSONA EN LA MISMA LISTA:
+     · Los que ya tienen ficha de personal: se elige la ficha y el nombre sale
+       de ella. Si mañana se corrige una tilde en su ficha, aqui no se queda
+       un nombre viejo.
+     · Los que no la tienen —cocinera, limpieza, asesoria—: nombre a mano.
+       Crearles ficha de staff seria meter en el modulo deportivo a gente que
+       no trabaja con jugadores. */
+
+SF.SUELDO_PERIODOS = {
+  mensual: 'Al mes',
+  anual: 'Al año',
+  unico: 'Pago único'
+};
+
+/* A que linea del presupuesto suma cada sueldo. Son las tres que el plan de
+   temporada ya tiene en el grupo Personal: no se inventa una taxonomia nueva,
+   se usa la que el club ya rellena. */
+SF.SUELDO_DESTINOS = {
+  tecnicos: 'Entrenadores y staff técnico',
+  ss:       'Seguridad Social y nóminas',
+  externos: 'Servicios externos (asesoría, limpieza)'
+};
+
+SF.SUELDO_ESTADOS = ['activo', 'baja'];
+
+/* Coste de un año. El campo `meses` existe porque un entrenador cobra de
+   septiembre a junio, no doce meses: sin el, el coste anual del club sale
+   inflado casi un 20 % y el presupuesto de la temporada nace mal. */
+SF.sueldoAnual = function (x) {
+  if (!x || x.estado === 'baja') return 0;
+  var imp = +x.importe || 0;
+  if (x.periodicidad === 'anual') return imp;
+  if (x.periodicidad === 'unico') return imp;
+  return imp * (+x.meses || 12);
+};
+
+/* Lo que sale de la caja en un mes normal. El pago unico no cuenta: no es
+   recurrente y meterlo aqui daria una cuota mensual que no existe. */
+SF.sueldoMensual = function (x) {
+  if (!x || x.estado === 'baja') return 0;
+  var imp = +x.importe || 0;
+  if (x.periodicidad === 'mensual') return imp;
+  if (x.periodicidad === 'anual') return Math.round(imp / (+x.meses || 12));
+  return 0;
+};
+
+/* El nombre manda la ficha de staff si la hay; si no, el escrito a mano. */
+SF.sueldoNombre = function (x) {
+  if (x && x.staff_id && SF.store && SF.store.staffGet) {
+    var s = SF.store.staffGet(x.staff_id);
+    if (s) return s.full_name;
+  }
+  return (x && x.nombre) || '';
+};
+
+SF.sueldoPuesto = function (x) {
+  if (x && x.staff_id && SF.store && SF.store.staffGet) {
+    var s = SF.store.staffGet(x.staff_id);
+    if (s) return (SF.STAFF_ROLES && SF.STAFF_ROLES[s.role]) || (SF.ROLES[s.role] || {}).label || s.role;
+  }
+  return (x && x.puesto) || '';
+};
+
+/* Totales por destino, para llevarlos al presupuesto. */
+SF.sueldosPorDestino = function () {
+  var out = {};
+  Object.keys(SF.SUELDO_DESTINOS).forEach(function (k) { out[k] = 0; });
+  ((SF.store && SF.store.sueldos) ? SF.store.sueldos() : []).forEach(function (x) {
+    var d = x.destino || 'tecnicos';
+    out[d] = (out[d] || 0) + SF.sueldoAnual(x);
   });
   return out;
 };
@@ -4250,6 +4335,28 @@ SF.store = (function () {
       return n;
     },
     age: age,
+
+    /* ---------------- sueldos ---------------- */
+    sueldos: function () { return (db().sueldos || []).slice(); },
+    sueldoGet: function (id) {
+      return (db().sueldos || []).filter(function (x) { return x.id === id; })[0] || null;
+    },
+    sueldoSave: function (x) {
+      var d = db(); d.sueldos = d.sueldos || [];
+      if (x.id) {
+        d.sueldos = d.sueldos.map(function (y) { return y.id === x.id ? Object.assign({}, y, x) : y; });
+      } else {
+        x.id = 'sl' + Date.now() + Math.floor(Math.random() * 100);
+        x.created_at = new Date().toISOString();
+        d.sueldos.push(x);
+      }
+      save(d); return x;
+    },
+    sueldoRemove: function (id) {
+      var d = db();
+      d.sueldos = (d.sueldos || []).filter(function (x) { return x.id !== id; });
+      save(d);
+    },
 
     /* ---------------- planes de pago ---------------- */
     planes: function () { return db().academy.planes || []; },
@@ -10199,6 +10306,193 @@ window.SF = window.SF || {};
     return card;
   }
 
+  /* ===================== SUELDOS ===================== */
+  pages.sueldos = function (view) {
+    var r = role();
+    if (!r.canSeeSalaries) {
+      view.innerHTML = head('Sueldos', '') +
+        '<div class="empty-panel"><p>Tu rol no ve los sueldos del club.</p></div>';
+      return;
+    }
+    view.innerHTML = head('Sueldos', 'Lo que cuesta el personal del club: cuerpo técnico, gestión y servicios externos.');
+
+    var lista = SF.store.sueldos();
+    var activos = lista.filter(function (x) { return x.estado !== 'baja'; });
+    var mes = activos.reduce(function (a, x) { return a + SF.sueldoMensual(x); }, 0);
+    var anio = activos.reduce(function (a, x) { return a + SF.sueldoAnual(x); }, 0);
+
+    var k = el('<div class="kpis">' +
+      '<div class="kpi"><div class="kpi-top"><span>Al mes</span></div><div class="kpi-num">' + eur(mes) + '</div></div>' +
+      '<div class="kpi"><div class="kpi-top"><span>La temporada</span></div><div class="kpi-num">' + eur(anio) + '</div></div>' +
+      '<div class="kpi"><div class="kpi-top"><span>Personas</span></div><div class="kpi-num">' + activos.length + '</div></div>' +
+      '</div>');
+    view.appendChild(k);
+
+    view.appendChild(el('<p class="hint">Estas cifras son el <b>bruto</b> que se paga a cada persona. ' +
+      'La Seguridad Social y los costes de empresa van aparte, en su propia línea del presupuesto: ' +
+      'mezclarlos aquí daría un número que no es ni una cosa ni la otra.</p>'));
+
+    var acc = el('<div class="row-c" style="margin:12px 0"></div>');
+    var bNuevo = el('<button class="btn btn-primary">' + ico('plus') + 'Añadir sueldo</button>');
+    bNuevo.onclick = function () { sueldoEditor(null); };
+    acc.appendChild(bNuevo);
+    var bPre = el('<button class="btn">' + ico('coins') + 'Llevar al presupuesto</button>');
+    bPre.onclick = function () { sueldosAlPresupuestoModal(); };
+    if (r.canManageFinance) acc.appendChild(bPre);
+    view.appendChild(acc);
+
+    if (!lista.length) {
+      view.appendChild(el('<div class="empty-panel"><p>Todavía no hay ningún sueldo dado de alta.</p>' +
+        '<p class="hint">Puedes dar de alta a alguien que ya esté en Staff —el nombre saldrá de su ficha— ' +
+        'o escribir un nombre a mano para quien no tenga ficha: cocinera, limpieza, asesoría.</p></div>'));
+      return;
+    }
+
+    /* Agrupado por a donde va en el presupuesto: es como se lee el coste del
+       club, y como se lleva luego al plan de la temporada. */
+    Object.keys(SF.SUELDO_DESTINOS).forEach(function (dst) {
+      var g = lista.filter(function (x) { return (x.destino || 'tecnicos') === dst; });
+      if (!g.length) return;
+      var subAnio = g.reduce(function (a, x) { return a + SF.sueldoAnual(x); }, 0);
+      var card = el('<div class="card"><div style="display:flex;align-items:center;gap:10px">' +
+        '<span style="flex:1"><b>' + esc(SF.SUELDO_DESTINOS[dst]) + '</b> <span class="hint">· ' +
+        g.length + (g.length === 1 ? ' persona' : ' personas') + '</span></span>' +
+        '<b>' + eur(subAnio) + '</b> <span class="hint">al año</span></div></div>');
+      var ml = el('<div class="mini-list" style="margin-top:10px"></div>');
+
+      g.sort(function (a, b) { return SF.sueldoAnual(b) - SF.sueldoAnual(a); });
+      g.forEach(function (x) {
+        var baja = x.estado === 'baja';
+        var periodo = SF.SUELDO_PERIODOS[x.periodicidad] || '';
+        var detalle = eur(+x.importe || 0) + ' · ' + periodo.toLowerCase() +
+          (x.periodicidad === 'mensual' ? ' · ' + (x.meses || 12) + ' meses al año' : '');
+        var row = el('<div class="mini-row"' + (baja ? ' style="opacity:.55"' : '') + '>' +
+          '<span><b>' + esc(SF.sueldoNombre(x) || '(sin nombre)') + '</b>' +
+          (SF.sueldoPuesto(x) ? ' <span class="hint">· ' + esc(SF.sueldoPuesto(x)) + '</span>' : '') +
+          (x.staff_id ? ' <span class="tag tag-gray">ficha de staff</span>' : '') +
+          (baja ? ' <span class="tag tag-gray">baja</span>' : '') +
+          '<br><span class="hint">' + esc(detalle) + (x.nota ? ' · ' + esc(x.nota) : '') + '</span></span>' +
+          '<span class="row-actions"><b>' + eur(SF.sueldoAnual(x)) + '</b>' +
+          '<button class="lnk" data-ed>editar</button>' +
+          '<button class="lnk-del" data-rm>' + ico('x') + '</button></span></div>');
+        row.querySelector('[data-ed]').onclick = function () { sueldoEditor(x); };
+        row.querySelector('[data-rm]').onclick = function () {
+          if (confirm('¿Quitar el sueldo de ' + (SF.sueldoNombre(x) || 'esta persona') + '?\n\n' +
+              'Si es que ha dejado el club, es mejor marcarlo como "baja": así deja de sumar pero queda el histórico.')) {
+            SF.store.sueldoRemove(x.id); U.toast('Sueldo eliminado'); SF.router.render();
+          }
+        };
+        ml.appendChild(row);
+      });
+      card.appendChild(ml);
+      view.appendChild(card);
+    });
+  };
+
+  /* Alta y edicion. Dos caminos para el nombre: ficha de staff o texto libre. */
+  function sueldoEditor(x) {
+    var esNuevo = !x;
+    x = x ? Object.assign({}, x) : { periodicidad: 'mensual', meses: 10, destino: 'tecnicos', estado: 'activo' };
+
+    var staffOpts = '<option value="">— Alguien de fuera de Staff —</option>' +
+      SF.store.staff().map(function (s) {
+        return '<option value="' + s.id + '"' + (s.id === x.staff_id ? ' selected' : '') + '>' +
+          esc(s.full_name) + ' · ' + esc((SF.ROLES[s.role] || {}).label || s.role) + '</option>';
+      }).join('');
+    var dstOpts = Object.keys(SF.SUELDO_DESTINOS).map(function (k2) {
+      return '<option value="' + k2 + '"' + ((x.destino || 'tecnicos') === k2 ? ' selected' : '') + '>' +
+        esc(SF.SUELDO_DESTINOS[k2]) + '</option>';
+    }).join('');
+    var perOpts = Object.keys(SF.SUELDO_PERIODOS).map(function (k2) {
+      return '<option value="' + k2 + '"' + ((x.periodicidad || 'mensual') === k2 ? ' selected' : '') + '>' +
+        esc(SF.SUELDO_PERIODOS[k2]) + '</option>';
+    }).join('');
+
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>¿Está en Staff?</label><select id="sl-st">' + staffOpts + '</select>' +
+        '<p class="hint">Si eliges una ficha, el nombre y el puesto salen de ella y no se quedan desactualizados.</p></div>' +
+      '<div class="frow" id="sl-libre"><label>Nombre</label><input id="sl-nom" value="' + esc(x.nombre || '') + '" placeholder="Ana Gómez"></div>' +
+      '<div class="frow" id="sl-libre2"><label>Puesto</label><input id="sl-pue" value="' + esc(x.puesto || '') + '" placeholder="Cocinera de la academia"></div>' +
+      '<div class="frow"><label>Importe (€)</label><input id="sl-imp" type="number" value="' + (+x.importe || '') + '"></div>' +
+      '<div class="frow"><label>Cada cuánto</label><select id="sl-per">' + perOpts + '</select></div>' +
+      '<div class="frow" id="sl-meses"><label>Meses al año que se paga</label><input id="sl-mes" type="number" min="1" max="12" value="' + (+x.meses || 10) + '">' +
+        '<p class="hint">Un entrenador suele cobrar de septiembre a junio: 10, no 12. Con 12 el coste de la temporada sale inflado.</p></div>' +
+      '<div class="frow"><label>Va al presupuesto como</label><select id="sl-dst">' + dstOpts + '</select></div>' +
+      '<div class="frow"><label>Estado</label><select id="sl-est">' +
+        '<option value="activo"' + (x.estado !== 'baja' ? ' selected' : '') + '>Activo</option>' +
+        '<option value="baja"' + (x.estado === 'baja' ? ' selected' : '') + '>Baja</option></select>' +
+        '<p class="hint">Quien está de baja deja de sumar, pero no se borra: el histórico sigue ahí.</p></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Nota</label><input id="sl-nota" value="' + esc(x.nota || '') + '" placeholder="Convenio, contrato, condiciones…"></div>' +
+      '</div>');
+
+    function sincronizar() {
+      var conFicha = !!f.querySelector('#sl-st').value;
+      f.querySelector('#sl-libre').style.display = conFicha ? 'none' : '';
+      f.querySelector('#sl-libre2').style.display = conFicha ? 'none' : '';
+      f.querySelector('#sl-meses').style.display = f.querySelector('#sl-per').value === 'mensual' ? '' : 'none';
+    }
+    f.querySelector('#sl-st').onchange = sincronizar;
+    f.querySelector('#sl-per').onchange = sincronizar;
+    sincronizar();
+
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var st = f.querySelector('#sl-st').value;
+      var nom = f.querySelector('#sl-nom').value.trim();
+      if (!st && !nom) { U.toast('Pon un nombre, o elige una ficha de Staff'); return; }
+      var imp = +f.querySelector('#sl-imp').value || 0;
+      if (imp <= 0) { U.toast('El importe tiene que ser mayor que cero'); return; }
+      SF.store.sueldoSave({
+        id: x.id, staff_id: st || '', nombre: st ? '' : nom,
+        puesto: st ? '' : f.querySelector('#sl-pue').value.trim(),
+        importe: imp, periodicidad: f.querySelector('#sl-per').value,
+        meses: +f.querySelector('#sl-mes').value || 12,
+        destino: f.querySelector('#sl-dst').value,
+        estado: f.querySelector('#sl-est').value,
+        nota: f.querySelector('#sl-nota').value.trim()
+      });
+      U.closeModal(); U.toast(esNuevo ? 'Sueldo añadido' : 'Sueldo guardado'); SF.router.render();
+    };
+    var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
+    U.modal(esNuevo ? 'Añadir sueldo' : 'Editar sueldo', w);
+  }
+
+  /* Llevar los totales al plan de la temporada.
+     Va al PREVISTO y no al real, y no se hace solo: un sueldo dado de alta es
+     una prevision de gasto, no dinero que ya haya salido de la caja. Meterlo
+     en el real diria que el club ya pago lo que aun debe pagar. */
+  function sueldosAlPresupuestoModal() {
+    var tot = SF.sueldosPorDestino();
+    var temp = SF.SEASON;
+    var b = SF.store.budget(temp);
+    var w = el('<div></div>');
+    w.appendChild(el('<p class="hint">Se rellena el <b>previsto</b> de ' + esc(temp) + ' con lo que suman los sueldos ' +
+      'dados de alta. No toca la columna «real»: un sueldo previsto no es dinero que ya haya salido de la caja.</p>'));
+    var ml = el('<div class="mini-list" style="margin:12px 0"></div>');
+    var hay = false;
+    Object.keys(SF.SUELDO_DESTINOS).forEach(function (k2) {
+      if (!tot[k2]) return;
+      hay = true;
+      var actual = +((b.lines[k2] || {}).previsto) || 0;
+      ml.appendChild(el('<div class="mini-row"><span>' + esc(SF.SUELDO_DESTINOS[k2]) + '</span>' +
+        '<span class="row-actions"><span class="hint">ahora ' + eur(actual) + '</span> → <b>' + eur(tot[k2]) + '</b></span></div>'));
+    });
+    if (!hay) { U.toast('No hay sueldos que llevar al presupuesto'); return; }
+    w.appendChild(ml);
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+      '<button class="btn btn-primary">Llevar al presupuesto</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      Object.keys(tot).forEach(function (k2) {
+        if (tot[k2]) SF.store.budgetSetLine(temp, k2, { previsto: tot[k2] });
+      });
+      U.closeModal(); U.toast('Presupuesto actualizado'); SF.router.render();
+    };
+    w.appendChild(foot);
+    U.modal('Llevar los sueldos al presupuesto · ' + esc(temp), w);
+  }
+
   /* ===================== PERMISOS ===================== */
   pages.permisos = function (view) {
     view.innerHTML = head('Permisos', 'Lo que cada rol trae por defecto, y lo que el director concede aparte.');
@@ -13941,7 +14235,8 @@ SF.router = (function () {
     ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'],
     ['importar', 'Importar', 'ai'],
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
-    ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'], ['permisos', 'Permisos', 'shield'],
+    ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'],
+    ['sueldos', 'Sueldos', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
     ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'],
     ['mis-avisos', 'Mis avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
@@ -13957,7 +14252,7 @@ SF.router = (function () {
     { id: 'captacion',label: 'Captación',       keys: ['captacion', 'importar'] },
     { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos'] },
     { id: 'personas', label: 'Personas',        keys: ['staff', 'family', 'comunicados'] },
-    { id: 'dinero',   label: 'Dinero',          keys: ['finanzas', 'economia'] },
+    { id: 'dinero',   label: 'Dinero',          keys: ['finanzas', 'economia', 'sueldos'] },
     { id: 'ajustes',  label: 'Ajustes',         keys: ['permisos', 'config'] },
     { id: 'mio',      label: 'Lo mío',          keys: ['mis-avisos', 'mi-ficha', 'portal-family', 'portal-jugador'] }
   ];
@@ -13977,7 +14272,7 @@ SF.router = (function () {
     inicio: 'inicio', agenda: 'agenda', jugadores: 'jugadores', jugador: 'jugador', equipos: 'equipos', equipo: 'equipo',
     calendario: 'calendario', horarios: 'horarios',
     importar: 'sec-importar', captacion: 'captacion', documentos: 'sec-documentos', informes: 'informes',
-    family: 'family', finanzas: 'sec-finanzas', economia: 'economia', permisos: 'permisos', config: 'config',
+    family: 'family', finanzas: 'sec-finanzas', economia: 'economia', sueldos: 'sueldos', permisos: 'permisos', config: 'config',
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
     staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo',
     comunicados: 'comunicados', 'importar-datos': 'sec-importar', 'mis-avisos': 'mis-avisos',
