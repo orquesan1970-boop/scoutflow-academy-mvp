@@ -2789,6 +2789,128 @@ SF.finTotals = function (p) {
 };
 SF.finHas = function (p, status) { return SF.finItems(p).some(function (i) { return i.status === status; }); };
 
+
+/* ===================== PLANES DE PAGO =====================
+   Antes esto vivia dentro del codigo: el "plan FBM" tenia 225 EUR de
+   inscripcion y 7 cuotas de 90 EUR escritos en JavaScript, asi que cambiar un
+   precio obligaba a tocar el programa, y aplicarlo era entrar ficha por ficha.
+   Con 900 jugadores eso no se sostiene.
+
+   Ahora el plan es un dato que edita el club, y cuelga del EQUIPO. El jugador
+   hereda el de su equipo.
+
+   POR QUE HEREDA Y NO SE COPIA. Es tentador copiar los importes a la ficha al
+   asignar el equipo. No se hace: si en octubre sube la cuota 5 EUR, habria 900
+   copias con el precio viejo y ninguna forma de distinguir cual es un error y
+   cual es un acuerdo con esa familia. Heredando, se cambia en un sitio y
+   cambia para todos, y una excepcion se ve COMO excepcion. */
+
+/* El eje economico NO es el deportivo. Un cadete masculino es federado; uno de
+   escuelas no. Si se metiera en `segment` (femenino/masculino/escuelas),
+   dejaria de cuadrar en cuanto hubiera un equipo femenino de escuela. */
+SF.PROGRAMAS = { federado: 'Federado', escuela: 'Escuela', academia: 'Academia', campus: 'Campus' };
+
+/* La temporada empieza en septiembre, no en enero. Las cuotas se ordenan por
+   esta lista y no por el calendario, o "de septiembre a marzo" saldria al
+   reves. */
+SF.MESES_TEMPORADA = ['Septiembre', 'Octubre', 'Noviembre', 'Diciembre', 'Enero',
+  'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto'];
+
+/* Los planes de fabrica. Los dos primeros son EXACTAMENTE los numeros que
+   estaban escritos en el codigo, para que nada cambie de importe al pasar al
+   catalogo. El de escuela y el de academia son un punto de partida razonable
+   que el club ajusta en pantalla. */
+SF.PLANES_SEED = [
+  { id: 'pl-fed', nombre: 'Federado', programa: 'federado', version: 1, activo: true,
+    nota: 'El plan que estaba escrito en el codigo.',
+    items: [
+      { type: 'inscripcion', label: 'Inscripcion', amount: 225 },
+      { type: 'cuota', label: 'Cuota', amount: 90, desde: 'Septiembre', hasta: 'Marzo' }
+    ],
+    descuentos: {
+      'Segundo':        { inscripcion: 0, cuota: 90 },
+      'Tercero o mas':  { inscripcion: 0, cuota: 45 }
+    } },
+  { id: 'pl-esc', nombre: 'Escuela', programa: 'escuela', version: 1, activo: true,
+    nota: 'Ajusta los importes: son un punto de partida.',
+    items: [
+      { type: 'inscripcion', label: 'Inscripcion', amount: 60 },
+      { type: 'cuota', label: 'Cuota', amount: 45, desde: 'Septiembre', hasta: 'Mayo' }
+    ],
+    descuentos: { 'Segundo': { cuota: 40 }, 'Tercero o mas': { cuota: 35 } } },
+  { id: 'pl-aca', nombre: 'Academia', programa: 'academia', version: 1, activo: true,
+    nota: 'Ajusta los importes: son un punto de partida.',
+    items: [
+      { type: 'inscripcion', label: 'Inscripcion', amount: 300 },
+      { type: 'cuota', label: 'Cuota', amount: 120, desde: 'Septiembre', hasta: 'Junio' }
+    ],
+    descuentos: {} }
+];
+
+/* Que plan le toca a este jugador, y por que.
+   El "por que" importa tanto como el plan: en pantalla hay que poder decir si
+   es el del equipo o una excepcion suya, o nadie entiende un importe raro. */
+SF.planDe = function (p) {
+  var planes = (SF.store && SF.store.planes) ? SF.store.planes() : [];
+  function buscar(id) { return planes.filter(function (x) { return x.id === id; })[0] || null; }
+
+  /* 1. Excepcion en la ficha: manda sobre todo. */
+  if (p && p.finance && p.finance.plan_id) {
+    var pr = buscar(p.finance.plan_id);
+    if (pr) return { plan: pr, origen: 'excepcion' };
+  }
+  /* 2. El del equipo. Es el caso normal. */
+  var t = (p && p.team_id && SF.store) ? SF.store.teamGet(p.team_id) : null;
+  if (t && t.plan_id) {
+    var pe = buscar(t.plan_id);
+    if (pe) return { plan: pe, origen: 'equipo', equipo: t.name };
+  }
+  /* 3. Sin equipo o sin plan asignado: no se inventa ninguno. */
+  return { plan: null, origen: 'ninguno' };
+};
+
+/* Genera los cargos de un jugador a partir de un plan.
+   No toca nada: devuelve la lista, y quien llama decide si la guarda. */
+SF.planCargos = function (plan, p, opts) {
+  opts = opts || {};
+  if (!plan) return [];
+  var pos = (p && p.siblings_position) || '';
+  /* El descuento de hermano SUSTITUYE el importe, no lo resta: es como lo
+     tenia el club escrito y como se explica a las familias. */
+  var desc = (plan.descuentos || {})[pos] || {};
+  var now = Date.now(), out = [], n = 0;
+
+  (plan.items || []).forEach(function (it) {
+    if (it.type === 'cuota') {
+      var i0 = SF.MESES_TEMPORADA.indexOf(it.desde || 'Septiembre');
+      var i1 = SF.MESES_TEMPORADA.indexOf(it.hasta || 'Junio');
+      if (i0 < 0) i0 = 0;
+      if (i1 < 0) i1 = SF.MESES_TEMPORADA.length - 1;
+      /* Un chaval que entra en enero NO debe siete cuotas desde septiembre.
+         Es el fallo que mas llamadas genera cuando el club es grande. */
+      var iAlta = opts.desdeMes ? SF.MESES_TEMPORADA.indexOf(opts.desdeMes) : -1;
+      if (iAlta > i0) i0 = iAlta;
+      var imp = (desc.cuota != null) ? desc.cuota : (+it.amount || 0);
+      for (var i = i0; i <= i1; i++) {
+        out.push({ id: 'pc' + now + (n++), type: 'cuota', label: (it.label || 'Cuota') + ' ' + SF.MESES_TEMPORADA[i],
+          month: SF.MESES_TEMPORADA[i], amount: imp, status: 'pendiente',
+          plan_id: plan.id, plan_ver: plan.version || 1 });
+      }
+    } else {
+      var imp2 = (desc[it.type] != null) ? desc[it.type] : (+it.amount || 0);
+      out.push({ id: 'pc' + now + (n++), type: it.type, label: it.label || it.type, month: '',
+        amount: imp2, status: 'pendiente', plan_id: plan.id, plan_ver: plan.version || 1 });
+    }
+  });
+  return out;
+};
+
+/* Lo que costaria un jugador con este plan, sin generar nada. Sirve para la
+   vista previa antes de aplicar a 300 personas, y para el presupuesto. */
+SF.planTotal = function (plan, p) {
+  return SF.planCargos(plan, p).reduce(function (a, c) { return a + (+c.amount || 0); }, 0);
+};
+
 /* Numeración de fichas. Dos series separadas y con prefijo, para que nadie
    confunda al jugador 7 con el entrenador 7:
      J-0007  jugadores        S-007  staff
@@ -3883,10 +4005,48 @@ SF.store = (function () {
       d._dir_v1 = true;
       write(d);
     }
+    /* Los planes de pago. Antes estaban escritos en el codigo; aqui pasan a
+       ser un dato del club, editable en Configuracion.
+       Se siembran con los MISMOS importes que tenia el codigo, asi que a nadie
+       le cambia lo que paga. Y se reparten a los equipos por su segmento, que
+       es la mejor pista que hay: los de escuelas al plan de escuela y el resto
+       al de federado. Es una suposicion, y por eso se puede cambiar equipo a
+       equipo desde su ficha.
+       NO genera ningun cargo: solo deja el plan asignado. Cobrar es siempre
+       una decision de una persona, nunca de una migracion. */
+    if (!d._planes_v1) {
+      if (!d.academy.planes || !d.academy.planes.length) {
+        d.academy.planes = JSON.parse(JSON.stringify(SF.PLANES_SEED || []));
+      }
+      (d.teams || []).forEach(function (t) {
+        if (!t.programa) t.programa = (t.segment === 'escuelas') ? 'escuela' : 'federado';
+        if (!t.plan_id) t.plan_id = (t.programa === 'escuela') ? 'pl-esc' : 'pl-fed';
+      });
+      d._planes_v1 = true;
+      write(d);
+    }
     return d;
   }
 
   function save(d) { write(d); }
+
+  /* En que mes de la temporada entro este jugador. Un chaval que llega en
+     enero no debe las cuotas de septiembre a diciembre: eso es lo que provoca
+     la llamada de la familia. Si no consta fecha, se empieza por el principio,
+     que es lo que el club espera del caso normal. */
+  function mesDeAlta(p) {
+    var f = (p && (p.capture_date || p.alta_date)) || '';
+    var m = /^(\d{4})-(\d{2})/.exec(f);
+    if (!m) return null;
+    var temporada = (SF.SEASON || '').split('/')[0];
+    /* Solo se recorta si el alta es de ESTA temporada. Un jugador que lleva
+       tres años en el club no empieza a pagar en el mes en que lo ficharon. */
+    var ini = +temporada || 0, anio = +m[1], mes = +m[2];
+    if (!ini) return null;
+    if (anio === ini && mes >= 9) return SF.MONTHS[mes - 1];
+    if (anio === ini + 1 && mes <= 8) return SF.MONTHS[mes - 1];
+    return null;
+  }
 
   /* --- Completar con los datos de ejemplo que falten ------------------------
      Los datos de ejemplo solo se escriben cuando el almacén está VACÍO. De ahí
@@ -3954,6 +4114,83 @@ SF.store = (function () {
       return n;
     },
     age: age,
+
+    /* ---------------- planes de pago ---------------- */
+    planes: function () { return db().academy.planes || []; },
+    planGet: function (id) {
+      return (db().academy.planes || []).filter(function (x) { return x.id === id; })[0] || null;
+    },
+    planSave: function (pl) {
+      var d = db(); d.academy.planes = d.academy.planes || [];
+      var i = d.academy.planes.findIndex(function (x) { return x.id === pl.id; });
+      if (i >= 0) {
+        /* Subir el precio de un plan NO se hace en sitio: sube la version.
+           Si se editara sin mas, los cargos ya emitidos dirian venir de un
+           plan que ya no dice lo que decia, y en marzo eso es una reclamacion
+           que nadie sabe resolver. */
+        var antes = JSON.stringify(d.academy.planes[i].items || []);
+        var ahora = JSON.stringify(pl.items || []);
+        if (antes !== ahora) pl.version = (+d.academy.planes[i].version || 1) + 1;
+        d.academy.planes[i] = pl;
+      } else {
+        pl.id = pl.id || ('pl' + Date.now());
+        pl.version = pl.version || 1;
+        d.academy.planes.push(pl);
+      }
+      save(d); return pl;
+    },
+    planRemove: function (id) {
+      var d = db();
+      d.academy.planes = (d.academy.planes || []).filter(function (x) { return x.id !== id; });
+      /* Un equipo apuntando a un plan que ya no existe se queda sin plan, no
+         apuntando al vacio: asi la pantalla lo dice en vez de fallar. */
+      (d.teams || []).forEach(function (t) { if (t.plan_id === id) t.plan_id = ''; });
+      save(d);
+    },
+
+    /* Aplica un plan a una lista de jugadores.
+       Tres reglas, y las tres importan:
+         1. Lo PAGADO no se toca nunca. Regenerar no puede borrar un cobro.
+         2. Lo puesto A MANO tampoco (una beca, un acuerdo). Solo se
+            reemplazan los cargos que vinieron de un plan y siguen pendientes.
+         3. Si el jugador entro a mitad de temporada, se empieza en su mes.
+       Devuelve el resumen para poder enseñarlo ANTES de tocar nada. */
+    planAplicar: function (playerIds, planId, opts) {
+      opts = opts || {};
+      var d = db(), plan = (d.academy.planes || []).filter(function (x) { return x.id === planId; })[0];
+      if (!plan) return { jugadores: 0, cargos: 0, importe: 0, respetados: 0 };
+      var res = { jugadores: 0, cargos: 0, importe: 0, respetados: 0 };
+
+      (d.players || []).forEach(function (p) {
+        if (playerIds.indexOf(p.id) < 0) return;
+        var previos = SF.finItems(p);
+        var conservar = previos.filter(function (it) {
+          return it.status === 'pagado' || it.manual || !it.plan_id;
+        });
+        res.respetados += conservar.length;
+        var mes = opts.desdeMes || mesDeAlta(p);
+        var nuevos = SF.planCargos(plan, p, { desdeMes: mes });
+        if (!opts.simular) {
+          p.finance = p.finance || {};
+          p.finance.items = conservar.concat(nuevos);
+        }
+        res.jugadores++;
+        res.cargos += nuevos.length;
+        res.importe += nuevos.reduce(function (a, c) { return a + (+c.amount || 0); }, 0);
+      });
+      if (!opts.simular) save(d);
+      return res;
+    },
+
+    /* Marca una excepcion: este jugador paga otro plan que el de su equipo. */
+    planExcepcion: function (playerId, planId) {
+      var d = db(), p = (d.players || []).filter(function (x) { return x.id === playerId; })[0];
+      if (!p) return;
+      p.finance = p.finance || {};
+      if (planId) p.finance.plan_id = planId; else delete p.finance.plan_id;
+      save(d);
+    },
+
 
     academy: function () { return db().academy; },
     saveAcademy: function (patch) { var d = db(); Object.assign(d.academy, patch); save(d); },
@@ -7212,7 +7449,9 @@ window.SF = window.SF || {};
         var refF = function () { p = SF.store.get(p.id); paint(); };
         body.appendChild(bankBlock(p, role().canManageFinance, refF));
         body.appendChild(finPlanBlock(p, role().canManageFinance, refF));
-        if (role().canManageFinance) { var bf = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Generar plan FBM</button>'); bf.onclick = function () { genPlanFBMModal(p, refF); }; body.appendChild(bf); }
+        /* El boton "Generar plan FBM" desaparece: sus numeros ya viven en el
+           catalogo de planes (Configuracion), donde se pueden cambiar sin
+           tocar el codigo y aplicar a un equipo entero de golpe. */
         body.appendChild(kitBlock(p, role().canManageFinance, refF));
       } else if (cur === 'portal') {
         var b3 = el('<button class="btn btn-primary">' + ico('family') + 'Ver portal de la familia</button>');
@@ -9038,6 +9277,113 @@ window.SF = window.SF || {};
     var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot); U.modal('Inscripción', w);
   }
 
+  /* Aplicar un plan, con vista previa. Nunca se toca nada sin enseñar antes
+     que va a pasar: con 300 jugadores, un boton que "hace cosas" sin decir
+     cuantas ni por cuanto dinero da miedo, y con razon. */
+  function aplicarPlanModal(playerIds, planId, refresh) {
+    var plan = SF.store.planGet(planId);
+    if (!plan) { U.toast('Ese plan ya no existe'); return; }
+    var sim = SF.store.planAplicar(playerIds, planId, { simular: true });
+
+    var w = el('<div></div>');
+    w.appendChild(el('<p class="hint">Plan <b>' + esc(plan.nombre) + '</b> · versión ' + (plan.version || 1) + '</p>'));
+    w.appendChild(el('<div class="kpis">' +
+      '<div class="kpi"><div class="kpi-top"><span>Jugadores</span></div><div class="kpi-num">' + sim.jugadores + '</div></div>' +
+      '<div class="kpi"><div class="kpi-top"><span>Cargos</span></div><div class="kpi-num">' + sim.cargos + '</div></div>' +
+      '<div class="kpi"><div class="kpi-top"><span>Importe</span></div><div class="kpi-num">' + sim.importe + ' €</div></div></div>'));
+    w.appendChild(el('<p class="hint" style="margin-top:10px">' +
+      'Se respetan <b>' + sim.respetados + '</b> líneas que ya existen: lo <b>pagado</b> no se toca nunca, ' +
+      'y lo que se puso <b>a mano</b> (una beca, un acuerdo) tampoco. Solo se reemplazan los cargos ' +
+      'pendientes que vinieron de un plan.</p>'));
+    w.appendChild(el('<p class="hint">A quien entró a mitad de temporada se le empieza a cobrar desde su mes de alta, ' +
+      'no desde septiembre.</p>'));
+
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+      '<button class="btn btn-primary">Aplicar a ' + sim.jugadores + '</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var r = SF.store.planAplicar(playerIds, planId, {});
+      U.closeModal();
+      U.toast(r.cargos + ' cargos generados en ' + r.jugadores + (r.jugadores === 1 ? ' jugador' : ' jugadores'));
+      if (refresh) refresh(); else SF.router.render();
+    };
+    w.appendChild(foot);
+    U.modal('Aplicar plan de pago', w);
+  }
+
+  /* Una excepcion: este jugador paga otro plan que su equipo. Se marca aparte
+     justamente para que se VEA que es una excepcion y no un descuido. */
+  function excepcionPlanModal(p, refresh) {
+    var res = SF.planDe(p);
+    var opts = '<option value="">— El del equipo —</option>' + SF.store.planes().map(function (pl) {
+      return '<option value="' + pl.id + '"' + ((p.finance && p.finance.plan_id) === pl.id ? ' selected' : '') + '>' + esc(pl.nombre) + '</option>';
+    }).join('');
+    var f = el('<div class="form-grid"><div class="frow"><label>Plan de este jugador</label>' +
+      '<select id="pex">' + opts + '</select>' +
+      '<p class="hint">Lo normal es dejarlo en "el del equipo". Elige otro solo si esta familia ' +
+      'tiene un acuerdo distinto: así queda claro que es a propósito.</p></div></div>');
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      SF.store.planExcepcion(p.id, f.querySelector('#pex').value);
+      U.closeModal(); U.toast('Plan actualizado');
+      if (refresh) refresh(); else SF.router.render();
+    };
+    var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
+    U.modal('Cambiar el plan de ' + esc(p.full_name), w);
+  }
+
+  /* Editor de un plan del catalogo. */
+  function planEditor(plan, onSave) {
+    var esNuevo = !plan;
+    plan = plan ? JSON.parse(JSON.stringify(plan)) : { nombre: '', programa: 'federado', activo: true, items: [], descuentos: {} };
+    var ins = (plan.items || []).filter(function (i) { return i.type === 'inscripcion'; })[0] || { amount: 0 };
+    var cuo = (plan.items || []).filter(function (i) { return i.type === 'cuota'; })[0] || { amount: 0, desde: 'Septiembre', hasta: 'Junio' };
+    var d2 = (plan.descuentos || {})['Segundo'] || {};
+    var d3 = (plan.descuentos || {})['Tercero o mas'] || {};
+    var mo = function (sel) { return SF.MESES_TEMPORADA.map(function (m) { return '<option' + (m === sel ? ' selected' : '') + '>' + m + '</option>'; }).join(''); };
+    var progOpts = Object.keys(SF.PROGRAMAS).map(function (k) { return '<option value="' + k + '"' + (plan.programa === k ? ' selected' : '') + '>' + SF.PROGRAMAS[k] + '</option>'; }).join('');
+
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>Nombre del plan</label><input id="pn" value="' + esc(plan.nombre) + '" placeholder="Federado Cadete"></div>' +
+      '<div class="frow"><label>Programa</label><select id="pp">' + progOpts + '</select></div>' +
+      '<div class="frow"><label>Inscripción (€)</label><input id="pi" type="number" value="' + (+ins.amount || 0) + '"></div>' +
+      '<div class="frow"><label>Importe de cada cuota (€)</label><input id="pc" type="number" value="' + (+cuo.amount || 0) + '"></div>' +
+      '<div class="frow"><label>Primera cuota</label><select id="pd">' + mo(cuo.desde || 'Septiembre') + '</select></div>' +
+      '<div class="frow"><label>Última cuota</label><select id="ph">' + mo(cuo.hasta || 'Junio') + '</select></div>' +
+      '<div class="frow"><label>Cuota del 2º hermano (€)</label><input id="q2" type="number" value="' + (d2.cuota != null ? d2.cuota : '') + '" placeholder="sin descuento"></div>' +
+      '<div class="frow"><label>Cuota del 3º hermano (€)</label><input id="q3" type="number" value="' + (d3.cuota != null ? d3.cuota : '') + '" placeholder="sin descuento"></div>' +
+      '</div>');
+    var aviso = el('<p class="hint">Si cambias un importe, el plan sube de versión. Los cargos ya generados ' +
+      'no se tocan: para actualizarlos hay que volver a aplicarlo.</p>');
+
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var nom = f.querySelector('#pn').value.trim();
+      if (!nom) { U.toast('Ponle nombre al plan'); return; }
+      var di = SF.MESES_TEMPORADA.indexOf(f.querySelector('#pd').value);
+      var hi = SF.MESES_TEMPORADA.indexOf(f.querySelector('#ph').value);
+      if (hi < di) { U.toast('La última cuota es anterior a la primera'); return; }
+      plan.nombre = nom;
+      plan.programa = f.querySelector('#pp').value;
+      plan.items = [
+        { type: 'inscripcion', label: 'Inscripción', amount: +f.querySelector('#pi').value || 0 },
+        { type: 'cuota', label: 'Cuota', amount: +f.querySelector('#pc').value || 0,
+          desde: f.querySelector('#pd').value, hasta: f.querySelector('#ph').value }
+      ];
+      var v2 = f.querySelector('#q2').value, v3 = f.querySelector('#q3').value;
+      plan.descuentos = {};
+      if (v2 !== '') plan.descuentos['Segundo'] = { cuota: +v2 };
+      if (v3 !== '') plan.descuentos['Tercero o mas'] = { cuota: +v3 };
+      SF.store.planSave(plan);
+      U.closeModal(); U.toast(esNuevo ? 'Plan creado' : 'Plan guardado');
+      if (onSave) onSave();
+    };
+    var w = el('<div></div>'); w.appendChild(f); w.appendChild(aviso); w.appendChild(foot);
+    U.modal(esNuevo ? 'Nuevo plan de pago' : 'Editar plan', w);
+  }
+
   function finPlanBlock(p, canManage, refresh) {
     var wrap = el('<div></div>');
     var items = SF.finItems(p), tot = SF.finTotals(p);
@@ -9060,8 +9406,36 @@ window.SF = window.SF || {};
       });
       wrap.appendChild(ml);
     });
+    /* De donde sale lo que paga este jugador. Sin esto, un importe raro no se
+       puede explicar: no se sabe si es el plan del equipo, una excepcion suya,
+       o que alguien lo escribio a mano hace tres meses. */
+    var res = SF.planDe(p);
+    var cab;
+    if (res.plan) {
+      var deDonde = res.origen === 'excepcion'
+        ? '<span class="tag tag-warn">excepción de esta ficha</span>'
+        : '<span class="tag tag-gray">heredado de ' + esc(res.equipo || 'su equipo') + '</span>';
+      var herm = p.siblings_position && (res.plan.descuentos || {})[p.siblings_position]
+        ? ' · con descuento de ' + esc(p.siblings_position).toLowerCase() + ' hermano' : '';
+      cab = el('<div class="mini-row" style="margin-bottom:10px"><span><b>Plan: ' + esc(res.plan.nombre) + '</b> ' +
+        deDonde + herm + '</span><span class="row-actions"></span></div>');
+    } else {
+      cab = el('<div class="mini-row" style="margin-bottom:10px"><span class="hint">' +
+        'Sin plan de pago. Se hereda del equipo: asígnaselo en la ficha del equipo.' +
+        '</span><span class="row-actions"></span></div>');
+    }
+    wrap.insertBefore(cab, wrap.firstChild);
+
     if (canManage) {
       var tools = el('<div class="row-c"></div>');
+      if (res.plan) {
+        var bAp = el('<button class="btn btn-primary btn-sm">' + ico('plus') + 'Aplicar plan</button>');
+        bAp.onclick = function () { aplicarPlanModal([p.id], res.plan.id, refresh); };
+        tools.appendChild(bAp);
+      }
+      var bEx = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Cambiar plan</button>');
+      bEx.onclick = function () { excepcionPlanModal(p, refresh); };
+      tools.appendChild(bEx);
       var b1 = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Inscripción</button>'); b1.onclick = function () { inscriptionModal(p, refresh); };
       var b2 = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Generar cuotas</button>'); b2.onclick = function () { genCuotasModal(p, refresh); };
       var b3 = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir torneo</button>'); b3.onclick = function () { tournamentModal(p, refresh); };
@@ -9126,23 +9500,10 @@ window.SF = window.SF || {};
     return wrap;
   }
 
-  function genPlanFBMModal(p, refresh) {
-    var pos = p.siblings_position;
-    var ins = (pos === 'Segundo' || pos === 'Tercero o más') ? 0 : 225;
-    var cuota = (pos === 'Tercero o más') ? 45 : 90;
-    var meses = ['Septiembre', 'Octubre', 'Noviembre', 'Diciembre', 'Enero', 'Febrero', 'Marzo'];
-    var msg = 'Se generará: inscripción ' + ins + ' € y 7 cuotas de ' + cuota + ' € (septiembre a marzo).' + (pos === 'Segundo' ? ' Incluye descuento de 2º hermano.' : pos === 'Tercero o más' ? ' Incluye descuento de 3er hermano.' : '');
-    var w = el('<div></div>');
-    w.appendChild(el('<p class="hint">' + msg + ' Reemplaza el plan actual.</p>'));
-    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Generar plan</button></div>');
-    foot.children[0].onclick = U.closeModal;
-    foot.children[1].onclick = function () {
-      var now = Date.now(), items = [{ id: 'ins' + now, type: 'inscripcion', label: 'Inscripción', month: '', amount: ins, status: 'pendiente' }];
-      meses.forEach(function (m, i) { items.push({ id: 'c' + now + i, type: 'cuota', label: 'Cuota ' + m, month: m, amount: cuota, status: 'pendiente' }); });
-      SF.store.update(p.id, { finance: { items: items } }); U.closeModal(); refresh(); U.toast('Plan FBM generado');
-    };
-    w.appendChild(foot); U.modal('Generar plan tipo FBM', w);
-  }
+  /* Aqui vivia `genPlanFBMModal`: 225 EUR de inscripcion y 7 cuotas de 90 EUR
+     escritos a mano en el codigo. Esos mismos numeros son ahora el plan
+     "Federado" del catalogo (Configuracion > Planes de pago), donde se pueden
+     cambiar sin tocar el programa y aplicar a un equipo entero de una vez. */
 
   /* ── Equipación / Pack deportivo ── */
   function kitOrderForm(p, onSave) {
@@ -9212,8 +9573,38 @@ window.SF = window.SF || {};
       tb.appendChild(tr);
     });
     view.appendChild(t);
+    if (role().canManageFinance) view.appendChild(aplicarPorEquipoCard());
     view.appendChild(paymentMethodsCard(role().canManageFinance));
   };
+
+  /* Generar los cargos de un equipo entero de una vez. Es la diferencia entre
+     900 visitas a 900 fichas y tres clics. */
+  function aplicarPorEquipoCard() {
+    var card = el('<div class="card"><h3>Aplicar un plan a un equipo</h3>' +
+      '<p class="hint">Genera los cargos de todos los jugadores del equipo con el plan que tenga asignado. ' +
+      'Antes de tocar nada te enseña a cuántos afecta y por cuánto.</p>' +
+      '<div class="row-c"></div></div>');
+    var teams = SF.store.teams();
+    var opts = teams.map(function (t) {
+      var n = SF.store.players().filter(function (x) { return x.team_id === t.id; }).length;
+      var pl = t.plan_id ? SF.store.planGet(t.plan_id) : null;
+      return '<option value="' + t.id + '">' + esc(t.name) + ' · ' + n + ' jug. · ' +
+        (pl ? esc(pl.nombre) : 'sin plan') + '</option>';
+    }).join('');
+    var sel = el('<select style="max-width:340px">' + opts + '</select>');
+    var b = el('<button class="btn btn-primary">' + ico('plus') + 'Ver qué pasaría</button>');
+    b.onclick = function () {
+      var t = SF.store.teamGet(sel.value);
+      if (!t) return;
+      if (!t.plan_id) { U.toast('Ese equipo no tiene plan asignado. Ponle uno en su ficha.'); return; }
+      var ids = SF.store.players().filter(function (x) { return x.team_id === t.id; }).map(function (x) { return x.id; });
+      if (!ids.length) { U.toast('Ese equipo no tiene jugadores'); return; }
+      aplicarPlanModal(ids, t.plan_id, function () { SF.router.render(); });
+    };
+    var rc = card.querySelector('.row-c');
+    rc.appendChild(sel); rc.appendChild(b);
+    return card;
+  }
 
   /* ===================== PERMISOS ===================== */
   pages.permisos = function (view) {
@@ -9326,6 +9717,50 @@ window.SF = window.SF || {};
     save.onclick = function () { SF.store.saveAcademy({ name: form.querySelector('#cn').value, city: form.querySelector('#cc').value, primary_sport: form.querySelector('#cs').value, plan: form.querySelector('#cp').value }); U.toast('Guardado'); SF.router.renderShell(); };
     form.appendChild(save);
     view.appendChild(form);
+
+    /* Los planes de pago. Antes esto no se podia tocar sin editar el codigo. */
+    if (role().canManageFinance) {
+      var pl = el('<div class="card"><h3>Planes de pago</h3>' +
+        '<p class="hint">Lo que paga cada jugador. El plan cuelga del <b>equipo</b>: todos sus jugadores lo heredan, ' +
+        'así que subir una cuota se hace en un sitio y no en 900 fichas.</p>' +
+        '<div class="mini-list"></div><div class="row-c"></div></div>');
+      var pml = pl.querySelector('.mini-list');
+      var planes = SF.store.planes();
+      if (!planes.length) pml.appendChild(el('<p class="hint">Todavía no hay ningún plan.</p>'));
+      planes.forEach(function (x) {
+        var cuo = (x.items || []).filter(function (i) { return i.type === 'cuota'; })[0] || {};
+        var ins = (x.items || []).filter(function (i) { return i.type === 'inscripcion'; })[0] || {};
+        var nEq = SF.store.teams().filter(function (t) { return t.plan_id === x.id; }).length;
+        var nJug = SF.store.players().filter(function (j) { var r = SF.planDe(j); return r.plan && r.plan.id === x.id; }).length;
+        var resumen = (ins.amount ? (+ins.amount) + ' € de inscripción · ' : '') +
+          (cuo.amount ? 'cuotas de ' + (+cuo.amount) + ' € (' + esc(cuo.desde || '') + ' → ' + esc(cuo.hasta || '') + ')' : 'sin cuotas');
+        var row = el('<div class="mini-row"><span><b>' + esc(x.nombre) + '</b> ' +
+          '<span class="tag tag-gray">' + esc(SF.PROGRAMAS[x.programa] || x.programa || '') + '</span> ' +
+          '<span class="tag tag-gray">v' + (x.version || 1) + '</span><br>' +
+          '<span class="hint">' + resumen + ' · ' + nEq + (nEq === 1 ? ' equipo' : ' equipos') + ' · ' +
+          nJug + (nJug === 1 ? ' jugador' : ' jugadores') + '</span></span>' +
+          '<span class="row-actions"><button class="lnk" data-ed>editar</button>' +
+          '<button class="lnk" data-dup>duplicar</button>' +
+          '<button class="lnk-del" data-rm>' + ico('x') + '</button></span></div>');
+        row.querySelector('[data-ed]').onclick = function () { planEditor(x, function () { SF.router.render(); }); };
+        row.querySelector('[data-dup]').onclick = function () {
+          var c = JSON.parse(JSON.stringify(x));
+          c.id = 'pl' + Date.now(); c.version = 1; c.nombre = x.nombre + ' (copia)';
+          SF.store.planSave(c); U.toast('Plan duplicado'); SF.router.render();
+        };
+        row.querySelector('[data-rm]').onclick = function () {
+          if (nEq) { U.toast('Ese plan lo usan ' + nEq + (nEq === 1 ? ' equipo' : ' equipos') + '. Cámbiaselos antes.'); return; }
+          if (confirm('¿Borrar el plan "' + x.nombre + '"? Los cargos ya generados se quedan como están.')) {
+            SF.store.planRemove(x.id); U.toast('Plan borrado'); SF.router.render();
+          }
+        };
+        pml.appendChild(row);
+      });
+      var bNuevo = el('<button class="btn">' + ico('plus') + 'Nuevo plan</button>');
+      bNuevo.onclick = function () { planEditor(null, function () { SF.router.render(); }); };
+      pl.querySelector('.row-c').appendChild(bNuevo);
+      view.appendChild(pl);
+    }
 
     var pist = el('<div class="card"><h3>Pabellones y horarios</h3>' +
       '<p class="hint">Dónde entrena tu club y en qué franjas. Es lo que dibuja el cuadrante de pistas.</p>' +
@@ -10373,12 +10808,18 @@ window.SF = window.SF || {};
     var segOpts = Object.keys(SF.SEGMENTS).map(function (s) { return '<option value="' + s + '"' + (s === t.segment ? ' selected' : '') + '>' + SF.SEGMENTS[s] + '</option>'; }).join('');
     var sportOpts = Object.keys(SF.SPORTS).map(function (s) { return '<option value="' + s + '"' + ((t.sport || 'baloncesto') === s ? ' selected' : '') + '>' + SF.SPORTS[s].label + '</option>'; }).join('');
     var coachChecks = SF.COACHES.map(function (c) { var on = (t.coaches || []).indexOf(c) >= 0; return '<label class="chk"><input type="checkbox" class="coach" value="' + esc(c) + '"' + (on ? ' checked' : '') + '> ' + esc(c) + '</label>'; }).join('');
+    var progOpts = Object.keys(SF.PROGRAMAS).map(function (k) { return '<option value="' + k + '"' + ((t.programa || 'federado') === k ? ' selected' : '') + '>' + SF.PROGRAMAS[k] + '</option>'; }).join('');
+    var planOpts = '<option value="">— Sin plan —</option>' + SF.store.planes().map(function (pl) { return '<option value="' + pl.id + '"' + (pl.id === t.plan_id ? ' selected' : '') + '>' + esc(pl.nombre) + '</option>'; }).join('');
     var f = el('<div class="form-grid"></div>');
     f.innerHTML =
       '<div class="frow"><label>Nombre del equipo</label><input name="name" value="' + esc(t.name) + '"></div>' +
       '<div class="frow"><label>Deporte</label><select name="sport">' + sportOpts + '</select></div>' +
       '<div class="frow"><label>Segmento</label><select name="segment">' + segOpts + '</select></div>' +
       '<div class="frow"><label>Categoría</label><input name="category" value="' + esc(t.category) + '"></div>' +
+      '<div class="frow"><label>Programa</label><select name="programa">' + progOpts + '</select>' +
+        '<p class="hint">Para qué paga. No es lo mismo que el segmento: un cadete masculino es federado, uno de escuelas no.</p></div>' +
+      '<div class="frow"><label>Plan de pago</label><select name="plan_id">' + planOpts + '</select>' +
+        '<p class="hint">Todos los jugadores del equipo heredan este plan. Se puede poner una excepción en su ficha.</p></div>' +
       '<div class="frow"><label>Cuerpo técnico</label><div class="chks">' + coachChecks + '</div></div>';
     var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
     foot.children[0].onclick = U.closeModal;
@@ -10388,6 +10829,8 @@ window.SF = window.SF || {};
         sport: f.querySelector('[name=sport]').value,
         segment: f.querySelector('[name=segment]').value,
         category: f.querySelector('[name=category]').value.trim(),
+        programa: f.querySelector('[name=programa]').value,
+        plan_id: f.querySelector('[name=plan_id]').value,
         coaches: Array.prototype.slice.call(f.querySelectorAll('.coach:checked')).map(function (i) { return i.value; })
       };
       if (!data.name) { U.toast('Ponle nombre al equipo'); return; }
