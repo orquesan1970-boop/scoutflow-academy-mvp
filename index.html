@@ -4527,6 +4527,11 @@ SF.store = (function () {
 
   function read() {
     if (enNube()) return SF.cloud.leer();
+    /* Si el navegador se quedo sin sitio, lo que hay guardado esta viejo: manda
+       lo que tenemos en memoria. Leer del disco entonces devolveria la version
+       de antes del fallo y el usuario veria deshacerse solo lo que acaba de
+       escribir, que es la forma mas desconcertante de perder datos. */
+    if (SF._sinSitio && mem) return mem;
     if (LS) {
       var raw = localStorage.getItem(KEY);
       return raw ? JSON.parse(raw) : null;
@@ -4535,8 +4540,26 @@ SF.store = (function () {
   }
   function write(db) {
     if (enNube()) { SF.cloud.escribir(db); return; }
-    if (LS) localStorage.setItem(KEY, JSON.stringify(db));
-    else mem = db;
+    if (!LS) { mem = db; return; }
+    /* Sin nube, esto es el unico sitio donde viven los datos del club. Si el
+       navegador se queda sin espacio, esta linea lanza: la app se rompia a
+       media accion y el usuario veia una pantalla a medias sin saber por que.
+       Ahora se avisa, se sigue trabajando en memoria y se le dice que exporte,
+       que es lo unico que salva la tarde. */
+    try {
+      localStorage.setItem(KEY, JSON.stringify(db));
+      mem = db;
+      if (SF._sinSitio) SF._sinSitio = false;
+    } catch (e) {
+      mem = db;
+      if (!SF._sinSitio) {
+        SF._sinSitio = true;
+        console.warn('[ScoutFlow] No cabe en este navegador:', e && e.message);
+        try {
+          U.toast('No cabe en este navegador. Exporta los datos desde Configuración antes de cerrar.');
+        } catch (e2) {}
+      }
+    }
   }
 
   function seed() {
@@ -16728,8 +16751,24 @@ SF.cloud = (function () {
   function escribir(d) {
     datos = d;
     /* Copia local inmediata. Si el navegador se cierra antes de que suba,
-       no se pierde: al volver a entrar se sube lo que quedó pendiente. */
-    try { localStorage.setItem(CACHE, JSON.stringify(d)); } catch (e) {}
+       no se pierde: al volver a entrar se sube lo que quedó pendiente.
+       El fallo aqui se AVISA. Antes se tragaba: si el navegador se quedaba sin
+       sitio -el club entero pesa cerca de un mega y el limite ronda los cinco-
+       la copia local dejaba de escribirse y nadie se enteraba, hasta el dia que
+       se cerraba el navegador antes de subir y se perdia el trabajo de la
+       tarde. Un almacen que falla en silencio es peor que uno que no existe. */
+    try {
+      localStorage.setItem(CACHE, JSON.stringify(d));
+      if (SF._sinSitio) { SF._sinSitio = false; }
+    } catch (e) {
+      if (!SF._sinSitio) {
+        SF._sinSitio = true;
+        console.warn('[ScoutFlow] No se pudo guardar la copia local:', e && e.message);
+        try {
+          U.toast('No cabe la copia local en este navegador. Exporta los datos desde Configuración.');
+        } catch (e2) {}
+      }
+    }
     clearTimeout(temporizador);
     /* No se sube en cada tecla: se espera a que pare de escribir. Subir 40
        veces mientras rellena una ficha no aporta nada y gasta cuota. */
