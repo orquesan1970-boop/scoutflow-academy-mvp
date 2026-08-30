@@ -205,11 +205,27 @@ function limpia(s) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ ok: false, motivo: 'metodo' });
-
   const gem = process.env.GEMINI_API_KEY;
   const ant = process.env.ANTHROPIC_API_KEY;
   const oai = process.env.OPENAI_API_KEY;
+
+  /* GET = "¿estás ahí, y sabes leer una foto?". La pantalla de subida lo
+     pregunta antes de que nadie arrastre nada, para poder decirlo por delante
+     en vez de dejar que alguien suba una foto de 4 MB y se entere después de
+     esperar. No gasta ni una llamada al modelo: solo mira si hay clave. */
+  if (req.method === 'GET') {
+    const proveedor = gem ? 'Gemini' : ant ? 'Claude' : oai ? 'OpenAI' : null;
+    return res.status(200).json({
+      ok: true,
+      ia: !!proveedor,
+      proveedor: proveedor,
+      /* Los tres leen imágenes. El PDF, todos menos OpenAI. */
+      imagen: !!proveedor,
+      pdf: !!(gem || ant)
+    });
+  }
+
+  if (req.method !== 'POST') return res.status(405).json({ ok: false, motivo: 'metodo' });
   if (!gem && !ant && !oai) return res.status(200).json({ ok: false, motivo: 'sin_clave' });
 
   const b = req.body || {};
