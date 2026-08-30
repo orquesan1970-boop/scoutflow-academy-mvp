@@ -2905,6 +2905,82 @@ SF.planCargos = function (plan, p, opts) {
   return out;
 };
 
+/* ===================== HERMANOS =====================
+   El descuento de hermano depende de `siblings_position`, que hoy se rellena
+   a mano. Con 900 jugadores nadie lo rellena bien, y el club acaba cobrando
+   de mas a familias que tienen derecho a descuento. Eso no se descubre hasta
+   que la familia reclama.
+
+   Esto NO decide nada: propone. El club confirma, porque un hermano mal
+   deducido cambia lo que una familia paga, y eso no se hace a la ligera. */
+
+/* Se agrupa por el CONTACTO de la familia, no por el apellido.
+   En un club de 277 hay doce Garcia que no son nada entre si; en cambio dos
+   fichas con el mismo telefono de madre son hermanos casi seguro. */
+SF.hermanosDetectados = function () {
+  var ps = (SF.store && SF.store.players) ? SF.store.players() : [];
+  var porClave = {};
+
+  function tel(x) { return String(x || '').replace(/[^0-9]/g, '').slice(-9); }
+  function mail(x) { return String(x || '').trim().toLowerCase(); }
+
+  ps.forEach(function (p) {
+    var f = p.family || {};
+    var claves = [];
+    if (tel(f.phone).length === 9) claves.push('t:' + tel(f.phone));
+    if (mail(f.email)) claves.push('e:' + mail(f.email));
+    /* El nombre del contacto solo vale acompañado del apellido del jugador:
+       "Ana" sola no identifica a nadie. */
+    if (f.contact && p.last_name) claves.push('c:' + mail(f.contact) + '|' + mail(p.last_name));
+    claves.forEach(function (k) { (porClave[k] = porClave[k] || []).push(p); });
+  });
+
+  /* Un jugador puede caer en dos claves (teléfono y correo). Se fusionan los
+     grupos que compartan a alguien, o saldria el mismo hermano dos veces. */
+  var grupos = [];
+  Object.keys(porClave).forEach(function (k) {
+    var g = porClave[k];
+    if (g.length < 2) return;
+    var ids = g.map(function (x) { return x.id; });
+    var yaEsta = grupos.filter(function (x) {
+      return x.ids.some(function (i) { return ids.indexOf(i) >= 0; });
+    })[0];
+    if (yaEsta) {
+      ids.forEach(function (i) { if (yaEsta.ids.indexOf(i) < 0) yaEsta.ids.push(i); });
+      if (yaEsta.motivos.indexOf(k[0]) < 0) yaEsta.motivos.push(k[0]);
+    } else {
+      grupos.push({ ids: ids.slice(), motivos: [k[0]] });
+    }
+  });
+
+  var POS = ['Primero', 'Segundo', 'Tercero o mas'];
+  return grupos.map(function (g) {
+    var miembros = g.ids.map(function (i) {
+      return ps.filter(function (x) { return x.id === i; })[0];
+    }).filter(Boolean);
+    /* El mayor es el primero. Sin fecha de nacimiento va al final: no se
+       inventa una edad para decidir quien paga menos. */
+    miembros.sort(function (a, b) {
+      if (!a.birth_date) return 1;
+      if (!b.birth_date) return -1;
+      return String(a.birth_date).localeCompare(String(b.birth_date));
+    });
+    var f0 = (miembros[0].family || {});
+    return {
+      contacto: f0.contact || '', telefono: f0.phone || '', email: f0.email || '',
+      motivo: g.motivos.indexOf('t') >= 0 ? 'mismo teléfono de la familia'
+            : g.motivos.indexOf('e') >= 0 ? 'mismo correo de la familia'
+            : 'mismo contacto y apellido',
+      miembros: miembros.map(function (m, i) {
+        var prop = POS[Math.min(i, 2)];
+        return { id: m.id, nombre: m.full_name, anio: m.birth_year || '',
+                 actual: m.siblings_position || '', propuesta: prop,
+                 cambia: (m.siblings_position || '') !== prop };
+      })
+    };
+  }).filter(function (g) { return g.miembros.some(function (m) { return m.cambia; }); });
+};
+
 /* Lo que costaria un jugador con este plan, sin generar nada. Sirve para la
    vista previa antes de aplicar a 300 personas, y para el presupuesto. */
 SF.planTotal = function (plan, p) {
@@ -4180,6 +4256,18 @@ SF.store = (function () {
       });
       if (!opts.simular) save(d);
       return res;
+    },
+
+    /* Sella la posicion de hermano de un grupo. Solo escribe eso: no toca
+       cargos ya generados, porque bajar una cuota es una decision aparte. */
+    hermanosAplicar: function (pares) {
+      var d = db();
+      (pares || []).forEach(function (x) {
+        var p = (d.players || []).filter(function (y) { return y.id === x.id; })[0];
+        if (p) p.siblings_position = x.posicion;
+      });
+      save(d);
+      return (pares || []).length;
     },
 
     /* Marca una excepcion: este jugador paga otro plan que el de su equipo. */
@@ -9554,32 +9642,200 @@ window.SF = window.SF || {};
   /* ===================== FINANZAS ===================== */
   pages.finanzas = function (view, _p, _r, embed) {
     if (!role().canSeeFinance) { view.innerHTML = head('Finanzas', '') + '<div class="empty-panel"><p>Tu rol no tiene acceso a finanzas.</p></div>'; return; }
-    view.innerHTML = embed ? '' : head('Finanzas', 'Planes de pago de la academia: inscripción, cuotas y torneos.');
+    view.innerHTML = embed ? '' : head('Finanzas', 'Quién debe, cuánto, y de qué equipo.');
     var ps = SF.store.players();
+    var puede = role().canManageFinance;
+
+    /* ------------------------------------------------------------------
+       POR QUE ESTA PANTALLA NO ES UNA LISTA
+       ------------------------------------------------------------------
+       Antes volcaba los 277 jugadores del club en una tabla. Nadie entra en
+       Finanzas a mirar 277 jugadores: entra a saber QUIEN DEBE DINERO, y eso
+       son 36. Los 217 que estan al dia no piden nada y ocupaban toda la
+       pantalla.
+
+       Asi que por defecto se ensena SOLO lo que hay que reclamar, agrupado
+       por equipo —que es como piensa un club, no en una lista alfabetica— y
+       lo demas se pide. */
+
+    function estadoDe(p) {
+      var t = SF.finTotals(p), total = t.paid + t.pending + t.overdue;
+      if (!total) return 'sin-plan';
+      if (t.overdue > 0) return 'vencido';
+      if (t.pending > 0) return 'pendiente';
+      return 'al-dia';
+    }
+    function debe(p) { var t = SF.finTotals(p); return t.pending + t.overdue; }
+
     var sum = { paid: 0, pending: 0, overdue: 0 };
     ps.forEach(function (p) { var t = SF.finTotals(p); sum.paid += t.paid; sum.pending += t.pending; sum.overdue += t.overdue; });
+
+    var filtro = { estado: 'deuda', texto: '', equipo: '' };
+    var plegados = {};
+
+    /* --- Los indicadores son botones: el numero grande lleva a su lista --- */
     var k = el('<div class="kpis"></div>');
-    [['Cobrado', sum.paid, ''], ['Pendiente', sum.pending, 'warn'], ['Vencido', sum.overdue, 'danger']].forEach(function (x) {
-      k.appendChild(el('<div class="kpi ' + x[2] + '"><div class="kpi-top"><span>' + x[0] + '</span></div><div class="kpi-num">' + x[1] + ' €</div></div>'));
+    [['Cobrado', sum.paid, '', 'al-dia'], ['Pendiente', sum.pending, 'warn', 'pendiente'],
+     ['Vencido', sum.overdue, 'danger', 'vencido']].forEach(function (x) {
+      var c = el('<button class="kpi ' + x[2] + '" style="text-align:left;cursor:pointer;font:inherit">' +
+        '<div class="kpi-top"><span>' + x[0] + '</span></div><div class="kpi-num">' + x[1] + ' €</div></button>');
+      c.onclick = function () { filtro.estado = x[3]; filtro.texto = ''; inp.value = ''; pintar(); };
+      k.appendChild(c);
     });
     view.appendChild(k);
-    /* Arriba, ANTES de la tabla. Estaba debajo, y con 277 jugadores eso son
-       277 filas de scroll: nadie lo encontraba. */
-    if (role().canManageFinance) {
-      view.appendChild(catalogoPlanesCard());
-      view.appendChild(aplicarPorEquipoCard());
+
+    /* --- Configurar cobros: plegado. Se toca en septiembre, no cada dia --- */
+    if (puede) {
+      var nPlanes = SF.store.planes().length;
+      var nHerm = SF.hermanosDetectados().length;
+      var conf = el('<div class="card"></div>');
+      var cab = el('<button style="all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%">' +
+        '<span style="flex:1"><b>Configurar cobros</b><br><span class="hint">' +
+        nPlanes + (nPlanes === 1 ? ' plan' : ' planes') + ' · aplicar a un equipo' +
+        (nHerm ? ' · <b>' + nHerm + '</b> posibles hermanos sin marcar' : '') +
+        '</span></span><span class="hint" id="cf-x">mostrar ▾</span></button>');
+      var cuerpo = el('<div style="margin-top:14px"></div>');
+      cuerpo.hidden = true;
+      cuerpo.appendChild(catalogoPlanesCard());
+      cuerpo.appendChild(aplicarPorEquipoCard());
+      var hc = hermanosCard(); if (hc) cuerpo.appendChild(hc);
+      cab.onclick = function () {
+        cuerpo.hidden = !cuerpo.hidden;
+        cab.querySelector('#cf-x').textContent = cuerpo.hidden ? 'mostrar ▾' : 'ocultar ▴';
+      };
+      conf.appendChild(cab); conf.appendChild(cuerpo);
+      view.appendChild(conf);
     }
-    var t = el('<table class="tbl"><thead><tr><th>Jugador</th><th>Plan</th><th>Pagado</th><th>Estado</th><th></th></tr></thead><tbody></tbody></table>');
-    var tb = t.querySelector('tbody');
-    ps.forEach(function (p) {
-      var tt = SF.finTotals(p), total = tt.paid + tt.pending + tt.overdue;
-      var st = tt.overdue > 0 ? '<span class="tag tag-danger">vencido</span>' : tt.pending > 0 ? '<span class="tag tag-warn">pendiente</span>' : total > 0 ? '<span class="tag tag-green">al día</span>' : '<span class="tag tag-gray">sin plan</span>';
-      var tr = el('<tr><td>' + esc(p.full_name) + '</td><td>' + total + ' €</td><td>' + tt.paid + ' €</td><td>' + st + '</td><td><button class="lnk" data-v>Ver plan</button></td></tr>');
-      tr.querySelector('[data-v]').onclick = function () { SF._openTab = 'finanzas'; location.hash = '#/jugador/' + p.id; };
-      tb.appendChild(tr);
-    });
-    view.appendChild(t);
-    view.appendChild(paymentMethodsCard(role().canManageFinance));
+
+    /* --- Filtros y buscador --- */
+    var ESTADOS = [['deuda', 'Por cobrar'], ['vencido', 'Vencidos'], ['pendiente', 'Pendientes'],
+      ['al-dia', 'Al día'], ['sin-plan', 'Sin plan'], ['todos', 'Todos']];
+    function cuantos(clave) {
+      if (clave === 'todos') return ps.length;
+      if (clave === 'deuda') return ps.filter(function (x) { var e = estadoDe(x); return e === 'vencido' || e === 'pendiente'; }).length;
+      return ps.filter(function (x) { return estadoDe(x) === clave; }).length;
+    }
+
+    var barra = el('<div class="card"></div>');
+    var chips = el('<div class="row-c" style="flex-wrap:wrap;gap:6px"></div>');
+    var fila = el('<div class="row-c" style="margin-top:10px;flex-wrap:wrap;gap:8px"></div>');
+    var inp = el('<input placeholder="Buscar por nombre, ficha, dorsal, equipo o contacto de la familia…" style="flex:1;min-width:250px">');
+    var selEq = el('<select style="max-width:230px"><option value="">Todos los equipos</option>' +
+      SF.store.teams().map(function (x) { return '<option value="' + x.id + '">' + esc(x.name) + '</option>'; }).join('') + '</select>');
+    fila.appendChild(inp); fila.appendChild(selEq);
+    barra.appendChild(chips); barra.appendChild(fila);
+    view.appendChild(barra);
+
+    var zona = el('<div></div>');
+    view.appendChild(zona);
+
+    function pasa(p) {
+      var e = estadoDe(p);
+      if (filtro.estado === 'deuda') { if (e !== 'vencido' && e !== 'pendiente') return false; }
+      else if (filtro.estado !== 'todos' && e !== filtro.estado) return false;
+      if (filtro.equipo && p.team_id !== filtro.equipo) return false;
+      if (filtro.texto) {
+        var q = SF.norm ? SF.norm(filtro.texto) : filtro.texto.toLowerCase();
+        var campos = [p.full_name, p.dorsal, p.category, String(p.ficha || ''), p.scoutflow_id,
+          (p.family || {}).contact, teamName(p)];
+        var hay = campos.filter(Boolean).some(function (c) {
+          return (SF.norm ? SF.norm(String(c)) : String(c).toLowerCase()).indexOf(q) >= 0;
+        });
+        if (!hay) return false;
+      }
+      return true;
+    }
+
+    function etiqueta(e) {
+      return e === 'vencido' ? '<span class="tag tag-danger">vencido</span>'
+        : e === 'pendiente' ? '<span class="tag tag-warn">pendiente</span>'
+        : e === 'al-dia' ? '<span class="tag tag-green">al día</span>'
+        : '<span class="tag tag-gray">sin plan</span>';
+    }
+
+    function filaJugador(p) {
+      var t = SF.finTotals(p), d = debe(p), e = estadoDe(p);
+      var r = SF.planDe(p);
+      var tr = el('<div class="mini-row" style="cursor:pointer">' +
+        '<span><b>' + esc(p.full_name) + '</b>' +
+        (r.plan ? ' <span class="hint">· ' + esc(r.plan.nombre) + '</span>' : '') +
+        (p.siblings_position && p.siblings_position !== 'Primero'
+          ? ' <span class="tag tag-gray">' + esc(p.siblings_position) + ' hermano</span>' : '') +
+        '<br><span class="hint">pagado ' + t.paid + ' € de ' + (t.paid + d) + ' €</span></span>' +
+        '<span class="row-actions">' + (d ? '<b>' + d + ' €</b> ' : '') + etiqueta(e) + '</span></div>');
+      tr.onclick = function () { SF._openTab = 'finanzas'; location.hash = '#/jugador/' + p.id; };
+      return tr;
+    }
+
+    function pintarChips() {
+      chips.innerHTML = '';
+      ESTADOS.forEach(function (x) {
+        var n = cuantos(x[0]);
+        var b = el('<button class="btn btn-sm ' + (filtro.estado === x[0] ? 'btn-primary' : 'btn-light') + '">' +
+          esc(x[1]) + ' <b>' + n + '</b></button>');
+        b.onclick = function () { filtro.estado = x[0]; pintar(); };
+        chips.appendChild(b);
+      });
+    }
+
+    function pintar() {
+      pintarChips();
+      zona.innerHTML = '';
+      var lista = ps.filter(pasa);
+
+      if (!lista.length) {
+        var msg = filtro.estado === 'deuda' && !filtro.texto && !filtro.equipo
+          ? 'Nadie debe nada. Todo el club está al día.'
+          : 'Ningún jugador cumple lo que has pedido.';
+        zona.appendChild(el('<div class="empty-panel"><p>' + msg + '</p></div>'));
+        return;
+      }
+
+      /* Agrupado por equipo, y los equipos que mas deben arriba: es el orden
+         en el que hay que ponerse a llamar. */
+      var porEq = {};
+      lista.forEach(function (p) {
+        var id = p.team_id || '_sin';
+        (porEq[id] = porEq[id] || []).push(p);
+      });
+      var grupos = Object.keys(porEq).map(function (id) {
+        var jug = porEq[id];
+        return { id: id, nombre: id === '_sin' ? 'Sin equipo' : (SF.store.teamGet(id) || {}).name || 'Sin equipo',
+                 jug: jug, deuda: jug.reduce(function (a, x) { return a + debe(x); }, 0) };
+      });
+      grupos.sort(function (a, b) { return b.deuda - a.deuda || a.nombre.localeCompare(b.nombre, 'es'); });
+
+      var totalDeuda = grupos.reduce(function (a, g) { return a + g.deuda; }, 0);
+      zona.appendChild(el('<p class="hint" style="margin:4px 0 10px"><b>' + lista.length + '</b> de ' + ps.length +
+        ' jugadores · ' + grupos.length + (grupos.length === 1 ? ' equipo' : ' equipos') +
+        (totalDeuda ? ' · <b>' + totalDeuda + ' €</b> por cobrar' : '') + '</p>'));
+
+      grupos.forEach(function (g) {
+        /* Al buscar se abren todos: si no, hay que ir abriendo equipos a
+           ciegas para encontrar al que buscabas. */
+        var abierto = !!filtro.texto || !plegados[g.id];
+        var card = el('<div class="card" style="padding:12px 14px"></div>');
+        var cab = el('<button style="all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%">' +
+          '<span style="flex:1"><b>' + esc(g.nombre) + '</b> <span class="hint">· ' + g.jug.length +
+          (g.jug.length === 1 ? ' jugador' : ' jugadores') + '</span></span>' +
+          (g.deuda ? '<span class="tag tag-danger">' + g.deuda + ' €</span>' : '') +
+          '<span class="hint" style="margin-left:8px">' + (abierto ? '▴' : '▾') + '</span></button>');
+        var cuerpo = el('<div class="mini-list" style="margin-top:8px"></div>');
+        cuerpo.hidden = !abierto;
+        g.jug.sort(function (a, b) { return debe(b) - debe(a) || String(a.full_name).localeCompare(String(b.full_name), 'es'); });
+        g.jug.forEach(function (p) { cuerpo.appendChild(filaJugador(p)); });
+        cab.onclick = function () { plegados[g.id] = !cuerpo.hidden; pintar(); };
+        card.appendChild(cab); card.appendChild(cuerpo);
+        zona.appendChild(card);
+      });
+    }
+
+    var temp = null;
+    inp.oninput = function () { clearTimeout(temp); temp = setTimeout(function () { filtro.texto = inp.value.trim(); pintar(); }, 180); };
+    selEq.onchange = function () { filtro.equipo = selEq.value; pintar(); };
+
+    pintar();
+    view.appendChild(paymentMethodsCard(puede));
   };
 
   /* Cambiar el programa y el plan de un equipo, sin abrir la ficha entera.
@@ -9606,6 +9862,53 @@ window.SF = window.SF || {};
     };
     var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
     U.modal('Plan de pago de ' + esc(t.name), w);
+  }
+
+  /* Hermanos detectados. Propone, no decide: cada grupo se confirma a mano,
+     porque cambiar la posicion de hermano cambia lo que paga una familia. */
+  function hermanosCard() {
+    var grupos = SF.hermanosDetectados();
+    if (!grupos.length) return null;
+    var nFichas = grupos.reduce(function (a, g) {
+      return a + g.miembros.filter(function (m) { return m.cambia; }).length; }, 0);
+
+    var card = el('<div class="card"><h3>Posibles hermanos · ' + grupos.length + '</h3>' +
+      '<p class="hint">Detectados por el contacto de la familia, no por el apellido: en un club grande hay ' +
+      'muchos apellidos repetidos que no son nada entre sí. <b>' + nFichas + '</b> fichas cambiarían.</p>' +
+      '<p class="hint">Confirmar solo marca la posición de hermano. <b>No cambia ningún cargo ya generado</b>: ' +
+      'para que se aplique el descuento hay que volver a aplicar el plan.</p></div>');
+
+    grupos.forEach(function (g, i) {
+      var bloque = el('<div class="mini-list" style="margin-top:12px"></div>');
+      bloque.appendChild(el('<div class="mini-row"><span class="hint">' + esc(g.motivo) +
+        (g.contacto ? ' · <b>' + esc(g.contacto) + '</b>' : '') +
+        (g.telefono ? ' · ' + esc(g.telefono) : '') + '</span></div>'));
+      g.miembros.forEach(function (m) {
+        bloque.appendChild(el('<div class="mini-row"><span><b>' + esc(m.nombre) + '</b>' +
+          (m.anio ? ' <span class="hint">· ' + m.anio + '</span>' : '') + '</span>' +
+          '<span class="row-actions">' +
+          (m.actual ? '<span class="tag tag-gray">' + esc(m.actual) + '</span> → ' : '') +
+          '<span class="tag ' + (m.cambia ? 'tag-purple' : 'tag-gray') + '">' + esc(m.propuesta) + '</span></span></div>'));
+      });
+      var b = el('<button class="btn btn-sm btn-primary" style="margin-top:8px">Confirmar estos ' + g.miembros.length + '</button>');
+      b.onclick = function () {
+        SF.store.hermanosAplicar(g.miembros.map(function (m) { return { id: m.id, posicion: m.propuesta }; }));
+        U.toast('Hermanos confirmados'); SF.router.render();
+      };
+      card.appendChild(bloque); card.appendChild(b);
+    });
+
+    if (grupos.length > 1) {
+      var todos = el('<button class="btn" style="margin-top:14px">Confirmar los ' + grupos.length + ' grupos</button>');
+      todos.onclick = function () {
+        var pares = [];
+        grupos.forEach(function (g) { g.miembros.forEach(function (m) { pares.push({ id: m.id, posicion: m.propuesta }); }); });
+        SF.store.hermanosAplicar(pares);
+        U.toast(pares.length + ' fichas actualizadas'); SF.router.render();
+      };
+      card.appendChild(todos);
+    }
+    return card;
   }
 
   /* Catalogo de planes. Lo ve quien lleva el dinero: direccion y administracion. */
