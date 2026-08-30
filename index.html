@@ -2923,6 +2923,16 @@ SF.planCargos = function (plan, p, opts) {
    Finanzas: quien cobra a las familias no tiene por que saber lo que cobra
    el entrenador.
 
+   UNA PERSONA, VARIOS CONCEPTOS. Esta es la forma del problema y conviene no
+   simplificarla: en un club real nadie cobra "un sueldo". La cocinera tambien
+   es tutora y hace turnos en la tienda; un entrenador lleva dos equipos y
+   ademas es tutor; el preparador fisico cubre dos secciones que no se pagan
+   igual. Si cada persona fuera un importe, todo eso habria que sumarlo a mano
+   fuera de la app y nadie sabria de donde sale la cifra.
+
+   Asi que la unidad no es el sueldo: es el CONCEPTO. Una persona es la suma
+   de los suyos, y cada uno dice de donde viene.
+
    DOS TIPOS DE PERSONA EN LA MISMA LISTA:
      · Los que ya tienen ficha de personal: se elige la ficha y el nombre sale
        de ella. Si mañana se corrige una tilde en su ficha, aqui no se queda
@@ -2937,39 +2947,78 @@ SF.SUELDO_PERIODOS = {
   unico: 'Pago único'
 };
 
-/* A que linea del presupuesto suma cada sueldo. Son las tres que el plan de
-   temporada ya tiene en el grupo Personal: no se inventa una taxonomia nueva,
-   se usa la que el club ya rellena. */
+/* De donde sale cada concepto. No es decoracion: es lo que permite responder
+   "¿cuanto me cuesta la seccion femenina?" o "¿cuanto cuesta este equipo?",
+   que es la pregunta que un club se hace al cerrar el presupuesto. */
+SF.CONCEPTO_TIPOS = {
+  equipo:  'Por un equipo',
+  seccion: 'Por una sección',
+  cargo:   'Por un cargo o función',
+  otro:    'Otro'
+};
+
+/* A que linea del presupuesto suma. Son las tres que el plan de temporada ya
+   tiene en el grupo Personal: no se inventa una taxonomia nueva. */
 SF.SUELDO_DESTINOS = {
   tecnicos: 'Entrenadores y staff técnico',
   ss:       'Seguridad Social y nóminas',
   externos: 'Servicios externos (asesoría, limpieza)'
 };
 
+/* TARIFAS. Escuelas se paga a un precio y los federados a otro segun el
+   carnet; el preparador fisico, segun titulacion. Escribir el importe a mano
+   en cada concepto significa que subir la tarifa de escuelas obliga a abrir
+   veinte fichas, y que dos personas con el mismo carnet acaben cobrando
+   distinto por un despiste.
+
+   Igual que los planes de pago de las familias: la tarifa se define una vez,
+   el concepto la hereda, y si hay un acuerdo distinto se marca como
+   excepcion y SE VE que lo es. */
+SF.TARIFAS_SEED = [
+  { id: 'tf-esc', nombre: 'Entrenador · Escuelas', ambito: 'equipo',
+    importe: 90, periodicidad: 'mensual', meses: 10, destino: 'tecnicos' },
+  { id: 'tf-fed1', nombre: 'Entrenador federado · Carnet nivel 1', ambito: 'equipo',
+    importe: 150, periodicidad: 'mensual', meses: 10, destino: 'tecnicos' },
+  { id: 'tf-fed2', nombre: 'Entrenador federado · Carnet nivel 2', ambito: 'equipo',
+    importe: 220, periodicidad: 'mensual', meses: 10, destino: 'tecnicos' },
+  { id: 'tf-fed3', nombre: 'Entrenador federado · Carnet superior', ambito: 'equipo',
+    importe: 300, periodicidad: 'mensual', meses: 10, destino: 'tecnicos' },
+  { id: 'tf-pf-a', nombre: 'Preparador físico · Titulación superior', ambito: 'seccion',
+    importe: 350, periodicidad: 'mensual', meses: 10, destino: 'tecnicos' },
+  { id: 'tf-pf-b', nombre: 'Preparador físico · Titulación base', ambito: 'seccion',
+    importe: 250, periodicidad: 'mensual', meses: 10, destino: 'tecnicos' },
+  { id: 'tf-tut', nombre: 'Tutoría', ambito: 'cargo',
+    importe: 120, periodicidad: 'mensual', meses: 10, destino: 'tecnicos' }
+];
+
 SF.SUELDO_ESTADOS = ['activo', 'baja'];
 
-/* Coste de un año. El campo `meses` existe porque un entrenador cobra de
-   septiembre a junio, no doce meses: sin el, el coste anual del club sale
-   inflado casi un 20 % y el presupuesto de la temporada nace mal. */
-SF.sueldoAnual = function (x) {
-  if (!x || x.estado === 'baja') return 0;
-  var imp = +x.importe || 0;
-  if (x.periodicidad === 'anual') return imp;
-  if (x.periodicidad === 'unico') return imp;
-  return imp * (+x.meses || 12);
+/* --- calculos, siempre sobre un CONCEPTO --- */
+SF.conceptoAnual = function (c) {
+  if (!c) return 0;
+  var imp = +c.importe || 0;
+  if (c.periodicidad === 'anual' || c.periodicidad === 'unico') return imp;
+  return imp * (+c.meses || 12);
 };
-
 /* Lo que sale de la caja en un mes normal. El pago unico no cuenta: no es
-   recurrente y meterlo aqui daria una cuota mensual que no existe. */
-SF.sueldoMensual = function (x) {
-  if (!x || x.estado === 'baja') return 0;
-  var imp = +x.importe || 0;
-  if (x.periodicidad === 'mensual') return imp;
-  if (x.periodicidad === 'anual') return Math.round(imp / (+x.meses || 12));
+   recurrente y daria una cuota mensual que no existe. */
+SF.conceptoMensual = function (c) {
+  if (!c) return 0;
+  var imp = +c.importe || 0;
+  if (c.periodicidad === 'mensual') return imp;
+  if (c.periodicidad === 'anual') return Math.round(imp / (+c.meses || 12));
   return 0;
 };
 
-/* El nombre manda la ficha de staff si la hay; si no, el escrito a mano. */
+SF.sueldoAnual = function (x) {
+  if (!x || x.estado === 'baja') return 0;
+  return (x.conceptos || []).reduce(function (a, c) { return a + SF.conceptoAnual(c); }, 0);
+};
+SF.sueldoMensual = function (x) {
+  if (!x || x.estado === 'baja') return 0;
+  return (x.conceptos || []).reduce(function (a, c) { return a + SF.conceptoMensual(c); }, 0);
+};
+
 SF.sueldoNombre = function (x) {
   if (x && x.staff_id && SF.store && SF.store.staffGet) {
     var s = SF.store.staffGet(x.staff_id);
@@ -2977,13 +3026,32 @@ SF.sueldoNombre = function (x) {
   }
   return (x && x.nombre) || '';
 };
-
 SF.sueldoPuesto = function (x) {
   if (x && x.staff_id && SF.store && SF.store.staffGet) {
     var s = SF.store.staffGet(x.staff_id);
-    if (s) return (SF.STAFF_ROLES && SF.STAFF_ROLES[s.role]) || (SF.ROLES[s.role] || {}).label || s.role;
+    if (s) return (SF.ROLES[s.role] || {}).label || s.role;
   }
   return (x && x.puesto) || '';
+};
+
+/* Como se llama un concepto en pantalla. Si apunta a un equipo o a una
+   seccion, manda el nombre de verdad y no lo que se escribiera el dia que se
+   creo: si el equipo se renombra, esto no se queda desfasado. */
+SF.conceptoLabel = function (c) {
+  if (!c) return '';
+  if (c.tipo === 'equipo' && c.ref && SF.store && SF.store.teamGet) {
+    var t = SF.store.teamGet(c.ref);
+    if (t) return t.name;
+  }
+  if (c.tipo === 'seccion' && c.ref) {
+    /* "Seccion femenino" esta mal escrito. El nombre de la seccion concuerda
+       en femenino con la palabra "seccion", y las que no son adjetivos van
+       solas. */
+    return ({ femenino: 'Sección femenina', masculino: 'Sección masculina',
+              mixto: 'Sección mixta', escuelas: 'Escuelas', minis: 'Minis'
+            })[c.ref] || ('Sección ' + (SF.SEGMENTS[c.ref] || c.ref).toLowerCase());
+  }
+  return c.label || (SF.CONCEPTO_TIPOS[c.tipo] || '');
 };
 
 /* Totales por destino, para llevarlos al presupuesto. */
@@ -2991,11 +3059,49 @@ SF.sueldosPorDestino = function () {
   var out = {};
   Object.keys(SF.SUELDO_DESTINOS).forEach(function (k) { out[k] = 0; });
   ((SF.store && SF.store.sueldos) ? SF.store.sueldos() : []).forEach(function (x) {
-    var d = x.destino || 'tecnicos';
-    out[d] = (out[d] || 0) + SF.sueldoAnual(x);
+    if (x.estado === 'baja') return;
+    (x.conceptos || []).forEach(function (c) {
+      var d = c.destino || 'tecnicos';
+      out[d] = (out[d] || 0) + SF.conceptoAnual(c);
+    });
   });
   return out;
 };
+
+/* Lo que cuesta un equipo o una seccion. Es la pregunta que se hace al cerrar
+   el presupuesto y hoy no habia forma de responderla. */
+SF.costeDeEquipo = function (teamId) {
+  var t = 0;
+  ((SF.store && SF.store.sueldos) ? SF.store.sueldos() : []).forEach(function (x) {
+    if (x.estado === 'baja') return;
+    (x.conceptos || []).forEach(function (c) {
+      if (c.tipo === 'equipo' && c.ref === teamId) t += SF.conceptoAnual(c);
+    });
+  });
+  return t;
+};
+SF.costeDeSeccion = function (seg) {
+  var t = 0;
+  ((SF.store && SF.store.sueldos) ? SF.store.sueldos() : []).forEach(function (x) {
+    if (x.estado === 'baja') return;
+    (x.conceptos || []).forEach(function (c) {
+      if (c.tipo === 'seccion' && c.ref === seg) t += SF.conceptoAnual(c);
+      /* Un equipo de esa seccion tambien es coste de la seccion. */
+      if (c.tipo === 'equipo' && c.ref && SF.store.teamGet) {
+        var eq = SF.store.teamGet(c.ref);
+        if (eq && eq.segment === seg) t += SF.conceptoAnual(c);
+      }
+    });
+  });
+  return t;
+};
+
+/* NO hay aqui ninguna funcion del tipo `sueldoDeStaff(id)`, y es a proposito.
+   Existiria para enseñar la retribucion dentro de la ficha de staff, y esa
+   ficha la ven entrenadores, fisio, psicologo y delegados. Aunque se pusiera
+   detras de un `if`, seria dejar preparada la fuga: basta con que alguien
+   mueva ese bloque de sitio o cambie la condicion. Quien pueda ver sueldos
+   entra en Sueldos; la ficha de staff no habla de dinero. */
 
 /* ===================== AVISOS DE COBRO =====================
    Reclamar una cuota es la tarea mas repetitiva del club y la que mas se deja
@@ -4235,6 +4341,28 @@ SF.store = (function () {
        equipo desde su ficha.
        NO genera ningun cargo: solo deja el plan asignado. Cobrar es siempre
        una decision de una persona, nunca de una migracion. */
+    /* Las tarifas de fabrica y el paso a conceptos.
+       El modelo anterior guardaba UN importe por persona. Aqui ese importe se
+       convierte en su primer concepto, sin perder nada: quien ya tuviera un
+       sueldo dado de alta se lo encuentra igual, solo que ahora puede añadirle
+       la tutoria y el turno de tienda. */
+    if (!d._sueldos_v2) {
+      if (!d.academy.tarifas || !d.academy.tarifas.length) {
+        d.academy.tarifas = JSON.parse(JSON.stringify(SF.TARIFAS_SEED || []));
+      }
+      (d.sueldos || []).forEach(function (x) {
+        if (x.conceptos) return;
+        x.conceptos = [{
+          id: 'cp' + Math.random().toString(16).slice(2, 10),
+          tipo: 'otro', label: x.puesto || 'Sueldo',
+          importe: +x.importe || 0, periodicidad: x.periodicidad || 'mensual',
+          meses: +x.meses || 12, destino: x.destino || 'tecnicos'
+        }];
+        delete x.importe; delete x.periodicidad; delete x.meses; delete x.destino;
+      });
+      d._sueldos_v2 = true;
+      write(d);
+    }
     if (!d._planes_v1) {
       if (!d.academy.planes || !d.academy.planes.length) {
         d.academy.planes = JSON.parse(JSON.stringify(SF.PLANES_SEED || []));
@@ -4336,13 +4464,33 @@ SF.store = (function () {
     },
     age: age,
 
-    /* ---------------- sueldos ---------------- */
+    /* ---------------- sueldos y tarifas ---------------- */
+    tarifas: function () { return (db().academy.tarifas || []).slice(); },
+    tarifaGet: function (id) {
+      return (db().academy.tarifas || []).filter(function (x) { return x.id === id; })[0] || null;
+    },
+    tarifaSave: function (t) {
+      var d = db(); d.academy.tarifas = d.academy.tarifas || [];
+      if (t.id) d.academy.tarifas = d.academy.tarifas.map(function (y) { return y.id === t.id ? Object.assign({}, y, t) : y; });
+      else { t.id = 'tf' + Date.now() + Math.floor(Math.random() * 100); d.academy.tarifas.push(t); }
+      save(d); return t;
+    },
+    tarifaRemove: function (id) {
+      var d = db();
+      d.academy.tarifas = (d.academy.tarifas || []).filter(function (x) { return x.id !== id; });
+      save(d);
+    },
+
     sueldos: function () { return (db().sueldos || []).slice(); },
     sueldoGet: function (id) {
       return (db().sueldos || []).filter(function (x) { return x.id === id; })[0] || null;
     },
     sueldoSave: function (x) {
       var d = db(); d.sueldos = d.sueldos || [];
+      x.conceptos = (x.conceptos || []).map(function (c) {
+        if (!c.id) c.id = 'cp' + Date.now() + Math.floor(Math.random() * 10000);
+        return c;
+      });
       if (x.id) {
         d.sueldos = d.sueldos.map(function (y) { return y.id === x.id ? Object.assign({}, y, x) : y; });
       } else {
@@ -10306,7 +10454,11 @@ window.SF = window.SF || {};
     return card;
   }
 
-  /* ===================== SUELDOS ===================== */
+  /* ===================== SUELDOS =====================
+     Vive en el bloque DINERO, junto a Finanzas y Economia, y NO se asoma a la
+     ficha de staff. Esa ficha la ven entrenadores, fisio, psicologo y
+     delegados: meter ahi la retribucion, aunque fuera detras de un `if`,
+     seria dejar la puerta a un descuido. Quien pueda ver sueldos viene aqui. */
   pages.sueldos = function (view) {
     var r = role();
     if (!r.canSeeSalaries) {
@@ -10314,126 +10466,168 @@ window.SF = window.SF || {};
         '<div class="empty-panel"><p>Tu rol no ve los sueldos del club.</p></div>';
       return;
     }
-    view.innerHTML = head('Sueldos', 'Lo que cuesta el personal del club: cuerpo técnico, gestión y servicios externos.');
+    view.innerHTML = head('Sueldos', 'Lo que cuesta el personal del club, concepto a concepto.');
 
     var lista = SF.store.sueldos();
     var activos = lista.filter(function (x) { return x.estado !== 'baja'; });
     var mes = activos.reduce(function (a, x) { return a + SF.sueldoMensual(x); }, 0);
     var anio = activos.reduce(function (a, x) { return a + SF.sueldoAnual(x); }, 0);
+    var nConc = activos.reduce(function (a, x) { return a + (x.conceptos || []).length; }, 0);
 
-    var k = el('<div class="kpis">' +
+    view.appendChild(el('<div class="kpis">' +
       '<div class="kpi"><div class="kpi-top"><span>Al mes</span></div><div class="kpi-num">' + eur(mes) + '</div></div>' +
       '<div class="kpi"><div class="kpi-top"><span>La temporada</span></div><div class="kpi-num">' + eur(anio) + '</div></div>' +
-      '<div class="kpi"><div class="kpi-top"><span>Personas</span></div><div class="kpi-num">' + activos.length + '</div></div>' +
-      '</div>');
-    view.appendChild(k);
+      '<div class="kpi"><div class="kpi-top"><span>Personas</span></div><div class="kpi-num">' + activos.length +
+        '<span class="hint" style="font-size:12px;font-weight:400"> · ' + nConc + ' conceptos</span></div></div>' +
+      '</div>'));
 
-    view.appendChild(el('<p class="hint">Estas cifras son el <b>bruto</b> que se paga a cada persona. ' +
-      'La Seguridad Social y los costes de empresa van aparte, en su propia línea del presupuesto: ' +
-      'mezclarlos aquí daría un número que no es ni una cosa ni la otra.</p>'));
+    view.appendChild(el('<p class="hint">Las cifras son el <b>bruto</b> de cada persona. La Seguridad Social y los ' +
+      'costes de empresa van aparte, en su propia línea del presupuesto: mezclarlos aquí daría un número que no es ' +
+      'ni una cosa ni la otra.</p>'));
 
-    var acc = el('<div class="row-c" style="margin:12px 0"></div>');
-    var bNuevo = el('<button class="btn btn-primary">' + ico('plus') + 'Añadir sueldo</button>');
+    var acc = el('<div class="row-c" style="margin:12px 0;flex-wrap:wrap"></div>');
+    var bNuevo = el('<button class="btn btn-primary">' + ico('plus') + 'Añadir persona</button>');
     bNuevo.onclick = function () { sueldoEditor(null); };
     acc.appendChild(bNuevo);
-    var bPre = el('<button class="btn">' + ico('coins') + 'Llevar al presupuesto</button>');
-    bPre.onclick = function () { sueldosAlPresupuestoModal(); };
-    if (r.canManageFinance) acc.appendChild(bPre);
+    var bTar = el('<button class="btn">' + ico('edit') + 'Tarifas</button>');
+    bTar.onclick = function () { tarifasModal(); };
+    acc.appendChild(bTar);
+    var bCos = el('<button class="btn">' + ico('grid') + 'Coste por equipo y sección</button>');
+    bCos.onclick = function () { costePorGrupoModal(); };
+    acc.appendChild(bCos);
+    if (r.canManageFinance) {
+      var bPre = el('<button class="btn">' + ico('coins') + 'Llevar al presupuesto</button>');
+      bPre.onclick = function () { sueldosAlPresupuestoModal(); };
+      acc.appendChild(bPre);
+    }
     view.appendChild(acc);
 
     if (!lista.length) {
-      view.appendChild(el('<div class="empty-panel"><p>Todavía no hay ningún sueldo dado de alta.</p>' +
-        '<p class="hint">Puedes dar de alta a alguien que ya esté en Staff —el nombre saldrá de su ficha— ' +
-        'o escribir un nombre a mano para quien no tenga ficha: cocinera, limpieza, asesoría.</p></div>'));
+      view.appendChild(el('<div class="empty-panel"><p>Todavía no hay nadie dado de alta.</p>' +
+        '<p class="hint">Una persona puede tener <b>varios conceptos</b>: un entrenador que lleva dos equipos y ' +
+        'además es tutor, o la cocinera que también hace turnos en la tienda. Se añaden dentro de su ficha de sueldo.</p></div>'));
       return;
     }
 
-    /* Agrupado por a donde va en el presupuesto: es como se lee el coste del
-       club, y como se lleva luego al plan de la temporada. */
-    Object.keys(SF.SUELDO_DESTINOS).forEach(function (dst) {
-      var g = lista.filter(function (x) { return (x.destino || 'tecnicos') === dst; });
-      if (!g.length) return;
-      var subAnio = g.reduce(function (a, x) { return a + SF.sueldoAnual(x); }, 0);
-      var card = el('<div class="card"><div style="display:flex;align-items:center;gap:10px">' +
-        '<span style="flex:1"><b>' + esc(SF.SUELDO_DESTINOS[dst]) + '</b> <span class="hint">· ' +
-        g.length + (g.length === 1 ? ' persona' : ' personas') + '</span></span>' +
-        '<b>' + eur(subAnio) + '</b> <span class="hint">al año</span></div></div>');
-      var ml = el('<div class="mini-list" style="margin-top:10px"></div>');
+    lista.sort(function (a, b) { return SF.sueldoAnual(b) - SF.sueldoAnual(a); });
+    lista.forEach(function (x) {
+      var baja = x.estado === 'baja';
+      var card = el('<div class="card"' + (baja ? ' style="opacity:.6"' : '') + '></div>');
+      var cab = el('<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+        '<span style="flex:1;min-width:160px"><b>' + esc(SF.sueldoNombre(x) || '(sin nombre)') + '</b>' +
+        (SF.sueldoPuesto(x) ? ' <span class="hint">· ' + esc(SF.sueldoPuesto(x)) + '</span>' : '') +
+        (x.staff_id ? ' <span class="tag tag-gray">ficha de staff</span>' : '') +
+        (baja ? ' <span class="tag tag-gray">baja</span>' : '') + '</span>' +
+        '<span><b>' + eur(SF.sueldoMensual(x)) + '</b> <span class="hint">al mes</span> · ' +
+        '<b>' + eur(SF.sueldoAnual(x)) + '</b> <span class="hint">la temporada</span></span></div>');
+      card.appendChild(cab);
 
-      g.sort(function (a, b) { return SF.sueldoAnual(b) - SF.sueldoAnual(a); });
-      g.forEach(function (x) {
-        var baja = x.estado === 'baja';
-        var periodo = SF.SUELDO_PERIODOS[x.periodicidad] || '';
-        var detalle = eur(+x.importe || 0) + ' · ' + periodo.toLowerCase() +
-          (x.periodicidad === 'mensual' ? ' · ' + (x.meses || 12) + ' meses al año' : '');
-        var row = el('<div class="mini-row"' + (baja ? ' style="opacity:.55"' : '') + '>' +
-          '<span><b>' + esc(SF.sueldoNombre(x) || '(sin nombre)') + '</b>' +
-          (SF.sueldoPuesto(x) ? ' <span class="hint">· ' + esc(SF.sueldoPuesto(x)) + '</span>' : '') +
-          (x.staff_id ? ' <span class="tag tag-gray">ficha de staff</span>' : '') +
-          (baja ? ' <span class="tag tag-gray">baja</span>' : '') +
-          '<br><span class="hint">' + esc(detalle) + (x.nota ? ' · ' + esc(x.nota) : '') + '</span></span>' +
-          '<span class="row-actions"><b>' + eur(SF.sueldoAnual(x)) + '</b>' +
-          '<button class="lnk" data-ed>editar</button>' +
-          '<button class="lnk-del" data-rm>' + ico('x') + '</button></span></div>');
-        row.querySelector('[data-ed]').onclick = function () { sueldoEditor(x); };
-        row.querySelector('[data-rm]').onclick = function () {
-          if (confirm('¿Quitar el sueldo de ' + (SF.sueldoNombre(x) || 'esta persona') + '?\n\n' +
-              'Si es que ha dejado el club, es mejor marcarlo como "baja": así deja de sumar pero queda el histórico.')) {
-            SF.store.sueldoRemove(x.id); U.toast('Sueldo eliminado'); SF.router.render();
-          }
-        };
-        ml.appendChild(row);
+      var ml = el('<div class="mini-list" style="margin-top:10px"></div>');
+      var cs = x.conceptos || [];
+      if (!cs.length) ml.appendChild(el('<p class="hint">Sin conceptos. Edita para añadirle uno.</p>'));
+      cs.forEach(function (c) {
+        var per = SF.SUELDO_PERIODOS[c.periodicidad] || '';
+        var tf = c.tarifa_id ? SF.store.tarifaGet(c.tarifa_id) : null;
+        /* Si viene de una tarifa pero el importe no es el de la tarifa, es un
+           acuerdo distinto y hay que verlo COMO acuerdo, no como despiste. */
+        var fueraDeTarifa = tf && (+tf.importe || 0) !== (+c.importe || 0);
+        ml.appendChild(el('<div class="mini-row"><span><b>' + esc(SF.conceptoLabel(c)) + '</b> ' +
+          '<span class="tag tag-gray">' + esc(SF.CONCEPTO_TIPOS[c.tipo] || c.tipo) + '</span>' +
+          (tf ? ' <span class="tag ' + (fueraDeTarifa ? 'tag-warn' : 'tag-gray') + '">' +
+                esc(tf.nombre) + (fueraDeTarifa ? ' · importe propio' : '') + '</span>' : '') +
+          '<br><span class="hint">' + eur(+c.importe || 0) + ' · ' + esc(per.toLowerCase()) +
+          (c.periodicidad === 'mensual' ? ' · ' + (c.meses || 12) + ' meses' : '') +
+          ' · ' + esc(SF.SUELDO_DESTINOS[c.destino || 'tecnicos']) + '</span></span>' +
+          '<span class="row-actions"><b>' + eur(SF.conceptoAnual(c)) + '</b></span></div>'));
       });
       card.appendChild(ml);
+
+      var acc2 = el('<div class="row-c" style="margin-top:10px"></div>');
+      var bEd = el('<button class="btn btn-sm btn-light">' + ico('edit') + 'Editar</button>');
+      bEd.onclick = function () { sueldoEditor(x); };
+      acc2.appendChild(bEd);
+      var bRm = el('<button class="btn btn-sm btn-light">' + ico('trash') + '</button>');
+      bRm.onclick = function () {
+        if (confirm('¿Quitar a ' + (SF.sueldoNombre(x) || 'esta persona') + ' de Sueldos?\n\n' +
+            'Si ha dejado el club, es mejor marcarla como "baja": deja de sumar pero queda el histórico.')) {
+          SF.store.sueldoRemove(x.id); U.toast('Eliminado'); SF.router.render();
+        }
+      };
+      acc2.appendChild(bRm);
+      card.appendChild(acc2);
       view.appendChild(card);
     });
   };
 
-  /* Alta y edicion. Dos caminos para el nombre: ficha de staff o texto libre. */
+  /* --- Ficha de sueldo de una persona: sus conceptos --- */
   function sueldoEditor(x) {
     var esNuevo = !x;
-    x = x ? Object.assign({}, x) : { periodicidad: 'mensual', meses: 10, destino: 'tecnicos', estado: 'activo' };
+    x = x ? JSON.parse(JSON.stringify(x)) : { estado: 'activo', conceptos: [] };
+    x.conceptos = x.conceptos || [];
+
+    var w = el('<div></div>');
 
     var staffOpts = '<option value="">— Alguien de fuera de Staff —</option>' +
       SF.store.staff().map(function (s) {
         return '<option value="' + s.id + '"' + (s.id === x.staff_id ? ' selected' : '') + '>' +
           esc(s.full_name) + ' · ' + esc((SF.ROLES[s.role] || {}).label || s.role) + '</option>';
       }).join('');
-    var dstOpts = Object.keys(SF.SUELDO_DESTINOS).map(function (k2) {
-      return '<option value="' + k2 + '"' + ((x.destino || 'tecnicos') === k2 ? ' selected' : '') + '>' +
-        esc(SF.SUELDO_DESTINOS[k2]) + '</option>';
-    }).join('');
-    var perOpts = Object.keys(SF.SUELDO_PERIODOS).map(function (k2) {
-      return '<option value="' + k2 + '"' + ((x.periodicidad || 'mensual') === k2 ? ' selected' : '') + '>' +
-        esc(SF.SUELDO_PERIODOS[k2]) + '</option>';
-    }).join('');
 
     var f = el('<div class="form-grid">' +
       '<div class="frow"><label>¿Está en Staff?</label><select id="sl-st">' + staffOpts + '</select>' +
-        '<p class="hint">Si eliges una ficha, el nombre y el puesto salen de ella y no se quedan desactualizados.</p></div>' +
+        '<p class="hint">Si eliges una ficha, el nombre sale de ella y no se queda desactualizado.</p></div>' +
       '<div class="frow" id="sl-libre"><label>Nombre</label><input id="sl-nom" value="' + esc(x.nombre || '') + '" placeholder="Ana Gómez"></div>' +
       '<div class="frow" id="sl-libre2"><label>Puesto</label><input id="sl-pue" value="' + esc(x.puesto || '') + '" placeholder="Cocinera de la academia"></div>' +
-      '<div class="frow"><label>Importe (€)</label><input id="sl-imp" type="number" value="' + (+x.importe || '') + '"></div>' +
-      '<div class="frow"><label>Cada cuánto</label><select id="sl-per">' + perOpts + '</select></div>' +
-      '<div class="frow" id="sl-meses"><label>Meses al año que se paga</label><input id="sl-mes" type="number" min="1" max="12" value="' + (+x.meses || 10) + '">' +
-        '<p class="hint">Un entrenador suele cobrar de septiembre a junio: 10, no 12. Con 12 el coste de la temporada sale inflado.</p></div>' +
-      '<div class="frow"><label>Va al presupuesto como</label><select id="sl-dst">' + dstOpts + '</select></div>' +
       '<div class="frow"><label>Estado</label><select id="sl-est">' +
         '<option value="activo"' + (x.estado !== 'baja' ? ' selected' : '') + '>Activo</option>' +
-        '<option value="baja"' + (x.estado === 'baja' ? ' selected' : '') + '>Baja</option></select>' +
-        '<p class="hint">Quien está de baja deja de sumar, pero no se borra: el histórico sigue ahí.</p></div>' +
+        '<option value="baja"' + (x.estado === 'baja' ? ' selected' : '') + '>Baja</option></select></div>' +
       '<div class="frow" style="grid-column:1/-1"><label>Nota</label><input id="sl-nota" value="' + esc(x.nota || '') + '" placeholder="Convenio, contrato, condiciones…"></div>' +
       '</div>');
-
     function sincronizar() {
       var conFicha = !!f.querySelector('#sl-st').value;
       f.querySelector('#sl-libre').style.display = conFicha ? 'none' : '';
       f.querySelector('#sl-libre2').style.display = conFicha ? 'none' : '';
-      f.querySelector('#sl-meses').style.display = f.querySelector('#sl-per').value === 'mensual' ? '' : 'none';
     }
     f.querySelector('#sl-st').onchange = sincronizar;
-    f.querySelector('#sl-per').onchange = sincronizar;
     sincronizar();
+    w.appendChild(f);
+
+    w.appendChild(el('<p class="sec-label" style="margin-top:14px">Conceptos</p>'));
+    w.appendChild(el('<p class="hint">Lo que cobra por cada cosa que hace. Un entrenador puede llevar dos equipos ' +
+      'y ser tutor; la cocinera puede hacer turnos en la tienda. Cada concepto va por separado para que se vea ' +
+      'de dónde sale cada euro.</p>'));
+    var lc = el('<div class="mini-list" style="margin:10px 0"></div>');
+    w.appendChild(lc);
+
+    var tot = el('<p class="hint"></p>');
+    w.appendChild(tot);
+
+    function pintarConceptos() {
+      lc.innerHTML = '';
+      if (!x.conceptos.length) lc.appendChild(el('<p class="hint">Ningún concepto todavía.</p>'));
+      x.conceptos.forEach(function (c, i) {
+        var per = SF.SUELDO_PERIODOS[c.periodicidad] || '';
+        var row = el('<div class="mini-row"><span><b>' + esc(SF.conceptoLabel(c)) + '</b> ' +
+          '<span class="tag tag-gray">' + esc(SF.CONCEPTO_TIPOS[c.tipo] || c.tipo) + '</span>' +
+          '<br><span class="hint">' + eur(+c.importe || 0) + ' · ' + esc(per.toLowerCase()) +
+          (c.periodicidad === 'mensual' ? ' · ' + (c.meses || 12) + ' meses' : '') + '</span></span>' +
+          '<span class="row-actions"><b>' + eur(SF.conceptoAnual(c)) + '</b>' +
+          '<button class="lnk" data-ed>editar</button><button class="lnk-del" data-rm>' + ico('x') + '</button></span></div>');
+        row.querySelector('[data-ed]').onclick = function () {
+          conceptoEditor(c, function (nc) { x.conceptos[i] = nc; pintarConceptos(); });
+        };
+        row.querySelector('[data-rm]').onclick = function () { x.conceptos.splice(i, 1); pintarConceptos(); };
+        lc.appendChild(row);
+      });
+      var m = x.conceptos.reduce(function (a, c) { return a + SF.conceptoMensual(c); }, 0);
+      var a2 = x.conceptos.reduce(function (a, c) { return a + SF.conceptoAnual(c); }, 0);
+      tot.innerHTML = 'Suma: <b>' + eur(m) + '</b> al mes · <b>' + eur(a2) + '</b> la temporada';
+    }
+    var bAdd = el('<button class="btn btn-sm">' + ico('plus') + 'Añadir concepto</button>');
+    bAdd.onclick = function () {
+      conceptoEditor(null, function (nc) { x.conceptos.push(nc); pintarConceptos(); });
+    };
+    w.appendChild(bAdd);
 
     var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
     foot.children[0].onclick = U.closeModal;
@@ -10441,27 +10635,219 @@ window.SF = window.SF || {};
       var st = f.querySelector('#sl-st').value;
       var nom = f.querySelector('#sl-nom').value.trim();
       if (!st && !nom) { U.toast('Pon un nombre, o elige una ficha de Staff'); return; }
-      var imp = +f.querySelector('#sl-imp').value || 0;
-      if (imp <= 0) { U.toast('El importe tiene que ser mayor que cero'); return; }
+      if (!x.conceptos.length) { U.toast('Añade al menos un concepto'); return; }
       SF.store.sueldoSave({
         id: x.id, staff_id: st || '', nombre: st ? '' : nom,
         puesto: st ? '' : f.querySelector('#sl-pue').value.trim(),
-        importe: imp, periodicidad: f.querySelector('#sl-per').value,
-        meses: +f.querySelector('#sl-mes').value || 12,
-        destino: f.querySelector('#sl-dst').value,
         estado: f.querySelector('#sl-est').value,
-        nota: f.querySelector('#sl-nota').value.trim()
+        nota: f.querySelector('#sl-nota').value.trim(),
+        conceptos: x.conceptos
       });
-      U.closeModal(); U.toast(esNuevo ? 'Sueldo añadido' : 'Sueldo guardado'); SF.router.render();
+      U.closeModal(); U.toast(esNuevo ? 'Persona añadida' : 'Guardado'); SF.router.render();
+    };
+    w.appendChild(foot);
+    pintarConceptos();
+    U.modal(esNuevo ? 'Añadir persona a Sueldos' : 'Sueldo de ' + esc(SF.sueldoNombre(x) || ''), w);
+  }
+
+  /* --- Un concepto: de donde sale y cuanto --- */
+  function conceptoEditor(c, onOk) {
+    c = c ? JSON.parse(JSON.stringify(c)) : { tipo: 'equipo', periodicidad: 'mensual', meses: 10, destino: 'tecnicos' };
+
+    var tipoOpts = Object.keys(SF.CONCEPTO_TIPOS).map(function (k) {
+      return '<option value="' + k + '"' + (c.tipo === k ? ' selected' : '') + '>' + esc(SF.CONCEPTO_TIPOS[k]) + '</option>';
+    }).join('');
+    var eqOpts = '<option value="">—</option>' + SF.store.teams().map(function (t) {
+      return '<option value="' + t.id + '"' + (c.ref === t.id ? ' selected' : '') + '>' + esc(t.name) + '</option>';
+    }).join('');
+    var segOpts = '<option value="">—</option>' + Object.keys(SF.SEGMENTS).map(function (k) {
+      return '<option value="' + k + '"' + (c.ref === k ? ' selected' : '') + '>' + esc(SF.SEGMENTS[k]) + '</option>';
+    }).join('');
+    var perOpts = Object.keys(SF.SUELDO_PERIODOS).map(function (k) {
+      return '<option value="' + k + '"' + ((c.periodicidad || 'mensual') === k ? ' selected' : '') + '>' + esc(SF.SUELDO_PERIODOS[k]) + '</option>';
+    }).join('');
+    var dstOpts = Object.keys(SF.SUELDO_DESTINOS).map(function (k) {
+      return '<option value="' + k + '"' + ((c.destino || 'tecnicos') === k ? ' selected' : '') + '>' + esc(SF.SUELDO_DESTINOS[k]) + '</option>';
+    }).join('');
+    var tfOpts = '<option value="">— Importe a mano —</option>' + SF.store.tarifas().map(function (t) {
+      return '<option value="' + t.id + '"' + (c.tarifa_id === t.id ? ' selected' : '') + '>' +
+        esc(t.nombre) + ' · ' + eur(t.importe) + '</option>';
+    }).join('');
+
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>¿De dónde sale?</label><select id="c-tipo">' + tipoOpts + '</select></div>' +
+      '<div class="frow" id="c-eq"><label>Equipo</label><select id="c-ref-eq">' + eqOpts + '</select></div>' +
+      '<div class="frow" id="c-sg"><label>Sección</label><select id="c-ref-sg">' + segOpts + '</select></div>' +
+      '<div class="frow" id="c-lb"><label>Concepto</label><input id="c-label" value="' + esc(c.label || '') + '" placeholder="Tutoría, tienda del club…"></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Tarifa</label><select id="c-tf">' + tfOpts + '</select>' +
+        '<p class="hint">Si eliges una tarifa, el importe se rellena solo. Escuelas se paga a un precio y los ' +
+        'federados según el carnet: definirlo una vez evita que subir la tarifa obligue a abrir veinte fichas.</p></div>' +
+      '<div class="frow"><label>Importe (€)</label><input id="c-imp" type="number" value="' + (+c.importe || '') + '"></div>' +
+      '<div class="frow"><label>Cada cuánto</label><select id="c-per">' + perOpts + '</select></div>' +
+      '<div class="frow" id="c-meses"><label>Meses al año</label><input id="c-mes" type="number" min="1" max="12" value="' + (+c.meses || 10) + '">' +
+        '<p class="hint">Un entrenador cobra de septiembre a junio: 10, no 12.</p></div>' +
+      '<div class="frow"><label>Va al presupuesto como</label><select id="c-dst">' + dstOpts + '</select></div>' +
+      '</div>');
+
+    function sincronizar() {
+      var t = f.querySelector('#c-tipo').value;
+      f.querySelector('#c-eq').style.display = t === 'equipo' ? '' : 'none';
+      f.querySelector('#c-sg').style.display = t === 'seccion' ? '' : 'none';
+      f.querySelector('#c-lb').style.display = (t === 'cargo' || t === 'otro') ? '' : 'none';
+      f.querySelector('#c-meses').style.display = f.querySelector('#c-per').value === 'mensual' ? '' : 'none';
+    }
+    f.querySelector('#c-tipo').onchange = sincronizar;
+    f.querySelector('#c-per').onchange = sincronizar;
+    f.querySelector('#c-tf').onchange = function () {
+      var t = SF.store.tarifaGet(this.value);
+      if (!t) return;
+      f.querySelector('#c-imp').value = t.importe;
+      f.querySelector('#c-per').value = t.periodicidad || 'mensual';
+      f.querySelector('#c-mes').value = t.meses || 10;
+      f.querySelector('#c-dst').value = t.destino || 'tecnicos';
+      sincronizar();
+    };
+    sincronizar();
+
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Aceptar</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var t = f.querySelector('#c-tipo').value;
+      var ref = t === 'equipo' ? f.querySelector('#c-ref-eq').value
+              : t === 'seccion' ? f.querySelector('#c-ref-sg').value : '';
+      var lab = f.querySelector('#c-label').value.trim();
+      if ((t === 'equipo' || t === 'seccion') && !ref) { U.toast('Elige ' + (t === 'equipo' ? 'el equipo' : 'la sección')); return; }
+      if ((t === 'cargo' || t === 'otro') && !lab) { U.toast('Ponle nombre al concepto'); return; }
+      var imp = +f.querySelector('#c-imp').value || 0;
+      if (imp <= 0) { U.toast('El importe tiene que ser mayor que cero'); return; }
+      onOk({
+        id: c.id, tipo: t, ref: ref, label: lab,
+        tarifa_id: f.querySelector('#c-tf').value || '',
+        importe: imp, periodicidad: f.querySelector('#c-per').value,
+        meses: +f.querySelector('#c-mes').value || 12,
+        destino: f.querySelector('#c-dst').value
+      });
+      U.closeModal();
     };
     var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
-    U.modal(esNuevo ? 'Añadir sueldo' : 'Editar sueldo', w);
+    U.modal(c.id ? 'Editar concepto' : 'Añadir concepto', w);
+  }
+
+  /* --- Tarifas del club --- */
+  function tarifasModal() {
+    var w = el('<div></div>');
+    w.appendChild(el('<p class="hint">Los precios que el club tiene puestos. Un concepto puede heredar una tarifa ' +
+      'en vez de escribir el importe: así subirla se hace en un sitio y no en veinte fichas, y dos personas con el ' +
+      'mismo carnet no acaban cobrando distinto por un despiste.</p>'));
+    var ml = el('<div class="mini-list" style="margin:12px 0"></div>');
+    function pintar() {
+      ml.innerHTML = '';
+      var ts = SF.store.tarifas();
+      if (!ts.length) ml.appendChild(el('<p class="hint">Sin tarifas.</p>'));
+      ts.forEach(function (t) {
+        var usos = 0;
+        SF.store.sueldos().forEach(function (s2) {
+          (s2.conceptos || []).forEach(function (c) { if (c.tarifa_id === t.id) usos++; });
+        });
+        var row = el('<div class="mini-row"><span><b>' + esc(t.nombre) + '</b>' +
+          '<br><span class="hint">' + eur(t.importe) + ' · ' + esc((SF.SUELDO_PERIODOS[t.periodicidad] || '').toLowerCase()) +
+          (t.periodicidad === 'mensual' ? ' · ' + (t.meses || 10) + ' meses' : '') +
+          ' · ' + usos + (usos === 1 ? ' concepto la usa' : ' conceptos la usan') + '</span></span>' +
+          '<span class="row-actions"><button class="lnk" data-ed>editar</button>' +
+          '<button class="lnk-del" data-rm>' + ico('x') + '</button></span></div>');
+        row.querySelector('[data-ed]').onclick = function () { tarifaEditor(t, pintar); };
+        row.querySelector('[data-rm]').onclick = function () {
+          if (usos) { U.toast('La usan ' + usos + ' conceptos. Cámbialos antes.'); return; }
+          SF.store.tarifaRemove(t.id); pintar();
+        };
+        ml.appendChild(row);
+      });
+    }
+    pintar();
+    w.appendChild(ml);
+    var b = el('<button class="btn">' + ico('plus') + 'Nueva tarifa</button>');
+    b.onclick = function () { tarifaEditor(null, pintar); };
+    w.appendChild(b);
+    var foot = el('<div class="modal-actions"><button class="btn btn-primary">Cerrar</button></div>');
+    foot.children[0].onclick = function () { U.closeModal(); SF.router.render(); };
+    w.appendChild(foot);
+    U.modal('Tarifas del club', w);
+  }
+
+  function tarifaEditor(t, onOk) {
+    t = t ? Object.assign({}, t) : { periodicidad: 'mensual', meses: 10, destino: 'tecnicos', ambito: 'equipo' };
+    var perOpts = Object.keys(SF.SUELDO_PERIODOS).map(function (k) {
+      return '<option value="' + k + '"' + ((t.periodicidad || 'mensual') === k ? ' selected' : '') + '>' + esc(SF.SUELDO_PERIODOS[k]) + '</option>';
+    }).join('');
+    var dstOpts = Object.keys(SF.SUELDO_DESTINOS).map(function (k) {
+      return '<option value="' + k + '"' + ((t.destino || 'tecnicos') === k ? ' selected' : '') + '>' + esc(SF.SUELDO_DESTINOS[k]) + '</option>';
+    }).join('');
+    var f = el('<div class="form-grid">' +
+      '<div class="frow" style="grid-column:1/-1"><label>Nombre</label><input id="t-nom" value="' + esc(t.nombre || '') + '" placeholder="Entrenador federado · Carnet nivel 2"></div>' +
+      '<div class="frow"><label>Importe (€)</label><input id="t-imp" type="number" value="' + (+t.importe || '') + '"></div>' +
+      '<div class="frow"><label>Cada cuánto</label><select id="t-per">' + perOpts + '</select></div>' +
+      '<div class="frow"><label>Meses al año</label><input id="t-mes" type="number" min="1" max="12" value="' + (+t.meses || 10) + '"></div>' +
+      '<div class="frow"><label>Va al presupuesto como</label><select id="t-dst">' + dstOpts + '</select></div>' +
+      '</div>');
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
+    foot.children[0].onclick = function () { U.closeModal(); tarifasModal(); };
+    foot.children[1].onclick = function () {
+      var nom = f.querySelector('#t-nom').value.trim();
+      if (!nom) { U.toast('Ponle nombre a la tarifa'); return; }
+      var imp = +f.querySelector('#t-imp').value || 0;
+      if (imp <= 0) { U.toast('El importe tiene que ser mayor que cero'); return; }
+      SF.store.tarifaSave({ id: t.id, nombre: nom, importe: imp,
+        periodicidad: f.querySelector('#t-per').value, meses: +f.querySelector('#t-mes').value || 10,
+        destino: f.querySelector('#t-dst').value, ambito: t.ambito || 'equipo' });
+      U.closeModal(); U.toast('Tarifa guardada'); tarifasModal();
+    };
+    var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
+    U.modal(t.id ? 'Editar tarifa' : 'Nueva tarifa', w);
+  }
+
+  /* --- Cuanto cuesta cada equipo y cada seccion ---
+     Es la pregunta que se hace al cerrar el presupuesto y que hasta ahora no
+     tenia respuesta: el coste estaba repartido entre las personas. */
+  function costePorGrupoModal() {
+    var w = el('<div></div>');
+    w.appendChild(el('<p class="hint">Lo que cuesta el personal de cada equipo y de cada sección al año. ' +
+      'Un equipo suma lo de sus entrenadores; una sección suma además lo de quien la cubre entera, ' +
+      'como el preparador físico.</p>'));
+
+    w.appendChild(el('<p class="sec-label" style="margin-top:12px">Por sección</p>'));
+    var ms = el('<div class="mini-list"></div>');
+    Object.keys(SF.SEGMENTS).forEach(function (k) {
+      var c = SF.costeDeSeccion(k);
+      if (!c) return;
+      ms.appendChild(el('<div class="mini-row"><span>' + esc(SF.SEGMENTS[k]) + '</span><span class="row-actions"><b>' + eur(c) + '</b></span></div>'));
+    });
+    if (!ms.children.length) ms.appendChild(el('<p class="hint">Todavía no hay conceptos asignados a secciones.</p>'));
+    w.appendChild(ms);
+
+    w.appendChild(el('<p class="sec-label" style="margin-top:14px">Por equipo</p>'));
+    var me2 = el('<div class="mini-list"></div>');
+    var filas = SF.store.teams().map(function (t) { return { t: t, c: SF.costeDeEquipo(t.id) }; })
+      .filter(function (x) { return x.c > 0; })
+      .sort(function (a, b) { return b.c - a.c; });
+    filas.forEach(function (x) {
+      var nj = SF.store.players().filter(function (p) { return p.team_id === x.t.id; }).length;
+      me2.appendChild(el('<div class="mini-row"><span>' + esc(x.t.name) +
+        ' <span class="hint">· ' + nj + (nj === 1 ? ' jugador' : ' jugadores') +
+        (nj ? ' · ' + eur(Math.round(x.c / nj)) + ' por jugador' : '') + '</span></span>' +
+        '<span class="row-actions"><b>' + eur(x.c) + '</b></span></div>'));
+    });
+    if (!filas.length) me2.appendChild(el('<p class="hint">Todavía no hay conceptos asignados a equipos.</p>'));
+    w.appendChild(me2);
+
+    var foot = el('<div class="modal-actions"><button class="btn btn-primary">Cerrar</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    w.appendChild(foot);
+    U.modal('Coste por equipo y sección', w);
   }
 
   /* Llevar los totales al plan de la temporada.
      Va al PREVISTO y no al real, y no se hace solo: un sueldo dado de alta es
-     una prevision de gasto, no dinero que ya haya salido de la caja. Meterlo
-     en el real diria que el club ya pago lo que aun debe pagar. */
+     una prevision de gasto, no dinero que ya haya salido de la caja. */
   function sueldosAlPresupuestoModal() {
     var tot = SF.sueldosPorDestino();
     var temp = SF.SEASON;
