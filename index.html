@@ -676,6 +676,19 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .modal-body{padding:18px 20px}
 .modal-foot{padding:0 20px 18px}
 .modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px}
+/* Revisar un cuadrante es comparar dos columnas, y eso no cabe en 620 px. */
+.modal-xl{max-width:1040px}
+.drop-zona{border:2px dashed var(--line);border-radius:var(--r-lg);padding:22px 18px;text-align:center;
+  background:var(--bg);margin:10px 0 4px;transition:.15s}
+.drop-zona.on{border-color:var(--purple);background:#F1EEFF}
+.drop-zona p{margin:0 0 6px}
+.rev-tab td{vertical-align:middle}
+.rev-tab select,.rev-tab input[type=time]{font-size:12.5px;padding:4px 6px;width:auto;min-width:0}
+.rev-tab select{max-width:190px}
+.rev-crudo{max-width:150px}
+/* El desplegable sin emparejar se ve, y se ve de lejos: es lo unico que hay
+   que tocar en toda la tabla. */
+.sel-falta{border-color:var(--warn) !important;background:var(--warn-bg)}
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .frow{display:flex;flex-direction:column;gap:5px}
 .frow label{font-size:12px;color:var(--ink-2)}
@@ -991,6 +1004,14 @@ window.SF = window.SF || {};
    reconocería la ficha de "Andrés" y crearía un duplicado. */
 SF.norm = function (s) {
   return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+};
+
+/* Quien da preparacion fisica. El coordinador tambien da sesiones -no es un
+   despacho, es el que mas equipos lleva- asi que entra en la leyenda de
+   colores y en el reparto de carga como uno mas. Vive aqui y no repetido en
+   cada pantalla para que anadir manana un readaptador sea una linea. */
+SF.esPreparador = function (s) {
+  return !!s && (s.role === 'preparador_fisico' || s.role === 'coord_pf' || s.role === 'fisio');
 };
 
 /* Estados canónicos del jugador y orden del pipeline de captación */
@@ -1903,6 +1924,28 @@ SF.ROLES = {
     team_scope: true,
     canManageTeams: false, segments: 'all', staff: true
   },
+  /* COORDINACION DE PREPARACION FISICA.
+     Es un rol y no una casilla dentro del preparador fisico porque en la app
+     todas las pantallas preguntan `role().canX`: una segunda dimension que
+     solo usara un caso obligaria a cada pantalla a acordarse de mirar dos
+     sitios, y el dia que una se olvide el fallo sera silencioso. Ademas en el
+     club es un puesto, no un matiz de otro.
+
+     Que le sobra al preparador y le falta a este: el preparador lleva SUS
+     equipos (`team_scope`) porque da sesiones; el coordinador programa el club
+     entero, asi que ve todos los equipos y no lleva ninguno. Lo que NO gana:
+     dinero, notas internas, captacion ni historial medico. Reparte trabajo,
+     no gestiona personas ni cobra a nadie. */
+  coord_pf: {
+    label: 'Coordinación de Preparación Física',
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'informes', 'economia', 'mis-avisos', 'mi-ficha'],
+    tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes'],
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false,
+    canEvaluate: true, evalGroups: ['Física'], canEditPhysical: true,
+    canSetAvailability: true, canAskCita: true,
+    /* Sin team_scope: los ve todos, que es justo su trabajo. */
+    canManageTeams: false, segments: 'all', staff: true, canSeeStaff: true
+  },
   dt_femenino: {
     label: 'Dirección Técnica Femenino',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
@@ -2017,7 +2060,7 @@ SF.ROLES = {
    Se inyecta aquí, después de definir los roles, para no repetir la palabra
    en ocho listas y arriesgarse a olvidar una. */
 ['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis',
-  'preparador_fisico', 'fisio', 'psicologo'].forEach(function (k) {
+  'preparador_fisico', 'coord_pf', 'fisio', 'psicologo'].forEach(function (k) {
   var r = SF.ROLES[k]; if (!r) return;
   var i = r.nav.indexOf('equipos');
   if (r.nav.indexOf('calendario') < 0) r.nav.splice(i >= 0 ? i + 1 : r.nav.length, 0, 'calendario');
@@ -2028,7 +2071,7 @@ SF.ROLES = {
    pistas: dirección técnica y dirección. El preparador edita además el suyo
    de preparación física, que es su trabajo. */
 ['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis',
-  'preparador_fisico', 'fisio', 'psicologo', 'entrenador', 'administrativo',
+  'preparador_fisico', 'coord_pf', 'fisio', 'psicologo', 'entrenador', 'administrativo',
   'delegado_equipo'].forEach(function (k) {
   var r = SF.ROLES[k]; if (!r) return;
   if (r.nav.indexOf('horarios') < 0) {
@@ -2039,7 +2082,14 @@ SF.ROLES = {
 ['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis'].forEach(function (k) {
   if (SF.ROLES[k]) SF.ROLES[k].canEditHorario = true;
 });
-['director', 'dt_general', 'preparador_fisico'].forEach(function (k) {
+/* Quien ESCRIBE el cuadrante de preparacion fisica. Hasta ahora lo tenia
+   cualquier preparador fisico, y eran cuatro: Diego, Oscar, Beatriz y Hugo
+   podian reescribir la semana entera del club, incluidas las sesiones de los
+   otros tres. No habia coordinador porque lo era todo el mundo, que es otra
+   forma de decir que no lo era nadie.
+   Ahora lo escribe quien lo reparte. El preparador lo mira -necesita saber
+   cuando trabaja- pero no lo toca. */
+['director', 'dt_general', 'coord_pf'].forEach(function (k) {
   if (SF.ROLES[k]) SF.ROLES[k].canEditPF = true;
 });
 
@@ -2051,10 +2101,10 @@ SF.ROLES = {
    Aquí viven una vez y los usan todas las pantallas que reparten mensajes. */
 SF.GRUPOS_STAFF = [
   { k: 'todos',    label: 'Todo el club',      roles: null },
-  { k: 'tecnico',  label: 'Cuerpo técnico',    roles: ['entrenador', 'preparador_fisico', 'fisio', 'psicologo'] },
+  { k: 'tecnico',  label: 'Cuerpo técnico',    roles: ['entrenador', 'preparador_fisico', 'coord_pf', 'fisio', 'psicologo'] },
   { k: 'direccion',label: 'Dirección técnica', roles: ['dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis'] },
   { k: 'entren',   label: 'Entrenadores',      roles: ['entrenador'] },
-  { k: 'fisicos',  label: 'Preparadores',      roles: ['preparador_fisico'] },
+  { k: 'fisicos',  label: 'Preparadores',      roles: ['preparador_fisico', 'coord_pf'] },
   { k: 'salud',    label: 'Salud y bienestar', roles: ['fisio', 'psicologo'] },
   { k: 'delegados',label: 'Delegados',         roles: ['delegado_equipo', 'delegado_campo'] },
   { k: 'gestion',  label: 'Gestión',           roles: ['administrativo', 'scout'] }
@@ -2073,7 +2123,7 @@ SF.USERS = {
   entrenador: 'Carlos Gorosito', scout: 'Laura Pérez', padre: 'Familia',
   dt_general: 'Dirección General', dt_femenino: 'DT Femenino',
   dt_masculino: 'DT Masculino', dt_escuelas: 'DT Escuelas', dt_minis: 'DT Minis',
-  preparador_fisico: 'Diego Sosa',
+  preparador_fisico: 'Diego Sosa', coord_pf: 'Óscar Latorre',
   /* Faltaban: sin nombre, el saludo decía "Buenas tardes, Fisioterapeuta". */
   fisio: 'Marta Cifuentes', psicologo: 'Nuria Palau',
   delegado_equipo: 'Javier Sanz', delegado_campo: 'Javier Sanz', jugador: 'Martín Ríos'
@@ -2108,6 +2158,86 @@ SF.TEAMS = [
    Franjas de hora y media desde las 16:00, que es cuando salen del colegio. */
 SF.FRANJAS = ['17:00 – 18:30', '18:30 – 19:45', '19:45 – 21:00', '21:00 – 22:15', '22:15 – 23:30'];
 SF.DIAS_SEM = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+/* ===================== REVISION DEL CUADRANTE DE PF =====================
+   Lo que un Excel no hace y por lo que merece la pena que esto viva en la app.
+   El trabajo del coordinador no es teclear la parrilla: es que cuadre. Estas
+   comprobaciones se pasan siempre -no solo al importar- porque un cuadrante se
+   rompe tambien a mano, moviendo una sola sesion un martes por la tarde.
+
+   Un solape no es un aviso mas: es una persona en dos sitios a la vez, o sea
+   un equipo en la pista sin nadie delante. Por eso va en rojo y separado. */
+SF.pfMin = function (x) {
+  if (!x) return null;
+  var m = String(x).match(/^(\d{1,2}):(\d{2})$/);
+  return m ? (+m[1]) * 60 + (+m[2]) : null;
+};
+
+SF.pfAvisos = function (lista) {
+  lista = lista || (SF.store && SF.store.pf ? SF.store.pf() : []);
+  var out = [];
+  function nom(id) {
+    var s = (SF.store.staff() || []).filter(function (x) { return x.id === id; })[0];
+    return s ? s.full_name : 'sin preparador';
+  }
+  function eqn(id) {
+    var t = SF.store.teamGet ? SF.store.teamGet(id) : null;
+    return t ? t.name : 'equipo desconocido';
+  }
+  function franja(x) {
+    return (SF.DIAS_SEM[x.dia] || '?') + ' ' + (x.hora_ini || '?') + (x.hora_fin ? '–' + x.hora_fin : '');
+  }
+
+  /* 1. Un preparador en dos sitios a la vez. */
+  for (var i = 0; i < lista.length; i++) {
+    for (var j = i + 1; j < lista.length; j++) {
+      var a = lista[i], b = lista[j];
+      if (!a.prep_id || a.prep_id !== b.prep_id || a.dia !== b.dia) continue;
+      var a1 = SF.pfMin(a.hora_ini), a2 = SF.pfMin(a.hora_fin) || (a1 + 1);
+      var b1 = SF.pfMin(b.hora_ini), b2 = SF.pfMin(b.hora_fin) || (b1 + 1);
+      if (a1 == null || b1 == null) continue;
+      if (a1 < b2 && b1 < a2) out.push({ nivel: 'grave', tipo: 'solape',
+        texto: nom(a.prep_id) + ' está en dos sitios a la vez el ' + (SF.DIAS_SEM[a.dia] || '').toLowerCase() +
+               ': ' + eqn(a.team_id) + ' (' + a.hora_ini + ') y ' + eqn(b.team_id) + ' (' + b.hora_ini + ').' });
+    }
+  }
+
+  /* 2. La preparacion fisica acaba despues de que el equipo salte a pista.
+        Es el error tipico de copiar la hoja del año pasado y mover una hora. */
+  lista.forEach(function (x) {
+    var fin = SF.pfMin(x.hora_fin), pista = SF.pfMin(x.hora_pista);
+    if (fin != null && pista != null && fin > pista) out.push({ nivel: 'grave', tipo: 'pista',
+      texto: eqn(x.team_id) + ' (' + franja(x) + ') termina la física a las ' + x.hora_fin +
+             ' pero salta a pista a las ' + x.hora_pista + '.' });
+  });
+
+  /* 3. Sesiones huerfanas. */
+  var sinPrep = lista.filter(function (x) { return !x.prep_id; });
+  if (sinPrep.length) out.push({ nivel: 'aviso', tipo: 'sin_prep',
+    texto: sinPrep.length + (sinPrep.length === 1 ? ' sesión no tiene' : ' sesiones no tienen') + ' preparador asignado.' });
+
+  /* 4. Reparto. La media no dice nada por si sola; lo que se mira es quien se
+        sale de ella. El umbral es 1,4 porque por debajo de eso es la diferencia
+        normal entre llevar seis equipos o siete, no un desequilibrio. */
+  var preps = (SF.store.staff() || []).filter(SF.esPreparador);
+  var carga = preps.map(function (sp) {
+    var min = lista.filter(function (x) { return x.prep_id === sp.id; })
+      .reduce(function (a, x) {
+        var d = (SF.pfMin(x.hora_fin) || 0) - (SF.pfMin(x.hora_ini) || 0);
+        return a + (d > 0 ? d : 0);
+      }, 0);
+    return { s: sp, min: min };
+  }).filter(function (c) { return c.min > 0; });
+  if (carga.length > 1) {
+    var media = carga.reduce(function (a, c) { return a + c.min; }, 0) / carga.length;
+    carga.forEach(function (c) {
+      if (media > 0 && c.min > media * 1.4) out.push({ nivel: 'aviso', tipo: 'carga',
+        texto: c.s.full_name + ' lleva ' + c.min + ' minutos a la semana, bastante por encima de la media (' +
+               Math.round(media) + ').' });
+    });
+  }
+  return out;
+};
 
 /* Pabellones y sus pistas. Se editan en Configuración: un club alquila en
    sitios distintos y eso cambia cada temporada. */
@@ -2151,7 +2281,7 @@ SF.SEASON = '2026/2027';
    y en el pie del menú. */
 SF.BUILD = '2026-08-30';
 
-SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'psicologo', 'fisio',
+SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'coord_pf', 'psicologo', 'fisio',
   'scout', 'delegado_equipo', 'delegado_campo', 'dt_general', 'dt_femenino',
   'dt_masculino', 'dt_escuelas', 'dt_minis', 'administrativo', 'director'];
 
@@ -2373,9 +2503,9 @@ SF.STAFF = [
   /* --- Preparación física ----------------------------------------------
      Tres, repartidos por secciones: masculina y primer equipo, femenina, y
      escuelas/alevines. El de escuelas está sin habilitar todavía. --- */
-  { id: 's23', num: 23, full_name: 'Óscar Latorre', role: 'preparador_fisico',
+  { id: 's23', num: 23, full_name: 'Óscar Latorre', role: 'coord_pf',
     email: 'oscar.latorre@cbja.es', phone: '+34 600 100 031', team_ids: ['ce5', 'ce10', 'ce11', 'cp1', 'cp3', 'cn1'],
-    bio: 'Preparador físico de la sección masculina y del primer equipo. Fuerza y prevención.',
+    bio: 'Coordinador de preparación física del club. Programa las secciones y lleva la masculina y el primer equipo.',
     qualification: 'Grado en CAFYD · Máster en Alto Rendimiento', qual_entity: 'UPM', qual_year: 2016, qual_number: 'CAF-2214',
     languages: 'Español, Inglés',
     licence: { season: '2026/2027', number: 'FBM-PF-204', category: '—', valid_until: '2027-06-30', status: 'vigente' },
@@ -2686,6 +2816,11 @@ SF.PERM_KEYS = [
   { key: 'canAnnounce', label: 'Enviar comunicados del club', nav: ['comunicados'] },
   { key: 'canImportData', label: 'Importar datos de partido', nav: ['importar-datos'] },
   { key: 'canSeeStaff', label: 'Ver el listado de staff', nav: ['staff'] },
+  /* El cuadrante de preparacion fisica lo escribe la coordinacion. Esta llave
+     existe para la semana que la coordinacion esta de viaje: el director se lo
+     da a un preparador con un motivo escrito y una fecha de caducidad, y
+     caduca solo. Es mejor que dejarselo a los cuatro todo el año por si acaso. */
+  { key: 'canEditPF', label: 'Editar el cuadrante de preparación física' },
   /* Los sueldos van detras de su propia llave y no dentro de canManageFinance:
      quien cobra a las familias no tiene por que saber lo que cobra el
      entrenador. Asi el director puede darlo o quitarlo persona a persona. */
@@ -5089,6 +5224,37 @@ SF.store = (function () {
     },
     pfRemove: function (id) {
       var d = db(); d.pf = (d.pf || []).filter(function (x) { return x.id !== id; }); save(d);
+    },
+    pfUpdate: function (id, patch) {
+      var d = db();
+      (d.pf || []).forEach(function (x) { if (x.id === id) Object.assign(x, patch); });
+      save(d);
+    },
+    /* Cargar un cuadrante entero de golpe. Antes de tocar nada se guarda una
+       copia de lo que habia: una importacion escribe muchas filas a la vez y
+       si sale mal, rehacer la semana a mano es media tarde. Con la copia es
+       un boton. Solo se guarda la ULTIMA, que es la que alguien va a querer
+       deshacer; un historial aqui seria guardar basura para siempre. */
+    pfImport: function (filas, modo) {
+      var d = db();
+      d.pf_prev = { pf: JSON.parse(JSON.stringify(d.pf || [])), fecha: new Date().toISOString() };
+      if (modo === 'reemplazar') d.pf = [];
+      d.pf = d.pf || [];
+      var t = Date.now();
+      (filas || []).forEach(function (f, i) {
+        d.pf.push(Object.assign({ id: 'pf' + (t + i) }, f));
+      });
+      save(d);
+      return d.pf.length;
+    },
+    pfHayDeshacer: function () { return !!(db().pf_prev); },
+    pfDeshacer: function () {
+      var d = db();
+      if (!d.pf_prev) return false;
+      d.pf = d.pf_prev.pf || [];
+      delete d.pf_prev;
+      save(d);
+      return true;
     },
 
     /* ---- CITAS ---- */
@@ -9266,7 +9432,9 @@ window.SF = window.SF || {};
      Son el horario FIJO de la temporada, no las citas con fecha. */
   pages.horarios = function (view, _p, _ruta, embed) {
     var r = role();
-    var tab = SF._cuadrante || 'entrenos';
+    /* La coordinacion de preparacion fisica entra por su cuadrante, no por el
+       de pistas: es su pantalla de trabajo, no una pestaña que buscar. */
+    var tab = SF._cuadrante || (SF.store.role() === 'coord_pf' ? 'pf' : 'entrenos');
     view.innerHTML = embed ? '' : head('Cuadrantes', 'El horario fijo de la temporada: qué equipo entrena cuándo y en qué pista.');
 
     /* Embebido en Inicio, las pestañas las pone el desplegable de fuera. Dos
@@ -9456,7 +9624,7 @@ window.SF = window.SF || {};
     function colorPrep(id) {
       var COLORES = ['verde', 'naranja', 'azul', 'morado'];
       var preps = SF.store.staff().filter(function (s) {
-        return s.role === 'preparador_fisico' || s.role === 'fisio';
+        return SF.esPreparador(s);
       });
       var i = preps.map(function (s) { return s.id; }).indexOf(id);
       return COLORES[i >= 0 ? i % COLORES.length : 0];
@@ -9477,7 +9645,7 @@ window.SF = window.SF || {};
 
       /* --- Los preparadores, con su color, como la leyenda de la hoja --- */
       var preps = SF.store.staff().filter(function (s) {
-        return s.role === 'preparador_fisico' || s.role === 'fisio';
+        return SF.esPreparador(s);
       });
       if (preps.length) {
         var leyenda = el('<div class="pf-leyenda"><span class="pf-ley-t">Preparadores</span></div>');
@@ -9487,10 +9655,44 @@ window.SF = window.SF || {};
         body.appendChild(leyenda);
       }
 
+      /* --- Lo que no cuadra, arriba del todo ---------------------------
+         Un cuadrante no se mira para leerlo entero: se mira para ver si hay
+         algo roto. Si el aviso estuviera al final, debajo de cuarenta filas,
+         daria igual calcularlo. */
+      var avisos = SF.pfAvisos(lista);
+      if (avisos.length) {
+        var graves = avisos.filter(function (a) { return a.nivel === 'grave'; });
+        var caja = el('<div class="foco ' + (graves.length ? 'is-danger' : 'is-warn') + '">' +
+          '<div class="foco-ic">' + ico('alert') + '</div><div class="foco-body">' +
+          '<p class="foco-t">' + (graves.length
+            ? (graves.length === 1 ? 'Hay algo que no cuadra' : 'Hay ' + graves.length + ' cosas que no cuadran')
+            : 'Un par de detalles') + '</p></div></div>');
+        var cuerpo = caja.querySelector('.foco-body');
+        avisos.forEach(function (a) {
+          cuerpo.appendChild(el('<p class="foco-s">' + (a.nivel === 'grave' ? '<b>· </b>' : '· ') + esc(a.texto) + '</p>'));
+        });
+        body.appendChild(caja);
+      }
+
       if (puede) {
-        var bAdd = el('<button class="btn btn-primary btn-sm" style="margin-bottom:12px">' + ico('plus') + 'Añadir sesión de PF</button>');
+        var barra = el('<div class="row-c" style="margin-bottom:12px"></div>');
+        var bAdd = el('<button class="btn btn-primary btn-sm">' + ico('plus') + 'Añadir sesión de PF</button>');
         bAdd.onclick = function () { formPF(null); };
-        body.appendChild(bAdd);
+        barra.appendChild(bAdd);
+
+        var bImp = el('<button class="btn btn-light btn-sm">' + ico('ai') + 'Cargar desde foto, Excel o PDF</button>');
+        bImp.onclick = function () { importarCuadrante(); };
+        barra.appendChild(bImp);
+
+        /* Deshacer no es un extra: es lo que permite atreverse a importar. */
+        if (SF.store.pfHayDeshacer()) {
+          var bUnd = el('<button class="btn btn-light btn-sm">Deshacer la última carga</button>');
+          bUnd.onclick = function () {
+            SF.store.pfDeshacer(); U.toast('Cuadrante restaurado'); SF.router.render();
+          };
+          barra.appendChild(bUnd);
+        }
+        body.appendChild(barra);
       }
 
       if (!lista.length) {
@@ -9537,9 +9739,35 @@ window.SF = window.SF || {};
           esc(mias.map(function (x) { return SF.DIAS_SEM[x.dia]; }).join(', ')) + '</span></div>'));
       });
       body.appendChild(rl);
+      /* Los equipos que aun no tienen preparacion fisica no son una nota al
+         pie: son la lista de trabajo del coordinador. Estaban escritos como
+         una frase corrida con veintitres nombres dentro, que es la forma mas
+         segura de que nadie la lea. Ahora es un numero, y detras la lista
+         partida por secciones, que es como se reparte el trabajo. */
       var sinPF = equipos.filter(function (eq) { return !lista.some(function (x) { return x.team_id === eq.id; }); });
-      if (sinPF.length) body.appendChild(el('<p class="hint">Sin preparación física asignada: ' +
-        esc(sinPF.map(function (e) { return e.name; }).join(', ')) + '.</p>'));
+      if (sinPF.length) {
+        var caja = el('<div class="mini-list" style="margin-top:10px"></div>');
+        var fila = el('<div class="mini-row"><span><b>' + sinPF.length + '</b> ' +
+          (sinPF.length === 1 ? 'equipo todavía sin preparación física' : 'equipos todavía sin preparación física') +
+          '</span><span class="row-actions"></span></div>');
+        var bVer = el('<button class="lnk">ver cuáles</button>');
+        var det = el('<div style="display:none"></div>');
+        Object.keys(SF.SEGMENTS).forEach(function (seg) {
+          var deSeg = sinPF.filter(function (e) { return e.segment === seg; });
+          if (!deSeg.length) return;
+          det.appendChild(el('<div class="mini-row"><span><b>' + esc(SF.SEGMENTS[seg]) + '</b><br><span class="hint">' +
+            esc(deSeg.map(function (e) { return e.name; }).join(' · ')) + '</span></span>' +
+            '<span class="row-actions"><span class="hint">' + deSeg.length + '</span></span></div>'));
+        });
+        bVer.onclick = function () {
+          var abierto = det.style.display !== 'none';
+          det.style.display = abierto ? 'none' : '';
+          bVer.textContent = abierto ? 'ver cuáles' : 'ocultar';
+        };
+        fila.querySelector('.row-actions').appendChild(bVer);
+        caja.appendChild(fila); caja.appendChild(det);
+        body.appendChild(caja);
+      }
 
       /* --- Control de carga. La pregunta de quien reparte no es "¿quién da
              qué?", sino "¿está repartido parejo?". Por eso los minutos y no
@@ -9563,7 +9791,7 @@ window.SF = window.SF || {};
 
     function formPF() {
       var preps = SF.store.staff().filter(function (s) {
-        return s.role === 'preparador_fisico' || s.role === 'fisio';
+        return SF.esPreparador(s);
       });
       var box = el('<div><div class="form-grid">' +
         '<div class="frow"><label>Día</label><select id="d">' + SF.DIAS_SEM.map(function (n, i) {
@@ -9598,6 +9826,348 @@ window.SF = window.SF || {};
       };
       box.appendChild(foot);
       U.modal('Sesión de preparación física', box);
+    }
+
+    /* ---------- Cargar el cuadrante desde una foto, un Excel o un PDF ------
+       LA REGLA DE TODO ESTO: la IA propone, una persona confirma. Nunca se
+       escribe directamente en el cuadrante. No es desconfianza abstracta: una
+       hora mal leida aqui es un equipo en la pista sin nadie delante el martes
+       a las siete, y eso no lo compensa ningun porcentaje de acierto. Por eso
+       hay una pantalla de revision en medio, y por eso la carga se puede
+       deshacer entera con un boton. */
+
+    /* Las librerias para leer Excel y Word no se cargan con la app: pesan mas
+       que media aplicacion y la mayoria de la gente no importara nunca un
+       cuadrante. Se piden la primera vez que hacen falta. */
+    var _libs = {};
+    function cargaScript(url) {
+      if (_libs[url]) return _libs[url];
+      _libs[url] = new Promise(function (ok, mal) {
+        var sc = document.createElement('script');
+        sc.src = url;
+        sc.onload = function () { ok(true); };
+        sc.onerror = function () { delete _libs[url]; mal(new Error('No se ha podido cargar el lector.')); };
+        document.head.appendChild(sc);
+      });
+      return _libs[url];
+    }
+
+    /* --- Emparejar lo leido con lo que el club tiene de verdad -------------
+       La hoja dice "Cad Masc A" y en la app el equipo se llama "Cadete
+       Masculino A". Comparar cadenas enteras no vale para nada; lo que
+       funciona es mirar palabra por palabra si una es el principio de la otra,
+       que es exactamente como abrevia la gente. */
+    function palabras(s) {
+      return SF.norm(s).replace(/[^a-z0-9ñ ]+/g, ' ').split(/\s+/).filter(Boolean);
+    }
+    function parecido(txt, nombre) {
+      var a = palabras(txt), b = palabras(nombre);
+      if (!a.length || !b.length) return 0;
+      if (a.join(' ') === b.join(' ')) return 1;
+      var usados = {}, aciertos = 0;
+      a.forEach(function (t) {
+        for (var i = 0; i < b.length; i++) {
+          if (usados[i]) continue;
+          if (b[i] === t || b[i].indexOf(t) === 0 || t.indexOf(b[i]) === 0) { usados[i] = 1; aciertos++; return; }
+        }
+      });
+      /* Manda cuanto de lo ESCRITO se ha reconocido, no cuanto del nombre
+         completo se ha cubierto. En estas hojas se escribe "Oscar" y "Bea",
+         nunca "Óscar Latorre": exigir el nombre entero dejaria sin emparejar
+         justo el caso normal. Lo que queda del nombre oficial cuenta poco pero
+         algo, para que entre dos parecidos gane el que encaja mejor. */
+      return (aciertos / a.length) * (0.7 + 0.3 * (aciertos / b.length));
+    }
+    /* Y la ambiguedad se resuelve NO eligiendo. Si "Diego" encaja igual de bien
+       con dos personas, la app no se juega una moneda: deja el hueco y que lo
+       diga alguien. Un hueco se ve en la pantalla de revision; una eleccion al
+       azar, no. */
+    function mejor(txt, lista, campo) {
+      if (!txt) return { id: '', score: 0 };
+      var puntos = lista.map(function (x) { return { id: x.id, score: parecido(txt, x[campo]) }; })
+        .sort(function (a, b) { return b.score - a.score; });
+      var top = puntos[0] || { id: '', score: 0 };
+      var seg = puntos[1] ? puntos[1].score : 0;
+      if (top.score < 0.6) return { id: '', score: top.score };
+      if (top.score - seg < 0.12) return { id: '', score: top.score, ambiguo: true };
+      return top;
+    }
+
+    function importarCuadrante() {
+      var preps = SF.store.staff().filter(SF.esPreparador);
+      var box = el('<div></div>');
+      var back = U.modal('Cargar el cuadrante', box);
+      back.querySelector('.modal').classList.add('modal-xl');
+      paso1();
+
+      /* --- Paso 1: de donde sale --------------------------------------- */
+      function paso1() {
+        box.innerHTML = '';
+        box.appendChild(el('<p class="hint">Sube la hoja tal cual la tengas: una foto o captura de WhatsApp, ' +
+          'un Excel, un PDF o un Word. La app la lee y te la enseña ANTES de tocar nada, para que la corrijas.</p>'));
+
+        var zona = el('<div class="drop-zona"><p><b>Arrastra aquí el archivo</b></p>' +
+          '<p class="hint">Foto o captura · Excel o CSV · PDF · Word</p></div>');
+        var inp = el('<input type="file" style="display:none" accept="image/*,.xlsx,.xls,.csv,.pdf,.docx">');
+        var bSel = el('<button class="btn btn-primary btn-sm">Elegir archivo</button>');
+        bSel.onclick = function () { inp.click(); };
+        zona.appendChild(bSel); zona.appendChild(inp);
+        zona.ondragover = function (e) { e.preventDefault(); zona.classList.add('on'); };
+        zona.ondragleave = function () { zona.classList.remove('on'); };
+        zona.ondrop = function (e) {
+          e.preventDefault(); zona.classList.remove('on');
+          if (e.dataTransfer.files && e.dataTransfer.files[0]) leerArchivo(e.dataTransfer.files[0]);
+        };
+        inp.onchange = function () { if (inp.files[0]) leerArchivo(inp.files[0]); };
+        box.appendChild(zona);
+
+        box.appendChild(el('<p class="sec-label">O pega el cuadrante como texto</p>'));
+        var ta = el('<textarea class="import-ta" style="min-height:120px" ' +
+          'placeholder="Lunes\t19:00-20:15\tCadete Masculino A\tÓscar\nLunes\t20:15-21:30\tJunior Femenino\tBeatriz"></textarea>');
+        box.appendChild(ta);
+        var bTxt = el('<button class="btn btn-light btn-sm">Leer el texto</button>');
+        bTxt.onclick = function () {
+          var t = ta.value.trim();
+          if (!t) { U.toast('Pega algo primero'); return; }
+          pedir({ tipo: 'texto', texto: t });
+        };
+        box.appendChild(el('<div class="row-c"></div>')).appendChild(bTxt);
+      }
+
+      /* --- Paso 2: convertir el archivo a algo que la IA pueda leer ------ */
+      function leerArchivo(f) {
+        var nom = (f.name || '').toLowerCase();
+        espera('Preparando «' + f.name + '»…');
+
+        if (/\.(xlsx|xls|csv)$/.test(nom)) {
+          /* La hoja de calculo se convierte AQUI, en el navegador. Mandar el
+             archivo entero a la IA seria mas caro, mas lento y mas datos
+             saliendo del club para nada: lo que hace falta es el texto. */
+          cargaScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js').then(function () {
+            var fr = new FileReader();
+            fr.onload = function () {
+              try {
+                var wb = XLSX.read(new Uint8Array(fr.result), { type: 'array' });
+                var txt = wb.SheetNames.map(function (n) {
+                  return '### ' + n + '\n' + XLSX.utils.sheet_to_csv(wb.Sheets[n], { FS: ' | ' });
+                }).join('\n\n');
+                if (!txt.trim()) { fallo('La hoja está vacía.'); return; }
+                pedir({ tipo: 'texto', texto: txt });
+              } catch (e) { fallo('No he podido abrir la hoja: ' + e.message); }
+            };
+            fr.readAsArrayBuffer(f);
+          }).catch(function (e) { fallo(e.message); });
+
+        } else if (/\.docx$/.test(nom)) {
+          cargaScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js').then(function () {
+            return JSZip.loadAsync(f);
+          }).then(function (zip) {
+            return zip.file('word/document.xml').async('string');
+          }).then(function (xml) {
+            /* Cada parrafo y cada celda del Word acaban en un salto de linea,
+               que es lo que conserva la forma de la parrilla. */
+            var txt = xml.replace(/<\/w:p>/g, '\n').replace(/<\/w:tc>/g, ' | ')
+              .replace(/<[^>]+>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+              .replace(/\n{3,}/g, '\n\n').trim();
+            if (!txt) { fallo('El documento no tiene texto.'); return; }
+            pedir({ tipo: 'texto', texto: txt });
+          }).catch(function (e) { fallo('No he podido leer el Word: ' + e.message); });
+
+        } else if (/^image\//.test(f.type)) {
+          /* La foto se encoge antes de salir. Una foto de movil son 4 MB y el
+             servidor no admite tanto; ademas, para leer una tabla no hacen
+             falta doce megapixeles. */
+          encoge(f, function (mime, b64) { pedir({ tipo: 'archivo', mime: mime, datos: b64 }); });
+
+        } else if (/\.pdf$/.test(nom) || f.type === 'application/pdf') {
+          if (f.size > 3.5 * 1024 * 1024) { fallo('El PDF pesa demasiado (más de 3,5 MB). Manda solo la página del cuadrante.'); return; }
+          base64(f, function (b64) { pedir({ tipo: 'archivo', mime: 'application/pdf', datos: b64 }); });
+
+        } else {
+          fallo('No sé leer ese tipo de archivo. Vale una foto, un Excel, un CSV, un PDF o un Word.');
+        }
+      }
+
+      function base64(f, ok) {
+        var fr = new FileReader();
+        fr.onload = function () { ok(String(fr.result).split(',')[1]); };
+        fr.onerror = function () { fallo('No he podido abrir el archivo.'); };
+        fr.readAsDataURL(f);
+      }
+      function encoge(f, ok) {
+        var url = URL.createObjectURL(f);
+        var img = new Image();
+        img.onload = function () {
+          var MAX = 1600;
+          var k = Math.min(1, MAX / Math.max(img.width, img.height));
+          var c = document.createElement('canvas');
+          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(url);
+          ok('image/jpeg', c.toDataURL('image/jpeg', 0.85).split(',')[1]);
+        };
+        img.onerror = function () { URL.revokeObjectURL(url); fallo('No he podido abrir la imagen.'); };
+        img.src = url;
+      }
+
+      function espera(t) {
+        box.innerHTML = '';
+        box.appendChild(el('<div class="empty-panel"><p>' + esc(t) + '</p>' +
+          '<p class="hint">Leer una hoja entera puede tardar unos segundos.</p></div>'));
+      }
+      function fallo(t) {
+        box.innerHTML = '';
+        box.appendChild(el('<div class="foco is-warn"><div class="foco-ic">' + ico('alert') + '</div>' +
+          '<div class="foco-body"><p class="foco-t">No ha salido</p><p class="foco-s">' + t + '</p></div></div>'));
+        var b = el('<button class="btn btn-light">Volver a intentarlo</button>');
+        b.onclick = paso1;
+        box.appendChild(el('<div class="modal-actions"></div>')).appendChild(b);
+      }
+
+      function pedir(payload) {
+        espera('Leyendo el cuadrante…');
+        fetch('/api/cuadrante', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).then(function (r) { return r.json(); })
+          .catch(function () { return { ok: false, motivo: 'red' }; })
+          .then(function (res) {
+            if (!res.ok) {
+              if (res.motivo === 'sin_clave') {
+                fallo('La IA no está conectada. Se activa en Vercel → Settings → Environment Variables ' +
+                  'añadiendo <b>GEMINI_API_KEY</b> (Google, tiene capa gratuita), <b>ANTHROPIC_API_KEY</b> o ' +
+                  '<b>OPENAI_API_KEY</b>. Mientras tanto, las sesiones se pueden añadir a mano.');
+              } else if (res.motivo === 'red') {
+                fallo('No he podido contactar con el servidor.');
+              } else {
+                fallo('La IA ha devuelto un error: <span class="hint">' + esc(res.detalle || '') + '</span>');
+              }
+              return;
+            }
+            if (res.sin_datos || !res.sesiones.length) {
+              fallo('No he encontrado ninguna sesión de preparación física ahí dentro. ' +
+                'Si es una foto, comprueba que se lea la hoja entera y que no esté torcida.');
+              return;
+            }
+            revision(res.sesiones, res.modelo);
+          });
+      }
+
+      /* --- Paso 3: la revision. Aqui es donde esto deja de ser un truco --- */
+      function revision(sesiones, modelo) {
+        var filas = sesiones.map(function (s) {
+          var eq = mejor(s.equipo, equipos, 'name');
+          var pr = mejor(s.preparador, preps, 'full_name');
+          return {
+            s: s,
+            team_id: eq.id,
+            prep_id: pr.id,
+            hora_ini: s.hora_ini, hora_fin: s.hora_fin || '', hora_pista: s.hora_pista || '',
+            dia: s.dia,
+            incluir: true
+          };
+        });
+
+        function pinta() {
+          box.innerHTML = '';
+          var sinEq = filas.filter(function (f) { return f.incluir && !f.team_id; }).length;
+          var listas = filas.filter(function (f) { return f.incluir && f.team_id; }).length;
+
+          box.appendChild(el('<p class="hint">He leído <b>' + sesiones.length + '</b> sesiones' +
+            (modelo ? ' <span class="hint">(' + esc(modelo) + ')</span>' : '') +
+            '. Repásalas: <b>nada se guarda</b> hasta que le des a aplicar abajo.</p>'));
+
+          if (sinEq) box.appendChild(el('<div class="foco is-warn"><div class="foco-ic">' + ico('alert') + '</div>' +
+            '<div class="foco-body"><p class="foco-t">' + sinEq + (sinEq === 1 ? ' sesión sin equipo' : ' sesiones sin equipo') + '</p>' +
+            '<p class="foco-s">No he reconocido el nombre que pone la hoja. Elige el equipo en el desplegable ' +
+            'o quita la fila. Las que se queden sin equipo no se cargan.</p></div></div>'));
+
+          var t = el('<div class="cal-scroll"><table class="cua-tab rev-tab"><thead><tr>' +
+            '<th></th><th>Día</th><th>Desde</th><th>Hasta</th><th>Pista</th>' +
+            '<th>Dice la hoja</th><th>Equipo</th><th>Preparador</th></tr></thead><tbody></tbody></table></div>');
+          var tb = t.querySelector('tbody');
+
+          filas.forEach(function (f, i) {
+            var tr = el('<tr' + (f.incluir ? '' : ' style="opacity:.4"') + '></tr>');
+
+            var tdChk = el('<td></td>');
+            var chk = el('<input type="checkbox"' + (f.incluir ? ' checked' : '') + ' aria-label="Incluir esta sesión">');
+            chk.onchange = function () { f.incluir = chk.checked; pinta(); };
+            tdChk.appendChild(chk); tr.appendChild(tdChk);
+
+            var tdDia = el('<td></td>');
+            var selD = el('<select>' + SF.DIAS_SEM.map(function (n, k) {
+              return '<option value="' + k + '"' + (f.dia === k ? ' selected' : '') + '>' + n + '</option>';
+            }).join('') + '</select>');
+            selD.onchange = function () { f.dia = +selD.value; };
+            tdDia.appendChild(selD); tr.appendChild(tdDia);
+
+            ['hora_ini', 'hora_fin', 'hora_pista'].forEach(function (k) {
+              var td = el('<td></td>');
+              var inp = el('<input type="time" value="' + esc(f[k] || '') + '">');
+              inp.onchange = function () { f[k] = inp.value; };
+              td.appendChild(inp); tr.appendChild(td);
+            });
+
+            /* La columna que hace honesto el resto: lo que pone la hoja, sin
+               tocar, al lado de lo que la app ha decidido que es. Sin esto no
+               hay forma de saber si el emparejamiento se ha equivocado. */
+            tr.appendChild(el('<td class="rev-crudo"><span class="hint">' +
+              esc(f.s.equipo || '—') + (f.s.preparador ? '<br>' + esc(f.s.preparador) : '') + '</span></td>'));
+
+            var tdE = el('<td></td>');
+            var selE = el('<select><option value="">— sin reconocer —</option>' + equipos.map(function (e) {
+              return '<option value="' + e.id + '"' + (f.team_id === e.id ? ' selected' : '') + '>' + esc(e.name) + '</option>';
+            }).join('') + '</select>');
+            if (!f.team_id) selE.classList.add('sel-falta');
+            selE.onchange = function () { f.team_id = selE.value; pinta(); };
+            tdE.appendChild(selE); tr.appendChild(tdE);
+
+            var tdP = el('<td></td>');
+            var selP = el('<select><option value="">— sin asignar —</option>' + preps.map(function (sp) {
+              return '<option value="' + sp.id + '"' + (f.prep_id === sp.id ? ' selected' : '') + '>' + esc(sp.full_name) + '</option>';
+            }).join('') + '</select>');
+            selP.onchange = function () { f.prep_id = selP.value; };
+            tdP.appendChild(selP); tr.appendChild(tdP);
+
+            tb.appendChild(tr);
+          });
+          box.appendChild(t);
+
+          /* Lo que va a pasar, dicho antes de que pase. */
+          box.appendChild(el('<p class="sec-label">Qué hago con lo que ya hay</p>'));
+          var modo = el('<div class="chks">' +
+            '<label class="chk"><input type="radio" name="mo" value="reemplazar" checked> ' +
+            'Sustituir el cuadrante entero (' + SF.store.pf().length + ' sesiones se van)</label>' +
+            '<label class="chk"><input type="radio" name="mo" value="anadir"> ' +
+            'Añadir estas a las que ya hay</label></div>');
+          box.appendChild(modo);
+
+          var foot = el('<div class="modal-actions"><button class="btn">Empezar de nuevo</button>' +
+            '<button class="btn btn-primary"' + (listas ? '' : ' disabled') + '>Aplicar ' + listas +
+            (listas === 1 ? ' sesión' : ' sesiones') + '</button></div>');
+          foot.children[0].onclick = paso1;
+          foot.children[1].onclick = function () {
+            aplicar(filas.filter(function (f) { return f.incluir && f.team_id; }),
+              modo.querySelector('input:checked').value);
+          };
+          box.appendChild(foot);
+        }
+        pinta();
+      }
+
+      function aplicar(filas, modo) {
+        var n = SF.store.pfImport(filas.map(function (f) {
+          return {
+            dia: f.dia, team_id: f.team_id, prep_id: f.prep_id,
+            hora_ini: f.hora_ini, hora_fin: f.hora_fin, hora_pista: f.hora_pista,
+            inst: '', pista: f.s.pista || '', nota: f.s.nota || ''
+          };
+        }), modo);
+        U.closeModal();
+        U.toast(filas.length + (filas.length === 1 ? ' sesión cargada' : ' sesiones cargadas') + ' · ' + n + ' en total');
+        SF.router.render();
+      }
     }
   };
 
