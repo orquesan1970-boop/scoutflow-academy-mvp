@@ -1933,7 +1933,7 @@ SF.ROLES = {
   },
   administrativo: {
     label: 'Administrativo',
-    nav: ['inicio', 'jugadores', 'staff', 'comunicados', 'documentos', 'licencias', 'finanzas', 'economia', 'presupuesto', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'documentos', 'licencias', 'finanzas', 'economia', 'presupuesto', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all', canCreatePlayers: true
   },
@@ -2134,7 +2134,7 @@ SF.SEASON = '2026/2027';
    pantalla es lo último o una página vieja guardada por el navegador, que
    ya nos ha costado una evaluación mal guardada. Se ve en Configuración
    y en el pie del menú. */
-SF.BUILD = '2026-08-23c';
+SF.BUILD = '2026-08-30';
 
 SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'psicologo', 'fisio',
   'scout', 'delegado_equipo', 'delegado_campo', 'dt_general', 'dt_femenino',
@@ -9563,6 +9563,12 @@ window.SF = window.SF || {};
       k.appendChild(el('<div class="kpi ' + x[2] + '"><div class="kpi-top"><span>' + x[0] + '</span></div><div class="kpi-num">' + x[1] + ' €</div></div>'));
     });
     view.appendChild(k);
+    /* Arriba, ANTES de la tabla. Estaba debajo, y con 277 jugadores eso son
+       277 filas de scroll: nadie lo encontraba. */
+    if (role().canManageFinance) {
+      view.appendChild(catalogoPlanesCard());
+      view.appendChild(aplicarPorEquipoCard());
+    }
     var t = el('<table class="tbl"><thead><tr><th>Jugador</th><th>Plan</th><th>Pagado</th><th>Estado</th><th></th></tr></thead><tbody></tbody></table>');
     var tb = t.querySelector('tbody');
     ps.forEach(function (p) {
@@ -9573,9 +9579,79 @@ window.SF = window.SF || {};
       tb.appendChild(tr);
     });
     view.appendChild(t);
-    if (role().canManageFinance) view.appendChild(aplicarPorEquipoCard());
     view.appendChild(paymentMethodsCard(role().canManageFinance));
   };
+
+  /* Cambiar el programa y el plan de un equipo, sin abrir la ficha entera.
+     Es lo unico que administracion necesita tocar de un equipo. */
+  function planDeEquipoModal(t) {
+    var progOpts = Object.keys(SF.PROGRAMAS).map(function (k) {
+      return '<option value="' + k + '"' + ((t.programa || 'federado') === k ? ' selected' : '') + '>' + SF.PROGRAMAS[k] + '</option>';
+    }).join('');
+    var planOpts = '<option value="">— Sin plan —</option>' + SF.store.planes().map(function (pl) {
+      return '<option value="' + pl.id + '"' + (pl.id === t.plan_id ? ' selected' : '') + '>' + esc(pl.nombre) + '</option>';
+    }).join('');
+    var n = SF.store.players().filter(function (x) { return x.team_id === t.id; }).length;
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>Programa</label><select id="tp">' + progOpts + '</select>' +
+        '<p class="hint">Para qué paga. No es lo mismo que el segmento deportivo.</p></div>' +
+      '<div class="frow"><label>Plan de pago</label><select id="tpl">' + planOpts + '</select>' +
+        '<p class="hint">Lo heredan los <b>' + n + '</b> jugadores del equipo. Cambiarlo aquí no genera ningún cargo: ' +
+        'para eso está "Aplicar un plan a un equipo", en Finanzas.</p></div></div>');
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      SF.store.teamUpdate(t.id, { programa: f.querySelector('#tp').value, plan_id: f.querySelector('#tpl').value });
+      U.closeModal(); U.toast('Plan del equipo guardado'); SF.router.render();
+    };
+    var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
+    U.modal('Plan de pago de ' + esc(t.name), w);
+  }
+
+  /* Catalogo de planes. Lo ve quien lleva el dinero: direccion y administracion. */
+  function catalogoPlanesCard() {
+      var pl = el('<div class="card"><h3>Planes de pago</h3>' +
+        '<p class="hint">Lo que paga cada jugador. El plan cuelga del <b>equipo</b>: todos sus jugadores lo heredan, ' +
+        'así que subir una cuota se hace en un sitio y no en 900 fichas.</p>' +
+        '<div class="mini-list"></div><div class="row-c"></div></div>');
+      var pml = pl.querySelector('.mini-list');
+      var planes = SF.store.planes();
+      if (!planes.length) pml.appendChild(el('<p class="hint">Todavía no hay ningún plan.</p>'));
+      planes.forEach(function (x) {
+        var cuo = (x.items || []).filter(function (i) { return i.type === 'cuota'; })[0] || {};
+        var ins = (x.items || []).filter(function (i) { return i.type === 'inscripcion'; })[0] || {};
+        var nEq = SF.store.teams().filter(function (t) { return t.plan_id === x.id; }).length;
+        var nJug = SF.store.players().filter(function (j) { var r = SF.planDe(j); return r.plan && r.plan.id === x.id; }).length;
+        var resumen = (ins.amount ? (+ins.amount) + ' € de inscripción · ' : '') +
+          (cuo.amount ? 'cuotas de ' + (+cuo.amount) + ' € (' + esc(cuo.desde || '') + ' → ' + esc(cuo.hasta || '') + ')' : 'sin cuotas');
+        var row = el('<div class="mini-row"><span><b>' + esc(x.nombre) + '</b> ' +
+          '<span class="tag tag-gray">' + esc(SF.PROGRAMAS[x.programa] || x.programa || '') + '</span> ' +
+          '<span class="tag tag-gray">v' + (x.version || 1) + '</span><br>' +
+          '<span class="hint">' + resumen + ' · ' + nEq + (nEq === 1 ? ' equipo' : ' equipos') + ' · ' +
+          nJug + (nJug === 1 ? ' jugador' : ' jugadores') + '</span></span>' +
+          '<span class="row-actions"><button class="lnk" data-ed>editar</button>' +
+          '<button class="lnk" data-dup>duplicar</button>' +
+          '<button class="lnk-del" data-rm>' + ico('x') + '</button></span></div>');
+        row.querySelector('[data-ed]').onclick = function () { planEditor(x, function () { SF.router.render(); }); };
+        row.querySelector('[data-dup]').onclick = function () {
+          var c = JSON.parse(JSON.stringify(x));
+          c.id = 'pl' + Date.now(); c.version = 1; c.nombre = x.nombre + ' (copia)';
+          SF.store.planSave(c); U.toast('Plan duplicado'); SF.router.render();
+        };
+        row.querySelector('[data-rm]').onclick = function () {
+          if (nEq) { U.toast('Ese plan lo usan ' + nEq + (nEq === 1 ? ' equipo' : ' equipos') + '. Cámbiaselos antes.'); return; }
+          if (confirm('¿Borrar el plan "' + x.nombre + '"? Los cargos ya generados se quedan como están.')) {
+            SF.store.planRemove(x.id); U.toast('Plan borrado'); SF.router.render();
+          }
+        };
+        pml.appendChild(row);
+      });
+      var bNuevo = el('<button class="btn">' + ico('plus') + 'Nuevo plan</button>');
+      bNuevo.onclick = function () { planEditor(null, function () { SF.router.render(); }); };
+      pl.querySelector('.row-c').appendChild(bNuevo);
+      return pl;
+
+  }
 
   /* Generar los cargos de un equipo entero de una vez. Es la diferencia entre
      900 visitas a 900 fichas y tres clics. */
@@ -9718,50 +9794,10 @@ window.SF = window.SF || {};
     form.appendChild(save);
     view.appendChild(form);
 
-    /* Los planes de pago. Antes esto no se podia tocar sin editar el codigo. */
-    if (role().canManageFinance) {
-      var pl = el('<div class="card"><h3>Planes de pago</h3>' +
-        '<p class="hint">Lo que paga cada jugador. El plan cuelga del <b>equipo</b>: todos sus jugadores lo heredan, ' +
-        'así que subir una cuota se hace en un sitio y no en 900 fichas.</p>' +
-        '<div class="mini-list"></div><div class="row-c"></div></div>');
-      var pml = pl.querySelector('.mini-list');
-      var planes = SF.store.planes();
-      if (!planes.length) pml.appendChild(el('<p class="hint">Todavía no hay ningún plan.</p>'));
-      planes.forEach(function (x) {
-        var cuo = (x.items || []).filter(function (i) { return i.type === 'cuota'; })[0] || {};
-        var ins = (x.items || []).filter(function (i) { return i.type === 'inscripcion'; })[0] || {};
-        var nEq = SF.store.teams().filter(function (t) { return t.plan_id === x.id; }).length;
-        var nJug = SF.store.players().filter(function (j) { var r = SF.planDe(j); return r.plan && r.plan.id === x.id; }).length;
-        var resumen = (ins.amount ? (+ins.amount) + ' € de inscripción · ' : '') +
-          (cuo.amount ? 'cuotas de ' + (+cuo.amount) + ' € (' + esc(cuo.desde || '') + ' → ' + esc(cuo.hasta || '') + ')' : 'sin cuotas');
-        var row = el('<div class="mini-row"><span><b>' + esc(x.nombre) + '</b> ' +
-          '<span class="tag tag-gray">' + esc(SF.PROGRAMAS[x.programa] || x.programa || '') + '</span> ' +
-          '<span class="tag tag-gray">v' + (x.version || 1) + '</span><br>' +
-          '<span class="hint">' + resumen + ' · ' + nEq + (nEq === 1 ? ' equipo' : ' equipos') + ' · ' +
-          nJug + (nJug === 1 ? ' jugador' : ' jugadores') + '</span></span>' +
-          '<span class="row-actions"><button class="lnk" data-ed>editar</button>' +
-          '<button class="lnk" data-dup>duplicar</button>' +
-          '<button class="lnk-del" data-rm>' + ico('x') + '</button></span></div>');
-        row.querySelector('[data-ed]').onclick = function () { planEditor(x, function () { SF.router.render(); }); };
-        row.querySelector('[data-dup]').onclick = function () {
-          var c = JSON.parse(JSON.stringify(x));
-          c.id = 'pl' + Date.now(); c.version = 1; c.nombre = x.nombre + ' (copia)';
-          SF.store.planSave(c); U.toast('Plan duplicado'); SF.router.render();
-        };
-        row.querySelector('[data-rm]').onclick = function () {
-          if (nEq) { U.toast('Ese plan lo usan ' + nEq + (nEq === 1 ? ' equipo' : ' equipos') + '. Cámbiaselos antes.'); return; }
-          if (confirm('¿Borrar el plan "' + x.nombre + '"? Los cargos ya generados se quedan como están.')) {
-            SF.store.planRemove(x.id); U.toast('Plan borrado'); SF.router.render();
-          }
-        };
-        pml.appendChild(row);
-      });
-      var bNuevo = el('<button class="btn">' + ico('plus') + 'Nuevo plan</button>');
-      bNuevo.onclick = function () { planEditor(null, function () { SF.router.render(); }); };
-      pl.querySelector('.row-c').appendChild(bNuevo);
-      view.appendChild(pl);
-    }
-
+    /* El catalogo de planes NO vive aqui: vive en Finanzas.
+       Motivo: lo lleva tambien administracion, y Configuracion tiene el boton
+       rojo de "Restablecer datos", que borra el club entero. Abrirle esa
+       puerta para que pueda tocar precios seria pagar demasiado por ello. */
     var pist = el('<div class="card"><h3>Pabellones y horarios</h3>' +
       '<p class="hint">Dónde entrena tu club y en qué franjas. Es lo que dibuja el cuadrante de pistas.</p>' +
       '<div class="row-c"></div></div>');
@@ -11957,12 +11993,21 @@ window.SF = window.SF || {};
     if (!t) { view.innerHTML = head('Equipo', '') + '<div class="empty-panel"><p>Equipo no encontrado.</p></div>'; return; }
     var r = role();
     var can = r.canManageTeams;
-    var head2 = '<button class="btn" id="back">' + ico('back') + 'Equipos</button>' + (can ? '<button class="btn" id="ed">' + ico('edit') + 'Editar</button><button class="btn btn-danger" id="del">' + ico('trash') + '</button>' : '');
+    /* Administracion lleva los planes, pero NO gestiona equipos: no toca
+       plantillas, ni cuerpo tecnico, ni borra nada. Solo el plan de pago, que
+       es lo suyo. Por eso es un boton aparte y no el de Editar. */
+    var canPlan = r.canManageFinance;
+    var head2 = '<button class="btn" id="back">' + ico('back') + 'Equipos</button>' +
+      (can ? '<button class="btn" id="ed">' + ico('edit') + 'Editar</button><button class="btn btn-danger" id="del">' + ico('trash') + '</button>' : '') +
+      (canPlan ? '<button class="btn" id="plan">' + ico('card') + 'Plan de pago</button>' : '');
     view.innerHTML = head('Equipo', '', head2);
     view.querySelector('#back').onclick = function () { location.hash = '#/equipos'; };
     if (can) {
       view.querySelector('#ed').onclick = function () { U.modal('Editar equipo', teamForm(t, function (d) { SF.store.teamUpdate(t.id, d); U.toast('Guardado'); SF.router.render(); })); };
       view.querySelector('#del').onclick = function () { if (confirm('¿Eliminar el equipo ' + t.name + '? Los jugadores quedarán sin equipo.')) { SF.store.teamRemove(t.id); U.toast('Equipo eliminado'); location.hash = '#/equipos'; } };
+    }
+    if (canPlan) {
+      view.querySelector('#plan').onclick = function () { planDeEquipoModal(t); };
     }
     var seg = SF.SEGMENTS[t.segment] || t.segment || '—';
     view.appendChild(el('<div class="ficha-head"><div class="fh-photo">' + ico('grid') + '</div><div class="fh-info"><h2>' + esc(t.name) + '</h2><p class="fh-sub">' + esc((SF.SPORTS[t.sport] || {}).label || '') + ' · ' + esc(seg) + ' · ' + esc(t.category || '') + '</p></div></div>'));
