@@ -529,6 +529,7 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 
 /* Tablas */
 .tbl{width:100%;border-collapse:collapse;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);overflow:hidden}
+.cal-scroll>.tbl{min-width:620px}
 .tbl th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-3);font-weight:600;padding:11px 14px;border-bottom:1px solid var(--line)}
 .tbl td{padding:11px 14px;border-top:1px solid var(--line);font-size:13.5px}
 .tbl tbody tr{cursor:pointer}
@@ -678,6 +679,14 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .modal-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:16px}
 /* Revisar un cuadrante es comparar dos columnas, y eso no cabe en 620 px. */
 .modal-xl{max-width:1040px}
+/* El estado de la IA, dicho por delante y no cuando ya has esperado. */
+.ia-chip{display:flex;align-items:center;gap:9px;font-size:12.5px;border-radius:10px;
+  padding:9px 12px;margin:10px 0 2px;border:1px solid var(--line);background:var(--bg);color:var(--ink-2)}
+.ia-punto{width:8px;height:8px;border-radius:50%;background:var(--ink-3);flex:0 0 auto}
+.ia-chip-si{background:#EAF4DD;border-color:#CBE3AE;color:#3B6D11}
+.ia-chip-si .ia-punto{background:#5C9A22}
+.ia-chip-no{background:var(--warn-bg);border-color:#EBD7A8;color:var(--warn-ink)}
+.ia-chip-no .ia-punto{background:var(--warn)}
 .drop-zona{border:2px dashed var(--line);border-radius:var(--r-lg);padding:22px 18px;text-align:center;
   background:var(--bg);margin:10px 0 4px;transition:.15s}
 .drop-zona.on{border-color:var(--purple);background:#F1EEFF}
@@ -951,6 +960,48 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .pf-azul{background:#E6F0FA;color:#1F4E79}
 .pf-morado{background:#EFEBFF;color:var(--purple-d)}
 .mini-row.pf-verde,.mini-row.pf-naranja,.mini-row.pf-azul,.mini-row.pf-morado{border-left:3px solid currentColor}
+
+/* --- La hoja de preparación física, con el formato del club --- */
+.pf-cab{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.pf-cab .pf-leyenda{margin-bottom:0}
+.pf-nota-cab{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+button.pf-ley{border:0;cursor:pointer;font-family:inherit}
+button.pf-ley:hover{filter:brightness(.96)}
+.pf-ley-al{opacity:.7;font-weight:400}
+.pf-ley-sin{background:#F0EFF4;color:var(--ink-3)}
+.pf-hoja{margin-bottom:14px;min-width:720px}
+.pf-hoja thead th{background:var(--ink);color:#fff;font-weight:600;border-bottom:none}
+.pf-hoja thead th.pf-diacol{background:transparent}
+.pf-hoja td.pf-diacol{background:var(--bg);border-right:1px solid var(--line);
+  text-align:center;vertical-align:middle;width:104px;text-transform:uppercase;
+  letter-spacing:.04em;font-size:12px}
+.pf-hoja .pf-hora{white-space:nowrap}
+.pf-hoja .pf-inst{color:var(--ink-2)}
+.pf-hoja .pf-x{width:34px}
+.pf-destacado{font-weight:700}
+.pf-operativa{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:12px 14px;margin:12px 0 4px;display:flex;gap:14px;align-items:flex-start;flex-wrap:wrap}
+.pf-op-t{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);
+  font-weight:600;flex:0 0 148px}
+.pf-operativa p{margin:0;font-size:13px;color:var(--ink-2);flex:1;min-width:200px}
+.pf-resumen{min-width:620px}
+.pf-resumen .pf-cob{white-space:nowrap}
+.pf-obj{width:auto;padding:2px 4px;font-size:12.5px;display:inline-block}
+.pf-kpis{display:flex;gap:10px;flex-wrap:wrap;margin:14px 0 4px}
+.pf-kpi{flex:1;min-width:132px;border-radius:var(--r-lg);padding:12px 14px}
+.pf-kpi b{display:block;font-size:24px;font-weight:800;line-height:1.1}
+.pf-kpi i{font-style:normal;font-size:12px;opacity:.85}
+.pf-kpi-tot{background:var(--ink);color:#fff}
+.pf-kpi-falta{background:var(--warn-bg);color:var(--warn-ink)}
+.pf-criterios{background:var(--bg);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:12px 14px;margin-top:12px}
+.pf-crit-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}
+.pf-criterios ul{margin:0;padding-left:18px}
+.pf-criterios li{font-size:12.5px;color:var(--ink-2);margin:3px 0}
+@media(max-width:560px){
+  .pf-op-t{flex:1 1 100%}
+  .pf-kpi{min-width:calc(50% - 5px)}
+}
 .eq-hor th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--ink-3);font-weight:500;padding:8px 10px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
 .eq-hor td{padding:9px 10px;border-bottom:1px solid var(--line);font-size:13px;vertical-align:middle}
 .eq-hor tr:last-child td{border-bottom:0}
@@ -2238,6 +2289,103 @@ SF.pfAvisos = function (lista) {
   }
   return out;
 };
+
+/* ===================== EL CUADRANTE REAL DEL CLUB =====================
+   Hasta aqui la preparacion fisica eran datos de ejemplo con nombres
+   inventados. Esto es la hoja de verdad de la coordinacion deportiva del CBJA:
+   primera semana de septiembre, 24 sesiones, tres preparadores, y solo los
+   equipos que llevan preparacion fisica (Nacionales, Especiales y Sub-22 Oro).
+
+   Se copia su formato y su vocabulario a proposito. Si la app enseña otra cosa
+   distinta a lo que tienen encima de la mesa, no la usan. */
+
+/* Los tres preparadores, con el color con el que salen en la hoja. El color
+   ahora es un dato de la persona y no su posicion en una lista: antes, dar de
+   alta a alguien nuevo le cambiaba el color a todos los demas, y el color es
+   justo lo que se usa para leer la hoja de un vistazo. */
+SF.PF_STAFF_REAL = [
+  { id: 's23', nombre: 'Miguel Tolé',  alias: 'Miguel',       color: 'naranja', rol: 'coord_pf' },
+  { id: 's4',  nombre: 'Miguel Ángel', alias: 'Miguel Ángel', color: 'azul' },
+  { id: 's25', nombre: 'Aarón',        alias: 'Aarón',        color: 'verde' }
+];
+
+/* Los equipos, con el nombre que usa el club. Se renombran los que ya existian
+   -conservando su id, asi que ningun jugador se mueve de sitio- y solo se
+   renombra si el nombre sigue siendo el de fabrica: si el club ya lo cambio,
+   manda el suyo.
+   `objetivo` es cuantas sesiones de preparacion fisica le tocan a la semana:
+   tres a los Nacionales y dos al resto, que es el criterio escrito en la hoja. */
+SF.PF_EQUIPOS_REAL = [
+  { id: 'cn1',  viejo: 'Nacional Masculino',          nuevo: '1.º Nacional Masc',         objetivo: 3 },
+  { id: 'cn2',  viejo: 'Nacional Femenino',           nuevo: '1.º Nacional Fem',          objetivo: 3 },
+  { id: 'ce11', viejo: 'Sub-22 Masculino',            nuevo: 'Sub-22 Oro Masc',           objetivo: 2 },
+  { id: 'ce12', viejo: 'Sub-22 Femenino',             nuevo: 'Sub-22 Oro Fem',            objetivo: 2 },
+  { id: 'cp3',  viejo: 'Junior Masculino Preferente', nuevo: 'Junior Especial 2009 Masc', objetivo: 2 },
+  { id: 'cp4',  viejo: 'Junior Femenino Preferente',  nuevo: 'Junior Especial 2009 Fem',  objetivo: 2 },
+  { id: 'cp1',  viejo: 'Cadete Masculino Preferente', nuevo: 'Cadete Especial 2011 Masc', objetivo: 2 },
+  { id: 'cp2',  viejo: 'Cadete Femenino Preferente',  nuevo: 'Cadete Especial 2012 Fem',  objetivo: 2 },
+  { id: 'ce1',  viejo: 'Cadete Femenino A',           nuevo: 'Cadete Especial 2011 Fem',  objetivo: 2 },
+  { id: 'ce3',  viejo: 'Infantil Femenino A',         nuevo: 'Infantil Especial 2013 Fem', objetivo: 2 },
+  { id: 'ce4',  viejo: 'Infantil Femenino B',         nuevo: 'Infantil Especial 2014 Fem', objetivo: 2 },
+  /* Este no existia: el club no tenia ningun infantil masculino dado de alta.
+     Se crea vacio, sin jugadores, para que su sesion no se quede huerfana. */
+  { id: 'cp5',  nuevo: 'Infantil Especial 2013 Masc', objetivo: 2, crear: true,
+    segment: 'masculino', category: 'Infantil' }
+];
+
+/* Como se llaman los pabellones en la hoja. El nombre largo no cabe en una
+   parrilla de seis columnas y el club los abrevia asi de todas formas. */
+SF.PF_ABREV_INST = { i1: 'Pabellón JA', i2: 'Cubierta JA', i3: 'San Gabriel', i4: 'Miguel Hernández' };
+
+/* Las 24 sesiones, tal cual la hoja. [dia, inicio, fin, salta a pista, equipo,
+   pabellon, preparador] */
+SF.PF_SESIONES_REAL = [
+  [0, '17:30', '18:20', '18:30', 'cp5',  'i1', 's25'],
+  [0, '18:45', '19:35', '19:45', 'cp3',  'i1', 's25'],
+  [0, '20:00', '20:50', '21:00', 'cn1',  'i1', 's23'],
+  [0, '21:15', '22:05', '22:15', 'cn2',  'i1', 's4'],
+
+  [1, '17:30', '18:20', '18:30', 'ce4',  'i1', 's23'],
+  [1, '17:30', '18:20', '18:30', 'cp2',  'i2', 's25'],
+  [1, '18:45', '19:35', '19:45', 'ce3',  'i1', 's23'],
+  [1, '18:45', '19:35', '19:45', 'cp1',  'i3', 's4'],
+  [1, '20:00', '20:50', '21:00', 'cn1',  'i1', 's23'],
+  [1, '20:00', '20:50', '21:00', 'cp4',  'i3', 's4'],
+  [1, '21:15', '22:05', '22:15', 'ce11', 'i1', 's23'],
+
+  [2, '17:30', '18:20', '18:30', 'ce4',  'i2', 's23'],
+  [2, '18:45', '19:35', '19:45', 'cp1',  'i1', 's23'],
+  [2, '18:45', '19:35', '19:45', 'ce1',  'i3', 's4'],
+  [2, '20:00', '20:50', '21:00', 'cn2',  'i1', 's23'],
+  [2, '20:00', '20:50', '21:00', 'cp5',  'i2', 's25'],
+  [2, '20:00', '20:50', '21:00', 'ce12', 'i3', 's4'],
+
+  [3, '17:30', '18:20', '18:30', 'cp2',  'i1', 's25'],
+  [3, '18:45', '19:35', '19:45', 'cp4',  'i1', 's4'],
+  [3, '20:00', '20:50', '21:00', 'cn1',  'i1', 's4'],
+  [3, '21:15', '22:05', '22:15', 'cn2',  'i1', 's4'],
+
+  [4, '17:30', '18:20', '18:30', 'ce3',  'i1', 's25'],
+  [4, '18:45', '19:35', '19:45', 'ce1',  'i1', 's25'],
+  [4, '20:00', '20:50', '21:00', 'cp3',  'i2', 's25']
+];
+
+/* Los criterios con los que esta hecho el reparto. Estaban al pie de la hoja y
+   no son decoracion: son las reglas que hay que respetar al mover una sesion.
+   Viven en los datos del club, editables, no en el codigo. */
+SF.PF_CRITERIOS_REAL = [
+  'Nacionales: 3 sesiones; Especiales/Sub-22 Oro: 2.',
+  'PF de 50 min; inicio exacto 60 min antes de pista.',
+  'Miguel Ángel: lunes y jueves en Juan de Austria.',
+  'Nacional Fem: Miguel Ángel salvo miércoles (Miguel).',
+  'Junior 2009 Fem: Miguel Ángel.',
+  'Sin solapamientos; reparto final 8–8–8.'
+];
+SF.PF_NOTA_REAL = 'PF: 50 min · inicio 60 min antes de pista';
+SF.PF_OPERATIVA_REAL = 'El viernes se prioriza Junior Especial 2009 Masc frente a Sub-22 Oro Fem ' +
+  'por continuidad con Aarón. Si se desea priorizar Sub-22 Oro Fem, puede sustituirse esa sesión ' +
+  'sin alterar el resto del cuadrante.';
+SF.PF_ALCANCE_REAL = 'Solo Nacionales, Especiales y Sub-22 Oro';
 
 /* Pabellones y sus pistas. Se editan en Configuración: un club alquila en
    sitios distintos y eso cambia cada temporada. */
@@ -4562,6 +4710,59 @@ SF.store = (function () {
       d._sueldos_v2 = true;
       write(d);
     }
+    /* El cuadrante de verdad del club. Trae los nombres de la hoja: los tres
+       preparadores con su color, los equipos que llevan preparacion fisica y
+       las 24 sesiones de la semana.
+       Es la migracion mas invasiva que hay aqui, asi que se contiene sola:
+         · un equipo se renombra SOLO si sigue con el nombre de fabrica. Si el
+           club ya lo cambio, manda el suyo.
+         · el id no se toca, asi que ningun jugador cambia de equipo.
+         · las sesiones solo se siembran si el cuadrante sigue siendo el de
+           ejemplo (8 sesiones, ninguna con un equipo de la hoja). Si alguien ya
+           ha metido las suyas, no se pisan. */
+    if (!d._pf_real_v1) {
+      (SF.PF_STAFF_REAL || []).forEach(function (r) {
+        var sf = (d.staff || []).filter(function (x) { return x.id === r.id; })[0];
+        if (!sf) return;
+        sf.full_name = r.nombre;
+        sf.alias = r.alias;
+        sf.pf_color = r.color;
+        if (r.rol) sf.role = r.rol;
+      });
+
+      (SF.PF_EQUIPOS_REAL || []).forEach(function (r) {
+        var t = (d.teams || []).filter(function (x) { return x.id === r.id; })[0];
+        if (!t && r.crear) {
+          t = { id: r.id, name: r.nuevo, sport: 'baloncesto', segment: r.segment,
+                category: r.category, programa: 'federado', coaches: [], wall: [], events: [] };
+          d.teams.push(t);
+        }
+        if (!t) return;
+        if (!r.crear && t.name === r.viejo) t.name = r.nuevo;
+        if (t.pf_objetivo == null) t.pf_objetivo = r.objetivo;
+      });
+
+      (d.academy.instalaciones || []).forEach(function (i) {
+        if (!i.abrev && SF.PF_ABREV_INST[i.id]) i.abrev = SF.PF_ABREV_INST[i.id];
+      });
+
+      var idsHoja = (SF.PF_EQUIPOS_REAL || []).map(function (r) { return r.id; });
+      var deEjemplo = !(d.pf || []).some(function (x) { return idsHoja.indexOf(x.team_id) >= 0; });
+      if (deEjemplo) {
+        d.pf = (SF.PF_SESIONES_REAL || []).map(function (x, k) {
+          return { id: 'pfr' + k, dia: x[0], hora_ini: x[1], hora_fin: x[2], hora_pista: x[3],
+                   team_id: x[4], inst: x[5], pista: '', prep_id: x[6] };
+        });
+      }
+
+      if (!d.academy.pf_criterios) d.academy.pf_criterios = (SF.PF_CRITERIOS_REAL || []).slice();
+      if (!d.academy.pf_nota) d.academy.pf_nota = SF.PF_NOTA_REAL;
+      if (!d.academy.pf_operativa) d.academy.pf_operativa = SF.PF_OPERATIVA_REAL;
+      if (!d.academy.pf_alcance) d.academy.pf_alcance = SF.PF_ALCANCE_REAL;
+
+      d._pf_real_v1 = true;
+      write(d);
+    }
     if (!d._planes_v1) {
       if (!d.academy.planes || !d.academy.planes.length) {
         d.academy.planes = JSON.parse(JSON.stringify(SF.PLANES_SEED || []));
@@ -5218,6 +5419,31 @@ SF.store = (function () {
       save(d);
     },
     pf: function () { return db().pf || []; },
+    pfTextos: function () {
+      var a = db().academy || {};
+      return { criterios: a.pf_criterios || [], nota: a.pf_nota || '',
+               operativa: a.pf_operativa || '', alcance: a.pf_alcance || '' };
+    },
+    pfTextosSet: function (patch) {
+      var d = db(); d.academy = d.academy || {};
+      if (patch.criterios != null) d.academy.pf_criterios = patch.criterios;
+      if (patch.nota != null) d.academy.pf_nota = patch.nota;
+      if (patch.operativa != null) d.academy.pf_operativa = patch.operativa;
+      if (patch.alcance != null) d.academy.pf_alcance = patch.alcance;
+      save(d);
+    },
+    /* Cuantas sesiones de preparacion fisica le tocan a la semana a un equipo.
+       Es lo que convierte una lista de sesiones en "esto esta cubierto" o
+       "aqui falta una". */
+    pfObjetivo: function (teamId) {
+      var t = (db().teams || []).filter(function (x) { return x.id === teamId; })[0];
+      return t && t.pf_objetivo != null ? +t.pf_objetivo : 0;
+    },
+    pfObjetivoSet: function (teamId, n) {
+      var d = db();
+      (d.teams || []).forEach(function (t) { if (t.id === teamId) t.pf_objetivo = +n || 0; });
+      save(d);
+    },
     pfAdd: function (fila) {
       var d = db(); d.pf = d.pf || [];
       d.pf.push(Object.assign({ id: 'pf' + Date.now() }, fila)); save(d);
@@ -9621,11 +9847,16 @@ window.SF = window.SF || {};
        lo que tienen encima de la mesa, no la usan. */
     /* La lista va dentro: las funciones se declaran antes de ejecutarse, pero
        una variable asignada más abajo todavía no existe cuando se llama. */
+    /* El color con el que sale un preparador en la hoja. Si lo tiene guardado
+       -que es lo normal- manda el suyo; el reparto por posicion queda solo de
+       respaldo. Antes iba siempre por posicion, y eso significa que dar de
+       alta a alguien nuevo le cambiaba el color a todos los demas: justo lo
+       que se usa para leer la hoja de un vistazo. */
     function colorPrep(id) {
       var COLORES = ['verde', 'naranja', 'azul', 'morado'];
-      var preps = SF.store.staff().filter(function (s) {
-        return SF.esPreparador(s);
-      });
+      var preps = SF.store.staff().filter(SF.esPreparador);
+      var yo = preps.filter(function (s) { return s.id === id; })[0];
+      if (yo && yo.pf_color) return yo.pf_color;
       var i = preps.map(function (s) { return s.id; }).indexOf(id);
       return COLORES[i >= 0 ? i % COLORES.length : 0];
     }
@@ -9639,21 +9870,11 @@ window.SF = window.SF || {};
     function pintaPF() {
       body.innerHTML = '';
       var puede = r.canEditPF;
+      var txt = SF.store.pfTextos();
       var lista = SF.store.pf().slice().sort(function (a, b) {
         return (a.dia - b.dia) || (a.hora_ini || '').localeCompare(b.hora_ini || '');
       });
-
-      /* --- Los preparadores, con su color, como la leyenda de la hoja --- */
-      var preps = SF.store.staff().filter(function (s) {
-        return SF.esPreparador(s);
-      });
-      if (preps.length) {
-        var leyenda = el('<div class="pf-leyenda"><span class="pf-ley-t">Preparadores</span></div>');
-        preps.forEach(function (s) {
-          leyenda.appendChild(el('<span class="pf-ley pf-' + colorPrep(s.id) + '">' + esc(s.full_name) + '</span>'));
-        });
-        body.appendChild(leyenda);
-      }
+      var preps = SF.store.staff().filter(SF.esPreparador);
 
       /* --- Lo que no cuadra, arriba del todo ---------------------------
          Un cuadrante no se mira para leerlo entero: se mira para ver si hay
@@ -9673,6 +9894,36 @@ window.SF = window.SF || {};
         });
         body.appendChild(caja);
       }
+
+      /* --- La cabecera de la hoja: leyenda de colores a la izquierda y la
+             regla de oro del club a la derecha. Es lo primero que mira quien
+             abre el papel. --- */
+      var cab = el('<div class="pf-cab"></div>');
+      if (preps.length) {
+        var leyenda = el('<div class="pf-leyenda"><span class="pf-ley-t">Preparadores</span></div>');
+        /* Los de la hoja primero y con su color; quien no tiene ninguna sesión
+           esta semana sale detrás y apagado. Es una leyenda: sirve para leer
+           los colores de la parrilla, así que quien no está en la parrilla no
+           puede ocupar el mismo sitio que quien sí. Pero tampoco desaparece,
+           porque sigue siendo del club y hay que poder darle trabajo. */
+        var enHoja = function (sp) { return lista.some(function (x) { return x.prep_id === sp.id; }); };
+        preps.slice().sort(function (a, b) {
+          return (enHoja(b) ? 1 : 0) - (enHoja(a) ? 1 : 0) || a.full_name.localeCompare(b.full_name);
+        }).forEach(function (sp) {
+          var dentro = enHoja(sp);
+          var chip = el('<' + (puede ? 'button' : 'span') + ' class="pf-ley ' +
+            (dentro ? 'pf-' + colorPrep(sp.id) : 'pf-ley-sin') + '">' +
+            esc(sp.full_name) + (sp.alias && sp.alias !== sp.full_name
+              ? ' <span class="pf-ley-al">«' + esc(sp.alias) + '»</span>' : '') +
+            (dentro ? '' : ' <span class="pf-ley-al">sin sesiones</span>') +
+            '</' + (puede ? 'button' : 'span') + '>');
+          if (puede) chip.onclick = function () { formPrep(sp); };
+          leyenda.appendChild(chip);
+        });
+        cab.appendChild(leyenda);
+      }
+      if (txt.nota) cab.appendChild(el('<span class="pf-nota-cab">' + esc(txt.nota) + '</span>'));
+      body.appendChild(cab);
 
       if (puede) {
         var barra = el('<div class="row-c" style="margin-bottom:12px"></div>');
@@ -9696,60 +9947,176 @@ window.SF = window.SF || {};
       }
 
       if (!lista.length) {
-        body.appendChild(el('<p class="hint">Todavía no hay sesiones de preparación física en el cuadrante.</p>'));
+        body.appendChild(el('<div class="empty-panel"><p>Todavía no hay sesiones de preparación física en el cuadrante.</p>' +
+          '<p class="hint">Se pueden añadir una a una, o cargar la hoja entera desde una foto, un Excel o un PDF.</p></div>'));
         return;
       }
 
-      var t = el('<div class="cal-scroll"><table class="cua-tab pf-tab"><thead><tr>' +
-        '<th>Día</th><th>Horario PF</th><th>Pista</th><th>Equipo</th><th>Preparador</th><th></th>' +
-        '</tr></thead><tbody></tbody></table></div>');
-      var tb = t.querySelector('tbody');
+      /* --- UNA TABLA POR DÍA -------------------------------------------
+         Como la hoja del club: el día a la izquierda abarcando su bloque, y
+         encima de cada bloque su propia fila de columnas. Se copia el formato
+         a propósito. Una sola tabla corrida de veinticuatro filas se lee
+         peor, y sobre todo se lee DISTINTO a lo que tienen impreso: si la app
+         enseña otra cosa, se vuelve al papel. */
+      function nombreInst(id) {
+        var i = (SF.store.instalaciones() || []).filter(function (x) { return x.id === id; })[0];
+        return i ? (i.abrev || i.nombre) : '';
+      }
 
-      var diaAnterior = null;
-      lista.forEach(function (x) {
-        var eq = SF.store.teamGet(x.team_id);
-        var pr = SF.store.staff().filter(function (s) { return s.id === x.prep_id; })[0];
-        /* El día se escribe una vez y se deja en blanco en las siguientes, como
-           en la hoja: así se ve de un golpe dónde empieza cada jornada. */
-        var primero = x.dia !== diaAnterior;
-        var tr = el('<tr' + (primero && diaAnterior !== null ? ' class="pf-corte"' : '') + '>' +
-          '<td class="pf-dia">' + (primero ? '<b>' + esc(SF.DIAS_SEM[x.dia] || '') + '</b>' : '') + '</td>' +
-          '<td>' + esc((x.hora_ini || '') + (x.hora_fin ? ' – ' + x.hora_fin : '')) + '</td>' +
-          '<td>' + esc(x.hora_pista || '—') + '</td>' +
-          '<td>' + esc(eq ? eq.name : '—') + '</td>' +
-          '<td class="pf-prep pf-' + colorPrep(x.prep_id) + '">' + esc(pr ? pr.full_name : '—') + '</td>' +
-          '<td>' + (puede ? '<span class="row-actions"><button class="lnk-del" data-x>' + ico('x') + '</button></span>' : '') + '</td></tr>');
-        diaAnterior = x.dia;
-        if (puede) tr.querySelector('[data-x]').onclick = function () {
-          SF.store.pfRemove(x.id); U.toast('Sesión quitada'); SF.router.render();
-        };
-        tb.appendChild(tr);
+      SF.DIAS_SEM.forEach(function (nombreDia, d) {
+        var delDia = lista.filter(function (x) { return x.dia === d; });
+        if (!delDia.length) return;
+
+        var t = el('<div class="cal-scroll"><table class="cua-tab pf-tab pf-hoja"><thead><tr>' +
+          '<th class="pf-diacol"></th><th>Horario PF</th><th>Pista</th><th>Equipo</th>' +
+          '<th>Instalación</th><th>Preparador</th>' + (puede ? '<th></th>' : '') +
+          '</tr></thead><tbody></tbody></table></div>');
+        var tb = t.querySelector('tbody');
+
+        delDia.forEach(function (x, k) {
+          var eq = SF.store.teamGet(x.team_id);
+          var pr = preps.filter(function (s) { return s.id === x.prep_id; })[0];
+          /* Los equipos con más carga semanal van en negrita, igual que en la
+             hoja: son los que la coordinación mira primero cuando algo se
+             mueve, porque son los que menos margen tienen. */
+          var destacado = eq && (+eq.pf_objetivo || 0) >= 3;
+          var tr = el('<tr></tr>');
+          if (k === 0) tr.appendChild(el('<td class="pf-diacol" rowspan="' + delDia.length + '"><b>' +
+            esc(nombreDia) + '</b></td>'));
+          tr.appendChild(el('<td class="pf-hora"><b>' + esc(x.hora_ini || '') +
+            (x.hora_fin ? ' – ' + esc(x.hora_fin) : '') + '</b></td>'));
+          tr.appendChild(el('<td>' + esc(x.hora_pista || '—') + '</td>'));
+          tr.appendChild(el('<td' + (destacado ? ' class="pf-destacado"' : '') + '>' +
+            esc(eq ? eq.name : '— equipo borrado —') + '</td>'));
+          tr.appendChild(el('<td class="pf-inst">' + esc(nombreInst(x.inst) || '—') +
+            (x.pista ? ' <span class="hint">· ' + esc(x.pista) + '</span>' : '') + '</td>'));
+          tr.appendChild(el('<td class="pf-prep pf-' + colorPrep(x.prep_id) + '">' +
+            esc(pr ? pr.full_name : '— sin asignar —') + '</td>'));
+          if (puede) {
+            var td = el('<td class="pf-x"></td>');
+            var bx = el('<button class="lnk-del" aria-label="Quitar la sesión">' + ico('x') + '</button>');
+            bx.onclick = function () { SF.store.pfRemove(x.id); U.toast('Sesión quitada'); SF.router.render(); };
+            td.appendChild(bx); tr.appendChild(td);
+          }
+          tb.appendChild(tr);
+        });
+        body.appendChild(t);
       });
-      body.appendChild(t);
+
       body.appendChild(el('<p class="hint">La columna «Pista» es la hora a la que el equipo salta a pista, ' +
         'después de la preparación física.</p>'));
 
-      /* --- Resumen de días por equipo --- */
-      body.appendChild(el('<p class="sec-label">Resumen de días de PF por equipo</p>'));
-      var rl = el('<div class="mini-list"></div>');
-      equipos.forEach(function (eq) {
-        var mias = lista.filter(function (x) { return x.team_id === eq.id; });
-        if (!mias.length) return;
-        rl.appendChild(el('<div class="mini-row"><span><b>' + esc(eq.name) + '</b></span><span class="hint">' +
-          esc(mias.map(function (x) { return SF.DIAS_SEM[x.dia]; }).join(', ')) + '</span></div>'));
+      if (txt.operativa) {
+        body.appendChild(el('<div class="pf-operativa"><span class="pf-op-t">Nota operativa</span>' +
+          '<p>' + esc(txt.operativa) + '</p></div>'));
+      }
+
+      /* --- RESUMEN POR EQUIPO ------------------------------------------
+         La pregunta de la coordinación no es "¿qué hay el martes?", que ya se
+         ve arriba, sino "¿me falta cubrir a alguien?". Por eso la cobertura no
+         es un recuento: es lo que tiene contra lo que le toca, y lo que no
+         llega se ve en rojo sin tener que sumarlo. */
+      body.appendChild(el('<p class="sec-label">Resumen por equipo</p>'));
+      var conPF = equipos.filter(function (eq) {
+        return lista.some(function (x) { return x.team_id === eq.id; }) || (+eq.pf_objetivo || 0) > 0;
+      }).sort(function (a, b) { return (+b.pf_objetivo || 0) - (+a.pf_objetivo || 0) || a.name.localeCompare(b.name); });
+
+      var horario = SF.store.horario();
+      /* La columna de sesiones en pista sale del cuadrante de ENTRENAMIENTOS.
+         Si ahi todavia no hay nada de estos equipos, no se pinta una columna
+         entera de rayas: se quita y se dice por que en una linea. Una columna
+         vacia no informa de nada y parece que la app esta rota. */
+      var hayPista = conPF.some(function (eq) {
+        return horario.some(function (h) { return h.team_id === eq.id; });
       });
-      body.appendChild(rl);
-      /* Los equipos que aun no tienen preparacion fisica no son una nota al
-         pie: son la lista de trabajo del coordinador. Estaban escritos como
-         una frase corrida con veintitres nombres dentro, que es la forma mas
-         segura de que nadie la lea. Ahora es un numero, y detras la lista
-         partida por secciones, que es como se reparte el trabajo. */
-      var sinPF = equipos.filter(function (eq) { return !lista.some(function (x) { return x.team_id === eq.id; }); });
+      var tr2 = el('<div class="cal-scroll"><table class="cua-tab pf-tab pf-resumen"><thead><tr>' +
+        '<th>Equipo</th><th>Días de PF</th>' + (hayPista ? '<th>Sesiones en pista</th>' : '') +
+        '<th>Cobertura</th><th>Estado</th>' +
+        '</tr></thead><tbody></tbody></table></div>');
+      var tb2 = tr2.querySelector('tbody');
+
+      conPF.forEach(function (eq) {
+        var mias = lista.filter(function (x) { return x.team_id === eq.id; });
+        var obj = +eq.pf_objetivo || 0;
+        var pista = horario.filter(function (h) { return h.team_id === eq.id; }).length;
+        var completa = obj > 0 && mias.length >= obj;
+        var destacado = obj >= 3;
+        var fila = el('<tr>' +
+          '<td' + (destacado ? ' class="pf-destacado"' : '') + '>' + esc(eq.name) + '</td>' +
+          '<td class="hint">' + esc(mias.map(function (x) { return SF.DIAS_SEM[x.dia]; })
+            .filter(function (v, i, a) { return a.indexOf(v) === i; }).join(', ') || '—') + '</td>' +
+          (hayPista ? '<td>' + (pista || '—') + '</td>' : '') +
+          '<td class="pf-cob"></td>' +
+          '<td>' + (obj === 0 ? '<span class="tag tag-gray">sin objetivo</span>'
+            : completa ? '<span class="tag tag-green">Completa</span>'
+            : '<span class="tag tag-warn">Parcial</span>') + '</td></tr>');
+        var cob = fila.querySelector('.pf-cob');
+        cob.appendChild(el('<b>' + mias.length + '</b>'));
+        cob.appendChild(document.createTextNode(' / '));
+        if (puede) {
+          /* El objetivo se toca aquí y no en la ficha del equipo porque es
+             aquí donde se ve que no cuadra. */
+          var sel = el('<select class="pf-obj" aria-label="Sesiones que le tocan">' +
+            [0, 1, 2, 3, 4, 5].map(function (n) {
+              return '<option value="' + n + '"' + (n === obj ? ' selected' : '') + '>' + n + '</option>';
+            }).join('') + '</select>');
+          sel.onchange = function () { SF.store.pfObjetivoSet(eq.id, sel.value); SF.router.render(); };
+          cob.appendChild(sel);
+        } else {
+          cob.appendChild(el('<span>' + obj + '</span>'));
+        }
+        tb2.appendChild(fila);
+      });
+      body.appendChild(tr2);
+      if (!hayPista) body.appendChild(el('<p class="hint">Cuántas veces entrena en pista cada equipo saldría aquí, ' +
+        'pero el cuadrante de entrenamientos todavía no tiene a estos equipos.</p>'));
+
+      /* --- Reparto de carga y criterios --------------------------------
+         Los minutos y no solo el número de sesiones: cuatro de 50 no son dos
+         de 90. Es la cifra con la que se defiende un reparto. */
+      var kpis = el('<div class="pf-kpis"></div>');
+      kpis.appendChild(el('<div class="pf-kpi pf-kpi-tot"><b>' + lista.length + '</b>' +
+        '<i>' + (lista.length === 1 ? 'sesión' : 'sesiones') + ' esta semana</i></div>'));
+      preps.forEach(function (sp) {
+        var suyas = lista.filter(function (x) { return x.prep_id === sp.id; });
+        if (!suyas.length) return;
+        var min = suyas.reduce(function (a, x) { return a + minutos(x.hora_ini, x.hora_fin); }, 0);
+        kpis.appendChild(el('<div class="pf-kpi pf-' + colorPrep(sp.id) + '"><b>' + suyas.length + '</b>' +
+          '<i>' + esc(sp.full_name) + (min ? ' · ' + min + ' min' : '') + '</i></div>'));
+      });
+      var huerfanas = lista.filter(function (x) { return !x.prep_id; }).length;
+      if (huerfanas) kpis.appendChild(el('<div class="pf-kpi pf-kpi-falta"><b>' + huerfanas + '</b>' +
+        '<i>sin preparador</i></div>'));
+      body.appendChild(kpis);
+
+      /* Los criterios no son decoración: son las reglas que hay que respetar
+         al mover una sesión, y por eso viven al lado del cuadrante y no en la
+         cabeza de una persona. */
+      var cajaCrit = el('<div class="pf-criterios"><div class="pf-crit-top"><span class="pf-op-t">Criterios de organización</span></div></div>');
+      var ul = el('<ul></ul>');
+      (txt.criterios || []).forEach(function (c) { ul.appendChild(el('<li>' + esc(c) + '</li>')); });
+      if (!(txt.criterios || []).length) ul.appendChild(el('<li class="hint">Sin criterios escritos todavía.</li>'));
+      cajaCrit.appendChild(ul);
+      if (puede) {
+        var bEd = el('<button class="lnk">editar los textos de la hoja</button>');
+        bEd.onclick = function () { formTextos(txt); };
+        cajaCrit.querySelector('.pf-crit-top').appendChild(bEd);
+      }
+      body.appendChild(cajaCrit);
+
+      /* --- Equipos sin preparación física ------------------------------
+         No es una nota al pie: es la lista de trabajo del coordinador.
+         Estaba escrita como una frase corrida con veintitrés nombres dentro,
+         que es la forma más segura de que nadie la lea. */
+      var sinPF = equipos.filter(function (eq) {
+        return !lista.some(function (x) { return x.team_id === eq.id; }) && !(+eq.pf_objetivo || 0);
+      });
       if (sinPF.length) {
-        var caja = el('<div class="mini-list" style="margin-top:10px"></div>');
-        var fila = el('<div class="mini-row"><span><b>' + sinPF.length + '</b> ' +
-          (sinPF.length === 1 ? 'equipo todavía sin preparación física' : 'equipos todavía sin preparación física') +
-          '</span><span class="row-actions"></span></div>');
+        var caja2 = el('<div class="mini-list" style="margin-top:14px"></div>');
+        var fila2 = el('<div class="mini-row"><span><b>' + sinPF.length + '</b> ' +
+          (sinPF.length === 1 ? 'equipo sin preparación física' : 'equipos sin preparación física') +
+          '<br><span class="hint">' + esc(txt.alcance || 'Ninguno de ellos lleva preparación física asignada') +
+          '</span></span><span class="row-actions"></span></div>');
         var bVer = el('<button class="lnk">ver cuáles</button>');
         var det = el('<div style="display:none"></div>');
         Object.keys(SF.SEGMENTS).forEach(function (seg) {
@@ -9764,29 +10131,79 @@ window.SF = window.SF || {};
           det.style.display = abierto ? 'none' : '';
           bVer.textContent = abierto ? 'ver cuáles' : 'ocultar';
         };
-        fila.querySelector('.row-actions').appendChild(bVer);
-        caja.appendChild(fila); caja.appendChild(det);
-        body.appendChild(caja);
+        fila2.querySelector('.row-actions').appendChild(bVer);
+        caja2.appendChild(fila2); caja2.appendChild(det);
+        body.appendChild(caja2);
       }
+    }
 
-      /* --- Control de carga. La pregunta de quien reparte no es "¿quién da
-             qué?", sino "¿está repartido parejo?". Por eso los minutos y no
-             solo el número de sesiones: cuatro de 50 no son dos de 90. --- */
-      body.appendChild(el('<p class="sec-label">Criterios de organización y resumen de carga</p>'));
-      var cl = el('<div class="mini-list"></div>');
-      cl.appendChild(el('<div class="mini-row"><span>Sesiones totales de la semana</span>' +
-        '<span class="hint">' + lista.length + (lista.length === 1 ? ' sesión' : ' sesiones') + '</span></div>'));
-      preps.forEach(function (sp) {
-        var suyas = lista.filter(function (x) { return x.prep_id === sp.id; });
-        var min = suyas.reduce(function (a, x) { return a + minutos(x.hora_ini, x.hora_fin); }, 0);
-        cl.appendChild(el('<div class="mini-row pf-' + colorPrep(sp.id) + '"><span>Carga de ' + esc(sp.full_name) + '</span>' +
-          '<span class="hint">' + suyas.length + (suyas.length === 1 ? ' sesión' : ' sesiones') +
-          (min ? ' · ' + min + ' minutos' : '') + '</span></div>'));
-      });
-      var sinPrep = lista.filter(function (x) { return !x.prep_id; }).length;
-      if (sinPrep) cl.appendChild(el('<div class="mini-row"><span>Sin preparador asignado</span>' +
-        '<span class="tag tag-warn">' + sinPrep + '</span></div>'));
-      body.appendChild(cl);
+    /* Como sale un preparador en la hoja: su color y el nombre con el que lo
+       escriben. Se edita AQUI, en la leyenda, y no escondido en su ficha de
+       personal, porque es aqui donde se nota: es la leyenda la que se mira
+       para leer la parrilla, y el apodo es lo que hace que al cargar una foto
+       "Miguel" no se confunda con "Miguel Angel". */
+    function formPrep(sp) {
+      var COLORES = [['azul', 'Azul'], ['naranja', 'Naranja'], ['verde', 'Verde'], ['morado', 'Morado']];
+      var box = el('<div><div class="form-grid">' +
+        '<div class="frow" style="grid-column:1/-1"><label>Cómo se le escribe en la hoja</label>' +
+        '<input id="p-al" value="' + esc(sp.alias || '') + '" placeholder="' + esc((sp.full_name || '').split(' ')[0]) + '">' +
+        '<p class="hint">El nombre corto que usa la coordinación. Al cargar una foto o un Excel, ' +
+        'es lo que permite reconocerle sin confundirle con otro que se llame parecido.</p></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Color en la hoja</label><select id="p-co">' +
+        COLORES.map(function (c) {
+          return '<option value="' + c[0] + '"' + (colorPrep(sp.id) === c[0] ? ' selected' : '') + '>' + c[1] + '</option>';
+        }).join('') + '</select></div></div></div>');
+      var prev = el('<p style="margin-top:10px"></p>');
+      function pinta() {
+        prev.innerHTML = '<span class="pf-ley pf-' + esc(box.querySelector('#p-co').value) + '">' +
+          esc(sp.full_name) + '</span>';
+      }
+      box.querySelector('#p-co').onchange = pinta; pinta();
+      box.appendChild(prev);
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+        '<button class="btn btn-primary">Guardar</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        SF.store.staffUpdate(sp.id, {
+          alias: box.querySelector('#p-al').value.trim(),
+          pf_color: box.querySelector('#p-co').value
+        }, 'Cambiado cómo sale en el cuadrante de preparación física');
+        U.closeModal(); U.toast('Guardado'); SF.router.render();
+      };
+      box.appendChild(foot);
+      U.modal(sp.full_name + ' en la hoja', box);
+    }
+
+    /* Los textos de la hoja: la regla de la cabecera, la nota operativa y los
+       criterios. Son del club, cambian cada temporada, y no tienen por qué
+       pasar por nosotros para cambiar. */
+    function formTextos(txt) {
+      var box = el('<div><div class="form-grid">' +
+        '<div class="frow" style="grid-column:1/-1"><label>Regla de la cabecera</label>' +
+        '<input id="t-nota" value="' + esc(txt.nota || '') + '" placeholder="PF: 50 min · inicio 60 min antes de pista"></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Alcance del cuadrante</label>' +
+        '<input id="t-alc" value="' + esc(txt.alcance || '') + '" placeholder="Solo Nacionales, Especiales y Sub-22 Oro"></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Nota operativa</label>' +
+        '<textarea id="t-op" rows="3">' + esc(txt.operativa || '') + '</textarea></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Criterios de organización</label>' +
+        '<textarea id="t-cri" rows="7">' + esc((txt.criterios || []).join('\n')) + '</textarea>' +
+        '<p class="hint">Uno por línea.</p></div>' +
+        '</div></div>');
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+        '<button class="btn btn-primary">Guardar</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        SF.store.pfTextosSet({
+          nota: box.querySelector('#t-nota').value.trim(),
+          alcance: box.querySelector('#t-alc').value.trim(),
+          operativa: box.querySelector('#t-op').value.trim(),
+          criterios: box.querySelector('#t-cri').value.split('\n')
+            .map(function (x) { return x.trim(); }).filter(Boolean)
+        });
+        U.closeModal(); U.toast('Textos guardados'); SF.router.render();
+      };
+      box.appendChild(foot);
+      U.modal('Textos de la hoja', box);
     }
 
     function formPF() {
@@ -9884,6 +10301,17 @@ window.SF = window.SF || {};
        azar, no. */
     function mejor(txt, lista, campo) {
       if (!txt) return { id: '', score: 0 };
+      /* El apodo manda. En este club hay un Miguel y un Miguel Ángel, y la
+         hoja escribe "Miguel" a secas: comparando por parecido eso empata con
+         los dos y se quedaria en blanco siempre. Cada persona lleva el nombre
+         con el que sale en la hoja (`alias`), y si coincide exacto no hay nada
+         que adivinar. Es la diferencia entre una regla lista y conocer al
+         club. */
+      var clavado = lista.filter(function (x) {
+        return x.alias && SF.norm(x.alias) === SF.norm(txt);
+      });
+      if (clavado.length === 1) return { id: clavado[0].id, score: 1 };
+
       var puntos = lista.map(function (x) { return { id: x.id, score: parecido(txt, x[campo]) }; })
         .sort(function (a, b) { return b.score - a.score; });
       var top = puntos[0] || { id: '', score: 0 };
@@ -9905,6 +10333,30 @@ window.SF = window.SF || {};
         box.innerHTML = '';
         box.appendChild(el('<p class="hint">Sube la hoja tal cual la tengas: una foto o captura de WhatsApp, ' +
           'un Excel, un PDF o un Word. La app la lee y te la enseña ANTES de tocar nada, para que la corrijas.</p>'));
+
+        /* Se pregunta a la IA si está ahí ANTES de que nadie arrastre nada.
+           Que alguien suba una foto de cuatro megas, espere, y entonces le
+           digan que no hay quien la lea es la peor forma de enterarse. */
+        var chip = el('<div class="ia-chip ia-chip-mirando"><span class="ia-punto"></span>' +
+          '<span>Comprobando si la IA está conectada…</span></div>');
+        box.appendChild(chip);
+        fetch('/api/cuadrante').then(function (r) { return r.json(); })
+          .catch(function () { return null; })
+          .then(function (st) {
+            chip.classList.remove('ia-chip-mirando');
+            if (st && st.ia) {
+              chip.classList.add('ia-chip-si');
+              chip.querySelector('span:last-child').innerHTML =
+                '<b>IA conectada</b> · ' + esc(st.proveedor) + ' · lee la foto y ' +
+                (st.pdf ? 'el PDF' : '<span class="hint">el PDF no, con este proveedor</span>');
+            } else {
+              chip.classList.add('ia-chip-no');
+              chip.querySelector('span:last-child').innerHTML =
+                '<b>La IA no está conectada</b>, así que no puedo leer una foto ni un PDF. ' +
+                'Se activa en Vercel → Settings → Environment Variables con <b>GEMINI_API_KEY</b> ' +
+                '(Google, capa gratuita), <b>ANTHROPIC_API_KEY</b> o <b>OPENAI_API_KEY</b>.';
+            }
+          });
 
         var zona = el('<div class="drop-zona"><p><b>Arrastra aquí el archivo</b></p>' +
           '<p class="hint">Foto o captura · Excel o CSV · PDF · Word</p></div>');
@@ -12371,7 +12823,13 @@ window.SF = window.SF || {};
       tr.onclick = function () { location.hash = '#/staff/' + s.id; };
       tb.appendChild(tr);
     });
-    view.appendChild(t);
+    /* Seis columnas no caben en un movil, y la tabla se salia de la pantalla
+       arrastrando la pagina entera con ella: el menu se descolocaba y el
+       cabecero se iba. Metida en su propio carril, la tabla se desliza sola y
+       la pagina se queda quieta. */
+    var env = el('<div class="cal-scroll"></div>');
+    env.appendChild(t);
+    view.appendChild(env);
   };
 
   pages['mi-ficha'] = function (view) {
