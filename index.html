@@ -2905,6 +2905,59 @@ SF.planCargos = function (plan, p, opts) {
   return out;
 };
 
+/* ===================== AVISOS DE COBRO =====================
+   Reclamar una cuota es la tarea mas repetitiva del club y la que mas se deja
+   pasar: cuanto mas tarde se avisa, mas incomodo es y menos se cobra.
+
+   DOS DECISIONES QUE NO SON OBVIAS Y QUE CONVIENE NO DESHACER:
+
+   1. UN MENSAJE POR FAMILIA, NUNCA UNO AL GRUPO. Es tentador mandar un aviso
+      al equipo entero y ahorrarse el reparto. No se hace: un hilo compartido
+      donde pone quien debe dinero enseña la situacion economica de cada
+      familia a las demas. Eso no se arregla despues.
+
+   2. EL AVISO DICE CUANTO Y DE QUE. Un "tienes una cuota pendiente" obliga a
+      la familia a preguntar cuanto, y eso genera trabajo en vez de ahorrarlo.
+      El mensaje lleva el importe y los meses concretos. */
+
+SF.deudaDetalle = function (p) {
+  var items = SF.finItems(p).filter(function (i) {
+    return i.status === 'pendiente' || i.status === 'vencido';
+  });
+  return {
+    total: items.reduce(function (a, i) { return a + (+i.amount || 0); }, 0),
+    vencido: items.filter(function (i) { return i.status === 'vencido'; })
+                  .reduce(function (a, i) { return a + (+i.amount || 0); }, 0),
+    conceptos: items.map(function (i) { return i.label; }),
+    n: items.length
+  };
+};
+
+/* Cuantos dias hace que se le aviso. null si nunca. */
+SF.diasDesdeAviso = function (p) {
+  var f = p.finance && p.finance.avisado_at;
+  if (!f) return null;
+  var ms = Date.now() - new Date(f).getTime();
+  return Math.floor(ms / 864e5);
+};
+
+SF.PLANTILLA_AVISO =
+  'Hola: os escribimos del club por la cuota de {jugador}.\n\n' +
+  'Queda pendiente {importe} € ({conceptos}).\n\n' +
+  'Podeis pagarlo por los medios que teneis en el portal. Si ya lo habeis ' +
+  'hecho o hay cualquier problema, respondednos por aqui y lo miramos.\n\n' +
+  'Gracias.';
+
+SF.textoAviso = function (plantilla, p) {
+  var d = SF.deudaDetalle(p);
+  var conceptos = d.conceptos.slice(0, 4).join(', ') + (d.conceptos.length > 4 ? ' y ' + (d.conceptos.length - 4) + ' mas' : '');
+  return String(plantilla)
+    .replace(/\{jugador\}/g, p.full_name || '')
+    .replace(/\{importe\}/g, d.total)
+    .replace(/\{conceptos\}/g, conceptos || 'cuotas pendientes')
+    .replace(/\{club\}/g, (SF.store.academy() || {}).name || '');
+};
+
 /* ===================== HERMANOS =====================
    El descuento de hermano depende de `siblings_position`, que hoy se rellena
    a mano. Con 900 jugadores nadie lo rellena bien, y el club acaba cobrando
@@ -4258,6 +4311,44 @@ SF.store = (function () {
       return res;
     },
 
+    /* Manda un aviso de cobro a cada familia. UNO POR FAMILIA: nunca un hilo
+       comun, porque enseñaria a cada familia lo que deben las demas.
+       Devuelve cuantos salieron. */
+    avisosCobro: function (playerIds, plantilla) {
+      var d = db(), n = 0;
+      var yo = (d.staff || []).filter(function (s) { return s.role === d.role; })[0];
+      var de = { kind: 'staff', id: yo ? yo.id : d.role,
+                 name: yo ? yo.full_name : ((SF.USERS || {})[d.role] || d.role),
+                 role: (SF.ROLES[d.role] || {}).label || d.role };
+      var ahora = new Date().toISOString();
+
+      (playerIds || []).forEach(function (id) {
+        var p = (d.players || []).filter(function (x) { return x.id === id; })[0];
+        if (!p) return;
+        var det = SF.deudaDetalle(p);
+        if (!det.total) return;          // si ya no debe, no se le molesta
+        d.convs = d.convs || [];
+        d.convs.push({
+          id: 'av' + Date.now() + Math.floor(Math.random() * 10000),
+          player_id: p.id, team_id: p.team_id || null,
+          subject: 'Cuota pendiente · ' + det.total + ' €',
+          opened_by: de, to_staff_ids: [], to_staff: null,
+          supervisores: (SF.supervisoresDe(p.team_id) || []).map(function (x) { return x.id; }),
+          created_at: ahora, closed_at: null,
+          motivo: 'aviso_cobro',
+          para: 'familia',                 // sin esto, la familia no lo veria
+          messages: [{ at: ahora, by: de, text: SF.textoAviso(plantilla || SF.PLANTILLA_AVISO, p),
+                       read_by: [de.id] }]
+        });
+        p.finance = p.finance || {};
+        p.finance.avisado_at = ahora;
+        p.finance.avisado_importe = det.total;
+        n++;
+      });
+      save(d);
+      return n;
+    },
+
     /* Sella la posicion de hermano de un grupo. Solo escribe eso: no toca
        cargos ya generados, porque bajar una cuota es una decision aparte. */
     hermanosAplicar: function (pares) {
@@ -4822,7 +4913,13 @@ SF.store = (function () {
           /* El jugador solo ve los hilos que abrió él: los de sus padres con
              el club no son suyos. */
           if (kind === 'jugador') return c.opened_by && c.opened_by.kind === 'jugador';
-          if (kind === 'familia') return c.opened_by && c.opened_by.kind === 'familia';
+          /* La familia ve los hilos que abrio ella, y ADEMAS los que el club le
+             dirige a ella explicitamente (`para: 'familia'`), como el aviso de
+             cuota pendiente.
+             Es una lista blanca a proposito: si bastara con que lo abriera el
+             staff, tambien le llegarian las conversaciones internas sobre su
+             hijo, que no son suyas. */
+          if (kind === 'familia') return c.opened_by && (c.opened_by.kind === 'familia' || c.para === 'familia');
           return true;
         })
         .sort(function (a, b) { return (b.messages[b.messages.length - 1].at).localeCompare(a.messages[a.messages.length - 1].at); });
@@ -9755,13 +9852,15 @@ window.SF = window.SF || {};
 
     function filaJugador(p) {
       var t = SF.finTotals(p), d = debe(p), e = estadoDe(p);
-      var r = SF.planDe(p);
+      var r = SF.planDe(p), dias = SF.diasDesdeAviso(p);
       var tr = el('<div class="mini-row" style="cursor:pointer">' +
         '<span><b>' + esc(p.full_name) + '</b>' +
         (r.plan ? ' <span class="hint">· ' + esc(r.plan.nombre) + '</span>' : '') +
         (p.siblings_position && p.siblings_position !== 'Primero'
           ? ' <span class="tag tag-gray">' + esc(p.siblings_position) + ' hermano</span>' : '') +
-        '<br><span class="hint">pagado ' + t.paid + ' € de ' + (t.paid + d) + ' €</span></span>' +
+        '<br><span class="hint">pagado ' + t.paid + ' € de ' + (t.paid + d) + ' €' +
+        (dias !== null && d > 0 ? ' · avisado hace ' + dias + (dias === 1 ? ' día' : ' días') : '') +
+        '</span></span>' +
         '<span class="row-actions">' + (d ? '<b>' + d + ' €</b> ' : '') + etiqueta(e) + '</span></div>');
       tr.onclick = function () { SF._openTab = 'finanzas'; location.hash = '#/jugador/' + p.id; };
       return tr;
@@ -9806,26 +9905,49 @@ window.SF = window.SF || {};
       grupos.sort(function (a, b) { return b.deuda - a.deuda || a.nombre.localeCompare(b.nombre, 'es'); });
 
       var totalDeuda = grupos.reduce(function (a, g) { return a + g.deuda; }, 0);
-      zona.appendChild(el('<p class="hint" style="margin:4px 0 10px"><b>' + lista.length + '</b> de ' + ps.length +
+      var resumen = el('<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:4px 0 10px">' +
+        '<p class="hint" style="flex:1;margin:0"><b>' + lista.length + '</b> de ' + ps.length +
         ' jugadores · ' + grupos.length + (grupos.length === 1 ? ' equipo' : ' equipos') +
-        (totalDeuda ? ' · <b>' + totalDeuda + ' €</b> por cobrar' : '') + '</p>'));
+        (totalDeuda ? ' · <b>' + totalDeuda + ' €</b> por cobrar' : '') + '</p></div>');
+      if (puede && totalDeuda) {
+        var deudores = lista.filter(function (x) { return debe(x) > 0; });
+        var bTodos = el('<button class="btn btn-sm btn-primary">' + ico('bell') +
+          'Avisar a los ' + deudores.length + '</button>');
+        bTodos.onclick = function () { avisoCobroModal(deudores, 'Avisar a quien debe'); };
+        resumen.appendChild(bTodos);
+      }
+      zona.appendChild(resumen);
 
       grupos.forEach(function (g) {
         /* Al buscar se abren todos: si no, hay que ir abriendo equipos a
            ciegas para encontrar al que buscabas. */
         var abierto = !!filtro.texto || !plegados[g.id];
         var card = el('<div class="card" style="padding:12px 14px"></div>');
-        var cab = el('<button style="all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%">' +
+        var linea = el('<div style="display:flex;align-items:center;gap:8px"></div>');
+        var cab = el('<button style="all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;flex:1">' +
           '<span style="flex:1"><b>' + esc(g.nombre) + '</b> <span class="hint">· ' + g.jug.length +
           (g.jug.length === 1 ? ' jugador' : ' jugadores') + '</span></span>' +
           (g.deuda ? '<span class="tag tag-danger">' + g.deuda + ' €</span>' : '') +
           '<span class="hint" style="margin-left:8px">' + (abierto ? '▴' : '▾') + '</span></button>');
+        linea.appendChild(cab);
+        /* Avisar a los de ESTE equipo. El boton va en su cabecera porque es
+           donde esta la decision: "a estos cuatro hay que reclamarles". */
+        if (puede && g.deuda) {
+          var conDeuda = g.jug.filter(function (x) { return debe(x) > 0; });
+          var bAv = el('<button class="btn btn-sm btn-light" title="Avisar a estas familias">' +
+            ico('bell') + 'Avisar (' + conDeuda.length + ')</button>');
+          bAv.onclick = function (e2) {
+            e2.stopPropagation();
+            avisoCobroModal(conDeuda, 'Avisar · ' + g.nombre);
+          };
+          linea.appendChild(bAv);
+        }
         var cuerpo = el('<div class="mini-list" style="margin-top:8px"></div>');
         cuerpo.hidden = !abierto;
         g.jug.sort(function (a, b) { return debe(b) - debe(a) || String(a.full_name).localeCompare(String(b.full_name), 'es'); });
         g.jug.forEach(function (p) { cuerpo.appendChild(filaJugador(p)); });
         cab.onclick = function () { plegados[g.id] = !cuerpo.hidden; pintar(); };
-        card.appendChild(cab); card.appendChild(cuerpo);
+        card.appendChild(linea); card.appendChild(cuerpo);
         zona.appendChild(card);
       });
     }
@@ -9862,6 +9984,91 @@ window.SF = window.SF || {};
     };
     var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
     U.modal('Plan de pago de ' + esc(t.name), w);
+  }
+
+  /* Aviso de cobro. Enseña a quien va, cuanto debe cada uno y con que texto,
+     ANTES de mandar nada: son mensajes a familias reales sobre dinero, y de
+     eso no se sale con un "deshacer". */
+  function avisoCobroModal(jugadores, titulo) {
+    var conDeuda = jugadores.filter(function (p) { return SF.deudaDetalle(p).total > 0; });
+    if (!conDeuda.length) { U.toast('Ninguno de estos debe nada'); return; }
+
+    /* A quien se aviso hace poco se le deja fuera por defecto. Reclamar dos
+       veces en la misma semana no cobra antes: molesta. */
+    var RECIENTE = 7;
+    var marcados = {};
+    conDeuda.forEach(function (p) {
+      var d = SF.diasDesdeAviso(p);
+      marcados[p.id] = (d === null || d >= RECIENTE);
+    });
+
+    var w = el('<div></div>');
+    var plantilla = el('<textarea rows="8" style="width:100%;font:inherit"></textarea>');
+    plantilla.value = SF.PLANTILLA_AVISO;
+
+    w.appendChild(el('<p class="hint">Se manda <b>un mensaje privado a cada familia</b>, no uno al grupo: ' +
+      'un hilo común enseñaría a cada familia lo que deben las demás.</p>'));
+    w.appendChild(el('<p class="hint">Llega al <b>Portal Family</b> de cada jugador, y la familia puede responder ahí. ' +
+      '<b>No sale por correo ni por WhatsApp todavía</b>: lo verán cuando entren en la app.</p>'));
+
+    var lista = el('<div class="mini-list" style="margin:12px 0;max-height:260px;overflow:auto"></div>');
+    conDeuda.forEach(function (p) {
+      var d = SF.deudaDetalle(p), dias = SF.diasDesdeAviso(p);
+      var row = el('<label class="mini-row" style="cursor:pointer">' +
+        '<span><input type="checkbox" data-id="' + p.id + '"' + (marcados[p.id] ? ' checked' : '') + '> ' +
+        '<b>' + esc(p.full_name) + '</b> <span class="hint">· ' + esc(teamName(p) || 'sin equipo') + '</span>' +
+        (dias !== null ? '<br><span class="hint">avisado hace ' + dias + (dias === 1 ? ' día' : ' días') +
+          (dias < RECIENTE ? ' · se deja fuera' : '') + '</span>' : '') +
+        '</span><span class="row-actions"><b>' + d.total + ' €</b>' +
+        (d.vencido ? ' <span class="tag tag-danger">' + d.vencido + ' € vencido</span>' : '') + '</span></label>');
+      row.querySelector('input').onchange = function () { marcados[p.id] = this.checked; refrescar(); };
+      lista.appendChild(row);
+    });
+    w.appendChild(lista);
+
+    w.appendChild(el('<p class="sec-label">Mensaje</p>'));
+    w.appendChild(plantilla);
+    w.appendChild(el('<p class="hint">Puedes usar <b>{jugador}</b>, <b>{importe}</b>, <b>{conceptos}</b> y <b>{club}</b>: ' +
+      'se sustituyen por los datos de cada familia.</p>'));
+
+    var previa = el('<div class="card" style="background:var(--bg);margin-top:10px"></div>');
+    w.appendChild(el('<p class="sec-label" style="margin-top:12px">Así lo recibirá la primera familia</p>'));
+    w.appendChild(previa);
+
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+      '<button class="btn btn-primary"></button></div>');
+    w.appendChild(foot);
+
+    function seleccionados() {
+      return conDeuda.filter(function (p) { return marcados[p.id]; });
+    }
+    function refrescar() {
+      var sel = seleccionados();
+      var suma = sel.reduce(function (a, p) { return a + SF.deudaDetalle(p).total; }, 0);
+      foot.children[1].textContent = sel.length ? ('Enviar ' + sel.length + (sel.length === 1 ? ' aviso' : ' avisos')) : 'Nadie seleccionado';
+      foot.children[1].disabled = !sel.length;
+      var uno = sel[0] || conDeuda[0];
+      previa.innerHTML = '<p class="hint">Para la familia de <b>' + esc(uno.full_name) + '</b> · reclama <b>' +
+        SF.deudaDetalle(uno).total + ' €</b></p><p style="white-space:pre-wrap;margin-top:8px">' +
+        esc(SF.textoAviso(plantilla.value, uno)) + '</p>';
+      if (sel.length) {
+        previa.appendChild(el('<p class="hint" style="margin-top:10px">En total se reclaman <b>' + suma + ' €</b> a ' +
+          sel.length + (sel.length === 1 ? ' familia.' : ' familias.') + '</p>'));
+      }
+    }
+    plantilla.oninput = refrescar;
+
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var ids = seleccionados().map(function (p) { return p.id; });
+      var n = SF.store.avisosCobro(ids, plantilla.value);
+      U.closeModal();
+      U.toast(n + (n === 1 ? ' aviso enviado' : ' avisos enviados'));
+      SF.router.render();
+    };
+
+    refrescar();
+    U.modal(titulo || 'Avisar de la cuota pendiente', w);
   }
 
   /* Hermanos detectados. Propone, no decide: cada grupo se confirma a mano,
