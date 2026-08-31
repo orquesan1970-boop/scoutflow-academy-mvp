@@ -975,6 +975,17 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .eq-chip-sm{font-size:12.5px;padding:6px 12px}
 .eq-cat{margin-top:22px}
 .eq-cat:first-of-type{margin-top:6px}
+/* En el móvil, veinte años de nacimiento partidos en nueve líneas dejaban al
+   primer jugador fuera de la pantalla: había que bajar mucho para ver la lista
+   que se viene a ver. Se convierten en una tira que se arrastra con el dedo,
+   que es el gesto que la gente ya hace en cualquier app. En el escritorio
+   siguen igual, en varias líneas, porque ahí se ven todos de un vistazo. */
+@media(max-width:700px){
+  .eq-filtros{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;
+    scroll-snap-type:x proximity;padding-bottom:4px;scrollbar-width:none}
+  .eq-filtros::-webkit-scrollbar{display:none}
+  .eq-filtros>button{flex:0 0 auto;scroll-snap-align:center}
+}
 
 /* --- Permisos: la consola del director --- */
 .rol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:6px}
@@ -1484,6 +1495,17 @@ SF.birthQuarter = function (p) {
    actuales del chaval y afina bastante más. Necesita unas tablas de
    coeficientes por edad que aún no tenemos; cuando las consigamos, este
    cálculo se sustituye sin tocar nada más. */
+/* Sexo normalizado. La ficha guarda 'M'/'F', pero por importación o por IA
+   puede llegar 'masculino', 'mujer', 'Femenino'... Se comprueba 'muj' ANTES
+   que la 'm' suelta, o media plantilla femenina acabaría en masculino. */
+SF.sexoDe = function (p) {
+  var g = ((p || {}).gender || '').trim().toLowerCase();
+  if (!g) return '';
+  if (g.indexOf('muj') === 0 || g.indexOf('chic') === 0 || g.charAt(0) === 'f') return 'F';
+  if (g.indexOf('var') === 0 || g.charAt(0) === 'h' || g.charAt(0) === 'm') return 'M';
+  return '';
+};
+
 SF.tallaDiana = function (p) {
   var f = (p.family || {});
   var pa = +f.father_height_cm, ma = +f.mother_height_cm;
@@ -6465,6 +6487,10 @@ window.SF = window.SF || {};
   var U = SF.ui, el = U.el, esc = U.esc, ico = U.ico;
   var pages = {};
   var jugView = 'grid';      // estado vista Jugadores
+  /* Año y sexo elegidos en Jugadores. Viven fuera de la función a propósito:
+     con 900 fichas, entrar en un jugador y volver a la lista para encontrarse
+     otra vez los 900 desde el principio es el peor castigo posible. */
+  var jugAnyo = null, jugSexo = null;
   var jugQuery = '';         // búsqueda activa (desde buscador global)
 
   function head(title, subtitle, actionsHTML) {
@@ -7654,19 +7680,112 @@ window.SF = window.SF || {};
     if (bS) bS.onclick = function () { SF._insDatos = null; SF._insPaso = 1; location.hash = '#/inscripcion'; };
 
     var ps = scopedPlayers();
-    var years = Array.from(new Set(ps.map(function (p) { return p.birth_year; }).filter(Boolean))).sort();
     var nats = Array.from(new Set([].concat.apply([], ps.map(function (p) { return p.nationality || []; }))));
     var poss = Array.from(new Set(ps.map(function (p) { return p.primary_position; }).filter(Boolean)));
 
+    /* El desplegable de Año ya no está: lo sustituyen los botones de abajo.
+       Dos mandos para el mismo filtro solo sirven para que un día no cuadren
+       entre ellos y nadie entienda por qué falta un jugador. */
     var bar = el('<div class="filters"></div>');
     bar.innerHTML =
       '<div class="search-mini">' + ico('search') + '<input id="q" placeholder="Buscar por nombre, año, posición…"></div>' +
-      '<select id="fy"><option value="">Año</option>' + years.map(function (y) { return '<option>' + y + '</option>'; }).join('') + '</select>' +
       '<select id="fp"><option value="">Posición</option>' + poss.map(function (p) { return '<option>' + esc(p) + '</option>'; }).join('') + '</select>' +
       '<select id="fn"><option value="">Nacionalidad</option>' + nats.map(function (n) { return '<option>' + esc(n) + '</option>'; }).join('') + '</select>' +
       '<select id="fs"><option value="">Estado</option>' + SF.STATUSES.map(function (s) { return '<option>' + s + '</option>'; }).join('') + '</select>' +
       '<div class="view-toggle"><button id="vg" class="' + (jugView === 'grid' ? 'on' : '') + '" aria-label="Tarjetas">' + ico('grid') + '</button><button id="vt" class="' + (jugView === 'table' ? 'on' : '') + '" aria-label="Tabla">' + ico('list') + '</button></div>';
     view.appendChild(bar);
+
+    /* ---------- Botones por año de nacimiento, y dentro, el sexo ----------
+       Con 277 fichas la rejilla plana aún se aguanta; con 900 es una pared.
+       El año es el eje natural de un club de formación y además no caduca:
+       la categoría cambia de nombre cada temporada, el año de nacimiento no.
+       Se ordenan de los pequeños a los mayores, igual que en Equipos, para
+       que las dos pantallas se lean con la misma lógica.
+       "Sin año" NO se esconde nunca: son justo las fichas a medias, las que
+       hay que arreglar. Un jugador escondido es un jugador perdido. */
+    var nomEq = {};
+    SF.store.teams().forEach(function (t) { nomEq[t.id] = t.name; });
+
+    var ANYOS = Array.from(new Set(ps.map(function (p) { return p.birth_year || 0; })))
+      .sort(function (a, b) { return b - a; });   // 2019, 2018, ... y el 0 al final
+
+    var filaA = el('<div class="row-c eq-filtros"></div>');
+    var filaS = el('<div class="row-c eq-filtros eq-sub"></div>');
+    view.appendChild(filaA); view.appendChild(filaS);
+
+    /* Lo que pasa los OTROS filtros (posición, nacionalidad, estado). Los
+       números de los botones se cuentan sobre esto, no sobre el total: si
+       pone 12 y al pulsar salen 3, el contador miente. */
+    function base() {
+      var fp = bar.querySelector('#fp').value, fn = bar.querySelector('#fn').value, fs = bar.querySelector('#fs').value;
+      return ps.filter(function (p) {
+        if (preFilter && !preFilter(p)) return false;
+        if (fp && p.primary_position !== fp) return false;
+        if (fn && (p.nationality || []).indexOf(fn) < 0) return false;
+        if (fs && p.status !== fs) return false;
+        return true;
+      });
+    }
+
+    function pintaChips() {
+      var b = base();
+      if (jugAnyo != null && ANYOS.indexOf(jugAnyo) < 0) jugAnyo = null;
+
+      filaA.innerHTML = '';
+      var bT = el('<button class="eq-chip' + (jugAnyo == null ? ' on' : '') + '">Todos' +
+        '<span class="eq-n">' + b.length + '</span></button>');
+      bT.onclick = function () { jugAnyo = null; jugSexo = null; pintaChips(); render(); };
+      filaA.appendChild(bT);
+
+      ANYOS.forEach(function (y) {
+        var dely = b.filter(function (p) { return (p.birth_year || 0) === y; });
+        var bt = el('<button class="eq-chip' + (jugAnyo === y ? ' on' : '') + '">' +
+          (y ? y : 'Sin año') + '<span class="eq-n">' + dely.length + '</span></button>');
+        /* De qué equipos son: así el que piensa en "cadete" y no en "2011"
+           también encuentra su año. Sale de los equipos reales, no de una
+           tabla de categorías inventada que habría que repasar cada verano. */
+        var eqs = Array.from(new Set(dely.map(function (p) { return nomEq[p.team_id]; }).filter(Boolean)));
+        bt.title = y
+          ? (eqs.length ? 'Juegan en: ' + eqs.slice(0, 4).join(', ') + (eqs.length > 4 ? '…' : '') : 'Todavía sin equipo')
+          : 'Fichas sin fecha de nacimiento. Hay que completarlas.';
+        bt.onclick = function () { jugAnyo = y; jugSexo = null; pintaChips(); render(); };
+        filaA.appendChild(bt);
+      });
+      /* Con la tira que se arrastra, el año elegido tiene que quedar a la
+         vista: si no, se pulsa 2009, la fila vuelve al principio y parece que
+         no se ha pulsado nada. */
+      var act = filaA.querySelector('.eq-chip.on');
+      if (act && filaA.scrollWidth > filaA.clientWidth) {
+        filaA.scrollLeft = Math.max(0, act.offsetLeft - filaA.clientWidth / 2 + act.offsetWidth / 2);
+      }
+
+      /* Segunda fila: masculino / femenino dentro del año. Solo aparece si de
+         verdad hay de los dos; y "Sin especificar" solo si hay alguno, porque
+         si no se verían tres botones para dividir un grupo en uno. */
+      var dentro = jugAnyo == null ? b : b.filter(function (p) { return (p.birth_year || 0) === jugAnyo; });
+      var SEXOS = [
+        { k: 'M', label: 'Masculino' },
+        { k: 'F', label: 'Femenino' },
+        { k: '-', label: 'Sin especificar' }
+      ].filter(function (x) {
+        return dentro.some(function (p) { return (SF.sexoDe(p) || '-') === x.k; });
+      });
+      filaS.innerHTML = '';
+      if (SEXOS.length < 2) { jugSexo = null; filaS.style.display = 'none'; return; }
+      filaS.style.display = '';
+      if (jugSexo && !SEXOS.some(function (x) { return x.k === jugSexo; })) jugSexo = null;
+      var sT = el('<button class="eq-chip eq-chip-sm' + (!jugSexo ? ' on' : '') + '">Todos' +
+        '<span class="eq-n">' + dentro.length + '</span></button>');
+      sT.onclick = function () { jugSexo = null; pintaChips(); render(); };
+      filaS.appendChild(sT);
+      SEXOS.forEach(function (x) {
+        var n = dentro.filter(function (p) { return (SF.sexoDe(p) || '-') === x.k; }).length;
+        var sb = el('<button class="eq-chip eq-chip-sm' + (jugSexo === x.k ? ' on' : '') + '">' + x.label +
+          '<span class="eq-n">' + n + '</span></button>');
+        sb.onclick = function () { jugSexo = x.k; pintaChips(); render(); };
+        filaS.appendChild(sb);
+      });
+    }
 
     var out = el('<div id="jug-out"></div>'); view.appendChild(out);
 
@@ -7675,13 +7794,25 @@ window.SF = window.SF || {};
     var gq = SF._jugQuery || ''; SF._jugQuery = null;
     var preFilter = qmap[gq] || null;
     if (gq && !preFilter) bar.querySelector('#q').value = gq;
+    /* Si se llega desde un KPI o desde el buscador, el año que quedó puesto la
+       otra vez se suelta. Pulsar "Pagos vencidos" y ver 3 de 40 porque seguía
+       filtrando por 2011 es un error que nadie sabría diagnosticar. */
+    if (gq) { jugAnyo = null; jugSexo = null; }
 
     function render() {
       var q = SF.norm(bar.querySelector('#q').value).trim();
-      var fy = bar.querySelector('#fy').value, fp = bar.querySelector('#fp').value, fn = bar.querySelector('#fn').value, fs = bar.querySelector('#fs').value;
+      /* Buscar manda sobre los botones. Si alguien tiene puesto 2011 y escribe
+         "Pablo", tiene que salir Pablo aunque sea del 2009: buscar y no
+         encontrar lo que existe es el fallo que hace desconfiar de una app.
+         Los botones se apagan a la vista mientras dure la búsqueda. */
+      var buscando = !!q;
+      var anyoSel = buscando ? null : jugAnyo, sexoSel = buscando ? null : jugSexo;
+      filaA.style.opacity = filaS.style.opacity = buscando ? '.4' : '';
+      var fp = bar.querySelector('#fp').value, fn = bar.querySelector('#fn').value, fs = bar.querySelector('#fs').value;
       var rows = ps.filter(function (p) {
         if (preFilter && !preFilter(p)) return false;
-        if (fy && String(p.birth_year) !== fy) return false;
+        if (anyoSel != null && (p.birth_year || 0) !== anyoSel) return false;
+        if (sexoSel && (SF.sexoDe(p) || '-') !== sexoSel) return false;
         if (fp && p.primary_position !== fp) return false;
         if (fn && (p.nationality || []).indexOf(fn) < 0) return false;
         if (fs && p.status !== fs) return false;
@@ -7700,8 +7831,18 @@ window.SF = window.SF || {};
         return true;
       });
       out.innerHTML = '';
-      out.appendChild(el('<p class="count">' + rows.length + ' jugador' + (rows.length === 1 ? '' : 'es') + (preFilter ? ' · filtro activo' : '') + '</p>'));
-      if (!rows.length) { out.appendChild(el('<div class="empty-panel"><p>Ningún jugador con esos filtros.</p></div>')); return; }
+      var pie = '';
+      if (buscando) pie = ' · buscando en todos los años';
+      else if (anyoSel) pie = ' · ' + anyoSel + (sexoSel === 'M' ? ' masculino' : sexoSel === 'F' ? ' femenino' : '');
+      else if (anyoSel === 0) pie = ' · sin fecha de nacimiento';
+      out.appendChild(el('<p class="count">' + rows.length + ' jugador' + (rows.length === 1 ? '' : 'es') +
+        pie + (preFilter ? ' · filtro activo' : '') + '</p>'));
+      if (!rows.length) {
+        out.appendChild(el('<div class="empty-panel"><p>' +
+          (anyoSel ? 'Ningún jugador del ' + anyoSel + ' con esos filtros.' : 'Ningún jugador con esos filtros.') +
+          '</p></div>'));
+        return;
+      }
       if (jugView === 'grid') {
         var g = el('<div class="grid"></div>');
         rows.forEach(function (p) { g.appendChild(U.playerCard(p)); });
@@ -7717,9 +7858,12 @@ window.SF = window.SF || {};
         out.appendChild(t);
       }
     }
-    bar.querySelectorAll('input,select').forEach(function (i) { i.addEventListener('input', render); });
+    bar.querySelectorAll('input,select').forEach(function (i) {
+      i.addEventListener('input', function () { pintaChips(); render(); });
+    });
     bar.querySelector('#vg').onclick = function () { jugView = 'grid'; bar.querySelector('#vg').classList.add('on'); bar.querySelector('#vt').classList.remove('on'); render(); };
     bar.querySelector('#vt').onclick = function () { jugView = 'table'; bar.querySelector('#vt').classList.add('on'); bar.querySelector('#vg').classList.remove('on'); render(); };
+    pintaChips();
     render();
   };
 
