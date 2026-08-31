@@ -961,6 +961,21 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .pf-morado{background:#EFEBFF;color:var(--purple-d)}
 .mini-row.pf-verde,.mini-row.pf-naranja,.mini-row.pf-azul,.mini-row.pf-morado{border-left:3px solid currentColor}
 
+/* --- Equipos: los filtros de programa y sexo --- */
+.eq-filtros{gap:8px;margin-bottom:14px;flex-wrap:wrap}
+.eq-sub{margin:-6px 0 16px;padding-left:2px}
+.eq-chip{display:inline-flex;align-items:center;gap:8px;font-family:inherit;font-size:13.5px;font-weight:600;
+  padding:8px 14px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-2);cursor:pointer;transition:.15s}
+.eq-chip:hover{border-color:var(--purple-2);color:var(--ink)}
+.eq-chip.on{background:var(--purple);border-color:var(--purple);color:#fff}
+.eq-chip .eq-n{font-size:11.5px;font-weight:600;padding:1px 7px;border-radius:999px;
+  background:var(--bg);color:var(--ink-3)}
+.eq-chip.on .eq-n{background:rgba(255,255,255,.22);color:#fff}
+.eq-chip-sm{font-size:12.5px;padding:6px 12px}
+.eq-cat{margin-top:22px}
+.eq-cat:first-of-type{margin-top:6px}
+
 /* --- Permisos: la consola del director --- */
 .rol-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px;margin-top:6px}
 .rol-card{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
@@ -3239,6 +3254,98 @@ SF.finHas = function (p, status) { return SF.finItems(p).some(function (i) { ret
    escuelas no. Si se metiera en `segment` (femenino/masculino/escuelas),
    dejaria de cuadrar en cuanto hubiera un equipo femenino de escuela. */
 SF.PROGRAMAS = { federado: 'Federado', escuela: 'Escuela', academia: 'Academia', campus: 'Campus' };
+
+/* ===================== LA ESCALERA DE CATEGORIAS =====================
+   Un club no lee sus equipos por orden alfabetico ni por como se dieron de
+   alta: los lee de pequeños a mayores, que es como estan en la cabeza de la
+   gente y como salen en cualquier hoja del club.
+
+   Aqui caben los DOS vocabularios que se usan en el baloncesto español, porque
+   segun la federacion y segun quien hable, la misma edad se llama de dos
+   formas: premini es benjamin, y mini es alevin. Aceptar solo uno significaria
+   que el club que escribe "Alevin" ve sus equipos al final de la lista, sin
+   entender por que.
+
+   El senior se parte en autonomica y nacional, que no son edades sino nivel de
+   competicion: dentro de los mayores, primero la autonomica y luego la
+   nacional, que es como lo dijo Jorge y como lo ordena un club. */
+SF.ESCALERA = [
+  ['babybasket'],
+  ['premini', 'benjamin'],
+  ['mini', 'alevin'],
+  ['preinfantil'],
+  ['infantil'],
+  ['cadete'],
+  ['junior'],
+  ['sub-22', 'sub22'],
+  ['autonomica'],
+  ['senior'],
+  ['nacional']
+];
+
+/* En que peldaño esta un equipo. Manda su categoria; si no dice nada util
+   -o dice "Senior" a secas- se mira el NOMBRE, porque en la practica el nivel
+   va escrito ahi: "1.º Nacional Masc". Es una deduccion, y por eso solo entra
+   cuando la categoria no ha dicho nada mejor. */
+SF.ordenCategoria = function (t) {
+  var cat = SF.norm((t && t.category) || '').trim();
+  var nom = SF.norm((t && t.name) || '');
+  function peldano(txt) {
+    for (var i = 0; i < SF.ESCALERA.length; i++) {
+      for (var j = 0; j < SF.ESCALERA[i].length; j++) {
+        if (txt.indexOf(SF.ESCALERA[i][j]) >= 0) return i;
+      }
+    }
+    return -1;
+  }
+  var porCat = peldano(cat);
+  /* "Senior" es el cajon de los mayores: si el nombre concreta que es nacional
+     o autonomica, esa es la respuesta mas fina. */
+  if (porCat < 0 || cat.indexOf('senior') >= 0) {
+    if (nom.indexOf('nacional') >= 0) return SF.ESCALERA.length - 1;
+    if (nom.indexOf('autonomic') >= 0) return 8;
+  }
+  if (porCat >= 0) return porCat;
+  var porNombre = peldano(nom);
+  /* Lo que no se reconoce va al final, nunca al principio: mejor que un equipo
+     raro cierre la lista a que se cuele entre los benjamines. */
+  return porNombre >= 0 ? porNombre : 99;
+};
+
+/* Como se llama ese peldaño en pantalla. Se usa el nombre que ha escrito el
+   club, no el nuestro: si ellos dicen "Alevin", el titulo dice "Alevin". */
+/* El titulo de cada peldaño. Lleva los dos nombres donde los hay, porque en
+   el mismo grupo conviven equipos que se llaman "Alevin" y equipos que su
+   ficha dice "Mini": son la misma edad, y poner solo una de las dos palabras
+   hace que la otra mitad parezca mal colocada.
+   Es un titulo de GRUPO, asi que no puede salir del equipo que toque pintar
+   primero: si el titulo dependiera de eso, la misma seccion se llamaria de una
+   forma u otra segun el orden. */
+SF.CATEGORIA_TITULO = ['Babybasket', 'Premini / Benjamín', 'Mini / Alevín', 'Preinfantil', 'Infantil',
+  'Cadete', 'Junior', 'Sub-22', 'Autonómica', 'Senior', 'Nacional'];
+SF.categoriaTitulo = function (t) {
+  var i = SF.ordenCategoria(t);
+  /* Lo que no reconocemos conserva la palabra del club: puede que tengan una
+     categoria propia que nosotros no sepamos leer, y es suya. */
+  if (i === 99) return ((t && t.category) || '').trim() || 'Sin categoría';
+  return SF.CATEGORIA_TITULO[i] || 'Sin categoría';
+};
+
+/* El nombre por el que se ordena una escuela: el del COLEGIO, no la palabra
+   "Escuela", que la llevan todas y por tanto no ordena nada. */
+SF.nombreColegio = function (t) {
+  return ((t && t.name) || '').replace(/^\s*(escuela|colegio|cole|cd|club)\s+/i, '').trim();
+};
+
+/* El orden con el que se pintan los equipos en cualquier lista del club. */
+SF.ordenaEquipos = function (lista, porColegio) {
+  return (lista || []).slice().sort(function (a, b) {
+    if (porColegio) return SF.nombreColegio(a).localeCompare(SF.nombreColegio(b), 'es');
+    var d = SF.ordenCategoria(a) - SF.ordenCategoria(b);
+    if (d) return d;
+    return (a.name || '').localeCompare(b.name || '', 'es');
+  });
+};
 
 /* La temporada empieza en septiembre, no en enero. Las cuotas se ordenan por
    esta lista y no por el calendario, o "de septiembre a marzo" saldria al
@@ -13790,7 +13897,19 @@ window.SF = window.SF || {};
         '<p class="hint">Para qué paga. No es lo mismo que el segmento: un cadete masculino es federado, uno de escuelas no.</p></div>' +
       '<div class="frow"><label>Plan de pago</label><select name="plan_id">' + planOpts + '</select>' +
         '<p class="hint">Todos los jugadores del equipo heredan este plan. Se puede poner una excepción en su ficha.</p></div>' +
-      '<div class="frow"><label>Cuerpo técnico</label><div class="chks">' + coachChecks + '</div></div>';
+      '<div class="frow"><label>Cuerpo técnico</label><div class="chks">' + coachChecks + '</div></div>' +
+      /* Mancomunado: el equipo se comparte con otro club. No es un programa
+         distinto -sigue siendo federado y paga como tal-, es una circunstancia,
+         y por eso va como marca y no dentro del desplegable de programa. */
+      '<div class="frow" style="grid-column:1/-1"><label class="chk"><input type="checkbox" name="manco"' +
+        (t.mancomunado ? ' checked' : '') + '> Equipo mancomunado (compartido con otro club)</label>' +
+        '<input name="manco_con" value="' + esc(t.mancomunado_con || '') + '" placeholder="¿Con qué club? Ej.: CB Pozuelo" ' +
+        'style="margin-top:8px' + (t.mancomunado ? '' : ';display:none') + '">' +
+        '<p class="hint">Aparecen juntos en su propio botón de la pantalla de Equipos, sin salir de su categoría.</p></div>';
+    /* El "con qué club" solo tiene sentido si está marcado. */
+    f.querySelector('[name=manco]').onchange = function (e) {
+      f.querySelector('[name=manco_con]').style.display = e.target.checked ? '' : 'none';
+    };
     var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
     foot.children[0].onclick = U.closeModal;
     foot.children[1].onclick = function () {
@@ -13801,8 +13920,11 @@ window.SF = window.SF || {};
         category: f.querySelector('[name=category]').value.trim(),
         programa: f.querySelector('[name=programa]').value,
         plan_id: f.querySelector('[name=plan_id]').value,
-        coaches: Array.prototype.slice.call(f.querySelectorAll('.coach:checked')).map(function (i) { return i.value; })
+        coaches: Array.prototype.slice.call(f.querySelectorAll('.coach:checked')).map(function (i) { return i.value; }),
+        mancomunado: f.querySelector('[name=manco]').checked,
+        mancomunado_con: f.querySelector('[name=manco_con]').value.trim()
       };
+      if (!data.mancomunado) data.mancomunado_con = '';
       if (!data.name) { U.toast('Ponle nombre al equipo'); return; }
       onSave(data); U.closeModal();
     };
@@ -13860,28 +13982,175 @@ window.SF = window.SF || {};
     U.modal('Buscar y añadir jugadores a ' + esc(t.name), box);
   }
 
+  /* ===================== EQUIPOS =====================
+     Veintisiete equipos en una rejilla plana, ordenados por como se dieron de
+     alta, no se leen: se recorren. Un club no piensa "todos mis equipos",
+     piensa "los federados femeninos" o "las escuelas", y dentro de eso los ve
+     de pequeños a mayores.
+
+     Asi que la pantalla tiene dos filas de botones -programa arriba, y dentro
+     de Federados el sexo- y las tarjetas agrupadas por categoria con su
+     titulo. Los mancomunados van aparte porque no son un programa: son una
+     circunstancia -un equipo compartido con otro club- y pueden aparecer en
+     cualquier categoria. */
   pages.equipos = function (view) {
     var r = role();
     var actions = r.canManageTeams ? '<button class="btn btn-primary" id="nt">' + ico('plus') + 'Crear equipo</button>' : '';
     view.innerHTML = head('Equipos', 'Organiza los jugadores por equipo y su cuerpo técnico.', actions);
-    var teams = SF.store.teams();
-    if (r.segments && r.segments !== 'all') teams = teams.filter(function (t) { return r.segments.indexOf(t.segment) >= 0; });
-    if (r.team_scope) { var me = SF.store.currentUser().name; teams = teams.filter(function (t) { return (t.coaches || []).indexOf(me) >= 0; }); }
+
+    var todos = SF.store.teams();
+    if (r.segments && r.segments !== 'all') todos = todos.filter(function (t) { return r.segments.indexOf(t.segment) >= 0; });
+    if (r.team_scope) {
+      var me = SF.store.currentUser().name;
+      var yo = SF.store.staffMe();
+      todos = todos.filter(function (t) {
+        return (t.coaches || []).indexOf(me) >= 0 || (yo && (yo.team_ids || []).indexOf(t.id) >= 0);
+      });
+    }
     var players = SF.store.players();
-    if (!teams.length) view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('grid') + '</div><p>No hay equipos en tu ámbito todavía.</p></div>'));
-    var grid = el('<div class="team-grid"></div>');
-    teams.forEach(function (t) {
+
+    if (!todos.length) {
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('grid') + '</div>' +
+        '<p>No hay equipos en tu ámbito todavía.</p></div>'));
+      pintaCrear();
+      return;
+    }
+
+    function esFederado(t) { return (t.programa || 'federado') === 'federado'; }
+    function esEscuela(t) { return t.programa === 'escuela'; }
+
+    /* --- Fila de arriba: el programa. Solo se pinta un boton si detras hay
+           algo; un club sin campus no tiene por que ver "Campus" vacio. --- */
+    var GRUPOS = [
+      { k: 'federado', label: 'Federados', test: esFederado },
+      { k: 'escuela',  label: 'Escuelas',  test: esEscuela },
+      { k: 'academia', label: 'Academia',  test: function (t) { return t.programa === 'academia'; } },
+      { k: 'campus',   label: 'Campus',    test: function (t) { return t.programa === 'campus'; } },
+      { k: 'manco',    label: 'Mancomunados', test: function (t) { return !!t.mancomunado; } },
+      { k: 'todos',    label: 'Todos',     test: function () { return true; } }
+    ].filter(function (g) {
+      if (g.k === 'todos') return true;
+      /* Mancomunados se mantiene visible para quien gestiona equipos aunque
+         hoy no haya ninguno: si no, no hay forma de descubrir que existe. */
+      if (g.k === 'manco') return r.canManageTeams || todos.some(g.test);
+      return todos.some(g.test);
+    });
+
+    var grupo = SF._eqGrupo;
+    if (!GRUPOS.some(function (g) { return g.k === grupo; })) grupo = GRUPOS[0].k;
+    var gDef = GRUPOS.filter(function (g) { return g.k === grupo; })[0];
+    var delGrupo = todos.filter(gDef.test);
+
+    var fila1 = el('<div class="row-c eq-filtros"></div>');
+    GRUPOS.forEach(function (g) {
+      var n = todos.filter(g.test).length;
+      var b = el('<button class="eq-chip' + (g.k === grupo ? ' on' : '') + '">' + esc(g.label) +
+        '<span class="eq-n">' + n + '</span></button>');
+      b.onclick = function () { SF._eqGrupo = g.k; SF._eqSexo = null; SF.router.render(); };
+      fila1.appendChild(b);
+    });
+    view.appendChild(fila1);
+
+    /* --- Fila de abajo: dentro de Federados, el sexo. "Otros" solo aparece si
+           de verdad hay equipos que no son ni uno ni otro (un mixto, los
+           minis): esconder un equipo seria el peor fallo posible aqui. --- */
+    var lista = delGrupo;
+    if (grupo === 'federado' || grupo === 'todos') {
+      var SEXOS = [
+        { k: 'femenino',  label: 'Femenino',  test: function (t) { return t.segment === 'femenino'; } },
+        { k: 'masculino', label: 'Masculino', test: function (t) { return t.segment === 'masculino'; } },
+        { k: 'otros',     label: 'Mixtos y minis', test: function (t) {
+            return ['femenino', 'masculino'].indexOf(t.segment) < 0; } }
+      ].filter(function (x) { return delGrupo.some(x.test); });
+
+      if (SEXOS.length > 1) {
+        var sexo = SF._eqSexo;
+        if (sexo && !SEXOS.some(function (x) { return x.k === sexo; })) sexo = null;
+        var fila2 = el('<div class="row-c eq-filtros eq-sub"></div>');
+        var bT = el('<button class="eq-chip eq-chip-sm' + (!sexo ? ' on' : '') + '">Todos' +
+          '<span class="eq-n">' + delGrupo.length + '</span></button>');
+        bT.onclick = function () { SF._eqSexo = null; SF.router.render(); };
+        fila2.appendChild(bT);
+        SEXOS.forEach(function (x) {
+          var n = delGrupo.filter(x.test).length;
+          var b = el('<button class="eq-chip eq-chip-sm' + (sexo === x.k ? ' on' : '') + '">' + esc(x.label) +
+            '<span class="eq-n">' + n + '</span></button>');
+          b.onclick = function () { SF._eqSexo = x.k; SF.router.render(); };
+          fila2.appendChild(b);
+        });
+        view.appendChild(fila2);
+        if (sexo) lista = delGrupo.filter(SEXOS.filter(function (x) { return x.k === sexo; })[0].test);
+      }
+    }
+
+    if (!lista.length) {
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('grid') + '</div>' +
+        '<p>' + (grupo === 'manco'
+          ? 'Ningún equipo está marcado como mancomunado.'
+          : 'Aquí no hay equipos todavía.') + '</p>' +
+        (grupo === 'manco'
+          ? '<p class="hint">Un equipo mancomunado es el que se comparte con otro club. Se marca al crear o editar el equipo, ' +
+            'y así se sabe siempre con quién se comparte y cuántos son.</p>' : '') +
+        '</div>'));
+      pintaCrear();
+      return;
+    }
+
+    /* --- Las tarjetas. Las escuelas van por orden alfabetico del colegio -es
+           lo unico que las distingue-; el resto, de la categoria mas pequeña a
+           la mayor, con un titulo por escalon. --- */
+    if (grupo === 'escuela') {
+      view.appendChild(rejilla(SF.ordenaEquipos(lista, true)));
+      view.appendChild(el('<p class="hint">Por orden alfabético del colegio.</p>'));
+    } else {
+      var ordenados = SF.ordenaEquipos(lista);
+      var actual = null, rej = null;
+      ordenados.forEach(function (t) {
+        var titulo = SF.categoriaTitulo(t);
+        var peldano = SF.ordenCategoria(t);
+        if (peldano !== actual) {
+          actual = peldano;
+          view.appendChild(el('<p class="sec-label eq-cat">' + esc(titulo) + '</p>'));
+          rej = el('<div class="team-grid"></div>');
+          view.appendChild(rej);
+        }
+        rej.appendChild(tarjeta(t));
+      });
+    }
+
+    pintaCrear();
+
+    function rejilla(arr) {
+      var g = el('<div class="team-grid"></div>');
+      arr.forEach(function (t) { g.appendChild(tarjeta(t)); });
+      return g;
+    }
+
+    function tarjeta(t) {
       var count = players.filter(function (p) { return p.team_id === t.id; }).length;
       var seg = SF.SEGMENTS[t.segment] || t.segment || '—';
       var coaches = (t.coaches || []).length ? t.coaches.join(', ') : 'Sin entrenador';
-      var card = el('<button class="team-card"><div class="tc-top"><span class="tag tag-purple">' + esc(seg) + '</span><span class="hint">' + esc(t.category || '') + '</span></div>' +
-        '<h3>' + esc(t.name) + '</h3><p class="tc-meta">' + count + (count === 1 ? ' jugador · ' : ' jugadores · ') + esc(coaches) + '</p></button>');
+      var card = el('<button class="team-card"><div class="tc-top">' +
+        '<span class="tag tag-purple">' + esc(seg) + '</span>' +
+        (t.mancomunado ? '<span class="tag tag-teal">Mancomunado</span>' : '') +
+        '<span class="hint">' + esc(t.category || '') + '</span></div>' +
+        '<h3>' + esc(t.name) + '</h3>' +
+        '<p class="tc-meta">' + count + (count === 1 ? ' jugador · ' : ' jugadores · ') + esc(coaches) + '</p>' +
+        (t.mancomunado && t.mancomunado_con
+          ? '<p class="tc-meta">Compartido con ' + esc(t.mancomunado_con) + '</p>' : '') +
+        '</button>');
       card.onclick = function () { location.hash = '#/equipo/' + t.id; };
-      grid.appendChild(card);
-    });
-    view.appendChild(grid);
-    var nt = view.querySelector('#nt');
-    if (nt) nt.onclick = function () { U.modal('Crear equipo', teamForm({}, function (d) { var t = SF.store.teamCreate(d); U.toast('Equipo creado'); location.hash = '#/equipo/' + t.id; })); };
+      return card;
+    }
+
+    function pintaCrear() {
+      var nt = view.querySelector('#nt');
+      if (nt) nt.onclick = function () {
+        U.modal('Crear equipo', teamForm({}, function (d) {
+          var t = SF.store.teamCreate(d); U.toast('Equipo creado'); location.hash = '#/equipo/' + t.id;
+        }));
+      };
+    }
   };
 
   /* ── Calendario del equipo: entrenamientos y partidos ── */
