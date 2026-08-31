@@ -1270,6 +1270,21 @@ SF.destinatariosJugador = function (p) {
   });
 };
 
+/* Un hilo de DINERO no es una conversacion deportiva.
+   El aviso de cuota pendiente lo manda administracion a la familia, y lleva
+   dentro cuanto debe esa casa. La direccion tecnica no pinta nada ahi: ni le
+   corresponde el asunto, ni su rol tiene acceso a finanzas. Que le llegara al
+   buzon era ensenarle por la puerta de atras justo lo que la app le niega por
+   la de delante. */
+SF.esHiloDeDinero = function (c) { return !!c && c.motivo === 'aviso_cobro'; };
+
+/* Quien supervisa un hilo de dinero: quien lleva los cobros del club. */
+SF.supervisoresDinero = function () {
+  return SF.store.staff().filter(function (s) {
+    return !!(SF.rolDe(s.role) || {}).canManageFinance;
+  });
+};
+
 /* Quién supervisa una conversación de un equipo: dirección y el DT que le
    toca. Se guarda en el hilo al crearlo para que quede constancia de quién
    tenía acceso ese día, aunque mañana cambien los cargos. */
@@ -3083,7 +3098,12 @@ SF.LLAVES_BLOQUEADAS = ['canSeeNotes', 'canManagePermissions'];
 SF.rolDe = function (k) {
   var base = SF.ROLES[k];
   if (!base) return null;
-  var ov = (SF.store && SF.store.rolesOverride) ? SF.store.rolesOverride()[k] : null;
+  /* Durante una migracion NO se consulta lo que el club haya cambiado: para
+     leerlo habria que abrir el almacen, y el almacen es justo lo que se esta
+     migrando -se llamaria a si mismo hasta reventar la pila-. Una migracion
+     trabaja sobre el objeto que ya tiene en la mano; si necesita el override,
+     lo lee de ahi. */
+  var ov = (!SF._migrando && SF.store && SF.store.rolesOverride) ? SF.store.rolesOverride()[k] : null;
   if (!ov) return base;
   var r = Object.assign({}, base);
   if (ov.nav) r.nav = ov.nav.slice();
@@ -4769,6 +4789,11 @@ SF.store = (function () {
   function db() {
     var d = read();
     if (!d) { d = seed(); write(d); }
+    SF._migrando = true;
+    try { return migrar(d); } finally { SF._migrando = false; }
+  }
+
+  function migrar(d) {
     if (!d.teams) { d.teams = JSON.parse(JSON.stringify(SF.TEAMS || [])); d.teamSeq = (SF.TEAMS ? SF.TEAMS.length + 1 : 1); write(d); }
     if (!d.expenses) { d.expenses = JSON.parse(JSON.stringify(SF.EXPENSES || [])); write(d); }
     if (!d.staff) { d.staff = JSON.parse(JSON.stringify(SF.STAFF || [])); write(d); }
@@ -5021,6 +5046,29 @@ SF.store = (function () {
       d._pf_real_v1 = true;
       write(d);
     }
+    /* Los avisos de cobro que ya estaban guardados llevaban como supervisores
+       a la direccion tecnica, porque se crearon con la regla de los hilos de
+       equipo. Resultado: al DT General le aparecian decenas de "Cuota
+       pendiente" en su buzon, con lo que debe cada familia dentro, y su rol no
+       tiene acceso a finanzas.
+       Se les recalcula el supervisor. La barrera de lectura ya los tapaba, pero
+       dejar el dato mal guardado significa que cualquier pantalla futura que
+       mire `supervisores` volveria a filtrarlo. Se arregla el dato, no solo la
+       vista. */
+    if (!d._avisos_v2) {
+      var ovs = (d.academy || {}).roles || {};
+      var delDinero = (d.staff || []).filter(function (x) {
+        var base = SF.ROLES[x.role] || {};
+        var ov = ovs[x.role] || {};
+        return !!(ov.canManageFinance != null ? ov.canManageFinance : base.canManageFinance);
+      }).map(function (x) { return x.id; });
+      (d.convs || []).forEach(function (c) {
+        if (c.motivo !== 'aviso_cobro') return;
+        c.supervisores = delDinero.slice();
+      });
+      d._avisos_v2 = true;
+      write(d);
+    }
     if (!d._planes_v1) {
       if (!d.academy.planes || !d.academy.planes.length) {
         d.academy.planes = JSON.parse(JSON.stringify(SF.PLANES_SEED || []));
@@ -5253,7 +5301,9 @@ SF.store = (function () {
           player_id: p.id, team_id: p.team_id || null,
           subject: 'Cuota pendiente · ' + det.total + ' €',
           opened_by: de, to_staff_ids: [], to_staff: null,
-          supervisores: (SF.supervisoresDe(p.team_id) || []).map(function (x) { return x.id; }),
+          /* Los supervisores de un aviso de cobro son los del dinero, no los
+             del equipo: esto lo lleva administracion, no la pista. */
+          supervisores: (SF.supervisoresDinero() || []).map(function (x) { return x.id; }),
           created_at: ahora, closed_at: null,
           motivo: 'aviso_cobro',
           para: 'familia',                 // sin esto, la familia no lo veria
@@ -5961,11 +6011,20 @@ SF.store = (function () {
     /* Hilos que le tocan a una persona del staff: los suyos, los que abrió y
        los que supervisa. */
     convsForStaff: function (staffId) {
+      var yo = (db().staff || []).filter(function (x) { return x.id === staffId; })[0];
+      var vePasta = !!yo && !!((SF.rolDe(yo.role) || {}).canSeeFinance || (SF.rolDe(yo.role) || {}).canManageFinance);
       return (db().convs || [])
         .filter(function (c) {
           var dest = c.to_staff_ids || (c.to_staff ? [c.to_staff] : []);
+          /* A quien va dirigido y quien lo abrio, siempre. */
           if (dest.indexOf(staffId) >= 0) return true;
           if (c.opened_by && c.opened_by.kind === 'staff' && c.opened_by.id === staffId) return true;
+          /* Supervisar es mirar por encima del hombro, y para eso hay que
+             tener derecho a lo que hay dentro. Un hilo de dinero no llega por
+             supervision a quien no puede ver finanzas, aunque el hilo se
+             creara antes con los supervisores mal puestos: la comprobacion va
+             AQUI, al leer, y no solo al crearlo. */
+          if (SF.esHiloDeDinero(c) && !vePasta) return false;
           return (c.supervisores || []).indexOf(staffId) >= 0;
         })
         .sort(function (a, b) { return (b.messages[b.messages.length - 1].at).localeCompare(a.messages[a.messages.length - 1].at); });
