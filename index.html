@@ -1199,6 +1199,25 @@ SF.firmaMenor14 = function (birth_date) {
 SF.MAYORIA = 18;
 SF.AVISO_MAYORIA_DIAS = 30;
 
+/* ============ DESDE QUE EDAD TIENE APP EL JUGADOR ============
+   14 años, y no es un numero elegido a ojo: en España, a partir de los 14 el
+   menor puede consentir por si mismo el tratamiento de sus datos (LOPDGDD).
+   Es la misma linea que la app ya usa para decidir a quien le llega un aviso,
+   asi que usarla tambien aqui evita tener dos edades distintas conviviendo,
+   que es como se acaba escribiendo a un niño de doce por un lado y a su madre
+   por otro sin que nadie sepa por que.
+
+   Y coincide con la realidad del club: a los 14 se entra en cadete, se lleva
+   movil y uno se organiza sus horarios. Por debajo, el canal es la familia: el
+   niño no necesita una app, necesita que en su casa sepan a que hora entrena. */
+SF.EDAD_APP = 14;
+SF.puedeTenerApp = function (p) {
+  var a = SF.edadDe(p);
+  /* Sin fecha de nacimiento no se le abre acceso: no se puede afirmar que
+     tenga 14, y equivocarse hacia el lado protector es el error barato. */
+  return a != null && a >= SF.EDAD_APP;
+};
+
 /* Edad exacta, en años cumplidos. Sin fecha de nacimiento no se puede afirmar
    que alguien sea mayor de edad, asi que se trata como menor: equivocarse
    hacia el lado protector es el unico error barato de los dos. */
@@ -1297,7 +1316,7 @@ SF.areasAbiertas = function (p) {
 SF.AUDIENCIAS = [
   { k: 'ambos', label: 'A las familias y a los jugadores', desc: 'Los dos lo ven. A los menores de 14 les llegará solo a su familia.' },
   { k: 'familias', label: 'Solo a las familias', desc: 'Lo reciben padres, madres y tutores. Para cuotas, papeles y asuntos de casa.' },
-  { k: 'jugadores', label: 'Solo a los jugadores', desc: 'Para cosas del vestuario. A los menores de 14 les llegará a su familia igualmente.' }
+  { k: 'jugadores', label: 'Solo a los jugadores', desc: 'Para cosas del vestuario. A los menores de edad les llega también a su familia, siempre: nadie del club escribe a un menor por un canal privado.' }
 ];
 
 SF.audienciaReal = function (audiencia, p) {
@@ -1308,6 +1327,21 @@ SF.audienciaReal = function (audiencia, p) {
      pierde: se redirige a la familia. Un aviso que no llega a nadie es peor
      que uno mal dirigido. */
   if (menor) return { jugador: false, familia: true, redirigido: quiereJug && !quiereFam };
+
+  /* DE 14 A 17: LO QUE LE LLEGA AL CHAVAL LE LLEGA TAMBIEN A SUS TUTORES,
+     aunque el entrenador haya marcado "solo a los jugadores".
+
+     No es una mania de producto, es la regla que protege a todo el mundo: un
+     adulto del club no debe tener un canal privado con un menor. Protege al
+     chaval, y protege igual al entrenador, porque todo lo que dice queda a la
+     vista de la casa. El dia que alguien pregunte que se le dijo a un menor,
+     la respuesta no puede depender de una casilla que alguien marco con prisa.
+
+     A los 18 esto se acaba: a partir de ahi decide el (ver SF.familiaVe). */
+  var menorEdad = p ? !SF.esMayor(p) : true;
+  if (menorEdad && quiereJug) {
+    return { jugador: true, familia: true, redirigido: false, copiaTutores: !quiereFam };
+  }
   return { jugador: quiereJug, familia: quiereFam, redirigido: false };
 };
 
@@ -9032,6 +9066,29 @@ window.SF = window.SF || {};
             banda.appendChild(bTog);
           }
           body.appendChild(banda);
+
+          /* EL PORTAL DEL JUGADOR, al lado del de la familia. Estaban los dos
+             en la app pero solo se podía abrir uno desde aquí, y el otro no
+             había forma de verlo: para explicarle a un padre qué ve su hijo, o
+             para comprobar que a un chaval no le llega lo que no debe, hay que
+             poder mirarlo, no imaginárselo. */
+          var bandaJ = el('<div class="evo-band"></div>');
+          var tieneApp = SF.puedeTenerApp(p);
+          var edadP = SF.edadDe(p);
+          bandaJ.appendChild(el('<div class="evo-band-txt"><b>Portal del jugador</b><span>' +
+            (!tieneApp
+              ? (edadP == null
+                  ? 'Sin fecha de nacimiento no se le abre acceso. Su canal es el de la familia.'
+                  : 'Tiene ' + edadP + ' años: el acceso propio se abre a los ' + SF.EDAD_APP + '. Su canal es el de la familia.')
+              : mayorF
+                ? 'Ve y gestiona lo suyo, y decide qué ve su familia.'
+                : 'Ve horarios, cuadrantes y avisos. No ve pagos ni autorizaciones, y no puede responder: eso lo hace su familia.') +
+            '</span></div>'));
+          var bVerJ = el('<button class="btn btn-light btn-sm">' + ico('search') + 'Ver su portal</button>');
+          bVerJ.onclick = function () { location.hash = '#/portal-jugador/' + p.id; };
+          bandaJ.appendChild(bVerJ);
+          body.appendChild(bandaJ);
+
           if (mayorF) {
             body.appendChild(el('<p class="aviso-lin">Es mayor de edad: esto lo decide ' +
               esc(p.first_name || p.full_name.split(' ')[0]) + ' desde su acceso, área por área. ' +
@@ -15124,6 +15181,32 @@ window.SF = window.SF || {};
        ellos. Ahora tiene el suyo, con el mismo formato de móvil, y dentro la
        pantalla que decide qué sigue viendo su casa. */
     var mayor = SF.esMayor(p);
+    var edadJ = SF.edadDe(p);
+
+    /* POR DEBAJO DE 14 NO HAY APP PARA EL JUGADOR, y no es una limitacion
+       tecnica: por debajo de esa edad el canal es la familia. Un niño de once
+       no necesita una aplicacion, necesita que en su casa sepan a que hora
+       entrena. Ademas es la edad a partir de la cual puede consentir sus
+       propios datos, asi que abrirle una cuenta antes seria abrirsela a
+       alguien que todavia no puede autorizarla.
+       Se explica en vez de esconderlo: una pantalla vacia parece una averia. */
+    if (!SF.puedeTenerApp(p)) {
+      view.innerHTML = head('Mi ScoutFlow', 'Acceso del jugador');
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('users') + '</div>' +
+        '<h3>' + esc(p.full_name) + ' todavía no tiene acceso propio</h3>' +
+        '<p>' + (edadJ == null
+          ? 'No consta su fecha de nacimiento, así que no se puede saber si le toca. Hasta que esté, su canal es el de su familia.'
+          : 'Tiene ' + edadJ + ' años. El acceso del jugador se abre a partir de los ' + SF.EDAD_APP + '.') + '</p>' +
+        '<p class="hint">Por debajo de los ' + SF.EDAD_APP + ' el canal es la familia: los avisos del entrenador, ' +
+        'los horarios y los cuadrantes llegan al Portal Family. Es también la edad a partir de la cual un menor ' +
+        'puede autorizar por sí mismo el uso de sus datos, así que abrirle una cuenta antes sería abrírsela a ' +
+        'alguien que todavía no puede consentirla.</p>' +
+        '<div class="row-c"><button class="btn btn-primary" id="pf18">' + ico('family') + 'Ver su Portal Family</button></div>' +
+        '</div>'));
+      var bPF = view.querySelector('#pf18');
+      if (bPF) bPF.onclick = function () { location.hash = '#/portal-family/' + p.id; };
+      return;
+    }
 
     view.innerHTML = head('Mi ScoutFlow', mayor
       ? 'Vista del jugador mayor de edad (mobile-first). Sus datos son suyos.'
@@ -15190,7 +15273,11 @@ window.SF = window.SF || {};
           card.classList.remove('is-nuevo');
         } else cuerpo.setAttribute('hidden', '');
       };
-      if (a.needs_rsvp) {
+      /* EL MENOR LEE, NO CONTESTA. Confirmar una convocatoria es un compromiso
+         -alguien tiene que llevarlo, recogerlo y responder por el-, y eso lo
+         asume su familia, no el. Se le enseña lo que ha respondido en su casa
+         para que no se entere de si va o no va por el grupo de WhatsApp. */
+      if (a.needs_rsvp && mayor) {
         var yn = el('<div class="ph-yn" style="margin-top:10px"></div>');
         [['ire', 'Iré'], ['no_puedo', 'No puedo']].forEach(function (o) {
           var btn = el('<button class="ph-btn yn' + (tg.rsvp === o[0] ? ' on' : '') + '">' + o[1] + '</button>');
@@ -15198,12 +15285,29 @@ window.SF = window.SF || {};
           yn.appendChild(btn);
         });
         cuerpo.appendChild(yn);
+      } else if (a.needs_rsvp) {
+        cuerpo.appendChild(el('<p class="hint">' + (tg.rsvp
+          ? 'En tu casa han respondido: <b>' + (tg.rsvp === 'ire' ? 'Iré' : 'No puedo') + '</b>.'
+          : 'Este aviso hay que contestarlo, y lo hace tu familia desde su acceso.') + '</p>'));
       }
       card.appendChild(cab); card.appendChild(cuerpo);
       b.appendChild(card);
     });
-    b.appendChild(el('<p class="hint">Estos avisos van dirigidos a ti. Los que el club manda a tu familia no aparecen aquí.</p>'));
-    b.appendChild(bloqueConversaciones(p, 'jugador'));
+    b.appendChild(el('<p class="hint">' + (mayor
+      ? 'Estos avisos van dirigidos a ti. Los que el club manda a tu familia no aparecen aquí.'
+      : 'Todo lo que te llega aquí le llega también a tu familia. No es que te vigilen: es que ningún adulto del club puede escribirte por un canal donde no os vea nadie.') + '</p>'));
+
+    /* Escribir al club solo lo hace el mayor de edad. En un menor, un canal
+       directo con un adulto del club es exactamente lo que no debe existir, y
+       hacerlo "visible para la familia" no lo arregla: el sitio de esa
+       conversación es el acceso de la familia, que es quien responde por él. */
+    if (mayor) {
+      b.appendChild(bloqueConversaciones(p, 'jugador'));
+    } else {
+      b.appendChild(el('<p class="ph-sec">¿Necesitas decirle algo al club?</p>'));
+      b.appendChild(el('<p class="hint">Se lo dices a tu entrenador en el pabellón, o lo escribe tu familia ' +
+        'desde su acceso. Aquí solo lees, para que nadie del club pueda escribirte a solas.</p>'));
+    }
 
     /* ---------- DE AQUÍ ABAJO, SOLO EL MAYOR DE EDAD ----------
        Lo que hasta los 18 llevaba su familia y a partir de los 18 lleva él:
@@ -16845,18 +16949,25 @@ window.SF = window.SF || {};
       function explica() {
         var k = comp.querySelector('#ma').value;
         var def = SF.AUDIENCIAS.filter(function (x) { return x.k === k; })[0];
-        var cuenta = { jug: 0, fam: 0, redir: 0 };
+        var cuenta = { jug: 0, fam: 0, redir: 0, copia: 0 };
         roster.forEach(function (x) {
           var real = SF.audienciaReal(k, x);
           if (real.jugador) cuenta.jug++;
           if (real.familia) cuenta.fam++;
           if (real.redirigido) cuenta.redir++;
+          if (real.copiaTutores) cuenta.copia++;
         });
         var partes = [];
         if (cuenta.fam) partes.push('<b>' + cuenta.fam + '</b> ' + (cuenta.fam === 1 ? 'familia' : 'familias'));
         if (cuenta.jug) partes.push('<b>' + cuenta.jug + '</b> ' + (cuenta.jug === 1 ? 'jugador' : 'jugadores'));
         expl.innerHTML = esc(def.desc) + ' Lo recibirán ' + (partes.join(' y ') || 'nadie') + '.' +
-          (cuenta.redir ? ' <b>' + cuenta.redir + '</b> ' + (cuenta.redir === 1 ? 'es menor de 14 y le llegará a su familia.' : 'son menores de 14 y les llegará a su familia.') : '');
+          (cuenta.redir ? ' <b>' + cuenta.redir + '</b> ' + (cuenta.redir === 1 ? 'es menor de 14 y le llegará a su familia.' : 'son menores de 14 y les llegará a su familia.') : '') +
+          /* Que el número de familias sea mayor que el que se ha pedido tiene
+             explicación, y hay que darla: si no, el entrenador cree que la app
+             le ha desobedecido. */
+          (cuenta.copia ? ' <b>' + cuenta.copia + '</b> ' + (cuenta.copia === 1
+            ? 'es menor de edad, así que su familia recibe copia.'
+            : 'son menores de edad, así que sus familias reciben copia.') : '');
       }
       comp.querySelector('#ma').onchange = explica; explica();
 
