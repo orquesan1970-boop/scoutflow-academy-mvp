@@ -8290,7 +8290,7 @@ window.SF = window.SF || {};
   var TABS = [
     ['perfil', 'Perfil'], ['deportivo', 'Deportivo'], ['trayectoria', 'Trayectoria'], ['academico', 'Académico'], ['familia', 'Familia'],
     ['documentos', 'Documentos'], ['videos', 'Vídeos'], ['captacion', 'Captación'], ['seguimiento', 'Seguimiento'],
-    ['informes', 'Informes'], ['finanzas', 'Finanzas'], ['portal', 'Portal Family'], ['notas', 'Notas internas']
+    ['informes', 'Informes'], ['finanzas', 'Finanzas'], ['portal', 'Portales'], ['notas', 'Notas internas']
   ];
 
   pages.jugador = function (view, id) {
@@ -9032,78 +9032,19 @@ window.SF = window.SF || {};
         var fam = p.family || {};
         body.appendChild(el('<div class="field-grid">' + fld('Contacto', fam.contact) + fld('Relación', fam.relation) + fld('Teléfono', fam.phone) + fld('Email', fam.email) + '</div>'));
 
-        /* El acceso al portal se gestiona AQUÍ, además de en la pantalla
-           Family. En un club de novecientos jugadores nadie va a buscar a una
-           familia en una lista: llega por la ficha del chaval, que es por
-           donde se llega a todo lo demás. */
+        /* Los dos portales viven en su propia pestaña, que es donde va a
+           buscarlos cualquiera. Aquí queda el enlace y no una copia: dos
+           sitios que hacen lo mismo acaban dejando de decir lo mismo. */
         (function () {
           var r2 = role();
           if (r2.tabs !== 'all' && ['director', 'administrativo', 'dt_general'].indexOf(SF.store.role()) < 0) return;
-          /* CUMPLIDOS LOS 18, EL CLUB DEJA DE DECIDIR ESTO. Quién ve sus datos
-             lo elige él, área por área, desde su móvil. Aquí solo se MIRA.
-             Si dirección pudiera reabrirlo "porque llamó el padre", el permiso
-             del jugador no valdría nada: ni por dentro, ni el día que alguien
-             venga a preguntar por qué su familia veía lo que veía. */
-          var mayorF = SF.esMayor(p);
-          var abiertasF = mayorF ? SF.areasAbiertas(p) : [];
-          var banda = el('<div class="evo-band"></div>');
-          banda.appendChild(el('<div class="evo-band-txt"><b>Portal de la familia</b><span>' +
-            (mayorF
-              ? (abiertasF.length
-                  ? esc(fam.contact || 'La familia') + ' ve solo: ' +
-                    abiertasF.map(function (a) { return a.label.toLowerCase(); }).join(', ') + '.'
-                  : esc(fam.contact || 'La familia') + ' no ve nada: no lo ha abierto.')
-              : p.family_active
-                ? esc(fam.contact || 'La familia') + ' puede ver la ficha, los avisos y los pagos de ' + esc(p.full_name.split(' ')[0]) + '.'
-                : 'Sin acceso. No ve nada del club.') + '</span></div>'));
-          var bVer = el('<button class="btn btn-light btn-sm">' + ico('search') + 'Ver su portal</button>');
-          bVer.onclick = function () { location.hash = '#/portal-family/' + p.id; };
-          banda.appendChild(bVer);
-          if (!mayorF) {
-            var bTog = el('<button class="btn btn-sm' + (p.family_active ? '' : ' btn-primary') + '">' +
-              (p.family_active ? 'Quitar acceso' : 'Dar acceso') + '</button>');
-            bTog.onclick = function () { cambiarAcceso(p, function () { p = SF.store.get(p.id); paint(); }); };
-            banda.appendChild(bTog);
-          }
-          body.appendChild(banda);
-
-          /* EL PORTAL DEL JUGADOR, al lado del de la familia. Estaban los dos
-             en la app pero solo se podía abrir uno desde aquí, y el otro no
-             había forma de verlo: para explicarle a un padre qué ve su hijo, o
-             para comprobar que a un chaval no le llega lo que no debe, hay que
-             poder mirarlo, no imaginárselo. */
-          var bandaJ = el('<div class="evo-band"></div>');
-          var tieneApp = SF.puedeTenerApp(p);
-          var edadP = SF.edadDe(p);
-          bandaJ.appendChild(el('<div class="evo-band-txt"><b>Portal del jugador</b><span>' +
-            (!tieneApp
-              ? (edadP == null
-                  ? 'Sin fecha de nacimiento no se le abre acceso. Su canal es el de la familia.'
-                  : 'Tiene ' + edadP + ' años: el acceso propio se abre a los ' + SF.EDAD_APP + '. Su canal es el de la familia.')
-              : mayorF
-                ? 'Ve y gestiona lo suyo, y decide qué ve su familia.'
-                : 'Ve horarios, cuadrantes y avisos. No ve pagos ni autorizaciones, y no puede responder: eso lo hace su familia.') +
-            '</span></div>'));
-          var bVerJ = el('<button class="btn btn-light btn-sm">' + ico('search') + 'Ver su portal</button>');
-          bVerJ.onclick = function () { location.hash = '#/portal-jugador/' + p.id; };
-          bandaJ.appendChild(bVerJ);
-          body.appendChild(bandaJ);
-
-          if (mayorF) {
-            body.appendChild(el('<p class="aviso-lin">Es mayor de edad: esto lo decide ' +
-              esc(p.first_name || p.full_name.split(' ')[0]) + ' desde su acceso, área por área. ' +
-              'El club no puede abrirlo ni cerrarlo, ni siquiera dirección.</p>'));
-          } else {
-            var faltanC = SF.diasParaMayoria(p);
-            if (faltanC != null && faltanC <= SF.AVISO_MAYORIA_DIAS) {
-              body.appendChild(el('<p class="aviso-lin">Cumple 18 en ' +
-                (faltanC === 0 ? 'hoy mismo' : faltanC === 1 ? '1 día' : faltanC + ' días') +
-                '. Ese día la familia deja de ver todo menos los pagos, y a partir de ahí lo decide él.</p>'));
-            }
-            if (p.family_active && !p.team_id) {
-              body.appendChild(el('<p class="aviso-lin">Tiene acceso pero no está en ningún equipo. Si ya no está en el club, quítaselo.</p>'));
-            }
-          }
+          if ((r2.tabs !== 'all') && (r2.tabs || []).indexOf('portal') < 0) return;
+          var lin = el('<div class="evo-band"><div class="evo-band-txt"><b>Accesos de esta familia y de este jugador</b>' +
+            '<span>Qué ve cada uno y cómo entrar a mirarlo.</span></div></div>');
+          var bIr = el('<button class="btn btn-light btn-sm">' + ico('family') + 'Ver los portales</button>');
+          bIr.onclick = function () { SF._openTab = 'portal'; SF.router.render(); };
+          lin.appendChild(bIr);
+          body.appendChild(lin);
         })();
 
         /* Estatura de los padres. Dos campos que parecen una curiosidad y son
@@ -9555,10 +9496,16 @@ window.SF = window.SF || {};
            tocar el codigo y aplicar a un equipo entero de golpe. */
         body.appendChild(kitBlock(p, role().canManageFinance, refF));
       } else if (cur === 'portal') {
-        var b3 = el('<button class="btn btn-primary">' + ico('family') + 'Ver portal de la familia</button>');
-        b3.onclick = function () { location.hash = '#/portal-family/' + p.id; };
-        body.appendChild(el('<div class="field-grid">' + fld('Acceso Family', p.family_active ? 'Activado' : 'No activado') + fld('Contacto', (p.family || {}).contact) + '</div>'));
-        body.appendChild(b3);
+        /* AQUÍ ES DONDE LA GENTE LOS BUSCA. La pestaña se llamaba "Portal
+           Family" y solo ofrecía el de la familia: el del jugador existía pero
+           no había forma de llegar a él desde la ficha, así que no se podía
+           comprobar qué ve un chaval sin fiarse de la memoria de alguien.
+           Ahora están los dos, con lo que ve cada uno según su edad. */
+        body.appendChild(el('<div class="field-grid">' +
+          fld('Edad', SF.edadDe(p) != null ? SF.edadDe(p) + ' años' : 'sin fecha de nacimiento') +
+          fld('Acceso Family', p.family_active ? 'Activado' : 'No activado') +
+          fld('Contacto familiar', (p.family || {}).contact) + '</div>'));
+        bandasPortales(p, body, function () { p = SF.store.get(p.id); paint(); });
       } else if (cur === 'notas') {
         if (!role().canSeeNotes) { body.appendChild(el('<div class="empty-panel"><p>Tu rol no puede ver notas internas.</p></div>')); return; }
         var ta = el('<textarea class="notes" placeholder="Situación económica, presupuesto, beca posible, observaciones de scout…">' + esc(p.notes_internal) + '</textarea>');
@@ -14750,6 +14697,85 @@ window.SF = window.SF || {};
 
     view.appendChild(phone);
   };
+
+  /* Los dos portales de un jugador, uno debajo del otro: el de su familia y
+     el suyo. Una sola implementación, porque el día que cambie lo que ve cada
+     uno tiene que cambiar en un único sitio. */
+  function bandasPortales(p, body, repaint) {
+    var fam = p.family || {};
+    (function () {
+          var r2 = role();
+          if (r2.tabs !== 'all' && ['director', 'administrativo', 'dt_general'].indexOf(SF.store.role()) < 0) {
+            body.appendChild(el('<p class="hint">Tu rol no gestiona los accesos de las familias.</p>'));
+            return;
+          }
+          /* CUMPLIDOS LOS 18, EL CLUB DEJA DE DECIDIR ESTO. Quién ve sus datos
+             lo elige él, área por área, desde su móvil. Aquí solo se MIRA.
+             Si dirección pudiera reabrirlo "porque llamó el padre", el permiso
+             del jugador no valdría nada: ni por dentro, ni el día que alguien
+             venga a preguntar por qué su familia veía lo que veía. */
+          var mayorF = SF.esMayor(p);
+          var abiertasF = mayorF ? SF.areasAbiertas(p) : [];
+          var banda = el('<div class="evo-band"></div>');
+          banda.appendChild(el('<div class="evo-band-txt"><b>Portal de la familia</b><span>' +
+            (mayorF
+              ? (abiertasF.length
+                  ? esc(fam.contact || 'La familia') + ' ve solo: ' +
+                    abiertasF.map(function (a) { return a.label.toLowerCase(); }).join(', ') + '.'
+                  : esc(fam.contact || 'La familia') + ' no ve nada: no lo ha abierto.')
+              : p.family_active
+                ? esc(fam.contact || 'La familia') + ' puede ver la ficha, los avisos y los pagos de ' + esc(p.full_name.split(' ')[0]) + '.'
+                : 'Sin acceso. No ve nada del club.') + '</span></div>'));
+          var bVer = el('<button class="btn btn-light btn-sm">' + ico('search') + 'Ver su portal</button>');
+          bVer.onclick = function () { location.hash = '#/portal-family/' + p.id; };
+          banda.appendChild(bVer);
+          if (!mayorF) {
+            var bTog = el('<button class="btn btn-sm' + (p.family_active ? '' : ' btn-primary') + '">' +
+              (p.family_active ? 'Quitar acceso' : 'Dar acceso') + '</button>');
+            bTog.onclick = function () { cambiarAcceso(p, repaint); };
+            banda.appendChild(bTog);
+          }
+          body.appendChild(banda);
+
+          /* EL PORTAL DEL JUGADOR, al lado del de la familia. Estaban los dos
+             en la app pero solo se podía abrir uno desde aquí, y el otro no
+             había forma de verlo: para explicarle a un padre qué ve su hijo, o
+             para comprobar que a un chaval no le llega lo que no debe, hay que
+             poder mirarlo, no imaginárselo. */
+          var bandaJ = el('<div class="evo-band"></div>');
+          var tieneApp = SF.puedeTenerApp(p);
+          var edadP = SF.edadDe(p);
+          bandaJ.appendChild(el('<div class="evo-band-txt"><b>Portal del jugador</b><span>' +
+            (!tieneApp
+              ? (edadP == null
+                  ? 'Sin fecha de nacimiento no se le abre acceso. Su canal es el de la familia.'
+                  : 'Tiene ' + edadP + ' años: el acceso propio se abre a los ' + SF.EDAD_APP + '. Su canal es el de la familia.')
+              : mayorF
+                ? 'Ve y gestiona lo suyo, y decide qué ve su familia.'
+                : 'Ve horarios, cuadrantes y avisos. No ve pagos ni autorizaciones, y no puede responder: eso lo hace su familia.') +
+            '</span></div>'));
+          var bVerJ = el('<button class="btn btn-light btn-sm">' + ico('search') + 'Ver su portal</button>');
+          bVerJ.onclick = function () { location.hash = '#/portal-jugador/' + p.id; };
+          bandaJ.appendChild(bVerJ);
+          body.appendChild(bandaJ);
+
+          if (mayorF) {
+            body.appendChild(el('<p class="aviso-lin">Es mayor de edad: esto lo decide ' +
+              esc(p.first_name || p.full_name.split(' ')[0]) + ' desde su acceso, área por área. ' +
+              'El club no puede abrirlo ni cerrarlo, ni siquiera dirección.</p>'));
+          } else {
+            var faltanC = SF.diasParaMayoria(p);
+            if (faltanC != null && faltanC <= SF.AVISO_MAYORIA_DIAS) {
+              body.appendChild(el('<p class="aviso-lin">Cumple 18 en ' +
+                (faltanC === 0 ? 'hoy mismo' : faltanC === 1 ? '1 día' : faltanC + ' días') +
+                '. Ese día la familia deja de ver todo menos los pagos, y a partir de ahí lo decide él.</p>'));
+            }
+            if (p.family_active && !p.team_id) {
+              body.appendChild(el('<p class="aviso-lin">Tiene acceso pero no está en ningún equipo. Si ya no está en el club, quítaselo.</p>'));
+            }
+          }
+        })();
+  }
 
   /* ===================== STAFF =====================
      Ficha profesional de quien trabaja con jugadores.
