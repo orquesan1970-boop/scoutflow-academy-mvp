@@ -1504,6 +1504,16 @@ SF.SCORE_WEIGHTS = { 'Técnica': 40, 'Física': 25, 'Mental': 35 };
 /* El Scout Score sale de las evaluaciones. Nadie lo teclea.
    Devuelve también de cuántos apartados sale: un 84 con 3 notas puestas no
    vale lo mismo que un 84 con 15, y eso hay que decirlo. */
+/* EL SCORE SE ALIMENTA SOLO DE LO DEPORTIVO, Y ESTO NO ES UN DETALLE.
+   Entra unicamente `p.stats`, que son las notas de las destrezas del deporte.
+   NUNCA entra la situacion economica de la familia, ni el presupuesto, ni si
+   paga tarde, ni de donde viene el jugador. Ademas de ser injusto, mezclar eso
+   con una puntuacion que decide admisiones se parece demasiado a lo que el
+   articulo 5.1(c) del Reglamento Europeo de IA llama puntuacion social y
+   prohibe: clasificar personas por caracteristicas ajenas al contexto y darles
+   por eso un trato desfavorable.
+   Si alguna vez alguien quiere "afinar" el Score con datos de pago, la
+   respuesta es no, y esta escrita aqui para que no haya que discutirla. */
 SF.scoutScore = function (p, statsOverride) {
   var sp = SF.SPORTS[p.sport || 'baloncesto'];
   if (!sp || !sp.skills) return null;
@@ -8566,7 +8576,15 @@ window.SF = window.SF || {};
         var b = el('<button class="btn btn-primary">' + ico('ai') + 'Analizar con IA</button>');
         b.onclick = function () { analizarIA(p); };
         body.appendChild(b);
-        body.appendChild(el('<p class="hint">Genera resumen ejecutivo, fortalezas, áreas de mejora y siguiente paso (simulado).</p>'));
+        /* Decia "(simulado)" y ya no es verdad: cuando hay clave de IA
+           configurada, esto llama a un modelo de verdad. Dejar la etiqueta
+           vieja es peor que no ponerla -alguien pega datos reales creyendo que
+           no salen del club- y ademas el articulo 50 del Reglamento Europeo de
+           IA, exigible desde el 2 de agosto de 2026, obliga a decir con
+           claridad que se esta usando IA antes de usarla, no despues. */
+        body.appendChild(el('<p class="hint">Resumen, puntos fuertes, áreas de mejora y siguiente paso. ' +
+          'Lo escribe una <b>IA</b> a partir de la ficha deportiva; no se le envían notas internas, ' +
+          'ni datos económicos, ni médicos, ni contactos de la familia. Revísalo antes de usarlo.</p>'));
       } else if (cur === 'finanzas') {
         if (!role().canSeeFinance) { body.appendChild(el('<div class="empty-panel"><p>Tu rol no tiene acceso a finanzas.</p></div>')); return; }
         var refF = function () { p = SF.store.get(p.id); paint(); };
@@ -8593,7 +8611,8 @@ window.SF = window.SF || {};
     paint();
   };
 
-  /* "Analizar con IA" — resumen basado en reglas (simulado, honesto) */
+  /* "Analizar con IA". Con clave configurada llama a un modelo de verdad; sin
+     ella cae a un informe por reglas y lo dice. */
   /* Lo que sale del club cuando se pide un análisis.
      Se compone campo a campo, en positivo: solo entra lo que está aquí
      escrito. Es la diferencia entre "quito lo sensible" y "solo dejo pasar lo
