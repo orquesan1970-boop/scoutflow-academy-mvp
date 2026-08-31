@@ -1,7 +1,7 @@
 {
   "name": "scoutflow-academy-mvp",
-  "version": "0.1.0",
-  "description": "ScoutFlow Academy MVP web prototype",
+  "version": "0.3.0",
+  "description": "ScoutFlow Academy — CRM deportivo para academias y clubes de formacion",
   "scripts": {
     "start": "npx serve ."
   },

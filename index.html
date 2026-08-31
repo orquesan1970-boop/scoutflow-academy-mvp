@@ -973,6 +973,9 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
   background:var(--bg);color:var(--ink-3)}
 .eq-chip.on .eq-n{background:rgba(255,255,255,.22);color:#fff}
 .eq-chip-sm{font-size:12.5px;padding:6px 12px}
+.sf-sql{background:var(--sidebar);color:#D8D4F5;border-radius:10px;padding:14px 16px;margin:12px 0;
+  font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.55;
+  overflow-x:auto;white-space:pre;max-height:280px;overflow-y:auto}
 .eq-cat{margin-top:22px}
 .eq-cat:first-of-type{margin-top:6px}
 /* En el móvil, veinte años de nacimiento partidos en nueve líneas dejaban al
@@ -2071,6 +2074,129 @@ SF.parseBusqueda = function (q, r) {
   return { conds: conds, usadas: usadas, terms: texto.trim().split(/\s+/).filter(Boolean) };
 };
 
+/* ===================== LAS COPIAS =====================
+   Los datos del club viven en Supabase, pero en UNA sola fila que se pisa en
+   cada guardado, y el plan contratado no hace copias ("Last backup: No
+   backups"). Junta las dos cosas y sale esto: si alguien borra media plantilla
+   por error, lo guardado pasa a ser el club sin esa media plantilla y no hay
+   ninguna version de ayer a la que volver.
+
+   Nada de esto se arregla con mas pantallas. Se arregla con tres cosas
+   aburridas: que la copia tenga fecha, que la app avise cuando hace mucho que
+   no se hace una, y que importar un archivo no pueda destruir lo que ya hay.
+
+   QUE HAY EN UNA COPIA. No solo los jugadores: el club entero. Se enumera
+   aqui para poder decirle a quien importa un archivo QUE trae dentro antes de
+   tocar nada. Un "Importado" a secas no dice si han entrado 277 jugadores o
+   tres. */
+SF.SECCIONES_COPIA = [
+  { k: 'players',     label: 'jugadores' },
+  { k: 'teams',       label: 'equipos' },
+  { k: 'staff',       label: 'personal' },
+  { k: 'adjuntos',    label: 'personal adjunto' },
+  { k: 'horario',     label: 'horarios de pista' },
+  { k: 'pf',          label: 'sesiones de preparación física' },
+  { k: 'citas',       label: 'entrevistas' },
+  { k: 'ojeos',       label: 'ojeos' },
+  { k: 'viajes',      label: 'viajes' },
+  { k: 'expenses',    label: 'gastos' },
+  { k: 'sueldos',     label: 'sueldos' },
+  { k: 'convs',       label: 'conversaciones' },
+  { k: 'announcements', label: 'comunicados' },
+  { k: 'comms',       label: 'comunicaciones' },
+  { k: 'accesos',     label: 'accesos de familia' }
+];
+
+/* Revisa un archivo ANTES de dejarlo entrar.
+   Hasta ahora bastaba con que fuera JSON valido y trajera "players". Con eso,
+   un archivo de otra aplicacion, o uno a medio descargar, entraba tan tranquilo
+   y dejaba el club en un estado incoherente que nadie sabia deshacer.
+
+   Se comprueba lo que de verdad rompe la app si falta, y se AVISA -sin
+   bloquear- de lo que solo es raro. Ser demasiado estricto tambien es un
+   fallo: el dia que una copia vieja no se pueda restaurar por una clave que
+   ya no usamos, la copia no habra servido de nada. */
+SF.revisaCopia = function (parsed) {
+  var out = { ok: false, error: '', resumen: [], avisos: [] };
+
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    out.error = 'El archivo no tiene la forma de una copia de ScoutFlow.';
+    return out;
+  }
+  if (!Array.isArray(parsed.players)) {
+    out.error = 'No trae la lista de jugadores. Esto no es una copia de ScoutFlow, ' +
+      'o está incompleta.';
+    return out;
+  }
+
+  /* Los jugadores son el eje de todo: sin id no se les puede enlazar un
+     equipo, un pago ni un documento, y sin nombre no se les puede ni buscar. */
+  var sinId = 0, sinNombre = 0, vistos = {}, repes = 0;
+  parsed.players.forEach(function (p) {
+    if (!p || typeof p !== 'object') { sinId++; return; }
+    if (!p.id) sinId++;
+    else if (vistos[p.id]) repes++;
+    else vistos[p.id] = 1;
+    if (!String(p.full_name || '').trim()) sinNombre++;
+  });
+  if (sinId) {
+    out.error = sinId + (sinId === 1 ? ' jugador no tiene identificador' : ' jugadores no tienen identificador') +
+      '. Sin él no se les puede enlazar su equipo, sus pagos ni sus documentos.';
+    return out;
+  }
+  if (repes) {
+    out.error = 'Hay ' + repes + (repes === 1 ? ' identificador repetido' : ' identificadores repetidos') +
+      '. Dos jugadores con el mismo identificador se pisan entre ellos.';
+    return out;
+  }
+  if (sinNombre) out.avisos.push(sinNombre + (sinNombre === 1 ? ' jugador viene sin nombre' : ' jugadores vienen sin nombre'));
+
+  /* Las secciones que existan tienen que ser listas. Una que llegue como texto
+     o como número revienta la pantalla que la pinte, y lo hace mucho después
+     de importar, cuando ya nadie relaciona una cosa con la otra. */
+  var malas = [];
+  SF.SECCIONES_COPIA.forEach(function (sec) {
+    if (parsed[sec.k] === undefined || parsed[sec.k] === null) return;
+    if (!Array.isArray(parsed[sec.k])) { malas.push(sec.label); return; }
+    if (parsed[sec.k].length) out.resumen.push({ label: sec.label, n: parsed[sec.k].length });
+  });
+  if (malas.length) {
+    out.error = 'Estas partes vienen estropeadas: ' + malas.join(', ') + '.';
+    return out;
+  }
+
+  if (!parsed.academy || typeof parsed.academy !== 'object') {
+    out.avisos.push('no trae los datos de la academia; se conservan los actuales');
+  }
+  if (!parsed.players.length) out.avisos.push('la copia no tiene ningún jugador');
+
+  out.ok = true;
+  return out;
+};
+
+/* Nombre de archivo con la fecha dentro. "scoutflow-data.json" cuatro veces en
+   la carpeta de descargas se convierte en (1), (2), (3) y ya no hay forma de
+   saber cuál es de cuándo: una copia que no se sabe fechar no es una copia. */
+SF.nombreCopia = function (sufijo) {
+  var d = new Date();
+  var dos = function (n) { return (n < 10 ? '0' : '') + n; };
+  return 'scoutflow-' + d.getFullYear() + '-' + dos(d.getMonth() + 1) + '-' + dos(d.getDate()) +
+    (sufijo ? '-' + sufijo : '') + '.json';
+};
+
+/* Cuántos días hace de la última copia. null = nunca se ha hecho ninguna. */
+SF.DIAS_AVISO_COPIA = 14;
+SF.diasSinCopia = function () {
+  var u = (SF.store.copias() || {}).ultima;
+  if (!u) return null;
+  var ms = Date.now() - new Date(u).getTime();
+  return Math.floor(ms / 86400000);
+};
+SF.tocaCopia = function () {
+  var d = SF.diasSinCopia();
+  return d === null || d >= SF.DIAS_AVISO_COPIA;
+};
+
 SF.PIPELINE_INFO = {
   'Nuevo': 'Primer contacto registrado con el jugador.',
   'Datos incompletos': 'Faltan datos clave de la ficha por completar.',
@@ -2621,7 +2747,7 @@ SF.SEASON = '2026/2027';
    pantalla es lo último o una página vieja guardada por el navegador, que
    ya nos ha costado una evaluación mal guardada. Se ve en Configuración
    y en el pie del menú. */
-SF.BUILD = '2026-08-30';
+SF.BUILD = '2026-08-31';
 
 SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'coord_pf', 'psicologo', 'fisio',
   'scout', 'delegado_equipo', 'delegado_campo', 'dt_general', 'dt_femenino',
@@ -6354,10 +6480,58 @@ SF.store = (function () {
     },
 
     exportJSON: function () { return JSON.stringify(db(), null, 2); },
+
+    /* ---- COPIAS ----
+       Cuándo se hizo la última. Se guarda dentro de los propios datos, así que
+       viaja con ellos: si mañana entras desde otro ordenador, sigue sabiendo
+       cuándo fue la última copia de verdad y no vuelve a empezar la cuenta. */
+    copias: function () { return db().copias || {}; },
+    copiaHecha: function (tipo) {
+      var d = db();
+      d.copias = d.copias || {};
+      d.copias.ultima = new Date().toISOString();
+      d.copias.tipo = tipo || 'manual';
+      save(d);
+    },
+
+    /* Importar es la operación más peligrosa de la aplicación: sustituye el
+       club entero. Antes bastaba con que el archivo trajera "players" y se
+       guardaba a pelo. Ahora se revisa de verdad (`SF.revisaCopia`) y, si algo
+       falla, se dice QUÉ falla y NO SE TOCA NADA. Fallar sin haber roto nada
+       es el único desenlace aceptable aquí. */
     importJSON: function (text) {
-      var parsed = JSON.parse(text);
-      if (!parsed.players) throw new Error('JSON sin "players"');
+      var parsed;
+      try { parsed = JSON.parse(text); }
+      catch (e) { throw new Error('El archivo no es un JSON válido. Puede que se descargara a medias.'); }
+      var rev = SF.revisaCopia(parsed);
+      if (!rev.ok) throw new Error(rev.error);
+      var actual = db();
+
+      /* La marca de la última copia NO se hereda del archivo: lo que importa
+         es cuándo se guardó por última vez esta información, no cuándo se
+         guardó la del archivo. */
+      parsed.copias = actual.copias || {};
+
+      /* EL ROL TIENE QUE SOBREVIVIR. Si el archivo no trae `role`, al volver a
+         pintar no hay rol, `role()` devuelve null y la aplicación se cae
+         entera con la pantalla en blanco: has restaurado bien y parece que lo
+         has roto todo. Se conserva el rol con el que estabas trabajando. */
+      var rolOk = parsed.role && SF.rolDe(parsed.role);
+      if (!rolOk) parsed.role = actual.role;
+
+      /* LAS MARCAS DE MIGRACIÓN TAMBIÉN. Las migraciones llevan una bandera
+         (`_club_v3`, `_inst_v2`…) para no repetirse. Si el archivo no las
+         trae, se vuelven a ejecutar sobre los datos restaurados, y una de
+         ellas AÑADE LOS DATOS DE EJEMPLO que falten: restaurabas una copia de
+         5 jugadores y te aparecían 282, los tuyos y los de ejemplo mezclados.
+         El código es el de hoy y estas migraciones ya se hicieron, así que sus
+         banderas viajan con el estado actual, no con el archivo. */
+      Object.keys(actual).forEach(function (k) {
+        if (k.charAt(0) === '_' && parsed[k] === undefined) parsed[k] = actual[k];
+      });
+
       save(parsed);
+      return rev;
     },
 
     /* métricas para Inicio / Finanzas / etc. */
@@ -7312,6 +7486,35 @@ window.SF = window.SF || {};
     /* --- Cabecera: saludo real, no uno fijo --- */
     view.innerHTML = '<div class="dash-hero"><div class="dash-hi">' + saludo() + ', ' + esc(u.name.split(' ')[0]) + '</div>' +
       '<p class="dash-date">' + fechaLarga() + ' · ' + esc(u.label) + (soloMios ? ' · ' + mios.length + ' jugadores a tu cargo' : '') + '</p></div>';
+
+    /* --- Aviso de copia, solo para quien puede hacerla ---
+       Va arriba del todo y solo cuando toca. Un botón de copia escondido en
+       Configuración lo pulsa la gente el día que ya es tarde; el aviso es lo
+       que convierte "hay copias" en "hay copias hechas". Se calla en cuanto se
+       hace una, para que no se vuelva ruido de fondo que ya nadie lee. */
+    if (SF.router.puede('config') && SF.tocaCopia()) {
+      var dS = SF.diasSinCopia();
+      var avC = el('<div class="card" style="border-left:3px solid #E8A33D"><h3>' +
+        (dS === null ? 'Nunca has descargado una copia' : 'Hace ' + dS + ' días de la última copia') + '</h3>' +
+        '<p class="hint">Los datos se guardan solos en la nube, pero sin historial: cada guardado pisa el ' +
+        'anterior. Si algo se borra por error, una copia descargada es lo único que permite volver atrás.</p>' +
+        '<div class="row-c"></div></div>');
+      var bC = el('<button class="btn btn-primary">' + ico('download') + 'Descargar copia ahora</button>');
+      bC.onclick = function () {
+        var blob = new Blob([SF.store.exportJSON()], { type: 'application/json' });
+        var url = URL.createObjectURL(blob);
+        var a2 = document.createElement('a'); a2.href = url; a2.download = SF.nombreCopia(); a2.click();
+        URL.revokeObjectURL(url);
+        SF.store.copiaHecha('manual');
+        U.toast('Copia descargada');
+        SF.router.render();
+      };
+      var bV = el('<button class="btn">Ver copias y versiones</button>');
+      bV.onclick = function () { location.hash = '#/config'; };
+      avC.querySelector('.row-c').appendChild(bC);
+      avC.querySelector('.row-c').appendChild(bV);
+      view.appendChild(avC);
+    }
 
     /* --- Recuento de lo pendiente, cada cosa filtrada por lo que este rol ve --- */
     var enti = mios.filter(function (p) { return p.status === 'Entrevista'; });
@@ -13458,19 +13661,205 @@ window.SF = window.SF || {};
     pist.querySelector('.row-c').appendChild(bPist);
     view.appendChild(pist);
 
-    var data = el('<div class="card"><h3>Datos</h3><p class="hint">Exporta o importa todos los jugadores en JSON. "Completar" añade lo que falte de los datos de ejemplo sin tocar tu trabajo. "Restablecer" borra todo y vuelve al principio.</p><div class="row-c"></div></div>');
-    var rc = data.querySelector('.row-c');
-    var exp = el('<button class="btn">' + ico('download') + 'Exportar JSON</button>');
+    /* ---------------- COPIAS DE SEGURIDAD ----------------
+       El club vive en Supabase, pero en una sola fila que se pisa en cada
+       guardado, y el plan contratado no hace copias. Mientras eso siga así,
+       esta tarjeta es lo único que hay entre un error de una tarde y perderlo
+       todo. Por eso va la primera, dice cuándo fue la última copia, y avisa
+       cuando hace demasiado. Un botón que nadie recuerda pulsar no protege de
+       nada. */
+    var dSin = SF.diasSinCopia();
+    var toca = SF.tocaCopia();
+    var cop = el('<div class="card"><h3>Copias de seguridad</h3></div>');
+    cop.appendChild(el('<p class="hint">Los datos del club se guardan solos en la nube, pero ' +
+      '<b>sin historial</b>: cada guardado pisa el anterior. Una copia descargada es la única forma ' +
+      'de poder volver atrás si algo se borra por error.</p>'));
+    cop.appendChild(el('<div class="mini-row ' + (toca ? 'pf-naranja' : 'pf-verde') + '" style="margin-top:10px">' +
+      '<span>' + (dSin === null
+        ? '<b>Nunca se ha descargado una copia.</b>'
+        : dSin === 0 ? '<b>Copia descargada hoy.</b>'
+        : '<b>Última copia hace ' + dSin + (dSin === 1 ? ' día' : ' días') + '.</b>') + '</span>' +
+      '<span class="hint">' + (toca ? 'Toca hacer una.' : 'Al día.') + '</span></div>'));
+
+    var rcCop = el('<div class="row-c" style="margin-top:14px"></div>');
+    cop.appendChild(rcCop);
+
+    var exp = el('<button class="btn ' + (toca ? 'btn-primary' : '') + '">' + ico('download') + 'Descargar copia</button>');
+    function descarga(nombre, texto) {
+      var blob = new Blob([texto], { type: 'application/json' });
+      var url = URL.createObjectURL(blob);
+      var a2 = document.createElement('a'); a2.href = url; a2.download = nombre; a2.click();
+      URL.revokeObjectURL(url);
+    }
     exp.onclick = function () {
-      var blob = new Blob([SF.store.exportJSON()], { type: 'application/json' });
-      var url = URL.createObjectURL(blob); var a2 = document.createElement('a'); a2.href = url; a2.download = 'scoutflow-data.json'; a2.click(); URL.revokeObjectURL(url);
+      descarga(SF.nombreCopia(), SF.store.exportJSON());
+      SF.store.copiaHecha('manual');
+      U.toast('Copia descargada');
+      SF.router.render();
     };
-    var impl = el('<label class="btn">' + ico('upload') + 'Importar JSON<input type="file" accept="application/json" hidden></label>');
+
+    /* Restaurar es la operación más peligrosa que hay aquí: sustituye el club
+       entero. Así que antes de tocar nada se hacen tres cosas —revisar el
+       archivo, enseñar qué trae y descargar lo de ahora—, y solo después se
+       pregunta. Restaurar mal deja de ser irreversible. */
+    var impl = el('<label class="btn">' + ico('upload') + 'Restaurar desde archivo<input type="file" accept="application/json" hidden></label>');
     impl.querySelector('input').onchange = function (e) {
-      var file = e.target.files[0]; if (!file) return; var rd = new FileReader();
-      rd.onload = function () { try { SF.store.importJSON(rd.result); U.toast('Importado'); SF.router.render(); } catch (err) { U.toast('JSON inválido'); } };
+      var file = e.target.files[0]; if (!file) return;
+      e.target.value = '';
+      var rd = new FileReader();
+      rd.onload = function () {
+        var parsed = null, rev;
+        try { parsed = JSON.parse(rd.result); }
+        catch (err) {
+          U.modal('No se puede restaurar', el('<div><p>El archivo no es un JSON válido. ' +
+            'Puede que se descargara a medias.</p></div>'));
+          return;
+        }
+        rev = SF.revisaCopia(parsed);
+        if (!rev.ok) {
+          U.modal('No se puede restaurar', el('<div><p>' + esc(rev.error) + '</p>' +
+            '<p class="hint">No se ha tocado nada. Tus datos siguen como estaban.</p></div>'));
+          return;
+        }
+        confirmaRestaurar(rev, function () {
+          try { SF.store.importJSON(rd.result); } catch (err) { U.toast(err.message); return; }
+          U.closeModal(); U.toast('Restaurado'); SF.router.render();
+        }, 'del archivo ' + file.name);
+      };
       rd.readAsText(file);
     };
+
+    /* La pantalla de confirmación, compartida por el archivo y por el
+       historial de la nube: lo que trae, lo que hay ahora, y la copia de
+       seguridad de lo actual descargada ANTES de preguntar. */
+    function confirmaRestaurar(rev, seguir, origen) {
+      var ahora = SF.store.players().length;
+      var trae = (rev.resumen.filter(function (x) { return x.label === 'jugadores'; })[0] || { n: 0 }).n;
+      var c = el('<div><p>Se va a sustituir <b>todo el club</b> por lo que viene ' + esc(origen) + '.</p></div>');
+      var lst = el('<div class="mini-list" style="margin:12px 0"></div>');
+      rev.resumen.forEach(function (x) {
+        lst.appendChild(el('<div class="mini-row"><span>' + esc(x.label) + '</span><span><b>' + x.n + '</b></span></div>'));
+      });
+      if (!rev.resumen.length) lst.appendChild(el('<div class="mini-row"><span class="hint">La copia está vacía.</span></div>'));
+      c.appendChild(lst);
+      if (rev.avisos.length) {
+        c.appendChild(el('<div class="mini-row pf-naranja"><span>' + esc(rev.avisos.join(' · ')) + '</span></div>'));
+      }
+      c.appendChild(el('<p class="hint">Ahora mismo tienes <b>' + ahora + '</b> jugadores; la copia trae <b>' + trae + '</b>.' +
+        (trae < ahora ? ' <b>Vas a tener menos jugadores que ahora.</b>' : '') + '</p>'));
+
+      var guardada = false;
+      var bSalva = el('<button class="btn btn-primary" style="margin-top:6px">' + ico('download') +
+        'Descargar antes lo que tengo ahora</button>');
+      bSalva.onclick = function () {
+        descarga(SF.nombreCopia('antes-de-restaurar'), SF.store.exportJSON());
+        SF.store.copiaHecha('antes de restaurar');
+        guardada = true;
+        bSalva.textContent = 'Copia de lo actual descargada';
+        bSalva.classList.remove('btn-primary');
+        bOk.disabled = false;
+      };
+      c.appendChild(bSalva);
+
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+        '<button class="btn btn-danger" disabled>Restaurar</button></div>');
+      var bOk = foot.children[1];
+      foot.children[0].onclick = U.closeModal;
+      bOk.onclick = function () { if (guardada) seguir(); };
+      c.appendChild(el('<p class="hint">Para poder restaurar hay que descargar antes lo de ahora. ' +
+        'No es un trámite: es lo que hace que esto se pueda deshacer.</p>'));
+      c.appendChild(foot);
+      U.modal('Restaurar el club', c);
+    }
+
+    /* ---------------- historial en la nube ----------------
+       Una foto al día, y siempre antes de restaurar. Si la tabla no está
+       creada, esto NO se calla: dice que no está, explica para qué sirve y da
+       el SQL. Un aviso solo en la consola del navegador es un aviso que nadie
+       ve, y este importa. */
+    function historialNube() {
+      var caja = el('<div style="margin-top:20px"><p class="sec-label">Historial en la nube</p></div>');
+      if (!(SF.cloud && SF.cloud.activa())) {
+        caja.appendChild(el('<p class="hint">Ahora mismo estás trabajando <b>sin conexión con la nube</b>, ' +
+          'así que no hay historial. La copia descargada es la única que tienes.</p>'));
+        return caja;
+      }
+      var cuerpo = el('<div><p class="hint">Comprobando…</p></div>');
+      caja.appendChild(cuerpo);
+
+      SF.cloud.versiones().then(function (r) {
+        cuerpo.innerHTML = '';
+        if (!r.ok && r.motivo === 'sin_tabla') {
+          cuerpo.appendChild(el('<div class="mini-row pf-naranja"><span><b>El historial no está activado.</b></span></div>'));
+          cuerpo.appendChild(el('<div style="margin-top:8px">' +
+            '<p class="hint">Sin él, cada guardado pisa el anterior y no hay ninguna versión de ayer a la ' +
+            'que volver. Se activa una sola vez, y se tarda un minuto:</p>' +
+            '<ol class="hint"><li>Entra en tu proyecto de Supabase.</li>' +
+            '<li>Abre <b>SQL Editor</b> y pulsa <b>New query</b>.</li>' +
+            '<li>Pega esto, dale a <b>Run</b> y vuelve a entrar aquí.</li></ol></div>'));
+          var pre = el('<pre class="sf-sql">' + esc(SF.SQL_HISTORIAL) + '</pre>');
+          cuerpo.appendChild(pre);
+          var bCop = el('<button class="btn">' + ico('file') + 'Copiar el SQL</button>');
+          bCop.onclick = function () {
+            try {
+              navigator.clipboard.writeText(SF.SQL_HISTORIAL);
+              U.toast('SQL copiado');
+            } catch (e) { U.toast('Selecciónalo y cópialo a mano'); }
+          };
+          cuerpo.appendChild(bCop);
+          return;
+        }
+        if (!r.ok) {
+          cuerpo.appendChild(el('<p class="hint">No se ha podido leer el historial' +
+            (r.motivo === 'sin_permiso' ? ': la tabla existe pero tu usuario no puede leerla.' : '.') +
+            (r.detalle ? ' <span class="hint">' + esc(String(r.detalle).slice(0, 160)) + '</span>' : '') + '</p>'));
+          return;
+        }
+        if (!r.lista.length) {
+          cuerpo.appendChild(el('<p class="hint">Todavía no hay ninguna versión guardada. ' +
+            'Se guarda una sola al día, así que aparecerá aquí en cuanto pase la primera.</p>'));
+          return;
+        }
+        cuerpo.appendChild(el('<p class="hint">Las últimas ' + r.lista.length +
+          (r.lista.length === 1 ? ' versión guardada' : ' versiones guardadas') +
+          '. Se conservan las 10 más recientes.</p>'));
+        var lst = el('<div class="mini-list" style="margin-top:8px"></div>');
+        r.lista.forEach(function (v) {
+          var f = new Date(v.creado);
+          var fila = el('<div class="mini-row mr-wrap"><span><b>' + esc(f.toLocaleDateString('es-ES')) +
+            '</b> · ' + esc(f.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })) +
+            '<span class="hint"> · ' + esc(v.motivo || 'automática') + '</span></span></div>');
+          var b = el('<button class="btn">Volver a esta</button>');
+          b.onclick = function () {
+            b.disabled = true; b.textContent = 'Cargando…';
+            SF.cloud.leerVersion(v.id).then(function (x) {
+              b.disabled = false; b.textContent = 'Volver a esta';
+              if (!x.ok) {
+                U.modal('No se puede volver a esa versión', el('<div><p>' +
+                  (x.motivo === 'rota' ? esc(x.detalle || 'La versión guardada está estropeada.')
+                   : 'No se ha podido leer esa versión.') +
+                  '</p><p class="hint">No se ha tocado nada.</p></div>'));
+                return;
+              }
+              confirmaRestaurar(x.rev, function () {
+                /* Antes de pisar lo actual con lo viejo, se guarda lo actual
+                   como una versión más. Volver atrás tiene que poder
+                   deshacerse igual que cualquier otra cosa. */
+                SF.cloud.guardarVersion('antes de volver atrás').then(function () {
+                  try { SF.store.importJSON(JSON.stringify(x.data)); }
+                  catch (err) { U.toast(err.message); return; }
+                  U.closeModal(); U.toast('Restaurado'); SF.router.render();
+                });
+              }, 'de la versión del ' + f.toLocaleDateString('es-ES'));
+            });
+          };
+          fila.appendChild(b);
+          lst.appendChild(fila);
+        });
+        cuerpo.appendChild(lst);
+      });
+      return caja;
+    }
     /* Añadir lo que falte de la semilla. Va ANTES del botón rojo a propósito:
        casi siempre que alguien echa de menos datos, lo que necesita es esto y
        no un restablecimiento que se lleva por delante su trabajo. */
@@ -13503,7 +13892,15 @@ window.SF = window.SF || {};
 
     var rst = el('<button class="btn btn-danger">Restablecer datos</button>');
     rst.onclick = function () { if (confirm('¿Volver a los datos de ejemplo?')) { SF.store.reset(); U.toast('Restablecido'); SF.router.render(); } };
-    rc.appendChild(exp); rc.appendChild(impl); rc.appendChild(bDemo); rc.appendChild(rst);
+    rcCop.appendChild(exp); rcCop.appendChild(impl);
+    cop.appendChild(historialNube());
+    view.appendChild(cop);
+
+    var data = el('<div class="card"><h3>Datos de ejemplo</h3><p class="hint">' +
+      '"Completar" añade lo que falte de los datos de ejemplo sin tocar tu trabajo. ' +
+      '"Restablecer" borra todo y vuelve al principio.</p><div class="row-c"></div></div>');
+    var rc = data.querySelector('.row-c');
+    rc.appendChild(bDemo); rc.appendChild(rst);
     view.appendChild(data);
 
     view.appendChild(el('<p class="hint" style="margin-top:16px">Almacenamiento: ' + (SF.store.persistent ? 'localStorage (persiste al cerrar)' : 'memoria (este entorno no permite localStorage; persistirá al subir a tu hosting)') + '.</p>'));
@@ -17828,6 +18225,132 @@ SF.cloud = (function () {
       });
   }
 
+  /* ---------------- historial de versiones ----------------
+     El club entero es UNA fila que se pisa en cada guardado, y el plan
+     contratado de Supabase no hace copias. Con eso, un borrado por error es
+     definitivo: no hay ningun sitio del que sacar la version de ayer.
+
+     Esto guarda una foto al dia -y siempre antes de importar o restaurar- en
+     una tabla aparte, y conserva las diez ultimas. No es un sistema de copias
+     de nivel empresarial; es lo suficiente para que ningun error de una tarde
+     sea irreversible, que es lo que hoy no se cumple.
+
+     SI LA TABLA NO EXISTE, ESTO NO ROMPE NADA: se marca como no disponible, la
+     pantalla lo dice y explica como activarlo. Un club no puede quedarse sin
+     poder trabajar porque falte una tabla opcional. */
+  /* El SQL de la tabla vive aqui, en el mismo archivo que la usa, y se enseña
+     en pantalla cuando falta. Tenerlo solo en un .sql de una carpeta es como
+     no tenerlo: nadie va a buscarlo cuando le salga el aviso. */
+  SF.SQL_HISTORIAL = [
+    '-- ScoutFlow · historial de versiones del club',
+    'create table if not exists academy_data_historial (',
+    '  id       uuid primary key default gen_random_uuid(),',
+    '  owner_id uuid not null references auth.users(id) on delete cascade,',
+    '  data     jsonb not null,',
+    '  motivo   text,',
+    '  creado   timestamptz default now()',
+    ');',
+    '',
+    'create index if not exists idx_hist_owner on academy_data_historial (owner_id, creado desc);',
+    '',
+    'alter table academy_data_historial enable row level security;',
+    '',
+    '-- Cada uno solo ve y toca SUS versiones. Sin esto, cualquiera con cuenta',
+    '-- podria leer el club entero de otro club.',
+    'create policy "propias_select" on academy_data_historial',
+    '  for select using (auth.uid() = owner_id);',
+    'create policy "propias_insert" on academy_data_historial',
+    '  for insert with check (auth.uid() = owner_id);',
+    'create policy "propias_delete" on academy_data_historial',
+    '  for delete using (auth.uid() = owner_id);'
+  ].join('\n');
+
+  var TABLA_HIST = 'academy_data_historial';
+  var VERSIONES_GUARDADAS = 10;
+  var historialOk = null;      // null = sin comprobar todavia
+
+  /* Los errores de Supabase vienen en ingles y de tecnico. Aqui solo interesa
+     distinguir un caso: que la tabla no este creada, porque tiene arreglo y el
+     arreglo se puede explicar. */
+  function motivoError(err) {
+    var m = String((err && (err.message || err.hint)) || '');
+    if ((err && err.code === '42P01') || /does not exist|schema cache|not find the table/i.test(m)) return 'sin_tabla';
+    if (/permission|policy|row-level/i.test(m)) return 'sin_permiso';
+    return 'error';
+  }
+
+  function versiones() {
+    if (!activa()) return Promise.resolve({ ok: false, motivo: 'local' });
+    return cli.from(TABLA_HIST)
+      .select('id, creado, motivo')
+      .eq('owner_id', usuario.id)
+      .order('creado', { ascending: false })
+      .limit(VERSIONES_GUARDADAS)
+      .then(function (r) {
+        if (r.error) { historialOk = false; return { ok: false, motivo: motivoError(r.error), detalle: r.error.message }; }
+        historialOk = true;
+        return { ok: true, lista: r.data || [] };
+      });
+  }
+
+  /* Las viejas se borran DESPUES de guardar la nueva, nunca antes: si el
+     borrado sale bien y el guardado mal, se habrian tirado copias buenas para
+     no dejar ninguna. */
+  function podar() {
+    cli.from(TABLA_HIST).select('id').eq('owner_id', usuario.id)
+      .order('creado', { ascending: false }).range(VERSIONES_GUARDADAS, 999)
+      .then(function (r) {
+        if (r.error || !r.data || !r.data.length) return;
+        cli.from(TABLA_HIST).delete().in('id', r.data.map(function (x) { return x.id; }));
+      });
+  }
+
+  function guardarVersion(motivo) {
+    if (!activa() || !datos) return Promise.resolve({ ok: false, motivo: 'local' });
+    return cli.from(TABLA_HIST)
+      .insert({ owner_id: usuario.id, data: datos, motivo: motivo || 'automática' })
+      .then(function (r) {
+        if (r.error) { historialOk = false; return { ok: false, motivo: motivoError(r.error), detalle: r.error.message }; }
+        historialOk = true;
+        try {
+          datos.copias = datos.copias || {};
+          datos.copias.ultimaVersion = new Date().toISOString();
+        } catch (e) {}
+        podar();
+        return { ok: true };
+      });
+  }
+
+  /* Traer una version. NO la aplica: devuelve los datos revisados para que sea
+     la pantalla quien pregunte y decida. Restaurar sin preguntar seria cambiar
+     un accidente por otro. */
+  function leerVersion(id) {
+    if (!activa()) return Promise.resolve({ ok: false, motivo: 'local' });
+    return cli.from(TABLA_HIST).select('data, creado, motivo').eq('id', id).maybeSingle()
+      .then(function (r) {
+        if (r.error || !r.data) return { ok: false, motivo: 'no_esta' };
+        var rev = SF.revisaCopia(r.data.data);
+        if (!rev.ok) return { ok: false, motivo: 'rota', detalle: rev.error };
+        return { ok: true, data: r.data.data, creado: r.data.creado, rev: rev };
+      });
+  }
+
+  /* Una foto al dia, sin que nadie tenga que acordarse. Se mira la marca que
+     viaja dentro de los propios datos, asi que entrar desde otro ordenador no
+     reinicia la cuenta ni duplica la foto del dia. */
+  function fotoDelDia() {
+    if (!activa() || !datos) return;
+    var u = (datos.copias || {}).ultimaVersion;
+    if (u && (Date.now() - new Date(u).getTime()) < 86400000) return;
+    guardarVersion('automática').then(function (r) {
+      if (r && r.ok) subir();
+      else if (r && r.motivo === 'sin_tabla') {
+        console.warn('[ScoutFlow] El historial de versiones no está activado: falta la tabla ' +
+          TABLA_HIST + '. Configuración → Datos explica cómo crearla.');
+      }
+    });
+  }
+
   /* ---------------- pie de la barra lateral ---------------- */
   function pieHTML() {
     if (modoLocal) {
@@ -17942,14 +18465,16 @@ SF.cloud = (function () {
       var ses = r.data && r.data.session;
       if (!ses) { puerta(seguir); return; }
       usuario = ses.user;
-      cargar().then(seguir).catch(function (err) {
+      cargar().then(function () { seguir(); fotoDelDia(); }).catch(function (err) {
         console.error('[ScoutFlow] al cargar:', err);
         usuario = null; puerta(seguir);
       });
     });
   }
 
-  return { arrancar: arrancar, activa: activa, leer: leer, escribir: escribir, pieHTML: pieHTML };
+  return { arrancar: arrancar, activa: activa, leer: leer, escribir: escribir, pieHTML: pieHTML,
+           versiones: versiones, guardarVersion: guardarVersion, leerVersion: leerVersion,
+           historialOk: function () { return historialOk; } };
 })();
 
 </script>
