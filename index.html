@@ -973,6 +973,12 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
   background:var(--bg);color:var(--ink-3)}
 .eq-chip.on .eq-n{background:rgba(255,255,255,.22);color:#fff}
 .eq-chip-sm{font-size:12.5px;padding:6px 12px}
+.ph-nota{background:#EFEBFF;border-radius:12px;padding:12px 14px;margin:0 0 14px;font-size:13px;line-height:1.5}
+.ph-nota b{display:block;margin-bottom:4px}
+.ph-nota p{margin:4px 0 0}
+.ph-nota-av{background:#FDF3E3}
+.ph-sw-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.ph-consent.es-sensible{border-left:3px solid #E8A33D}
 .sf-sql{background:var(--sidebar);color:#D8D4F5;border-radius:10px;padding:14px 16px;margin:12px 0;
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.55;
   overflow-x:auto;white-space:pre;max-height:280px;overflow-y:auto}
@@ -1170,6 +1176,107 @@ SF.firmaMenor14 = function (birth_date) {
   if (isNaN(d)) return true;
   var e = (Date.now() - d.getTime()) / (365.25 * 24 * 3600 * 1000);
   return e < 14;
+};
+
+/* ===================== LOS 18 AÑOS =====================
+   A los 18 esto deja de ser una preferencia de producto y pasa a ser un hecho:
+   se acaba la patria potestad y el jugador es el UNICO dueño de sus datos. El
+   acceso de su familia no caduca porque alguien se acuerde de bajar un
+   interruptor; caduca solo, el dia de su cumpleaños.
+
+   Y hay un choque practico que no se puede ignorar: LA FAMILIA SUELE SEGUIR
+   PAGANDO. Un junior de 18 con la cuota pagada por sus padres. Si se cierra
+   todo de golpe, el que paga no ve el recibo y el club deja de cobrar.
+
+   La linea que resuelve las dos cosas: PAGAR Y SABER SON COSAS DISTINTAS. La
+   factura va a nombre de quien paga, asi que quien paga la sigue viendo. Su
+   vida deportiva, sus informes, sus papeles y su salud, no. Eso lo abre el
+   jugador si quiere, area por area, desde su movil, y lo cierra cuando quiera
+   sin dar explicaciones ni pedirle permiso al club.
+
+   Nadie del club puede abrirlo por el. Ni direccion. Si el club pudiera
+   reabrirlo "porque llamo el padre", el permiso del jugador seria decorativo. */
+SF.MAYORIA = 18;
+SF.AVISO_MAYORIA_DIAS = 30;
+
+/* Edad exacta, en años cumplidos. Sin fecha de nacimiento no se puede afirmar
+   que alguien sea mayor de edad, asi que se trata como menor: equivocarse
+   hacia el lado protector es el unico error barato de los dos. */
+SF.edadDe = function (p) {
+  var f = (p || {}).birth_date;
+  if (!f) return null;
+  var d = new Date(f + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+  var h = new Date(), a = h.getFullYear() - d.getFullYear();
+  var m = h.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && h.getDate() < d.getDate())) a--;
+  return a;
+};
+SF.esMayor = function (p) { var a = SF.edadDe(p); return a != null && a >= SF.MAYORIA; };
+
+/* Cuántos días quedan para cumplir los 18. null si ya los tiene o si no hay
+   fecha. Es lo que permite avisar ANTES y no el mismo lunes que deja de ver
+   cosas: una sorpresa asi acaba en llamada al club y en enfado en casa. */
+SF.diasParaMayoria = function (p) {
+  var f = (p || {}).birth_date;
+  if (!f || SF.esMayor(p)) return null;
+  var d = new Date(f + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+  var cumple = new Date(d.getFullYear() + SF.MAYORIA, d.getMonth(), d.getDate());
+  var dias = Math.ceil((cumple.getTime() - Date.now()) / 86400000);
+  return dias >= 0 ? dias : null;
+};
+
+/* Las áreas que la familia puede ver. Se enumeran aquí y NO en cada pantalla:
+   una lista repetida en seis sitios es una lista que un día dejará de coincidir
+   consigo misma, y el día que eso pase alguien vera algo que no debia.
+
+   `porDefecto18` marca lo único que sigue abierto al cumplir los 18. Solo los
+   pagos, y por el motivo de arriba: la factura es de quien la paga. */
+SF.AREAS_FAMILY = [
+  { k: 'pagos', label: 'Pagos y recibos', porDefecto18: true,
+    desc: 'Lo que se debe, los recibos y poder pagar la cuota.',
+    detalle: 'Quien paga tiene que poder pagar. Si lo cierras, tendrás que ocuparte tú del dinero con el club.' },
+  { k: 'horarios', label: 'Horarios y convocatorias', porDefecto18: false,
+    desc: 'Cuándo y dónde entrenas y juegas.',
+    detalle: 'Útil si en casa te llevan o te recogen.' },
+  { k: 'informes', label: 'Informes deportivos', porDefecto18: false,
+    desc: 'Los informes que el club publica sobre ti.',
+    detalle: 'Tu evaluación es tuya. Nadie de tu familia la ve si no lo abres.' },
+  { k: 'documentos', label: 'Documentos y papeleo', porDefecto18: false,
+    desc: 'Qué papeles faltan y poder subirlos.',
+    detalle: 'Si en casa te llevan el papeleo, esto les deja seguir haciéndolo.' },
+  { k: 'comunicados', label: 'Comunicaciones del club', porDefecto18: false,
+    desc: 'Los avisos y comunicados que manda el club.',
+    detalle: 'A ti te llegan igual, los abras o no.' },
+  { k: 'salud', label: 'Disponibilidad y salud', porDefecto18: false, sensible: true,
+    desc: 'Si puedes jugar, y por qué no puedes cuando no puedes.',
+    detalle: 'Es lo más delicado que guarda el club de ti. Piénsatelo antes de abrirlo.' }
+];
+
+/* El consentimiento de un jugador, en la forma que lo entiende la app.
+   MENOR: no hay consentimiento que valga, la familia lo ve todo por ley.
+   MAYOR: manda lo que él haya decidido, y si todavía no ha decidido nada, el
+   reparto de fábrica —solo pagos—. NO se escribe nada al leer: un dato que se
+   crea solo al mirarlo es un dato en el que no se puede confiar. */
+SF.consentDe = function (p) {
+  var guardado = (p || {}).consent_family || null;
+  if (guardado && guardado.areas) return guardado;
+  var areas = {};
+  SF.AREAS_FAMILY.forEach(function (a) { areas[a.k] = !!a.porDefecto18; });
+  return { areas: areas, updated_at: null, porDefecto: true, log: [] };
+};
+
+/* LA FUNCIÓN QUE DECIDE. Todo lo que la familia ve pasa por aquí, para que no
+   haya dos criterios distintos en dos pantallas. */
+SF.familiaVe = function (p, area) {
+  if (!SF.esMayor(p)) return true;          // menor: patria potestad
+  return !!SF.consentDe(p).areas[area];
+};
+
+/* Qué áreas tiene abiertas, para poder decirlo en una línea. */
+SF.areasAbiertas = function (p) {
+  return SF.AREAS_FAMILY.filter(function (a) { return SF.familiaVe(p, a.k); });
 };
 
 /* ===================== A QUIÉN LLEGA UN AVISO =====================
@@ -6485,6 +6592,40 @@ SF.store = (function () {
        Cuándo se hizo la última. Se guarda dentro de los propios datos, así que
        viaja con ellos: si mañana entras desde otro ordenador, sigue sabiendo
        cuándo fue la última copia de verdad y no vuelve a empezar la cuenta. */
+    /* ---- LO QUE EL JUGADOR MAYOR DE EDAD DEJA VER A SU FAMILIA ----
+       Solo lo cambia él. El club puede MIRAR el estado, nunca tocarlo: si
+       dirección pudiera reabrirlo "porque llamó el padre", el permiso del
+       jugador sería decorativo y no valdría para nada, ni por dentro ni ante
+       quien viniera a preguntar.
+
+       Cada cambio deja rastro -qué área, a qué, cuándo-. No es burocracia: el
+       día que alguien pregunte por qué su familia veía o no veía algo, esto es
+       lo único que lo responde. El rastro se queda en 40 movimientos: no hace
+       falta más, y sin tope acabaría engordando la ficha sin límite. */
+    consentSet: function (playerId, area, valor) {
+      var d = db();
+      var p = (d.players || []).filter(function (x) { return x.id === playerId; })[0];
+      if (!p) return null;
+      /* En un menor no hay nada que consentir: la familia lo ve por ley, y
+         guardar aquí un "no" daría a entender que se puede cerrar. */
+      if (!SF.esMayor(p)) return null;
+      if (!SF.AREAS_FAMILY.some(function (a) { return a.k === area; })) return null;
+
+      var c = p.consent_family;
+      if (!c || !c.areas) {
+        /* Primer cambio: se escribe el reparto de fábrica tal cual estaba,
+           para que a partir de aquí lo guardado sea una decisión suya y no
+           un valor por omisión que nadie tomó. */
+        c = { areas: Object.assign({}, SF.consentDe(p).areas), updated_at: null, log: [] };
+      }
+      c.areas[area] = !!valor;
+      c.updated_at = new Date().toISOString();
+      c.log = (c.log || []).concat([{ at: c.updated_at, area: area, valor: !!valor }]).slice(-40);
+      p.consent_family = c;
+      save(d);
+      return c;
+    },
+
     copias: function () { return db().copias || {}; },
     copiaHecha: function (tipo) {
       var d = db();
@@ -6873,9 +7014,18 @@ window.SF = window.SF || {};
       box.appendChild(f);
       /* La supervisión se avisa. Una conversación que alguien más lee sin
          decirlo no es una conversación, es otra cosa. */
+      /* Esto decía que los padres leen lo que el jugador escribe a su
+         entrenador, y NO ES VERDAD: `convsForPlayer(pid, 'familia')` solo
+         devuelve los hilos que abrió la familia y los que el club le dirige a
+         ella. Un chaval de quince años leyendo eso deja de escribir lo que
+         quizá tenía que escribir, y por una advertencia que además era falsa.
+         Ahora se dice lo que de verdad pasa. */
       box.appendChild(el('<p class="hint">' + (esFam
         ? 'La dirección del club y el director técnico también ven estas conversaciones. Es para que quede constancia de lo que se habla con las familias.'
-        : 'Tus padres o tutores y la dirección del club también ven lo que escribes aquí.') + '</p>'));
+        : 'La dirección del club ve estas conversaciones, para que quede constancia. ' +
+          (SF.esMayor(p)
+            ? 'Tu familia no las ve: eres mayor de edad.'
+            : 'Tu familia no las ve aquí: tiene su propio canal con el club.')) + '</p>'));
     }
 
     if (hilos.length) {
@@ -7514,6 +7664,38 @@ window.SF = window.SF || {};
       avC.querySelector('.row-c').appendChild(bC);
       avC.querySelector('.row-c').appendChild(bV);
       view.appendChild(avC);
+    }
+
+    /* --- Los que cumplen 18 dentro de poco ---
+       El tercero al que hay que avisar. Al jugador y a la familia se les avisa
+       en su portal; al club, aquí. No es un dato curioso: ese día la familia
+       deja de ver casi todo, y si secretaría se entera por la llamada de un
+       padre enfadado, llega tarde. */
+    if (SF.router.puede('family')) {
+      var cumplen = mios.filter(function (p) {
+        var d = SF.diasParaMayoria(p);
+        return d != null && d <= SF.AVISO_MAYORIA_DIAS && (p.family || {}).contact;
+      }).sort(function (a, c) { return SF.diasParaMayoria(a) - SF.diasParaMayoria(c); });
+      if (cumplen.length) {
+        var c18 = el('<div class="card"><h3>' + cumplen.length +
+          (cumplen.length === 1 ? ' jugador cumple 18 este mes' : ' jugadores cumplen 18 este mes') + '</h3>' +
+          '<p class="hint">Ese día su familia deja de ver informes, documentos y salud. Siguen viendo los pagos, ' +
+          'porque quien paga tiene que poder pagar. A partir de ahí lo decide cada jugador desde su móvil, y el ' +
+          'club no puede abrirlo ni cerrarlo.</p><div class="mini-list" style="margin-top:10px"></div></div>');
+        var l18 = c18.querySelector('.mini-list');
+        cumplen.slice(0, 8).forEach(function (p) {
+          var d = SF.diasParaMayoria(p);
+          var fila = el('<div class="mini-row mr-wrap"><span><b>' + esc(p.full_name) + '</b>' +
+            '<span class="hint"> · en ' + (d === 0 ? 'hoy' : d === 1 ? '1 día' : d + ' días') + '</span></span></div>');
+          var bF = el('<button class="btn btn-sm">Ver ficha</button>');
+          bF.onclick = function () { location.hash = '#/jugador/' + p.id; };
+          fila.appendChild(bF);
+          l18.appendChild(fila);
+        });
+        if (cumplen.length > 8) l18.appendChild(el('<div class="mini-row"><span class="hint">y ' +
+          (cumplen.length - 8) + ' más</span></div>'));
+        view.appendChild(c18);
+      }
     }
 
     /* --- Recuento de lo pendiente, cada cosa filtrada por lo que este rol ve --- */
@@ -8823,20 +9005,47 @@ window.SF = window.SF || {};
         (function () {
           var r2 = role();
           if (r2.tabs !== 'all' && ['director', 'administrativo', 'dt_general'].indexOf(SF.store.role()) < 0) return;
+          /* CUMPLIDOS LOS 18, EL CLUB DEJA DE DECIDIR ESTO. Quién ve sus datos
+             lo elige él, área por área, desde su móvil. Aquí solo se MIRA.
+             Si dirección pudiera reabrirlo "porque llamó el padre", el permiso
+             del jugador no valdría nada: ni por dentro, ni el día que alguien
+             venga a preguntar por qué su familia veía lo que veía. */
+          var mayorF = SF.esMayor(p);
+          var abiertasF = mayorF ? SF.areasAbiertas(p) : [];
           var banda = el('<div class="evo-band"></div>');
           banda.appendChild(el('<div class="evo-band-txt"><b>Portal de la familia</b><span>' +
-            (p.family_active
-              ? esc(fam.contact || 'La familia') + ' puede ver la ficha, los avisos y los pagos de ' + esc(p.full_name.split(' ')[0]) + '.'
-              : 'Sin acceso. No ve nada del club.') + '</span></div>'));
+            (mayorF
+              ? (abiertasF.length
+                  ? esc(fam.contact || 'La familia') + ' ve solo: ' +
+                    abiertasF.map(function (a) { return a.label.toLowerCase(); }).join(', ') + '.'
+                  : esc(fam.contact || 'La familia') + ' no ve nada: no lo ha abierto.')
+              : p.family_active
+                ? esc(fam.contact || 'La familia') + ' puede ver la ficha, los avisos y los pagos de ' + esc(p.full_name.split(' ')[0]) + '.'
+                : 'Sin acceso. No ve nada del club.') + '</span></div>'));
           var bVer = el('<button class="btn btn-light btn-sm">' + ico('search') + 'Ver su portal</button>');
           bVer.onclick = function () { location.hash = '#/portal-family/' + p.id; };
-          var bTog = el('<button class="btn btn-sm' + (p.family_active ? '' : ' btn-primary') + '">' +
-            (p.family_active ? 'Quitar acceso' : 'Dar acceso') + '</button>');
-          bTog.onclick = function () { cambiarAcceso(p, function () { p = SF.store.get(p.id); paint(); }); };
-          banda.appendChild(bVer); banda.appendChild(bTog);
+          banda.appendChild(bVer);
+          if (!mayorF) {
+            var bTog = el('<button class="btn btn-sm' + (p.family_active ? '' : ' btn-primary') + '">' +
+              (p.family_active ? 'Quitar acceso' : 'Dar acceso') + '</button>');
+            bTog.onclick = function () { cambiarAcceso(p, function () { p = SF.store.get(p.id); paint(); }); };
+            banda.appendChild(bTog);
+          }
           body.appendChild(banda);
-          if (p.family_active && !p.team_id) {
-            body.appendChild(el('<p class="aviso-lin">Tiene acceso pero no está en ningún equipo. Si ya no está en el club, quítaselo.</p>'));
+          if (mayorF) {
+            body.appendChild(el('<p class="aviso-lin">Es mayor de edad: esto lo decide ' +
+              esc(p.first_name || p.full_name.split(' ')[0]) + ' desde su acceso, área por área. ' +
+              'El club no puede abrirlo ni cerrarlo, ni siquiera dirección.</p>'));
+          } else {
+            var faltanC = SF.diasParaMayoria(p);
+            if (faltanC != null && faltanC <= SF.AVISO_MAYORIA_DIAS) {
+              body.appendChild(el('<p class="aviso-lin">Cumple 18 en ' +
+                (faltanC === 0 ? 'hoy mismo' : faltanC === 1 ? '1 día' : faltanC + ' días') +
+                '. Ese día la familia deja de ver todo menos los pagos, y a partir de ahí lo decide él.</p>'));
+            }
+            if (p.family_active && !p.team_id) {
+              body.appendChild(el('<p class="aviso-lin">Tiene acceso pero no está en ningún equipo. Si ya no está en el club, quítaselo.</p>'));
+            }
           }
         })();
 
@@ -11656,11 +11865,24 @@ window.SF = window.SF || {};
         var cont = fam0.contact
           ? esc(fam0.contact) + ' <span class="hint">(' + esc(fam0.relation || '') + ')</span>'
           : '<span class="tag tag-warn">Sin contacto familiar</span>';
+        /* De un mayor de edad no se dice "con acceso" o "sin acceso": el
+           acceso ya no es una sola cosa que el club enciende, son seis áreas
+           que él abre o cierra. Y por eso desaparece el botón: aquí solo se
+           mira. Dejarlo puesto sería enseñar una palanca que no debe existir. */
+        var may0 = SF.esMayor(p);
+        var ab0 = may0 ? SF.areasAbiertas(p) : [];
         var acceso = !fam0.contact ? '<span class="hint">—</span>'
-          : (p.family_active ? '<span class="tag tag-green">Con acceso</span>' : '<span class="tag tag-gray">Sin acceso</span>');
-        var acciones = fam0.contact
-          ? '<button class="lnk" data-t>' + (p.family_active ? 'Quitar' : 'Dar acceso') + '</button><button class="btn btn-sm" data-v>Ver portal</button>'
-          : '<button class="lnk" data-f>Añadir contacto</button>';
+          : may0
+            ? '<span class="tag ' + (ab0.length ? 'tag-info' : 'tag-gray') + '" title="' +
+              (ab0.length ? esc(ab0.map(function (a) { return a.label; }).join(', ')) : 'No ha abierto ninguna área') +
+              '">' + (ab0.length ? ab0.length + ' de ' + SF.AREAS_FAMILY.length + ' áreas' : 'Nada abierto') + '</span>' +
+              ' <span class="hint">lo decide él</span>'
+            : (p.family_active ? '<span class="tag tag-green">Con acceso</span>' : '<span class="tag tag-gray">Sin acceso</span>');
+        var acciones = !fam0.contact
+          ? '<button class="lnk" data-f>Añadir contacto</button>'
+          : may0
+            ? '<button class="btn btn-sm" data-v>Ver portal</button>'
+            : '<button class="lnk" data-t>' + (p.family_active ? 'Quitar' : 'Dar acceso') + '</button><button class="btn btn-sm" data-v>Ver portal</button>';
         var tr = el('<tr><td><b>' + esc(p.full_name) + '</b></td><td>' + eq + '</td>' +
           '<td>' + cont + '</td><td>' + acceso + '</td>' +
           '<td><span class="row-actions">' + acciones + '</span></td></tr>');
@@ -14221,10 +14443,42 @@ window.SF = window.SF || {};
     var ps = SF.store.players();
     var p = id ? SF.store.get(id) : ps.filter(function (x) { return x.family_active; })[0] || ps[0];
     if (!p) { view.innerHTML = head('Portal Family', '') + '<div class="empty-panel"><p>Sin jugadores.</p></div>'; return; }
-    view.innerHTML = head('Portal Family', 'Vista de la familia (mobile-first). Solo ve a su hijo/a.');
+    /* A partir de los 18 esta pantalla deja de enseñarlo todo. No por una
+       preferencia: la familia deja de tener derecho a los datos de su hijo, y
+       lo que ve pasa a ser exactamente lo que él haya abierto. Cada bloque de
+       abajo pasa por `ve()`, que es el único sitio donde se decide: dos
+       criterios en dos pantallas acaban en que una enseña lo que la otra
+       oculta, y nadie se entera hasta que es tarde. */
+    var esMayor = SF.esMayor(p);
+    function ve(area) { return SF.familiaVe(p, area); }
+
+    view.innerHTML = head('Portal Family', esMayor
+      ? 'Vista de la familia de un jugador mayor de edad. Ve solo lo que él ha abierto.'
+      : 'Vista de la familia (mobile-first). Solo ve a su hijo/a.');
     var phone = el('<div class="phone"><div class="phone-top"><img src="' + SF.LOGO + '" alt="" class="ph-logo"><span>ScoutFlow Family</span></div><div class="phone-body"></div></div>');
     var b = phone.querySelector('.phone-body');
     b.appendChild(el('<div class="ph-hero"><div class="ph-photo">' + U.initials(p.full_name) + '</div><div><div class="ph-name">' + esc(p.full_name) + '</div><div class="ph-sub">' + (p.birth_year || '') + ' · ' + esc(p.primary_position || '') + '</div></div></div>'));
+
+    /* Que falte medio portal sin explicar por qué es la peor forma de contarlo:
+       parece una avería y acaba en llamada al club. Se dice en una frase, sin
+       tono de reproche y sin sugerir que el jugador está escondiendo algo. */
+    if (esMayor) {
+      var abiertas = SF.areasAbiertas(p);
+      b.appendChild(el('<div class="ph-nota"><b>' + esc(p.first_name || p.full_name) + ' ya es mayor de edad.</b>' +
+        '<p>Sus datos son suyos, así que aquí solo aparece lo que él ha decidido compartir. ' +
+        (abiertas.length
+          ? 'Ahora mismo: ' + abiertas.map(function (a) { return a.label.toLowerCase(); }).join(', ') + '.'
+          : 'Ahora mismo no ha abierto nada.') +
+        '</p><p class="hint">Lo cambia él desde su móvil, cuando quiera. El club no puede abrirlo ni cerrarlo.</p></div>'));
+    } else {
+      var faltan18 = SF.diasParaMayoria(p);
+      if (faltan18 != null && faltan18 <= SF.AVISO_MAYORIA_DIAS) {
+        b.appendChild(el('<div class="ph-nota ph-nota-av"><b>' + esc(p.first_name || p.full_name) + ' cumple 18 en ' +
+          (faltan18 === 0 ? 'hoy mismo' : faltan18 === 1 ? '1 día' : faltan18 + ' días') + '.</b>' +
+          '<p>Ese día sus datos pasan a ser solo suyos. Aquí seguiréis viendo <b>los pagos y los recibos</b>, ' +
+          'porque quien paga tiene que poder pagar; el resto lo decide él desde su móvil.</p></div>'));
+      }
+    }
 
     /* Perfil del hijo/a. La familia debe poder revisar los datos que el club
        guarda de su hijo: es la base del derecho de acceso y rectificación. */
@@ -14233,21 +14487,27 @@ window.SF = window.SF || {};
     }
     var pteam = p.team_id ? SF.store.teamGet(p.team_id) : null;
     var pfam = p.family || {};
-    b.appendChild(el('<p class="ph-sec">Sus datos</p>'));
+    /* De un mayor de edad no se lista la ficha: su nacionalidad, su altura o
+       su posición son suyas. Queda el nombre y el equipo -que en casa ya se
+       saben- y los datos de contacto DE LA FAMILIA, que son de la familia y
+       por eso siguen aquí y los puede corregir. */
+    b.appendChild(el('<p class="ph-sec">' + (esMayor ? 'Vuestros datos de contacto' : 'Sus datos') + '</p>'));
     b.appendChild(el('<div>' +
       dline('Nombre', p.full_name) +
-      dline('Año de nacimiento', p.birth_year) +
-      dline('Nacionalidad', (p.nationality || []).join(' / ')) +
+      (esMayor ? '' : dline('Año de nacimiento', p.birth_year)) +
+      (esMayor ? '' : dline('Nacionalidad', (p.nationality || []).join(' / '))) +
       dline('Equipo', pteam ? pteam.name : '') +
-      dline('Posición', p.primary_position) +
-      dline('Altura', p.height_cm ? (p.height_cm / 100).toFixed(2) + ' m' : '') +
+      (esMayor ? '' : dline('Posición', p.primary_position)) +
+      (esMayor ? '' : dline('Altura', p.height_cm ? (p.height_cm / 100).toFixed(2) + ' m' : '')) +
       dline('Contacto familiar', pfam.contact ? pfam.contact + (pfam.relation ? ' (' + pfam.relation + ')' : '') : '') +
       dline('Teléfono', pfam.phone) +
       dline('Email', pfam.email) +
       '</div>'));
-    b.appendChild(el('<p class="hint">¿Hay algún dato mal? Avisa al club y lo corrigen.</p>'));
+    b.appendChild(el('<p class="hint">' + (esMayor
+      ? 'Estos son vuestros datos de contacto con el club. Si alguno está mal, avisad y lo corrigen.'
+      : '¿Hay algún dato mal? Avisa al club y lo corrigen.') + '</p>'));
 
-    if (p.team_id) {
+    if (ve('horarios') && p.team_id) {
       var ptt = SF.store.teamGet(p.team_id);
       if (ptt) {
         var pnm = teamUpcoming(ptt, 'partido')[0], pnt = teamUpcoming(ptt, 'entrenamiento')[0];
@@ -14267,6 +14527,7 @@ window.SF = window.SF || {};
 
     /* Avisos del club dirigidos a este jugador. Va en un solo sentido: la
        familia lee y, si el aviso lo pide, confirma asistencia. No escribe. */
+    if (ve('comunicados')) {
     b.appendChild(el('<p class="ph-sec">Avisos del club</p>'));
     var famAnns = SF.store.annForPlayer(p.id, 'family');
     if (!famAnns.length) b.appendChild(el('<p class="hint">No tienes avisos.</p>'));
@@ -14310,13 +14571,19 @@ window.SF = window.SF || {};
       }
       b.appendChild(card);
     });
+    }
 
-    b.appendChild(bloqueConversaciones(p, 'familia'));
+    /* El canal con el club se mantiene mientras la familia siga viendo ALGO:
+       si sigue pagando, tiene que poder preguntar por un recibo aunque no vea
+       nada más. Cerrarlo del todo dejaría a una familia con una factura y sin
+       nadie a quien escribir. */
+    if (ve('comunicados') || ve('pagos')) b.appendChild(bloqueConversaciones(p, 'familia'));
 
     /* Documentación = CHECKLIST. La app no guarda documentos: solo lleva la
        cuenta de qué se ha entregado. Los papeles van por correo o en mano, y
        solo el club marca la recepción. (Decisión 2026-08-02) */
     var labels = { pasaporte: 'Pasaporte o DNI', expediente: 'Expediente académico', seguro_medico: 'Seguro médico' };
+    if (ve('documentos')) {
     b.appendChild(el('<p class="ph-sec">Documentación</p>'));
     var dl = el('<div></div>'), faltan = 0;
     Object.keys(labels).forEach(function (k) {
@@ -14331,7 +14598,11 @@ window.SF = window.SF || {};
     b.appendChild(el('<p class="hint">' + (faltan
       ? 'Te faltan ' + faltan + '. Entrégalos por correo a secretaría o en el pabellón; el club los marca al recibirlos.'
       : 'Toda la documentación entregada.') + '</p>'));
+    }
 
+    /* Los pagos siguen abiertos a los 18 por decisión de producto: la factura
+       es de quien la paga. Pagar y saber son cosas distintas. */
+    if (ve('pagos')) {
     b.appendChild(el('<p class="ph-sec">Pagos</p>'));
     var fitems = SF.finItems(p), ftot = SF.finTotals(p);
     b.appendChild(el('<p class="hint">Pagado ' + ftot.paid + ' € · Pendiente ' + (ftot.pending + ftot.overdue) + ' €</p>'));
@@ -14362,9 +14633,11 @@ window.SF = window.SF || {};
     var bb = el('<button class="ph-btn pay full">Actualizar datos bancarios</button>');
     bb.onclick = function () { U.modal('Datos bancarios', smallForm([{ name: 'iban', label: 'IBAN' }, { name: 'method', label: 'Forma de pago', type: 'select', options: ['Recibo domiciliado', 'Pago con tarjeta'] }], { iban: bk.iban, method: bk.method }, function (d) { SF.store.update(p.id, { bank: { iban: d.iban, method: d.method } }); U.toast('Datos actualizados'); SF.router.render(); })); };
     b.appendChild(bb);
+    }
 
     /* Informes: SOLO los que el staff haya publicado. Un informe escrito no
        aparece hasta que alguien lo publica a propósito. (Decisión de producto) */
+    if (ve('informes')) {
     b.appendChild(el('<p class="ph-sec">Informes</p>'));
     var reps = (p.reports || []).filter(function (r) { return r.published; });
     if (!reps.length) {
@@ -14377,9 +14650,12 @@ window.SF = window.SF || {};
         b.appendChild(card);
       });
     }
+    }
 
-    /* Mis autorizaciones (RGPD). Hay que RESPONDER, no hay que ACEPTAR:
-       el "no" es una respuesta válida y no bloquea nada. Revocable siempre. */
+    /* Las autorizaciones las firma quien tiene la patria potestad. Cumplidos
+       los 18 las firma él, en su propio portal: dejarlas aquí sería que la
+       familia siguiera consintiendo por un adulto. */
+    if (!esMayor) {
     b.appendChild(el('<p class="ph-sec">Mis autorizaciones</p>'));
     var cs = p.consents || {};
     [
@@ -14409,6 +14685,11 @@ window.SF = window.SF || {};
         : 'Puedes cambiar esta decisión cuando quieras, sin dar explicaciones.') + '</p>'));
       b.appendChild(box);
     });
+    } else {
+      b.appendChild(el('<p class="ph-sec">Autorizaciones</p>'));
+      b.appendChild(el('<p class="hint">Las firma ' + esc(p.first_name || p.full_name) +
+        ' desde su propio acceso. Al cumplir 18 dejó de necesitar que alguien consintiera por él.</p>'));
+    }
 
     view.appendChild(phone);
   };
@@ -14836,20 +15117,24 @@ window.SF = window.SF || {};
     var p = id ? SF.store.get(id) : ps.filter(function (x) { return x.team_id; })[0] || ps[0];
     if (!p) { view.innerHTML = head('Portal Jugador', '') + '<div class="empty-panel"><p>Sin jugadores.</p></div>'; return; }
 
-    /* Mayor de edad: mismo portal que la familia, pero sobre sí mismo. */
-    if (playerIsAdult(p)) {
-      pages['portal-family'](view, p.id);
-      var h = view.querySelector('h1, .page-title');
-      view.insertBefore(el('<div class="empty-panel" style="margin-bottom:14px"><p><b>' +
-        esc(p.full_name) + ' · ' + playerAge(p) + ' años · mayor de edad.</b><br>' +
-        'Sus datos son suyos: ve y gestiona lo mismo que su familia, y firma él sus autorizaciones.</p></div>'), view.children[1] || null);
-      return;
-    }
+    /* Hasta ahora, el jugador mayor de edad no tenía portal: se le enseñaba el
+       de su familia con un cartel encima. Era un atajo, y encima decía lo
+       contrario de lo que toca: a los 18 el portal de la familia deja de ser
+       el sitio donde vive su información, porque su información ya no es de
+       ellos. Ahora tiene el suyo, con el mismo formato de móvil, y dentro la
+       pantalla que decide qué sigue viendo su casa. */
+    var mayor = SF.esMayor(p);
 
-    view.innerHTML = head('Portal Jugador', 'Vista del jugador menor de edad (mobile-first).');
+    view.innerHTML = head('Mi ScoutFlow', mayor
+      ? 'Vista del jugador mayor de edad (mobile-first). Sus datos son suyos.'
+      : 'Vista del jugador menor de edad (mobile-first).');
     var sel = el('<div class="empty-panel" style="margin-bottom:14px"><p><b>' + esc(p.full_name) + ' · ' +
-      (playerAge(p) != null ? playerAge(p) + ' años · menor' : 'sin fecha de nacimiento · se trata como menor') + '.</b><br>' +
-      'Ve lo justo para ir a entrenar y jugar. No ve pagos, ni documentación, ni informes, ni su valoración.</p></div>');
+      (playerAge(p) != null ? playerAge(p) + ' años · ' + (mayor ? 'mayor de edad' : 'menor')
+                            : 'sin fecha de nacimiento · se trata como menor') + '.</b><br>' +
+      (mayor
+        ? 'Gestiona lo suyo, firma él sus autorizaciones y decide qué ve su familia.'
+        : 'Ve lo justo para ir a entrenar y jugar. No ve pagos, ni documentación, ni informes, ni su valoración.') +
+      '</p></div>');
     view.appendChild(sel);
 
     var phone = el('<div class="phone"><div class="phone-top"><img src="' + SF.LOGO + '" alt="" class="ph-logo"><span>ScoutFlow</span></div><div class="phone-body"></div></div>');
@@ -14857,6 +15142,18 @@ window.SF = window.SF || {};
     var t = p.team_id ? SF.store.teamGet(p.team_id) : null;
 
     b.appendChild(el('<div class="ph-hero"><div class="ph-photo">' + U.initials(p.full_name) + '</div><div><div class="ph-name">' + esc(p.full_name) + '</div><div class="ph-sub">' + (t ? esc(t.name) : 'Sin equipo') + '</div></div></div>'));
+
+    /* Avisar antes, no el mismo día. Que un lunes cambie quién ve qué sin que
+       nadie lo esperara acaba en llamada al club y en discusión en casa; con
+       treinta días por delante llega con la decisión tomada. */
+    var faltanJ = SF.diasParaMayoria(p);
+    if (!mayor && faltanJ != null && faltanJ <= SF.AVISO_MAYORIA_DIAS) {
+      b.appendChild(el('<div class="ph-nota ph-nota-av"><b>Cumples 18 en ' +
+        (faltanJ === 0 ? 'nada, es hoy' : faltanJ === 1 ? '1 día' : faltanJ + ' días') + '.</b>' +
+        '<p>Ese día tus datos pasan a ser solo tuyos. Tu familia dejará de ver tus informes, tus papeles ' +
+        'y tu salud, y seguirá viendo <b>solo los pagos</b>, porque quien paga tiene que poder pagar.</p>' +
+        '<p class="hint">A partir de ese día lo decides tú desde aquí, y puedes cambiarlo cuando quieras.</p></div>'));
+    }
 
     /* El jugador mayor de edad no tiene familia detrás que le organice: su
        horario tiene que estar en su propio portal. */
@@ -14907,6 +15204,117 @@ window.SF = window.SF || {};
     });
     b.appendChild(el('<p class="hint">Estos avisos van dirigidos a ti. Los que el club manda a tu familia no aparecen aquí.</p>'));
     b.appendChild(bloqueConversaciones(p, 'jugador'));
+
+    /* ---------- DE AQUÍ ABAJO, SOLO EL MAYOR DE EDAD ----------
+       Lo que hasta los 18 llevaba su familia y a partir de los 18 lleva él:
+       su dinero, sus papeles, sus informes, sus autorizaciones. Y la pantalla
+       que decide qué sigue viendo su casa. */
+    if (mayor) {
+      b.appendChild(el('<p class="ph-sec">Tus pagos</p>'));
+      var jt = SF.finTotals(p), jit = SF.finItems(p);
+      b.appendChild(el('<p class="hint">Pagado ' + jt.paid + ' € · Pendiente ' + (jt.pending + jt.overdue) + ' €</p>'));
+      if (!jit.length) b.appendChild(el('<p class="hint">El club aún no ha configurado pagos.</p>'));
+      jit.forEach(function (it) {
+        var pagado = it.status === 'pagado';
+        var fila = el('<div class="ph-row"><span>' + esc(it.label) + (it.month ? ' · ' + esc(it.month) : '') +
+          ' · ' + (+it.amount || 0) + ' € <b>(' + esc(it.status) + ')</b></span>' +
+          '<button class="ph-btn ' + (pagado ? '' : 'pay') + '">' + (pagado ? 'Pagado' : 'Pagar') + '</button></div>');
+        if (!pagado) fila.querySelector('button').onclick = function () { payMethodsModal(); };
+        b.appendChild(fila);
+      });
+      if (SF.familiaVe(p, 'pagos')) {
+        b.appendChild(el('<p class="hint">Tu familia también ve esto y puede pagarlo. Lo cierras abajo si quieres ' +
+          'ocuparte tú del dinero con el club.</p>'));
+      }
+
+      b.appendChild(el('<p class="ph-sec">Tus documentos</p>'));
+      var jlab = { pasaporte: 'Pasaporte o DNI', expediente: 'Expediente académico', seguro_medico: 'Seguro médico' };
+      var jfaltan = 0;
+      Object.keys(jlab).forEach(function (k) {
+        var st = (p.documents || {})[k];
+        var dado = (st === 'validado' || st === 'recibido');
+        if (!dado) jfaltan++;
+        b.appendChild(el('<div class="ph-row"><span>' + (dado ? '✓ ' : '○ ') + jlab[k] + '</span>' +
+          '<span class="tag ' + (dado ? 'tag-green' : 'tag-gray') + '">' + (dado ? 'entregado' : 'pendiente') + '</span></div>'));
+      });
+      b.appendChild(el('<p class="hint">' + (jfaltan
+        ? 'Te faltan ' + jfaltan + '. Entrégalos en secretaría o en el pabellón; el club los marca al recibirlos.'
+        : 'Lo tienes todo entregado.') + '</p>'));
+
+      b.appendChild(el('<p class="ph-sec">Tus informes</p>'));
+      var jreps = (p.reports || []).filter(function (r) { return r.published; });
+      if (!jreps.length) b.appendChild(el('<p class="hint">El club aún no ha publicado ningún informe tuyo.</p>'));
+      jreps.slice().sort(function (a, c) { return (c.date || '').localeCompare(a.date || ''); }).forEach(function (r) {
+        b.appendChild(el('<div class="ph-report"><b>' + esc(r.title) + '</b><span class="hint">' +
+          fmtDate(r.date) + ' · ' + esc(r.author || '') + '</span><p>' + esc(r.body) + '</p></div>'));
+      });
+
+      /* Las autorizaciones ya no las firma su familia por él. */
+      b.appendChild(el('<p class="ph-sec">Tus autorizaciones</p>'));
+      var jcs = p.consents || {};
+      [
+        { k: 'imagen_publica', label: 'Uso de imagen',
+          desc: 'El club puede publicar imágenes y vídeos donde aparezcas en su web, sus redes y en medios, para difundir la actividad deportiva.' },
+        { k: 'comunicaciones', label: 'Comunicaciones del club',
+          desc: 'Recibir avisos de entrenamientos, horarios, partidos y convocatorias.' }
+      ].forEach(function (c) {
+        var v = jcs[c.k];
+        var caja = el('<div class="ph-consent"><b>' + c.label + '</b><p>' + c.desc + '</p></div>');
+        var fila = el('<div class="ph-yn"></div>');
+        [['SÍ autorizo', true], ['NO autorizo', false]].forEach(function (o) {
+          var btn = el('<button class="ph-btn yn' + (v === o[1] ? ' on' : '') + '">' + o[0] + '</button>');
+          btn.onclick = function () {
+            var nc = Object.assign({}, p.consents || {}); nc[c.k] = o[1];
+            SF.store.update(p.id, { consents: nc });
+            U.toast(o[1] ? 'Autorización registrada' : 'Registrado: no autorizas');
+            SF.router.render();
+          };
+          fila.appendChild(btn);
+        });
+        caja.appendChild(fila);
+        caja.appendChild(el('<p class="hint">' + (v === undefined || v === null
+          ? 'Sin responder. Hay que contestar, pero puedes decir que no: no afecta a tu inscripción ni a que juegues.'
+          : 'Puedes cambiarlo cuando quieras, sin dar explicaciones.') + '</p>'));
+        b.appendChild(caja);
+      });
+
+      /* ---------- QUIÉN VE TUS COSAS ----------
+         La pantalla que da sentido a todo lo demás. Un interruptor por área,
+         que se enciende y se apaga aquí mismo, sin pedirle nada al club y sin
+         explicar por qué. Si hubiera que justificarlo, o si el club pudiera
+         reabrirlo por él, esto no sería un permiso: sería un trámite. */
+      b.appendChild(el('<p class="ph-sec">Quién ve tus cosas</p>'));
+      var fam = (p.family || {});
+      b.appendChild(el('<p class="hint">' + (fam.contact
+          ? 'Esto es lo que ve <b>' + esc(fam.contact) + '</b>' + (fam.relation ? ' (' + esc(fam.relation) + ')' : '') + '.'
+          : 'Esto es lo que ve tu familia.') +
+        ' Lo cambias tú, cuando quieras, y el club no puede tocarlo.</p>'));
+
+      var cj = SF.consentDe(p);
+      SF.AREAS_FAMILY.forEach(function (a) {
+        var on = !!cj.areas[a.k];
+        var caja = el('<div class="ph-consent' + (a.sensible ? ' es-sensible' : '') + '"></div>');
+        caja.appendChild(el('<div class="ph-sw-top"><b>' + a.label + '</b>' +
+          '<span class="tag ' + (on ? 'tag-green' : 'tag-gray') + '">' + (on ? 'lo ve' : 'no lo ve') + '</span></div>'));
+        caja.appendChild(el('<p>' + a.desc + '</p>'));
+        caja.appendChild(el('<p class="hint">' + a.detalle + '</p>'));
+        var fila = el('<div class="ph-yn"></div>');
+        [['Que lo vea', true], ['Que no lo vea', false]].forEach(function (o) {
+          var btn = el('<button class="ph-btn yn' + (on === o[1] ? ' on' : '') + '">' + o[0] + '</button>');
+          btn.onclick = function () {
+            SF.store.consentSet(p.id, a.k, o[1]);
+            U.toast(o[1] ? a.label + ': tu familia ya lo ve' : a.label + ': tu familia deja de verlo');
+            SF.router.render();
+          };
+          fila.appendChild(btn);
+        });
+        caja.appendChild(fila);
+        b.appendChild(caja);
+      });
+      b.appendChild(el('<p class="hint">' + (cj.updated_at
+        ? 'Última vez que lo cambiaste: ' + fmtDate(String(cj.updated_at).slice(0, 10)) + '.'
+        : 'Todavía no has cambiado nada: esto es lo que quedó al cumplir los 18.') + '</p>'));
+    }
 
     view.appendChild(phone);
   };
@@ -17820,6 +18228,13 @@ SF.router = (function () {
     if (route === 'equipo') return r.nav.indexOf('equipos') >= 0;            // detalle de equipo
     if (route === 'portal-family') {                                         // padre (su portal) o staff que lo previsualiza
       return r.nav.indexOf('portal-family') >= 0 || r.nav.indexOf('family') >= 0 || r.nav.indexOf('jugadores') >= 0;
+    }
+    /* El portal del jugador se podía ver por menú pero no por URL: el club no
+       tenía forma de PREVISUALIZARLO, y desde que ahí vive la pantalla de "qué
+       ve mi familia", no poder mirarlo es no poder explicárselo a nadie.
+       Mismo criterio que el de la familia: quien ve jugadores, lo previsualiza. */
+    if (route === 'portal-jugador') {
+      return r.nav.indexOf('portal-jugador') >= 0 || r.nav.indexOf('jugadores') >= 0;
     }
     // La ficha de staff: la abre quien ve el listado, o cualquiera la suya.
     if (route === 'staff-ficha') return r.nav.indexOf('staff') >= 0 || r.nav.indexOf('mi-ficha') >= 0;
