@@ -2671,6 +2671,113 @@ SF.TEAMS = [
 SF.FRANJAS = ['17:00 – 18:30', '18:30 – 19:45', '19:45 – 21:00', '21:00 – 22:15', '22:15 – 23:30'];
 SF.DIAS_SEM = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
+/* ===================== EL CUADRANTE ES EL PLAN, EL CALENDARIO ES LO QUE PASO
+   -------------------------------------------------------------------------
+   Aqui habia dos mundos que no se hablaban:
+
+     · el CUADRANTE (`d.horario`): martes a las 19:45, pista 1. Se repite toda
+       la temporada y es donde de verdad esta escrito cuando entrena un equipo.
+     · los EVENTOS (`t.events`): citas con fecha, creadas a mano una a una, y
+       el UNICO sitio donde se podia pasar lista.
+
+   Consecuencia: para pasar lista un martes habia que crear antes el evento de
+   ese martes. Con 27 equipos y tres sesiones por semana, eso son ochenta
+   eventos que alguien tendria que teclear cada semana. No lo hace nadie, y por
+   eso la asistencia estaba practicamente sin usar. La funcion existia; lo que
+   faltaba era que hubiera algo a lo que engancharla.
+
+   COMO SE RESUELVE, Y POR QUE ASI. Las sesiones NO se guardan: se calculan del
+   cuadrante cuando hacen falta. Guardar la temporada entera serian unas 3.000
+   fichas por club dentro de un JSON que ya pesa un mega y que viaja en una
+   sola fila de Supabase; y ademas quedarian congeladas, asi que cambiar el
+   horario en enero no arreglaria lo de febrero.
+
+   Lo que SI se guarda es lo que alguien ha hecho: la lista del dia que se paso.
+   Un entrenador pasa lista unas 120 veces por temporada, no 3.000. Se guarda
+   una linea por sesion pasada, con las marcas en una letra.
+
+     sesiones del periodo = expandir(cuadrante) + eventos sueltos (partidos)
+     lo guardado          = solo las listas pasadas
+   ======================================================================== */
+
+/* Lunes = 0, igual que en el cuadrante. `getDay()` cuenta desde el domingo,
+   asi que hay que rotarlo: es el fallo tonto que coloca los entrenamientos un
+   dia antes y que nadie ve hasta que un padre pregunta. */
+SF.diaSemanaDe = function (iso) {
+  var d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return null;
+  return (d.getDay() + 6) % 7;
+};
+SF.hoyISO = function () { return new Date().toISOString().slice(0, 10); };
+SF.sumaDias = function (iso, n) {
+  var d = new Date(iso + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+};
+
+/* La clave de una sesion. Sale del equipo, el dia y la franja: no de un id
+   inventado, porque la sesion no existe como registro hasta que alguien pasa
+   lista. Asi la lista del martes 3 sigue siendo la del martes 3 aunque se
+   recalcule el cuadrante entero. */
+SF.claveSesion = function (teamId, fecha, tipo, franja) {
+  return teamId + '|' + fecha + '|' + tipo + '|' + (franja == null ? '' : franja);
+};
+
+/* Las sesiones REALES de un equipo entre dos fechas. Sale del cuadrante de
+   pista y del cuadrante de preparacion fisica, mas los partidos y
+   entrenamientos sueltos que alguien haya metido a mano. */
+SF.sesionesEntre = function (team, desde, hasta) {
+  if (!team) return [];
+  var insts = SF.store.instalaciones();
+  function pab(id) { return (insts.filter(function (x) { return x.id === id; })[0] || {}).nombre || ''; }
+  var franjas = SF.store.franjas();
+
+  /* Del cuadrante de pista, sin repetir: un equipo que ocupa dos pistas a la
+     misma hora es UNA sesion, no dos. Pasar lista dos veces del mismo
+     entrenamiento falsearia la asistencia de todos hacia abajo. */
+  var slots = [], vistos = {};
+  SF.store.horario().filter(function (x) { return x.team_id === team.id; }).forEach(function (x) {
+    var k = x.dia + '|' + x.franja;
+    if (vistos[k]) return;
+    vistos[k] = 1;
+    slots.push({ dia: x.dia, franja: x.franja, tipo: 'entreno',
+      hora: franjas[x.franja] || '', donde: pab(x.inst) + (x.completa ? '' : (x.pista ? ' · ' + x.pista : '')) });
+  });
+  SF.store.pf().filter(function (x) { return x.team_id === team.id; }).forEach(function (x) {
+    var k = 'pf|' + x.dia + '|' + (x.hora_ini || '');
+    if (vistos[k]) return;
+    vistos[k] = 1;
+    slots.push({ dia: x.dia, franja: 'pf' + (x.hora_ini || ''), tipo: 'pf',
+      hora: (x.hora_ini || '') + (x.hora_fin ? ' – ' + x.hora_fin : ''),
+      donde: pab(x.inst) + (x.pista ? ' · ' + x.pista : '') });
+  });
+
+  var out = [];
+  for (var f = desde; f <= hasta; f = SF.sumaDias(f, 1)) {
+    var ds = SF.diaSemanaDe(f);
+    slots.forEach(function (sl) {
+      if (sl.dia !== ds) return;
+      out.push({ fecha: f, tipo: sl.tipo, franja: sl.franja, hora: sl.hora, donde: sl.donde,
+        titulo: sl.tipo === 'pf' ? 'Preparación física' : 'Entrenamiento',
+        clave: SF.claveSesion(team.id, f, sl.tipo, sl.franja) });
+    });
+  }
+
+  /* Partidos y citas sueltas. Son eventos de verdad y llevan su propia lista
+     dentro (`ev.attendance`): no se tocan, se muestran al lado. */
+  (team.events || []).forEach(function (ev) {
+    if (!ev.date || ev.date < desde || ev.date > hasta) return;
+    out.push({ fecha: ev.date, tipo: ev.type === 'partido' ? 'partido' : 'entreno', evento: ev,
+      franja: null, hora: ev.time || '', donde: ev.place || '',
+      titulo: ev.type === 'partido' ? ('Partido' + (ev.opponent ? ' · ' + ev.opponent : '')) : 'Entrenamiento',
+      clave: null });
+  });
+
+  return out.sort(function (a, b) {
+    return (a.fecha).localeCompare(b.fecha) || String(a.hora).localeCompare(String(b.hora));
+  });
+};
+
 /* ===================== REVISION DEL CUADRANTE DE PF =====================
    Lo que un Excel no hace y por lo que merece la pena que esto viva en la app.
    El trabajo del coordinador no es teclear la parrilla: es que cuadre. Estas
@@ -6051,13 +6158,51 @@ SF.store = (function () {
       ev.attendance = marks; ev.attendance_by = by; ev.attendance_at = new Date().toISOString().slice(0, 10);
       save(d); return ev;
     },
+    /* ---- LISTA DE LAS SESIONES DEL CUADRANTE ----
+       Solo se guarda lo que alguien ha pasado. Las sesiones se calculan
+       (`SF.sesionesEntre`); guardarlas todas serian miles de fichas muertas en
+       un almacen que ya va justo. Las marcas van en una letra -p, a, j- por lo
+       mismo: 300 jugadores x 120 sesiones x "presente" son 300 KB de la misma
+       palabra repetida. */
+    asistencias: function () { return db().asistencias || []; },
+    asistenciaDe: function (clave) {
+      return (db().asistencias || []).filter(function (x) { return x.clave === clave; })[0] || null;
+    },
+    asistenciasDe: function (teamId, desde, hasta) {
+      return (db().asistencias || []).filter(function (x) {
+        return x.team_id === teamId && (!desde || x.fecha >= desde) && (!hasta || x.fecha <= hasta);
+      });
+    },
+    asistenciaSet: function (clave, meta, marcas, por) {
+      var d = db();
+      d.asistencias = d.asistencias || [];
+      var x = d.asistencias.filter(function (y) { return y.clave === clave; })[0];
+      if (!x) { x = { clave: clave }; d.asistencias.push(x); }
+      x.team_id = meta.team_id; x.fecha = meta.fecha; x.tipo = meta.tipo; x.franja = meta.franja;
+      x.marcas = marcas;
+      x.por = por || (SF.USERS || {})[d.role] || d.role;
+      x.at = new Date().toISOString();
+      save(d);
+      return x;
+    },
+
+    /* Asistencia de un jugador. Suma las DOS fuentes: los partidos y citas
+       sueltas (que guardan la lista dentro del evento) y las sesiones del
+       cuadrante. Contar solo una de las dos daria un porcentaje que no se
+       parece a la realidad de nadie. */
     attendanceStats: function (playerId) {
-      var teams = db().teams || [], tot = 0, pres = 0;
-      teams.forEach(function (t) {
+      var d = db(), tot = 0, pres = 0;
+      (d.teams || []).forEach(function (t) {
         (t.events || []).forEach(function (e) {
           if (!e.attendance || !e.attendance[playerId]) return;
           tot++; if (e.attendance[playerId] === 'presente') pres++;
         });
+      });
+      var LARGO = { p: 'presente', a: 'ausente', j: 'justificado' };
+      (d.asistencias || []).forEach(function (x) {
+        var m = (x.marcas || {})[playerId];
+        if (!m) return;
+        tot++; if (LARGO[m] === 'presente' || m === 'presente') pres++;
       });
       return { total: tot, present: pres, pct: tot ? Math.round(pres / tot * 100) : null };
     },
@@ -7419,17 +7564,16 @@ window.SF = window.SF || {};
       c.appendChild(todayCard('Plantilla', roster.length + ' jugador(es)'));
       view.appendChild(c);
       var acts = el('<div class="row-c"></div>');
-      if (nt || nm) {
-        var ev = nt || nm;
-        var bl = el('<button class="btn btn-primary btn-sm">' + ico('users') + 'Pasar lista</button>');
-        bl.onclick = function () { attendanceModal(t, ev, function () { SF.router.render(); }); };
-        acts.appendChild(bl);
-      }
+      /* El botón apuntaba a la PRÓXIMA cita, que por definición todavía no ha
+         ocurrido: se pasaba lista de un entrenamiento que no ha pasado. Ahora
+         debajo salen las sesiones reales de los últimos días, que es de las
+         que hay lista que pasar. */
       var bw = el('<button class="btn btn-light btn-sm">' + ico('arrow') + 'Publicar aviso</button>');
-      bw.onclick = function () { location.hash = '#/equipo/' + t.id; };
+      bw.onclick = function () { SF._avisoEquipo = t.id; location.hash = '#/mis-avisos'; };
       var bo = el('<button class="btn btn-light btn-sm">' + ico('grid') + 'Abrir equipo</button>');
       bo.onclick = function () { location.hash = '#/equipo/' + t.id; };
       acts.appendChild(bw); acts.appendChild(bo); view.appendChild(acts);
+      bloquePasarLista(view, t);
     });
   }
 
@@ -15735,11 +15879,31 @@ window.SF = window.SF || {};
     if (ev.type === 'partido') return 'vs ' + esc(ev.opponent || 'rival') + ' · ' + fmtDate(ev.date) + (ev.time ? ' · ' + ev.time : '') + (ev.place ? ' · ' + esc(ev.place) : '') + (ev.competition ? ' · ' + esc(ev.competition) : '');
     return fmtDate(ev.date) + (ev.time ? ' · ' + ev.time : '') + (ev.place ? ' · ' + esc(ev.place) : '') + (ev.note ? ' · ' + esc(ev.note) : '');
   }
+  /* Pasar lista de una cita suelta (partido, amistoso). Es la misma pantalla
+     que la del cuadrante: se delega para no tener dos que se parezcan mucho y
+     acaben diferenciandose sin querer. */
   function attendanceModal(t, ev, onDone) {
+    listaModal(t, { evento: ev, fecha: ev.date, hora: ev.time || '', donde: ev.place || '',
+      titulo: ev.type === 'partido' ? ('Partido' + (ev.opponent ? ' · ' + ev.opponent : '')) : 'Entrenamiento' }, onDone);
+  }
+
+  /* LA PANTALLA DE PASAR LISTA, para las dos cosas: una cita suelta -que
+     guarda la lista dentro del evento- y una sesion del cuadrante -que se
+     guarda aparte, porque la sesion no existe como registro-. */
+  function listaModal(t, ses, onDone) {
+    var esEvento = !!ses.evento;
+    var CORTO = { presente: 'p', ausente: 'a', justificado: 'j' };
+    var LARGO = { p: 'presente', a: 'ausente', j: 'justificado' };
     var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
-    var marks = Object.assign({}, ev.attendance || {});
+    var marks = {};
+    if (esEvento) marks = Object.assign({}, ses.evento.attendance || {});
+    else {
+      var g = SF.store.asistenciaDe(ses.clave);
+      if (g) Object.keys(g.marcas || {}).forEach(function (k) { marks[k] = LARGO[g.marcas[k]] || g.marcas[k]; });
+    }
     var box = el('<div></div>');
-    box.appendChild(el('<p class="hint">' + (ev.type === 'partido' ? 'Partido vs ' + esc(ev.opponent || '') : 'Entrenamiento') + ' · ' + fmtDate(ev.date) + (ev.time ? ' · ' + ev.time : '') + '</p>'));
+    box.appendChild(el('<p class="hint">' + esc(ses.titulo || 'Entrenamiento') + ' · ' + fmtDate(ses.fecha) +
+      (ses.hora ? ' · ' + esc(ses.hora) : '') + (ses.donde ? ' · ' + esc(ses.donde) : '') + '</p>'));
     if (!roster.length) box.appendChild(el('<p class="hint">Este equipo aún no tiene jugadores en la plantilla.</p>'));
     var list = el('<div class="att-list"></div>');
     var counter = el('<p class="hint att-count"></p>');
@@ -15774,11 +15938,76 @@ window.SF = window.SF || {};
     var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar lista</button></div>');
     foot.children[0].onclick = U.closeModal;
     foot.children[1].onclick = function () {
-      SF.store.teamSetAttendance(t.id, ev.id, marks, SF.store.currentUser().name);
+      if (esEvento) {
+        SF.store.teamSetAttendance(t.id, ses.evento.id, marks, SF.store.currentUser().name);
+      } else {
+        /* Las marcas se guardan en una letra. Con 300 jugadores y 120 sesiones
+           por temporada, escribir "presente" entero son cientos de kilobytes
+           de la misma palabra dentro de un almacen que ya va justo. */
+        var cortas = {};
+        Object.keys(marks).forEach(function (k) { if (marks[k]) cortas[k] = CORTO[marks[k]] || marks[k]; });
+        SF.store.asistenciaSet(ses.clave,
+          { team_id: t.id, fecha: ses.fecha, tipo: ses.tipo, franja: ses.franja },
+          cortas, SF.store.currentUser().name);
+      }
       U.closeModal(); U.toast('Lista guardada'); onDone();
     };
     box.appendChild(foot);
     U.modal('Pasar lista — ' + esc(t.name), box);
+  }
+
+  /* ---------- LAS SESIONES A LAS QUE TOCA PASAR LISTA ----------
+     Sale del cuadrante, no de lo que alguien se haya acordado de crear. Se
+     miran los ultimos dias y hoy: hacia atras porque una lista se pasa el
+     mismo dia o al siguiente, y mas atras ya nadie se acuerda de quien vino;
+     hacia delante no tiene sentido, no se puede pasar lista de un martes que
+     no ha llegado. */
+  var DIAS_LISTA = 10;
+  function bloquePasarLista(view, t) {
+    if (!canManageThisTeam(t)) return;
+    var hoy = SF.hoyISO();
+    var ses = SF.sesionesEntre(t, SF.sumaDias(hoy, -DIAS_LISTA), hoy);
+    var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
+
+    view.appendChild(el('<p class="sec-label">Pasar lista</p>'));
+    if (!roster.length) {
+      view.appendChild(el('<p class="hint">Este equipo todavía no tiene jugadores.</p>'));
+      return;
+    }
+    if (!ses.length) {
+      view.appendChild(el('<p class="hint">No hay sesiones en los últimos ' + DIAS_LISTA + ' días. ' +
+        'Las sesiones salen del cuadrante de pista: si este equipo no tiene horario asignado, ' +
+        'aquí no aparecerá nada.</p>'));
+      return;
+    }
+
+    var pend = 0;
+    var lista = el('<div class="mini-list"></div>');
+    ses.slice().reverse().forEach(function (x) {
+      var g = x.evento ? (x.evento.attendance ? { marcas: x.evento.attendance } : null)
+                       : SF.store.asistenciaDe(x.clave);
+      var hecha = !!g;
+      var pres = 0;
+      if (hecha) Object.keys(g.marcas || {}).forEach(function (k) {
+        var v = g.marcas[k]; if (v === 'p' || v === 'presente') pres++;
+      });
+      if (!hecha) pend++;
+      var fila = el('<div class="mini-row mr-wrap' + (hecha ? '' : ' pf-naranja') + '">' +
+        '<span><b>' + esc(x.titulo) + '</b> <span class="hint">· ' + fmtDate(x.fecha) +
+        (x.hora ? ' · ' + esc(x.hora) : '') + (x.donde ? ' · ' + esc(x.donde) : '') + '</span></span>' +
+        '<span class="tag ' + (hecha ? 'tag-green' : 'tag-warn') + '">' +
+        (hecha ? pres + ' de ' + roster.length : 'sin pasar') + '</span></div>');
+      var b = el('<button class="btn btn-sm' + (hecha ? '' : ' btn-primary') + '">' +
+        (hecha ? 'Ver o corregir' : 'Pasar lista') + '</button>');
+      b.onclick = function () { listaModal(t, x, function () { SF.router.render(); }); };
+      fila.appendChild(b);
+      lista.appendChild(fila);
+    });
+    view.appendChild(lista);
+    view.appendChild(el('<p class="hint">' + (pend
+      ? '<b>' + pend + '</b> ' + (pend === 1 ? 'sesión sin pasar' : 'sesiones sin pasar') +
+        ' de los últimos ' + DIAS_LISTA + ' días. Salen solas del cuadrante: no hay que crear nada.'
+      : 'Todas las listas de los últimos ' + DIAS_LISTA + ' días están pasadas.') + '</p>'));
   }
 
   function canManageThisTeam(t) {
@@ -16546,7 +16775,10 @@ window.SF = window.SF || {};
       /* --- Cuatro botones, y ya --- */
       var acts = el('<div class="row-c"></div>');
       var b1 = el('<button class="btn btn-primary btn-sm">' + ico('ai') + 'Enviar aviso</button>');
-      b1.onclick = function () { U.modal('Aviso a ' + t.name, annComposer(t, roster, null)); };
+      /* Se manda a Avisos > Escribir con este equipo puesto, en vez de abrir
+         otro compositor aquí: dos sitios para lo mismo acaban diferenciándose,
+         y además allí ve lo que ya ha mandado. */
+      b1.onclick = function () { SF._avisoEquipo = t.id; location.hash = '#/mis-avisos'; };
       var b2 = el('<button class="btn btn-light btn-sm">' + ico('users') + 'Convocar</button>');
       b2.onclick = function () {
         U.modal('Convocatoria · ' + t.name, annComposer(t, roster, {
@@ -16917,6 +17149,10 @@ window.SF = window.SF || {};
 
     horarioDeEquipo(view, t);
 
+    /* Pasar lista, antes del calendario a propósito: es lo que un entrenador
+       viene a hacer cuando entra aquí un miércoles por la noche. */
+    bloquePasarLista(view, t);
+
     // Calendario — entrenamientos y partidos
     view.appendChild(el('<p class="sec-label">Calendario — entrenamientos y partidos</p>'));
     var canEv = canManageThisTeam(t);
@@ -16945,75 +17181,31 @@ window.SF = window.SF || {};
       view.appendChild(el('<p class="hint">Al añadir una cita se manda un aviso a las familias y a los jugadores de 14 en adelante, y en los partidos se les pide confirmación. Lo verás abajo, en Enviados. Los partidos los carga el entrenador según la federación.</p>'));
     }
 
-    /* ---------- Mensajes al equipo ----------
-       Antes esto era un tablón: se escribía y se quedaba colgado, sin saber a
-       quién llegaba ni si alguien lo había leído. Ahora cada mensaje es un
-       aviso con destinatarios y acuse, que es lo que un club necesita para
-       poder decir "se lo mandé a las doce familias y lo han abierto ocho". */
-    view.appendChild(el('<p class="sec-label">Mensajes al equipo</p>'));
+    /* ---------- Escribir al equipo ----------
+       Aqui habia un compositor entero, y otro en "Mi equipo", y ninguno de los
+       dos enseñaba lo que ya habias mandado a los demas equipos. Tres sitios
+       para la misma cosa acaban diferenciandose entre ellos sin que nadie se
+       de cuenta: el dia que cambie a quien llega un aviso, habria que
+       acordarse de cambiarlo tres veces.
+
+       Ahora se escribe en un solo sitio -Avisos > Escribir- y desde aqui se
+       llega con este equipo ya elegido. Lo que se queda aqui es lo ENVIADO a
+       este equipo, que es lo que de verdad se viene a mirar estando dentro de
+       un equipo. */
     var roster = SF.store.players().filter(function (x) { return x.team_id === t.id; });
     var menores = roster.filter(function (x) { return SF.firmaMenor14(x.birth_date); }).length;
-
+    view.appendChild(el('<p class="sec-label">Mensajes al equipo</p>'));
     if (!roster.length) {
       view.appendChild(el('<p class="hint">Este equipo aún no tiene jugadores, así que no hay a quién escribir.</p>'));
-    } else {
-      var comp = el('<div class="composer-x"></div>');
-      comp.appendChild(el('<input id="mt" placeholder="Asunto: equipación del sábado">'));
-      comp.appendChild(el('<textarea id="mb" placeholder="Escribe el mensaje…"></textarea>'));
-      var fila = el('<div class="composer-row"></div>');
-      fila.appendChild(el('<select id="ma">' + SF.AUDIENCIAS.map(function (x) {
-        return '<option value="' + x.k + '">' + esc(x.label) + '</option>';
-      }).join('') + '</select>'));
-      fila.appendChild(el('<label class="chk"><input type="checkbox" id="mr"> Pedir confirmación de asistencia</label>'));
-      var bSend = el('<button class="btn btn-primary" id="send">' + ico('arrow') + 'Enviar</button>');
-      fila.appendChild(bSend);
-      comp.appendChild(fila);
-      var expl = el('<p class="hint"></p>');
-      comp.appendChild(expl);
-      view.appendChild(comp);
-
-      function explica() {
-        var k = comp.querySelector('#ma').value;
-        var def = SF.AUDIENCIAS.filter(function (x) { return x.k === k; })[0];
-        var cuenta = { jug: 0, fam: 0, redir: 0, copia: 0 };
-        roster.forEach(function (x) {
-          var real = SF.audienciaReal(k, x);
-          if (real.jugador) cuenta.jug++;
-          if (real.familia) cuenta.fam++;
-          if (real.redirigido) cuenta.redir++;
-          if (real.copiaTutores) cuenta.copia++;
-        });
-        var partes = [];
-        if (cuenta.fam) partes.push('<b>' + cuenta.fam + '</b> ' + (cuenta.fam === 1 ? 'familia' : 'familias'));
-        if (cuenta.jug) partes.push('<b>' + cuenta.jug + '</b> ' + (cuenta.jug === 1 ? 'jugador' : 'jugadores'));
-        expl.innerHTML = esc(def.desc) + ' Lo recibirán ' + (partes.join(' y ') || 'nadie') + '.' +
-          (cuenta.redir ? ' <b>' + cuenta.redir + '</b> ' + (cuenta.redir === 1 ? 'es menor de 14 y le llegará a su familia.' : 'son menores de 14 y les llegará a su familia.') : '') +
-          /* Que el número de familias sea mayor que el que se ha pedido tiene
-             explicación, y hay que darla: si no, el entrenador cree que la app
-             le ha desobedecido. */
-          (cuenta.copia ? ' <b>' + cuenta.copia + '</b> ' + (cuenta.copia === 1
-            ? 'es menor de edad, así que su familia recibe copia.'
-            : 'son menores de edad, así que sus familias reciben copia.') : '');
-      }
-      comp.querySelector('#ma').onchange = explica; explica();
-
-      bSend.onclick = function () {
-        var titulo = comp.querySelector('#mt').value.trim();
-        var cuerpo = comp.querySelector('#mb').value.trim();
-        if (!titulo) { U.toast('Ponle un asunto: es lo que ven primero'); return; }
-        var a = SF.store.annCreate(t.id, {
-          title: titulo, body: cuerpo, kind: 'equipo',
-          audience: comp.querySelector('#ma').value,
-          needs_rsvp: comp.querySelector('#mr').checked
-        }, roster.map(function (x) { return x.id; }));
-        var n = a.targets.filter(function (x) { return x.to_family || x.to_player; }).length;
-        U.toast('Enviado a ' + n + (n === 1 ? ' destinatario' : ' destinatarios'));
-        SF.router.render();
-      };
-      if (menores) view.appendChild(el('<p class="hint">' + menores +
-        (menores === 1 ? ' jugador es menor de 14 años, así que sus mensajes van siempre a su familia.'
-                       : ' jugadores son menores de 14 años, así que sus mensajes van siempre a su familia.') +
-        ' Es la misma edad a partir de la cual el menor puede consentir por sí mismo.</p>'));
+    } else if (canManageThisTeam(t)) {
+      var banda = el('<div class="evo-band"><div class="evo-band-txt"><b>Escribir a ' + esc(t.name) + '</b>' +
+        '<span>' + roster.length + (roster.length === 1 ? ' jugador' : ' jugadores') +
+        (menores ? ' · ' + menores + (menores === 1 ? ' menor de 14: le llega a su familia' : ' menores de 14: les llega a su familia') : '') +
+        '</span></div></div>');
+      var bEsc = el('<button class="btn btn-primary btn-sm">' + ico('arrow') + 'Escribir un aviso</button>');
+      bEsc.onclick = function () { SF._avisoEquipo = t.id; location.hash = '#/mis-avisos'; };
+      banda.appendChild(bEsc);
+      view.appendChild(banda);
     }
 
     /* --- Enviados, con el acuse a la vista --- */
@@ -17862,10 +18054,89 @@ window.SF = window.SF || {};
     U.modal('Escribir a compañeros', box);
   }
 
+  /* ===================== AVISOS =====================
+     Escribir un aviso vivia dentro de la pantalla de CADA equipo. Para un
+     entrenador con tres equipos, eso son tres sitios distintos para hacer la
+     misma cosa, y ninguno donde ver de una vez lo que ha mandado. Y lo
+     enviado quedaba enterrado en el equipo al que se mando, asi que la
+     pregunta mas normal del mundo -"¿mande yo lo del sabado?"- no tenia
+     respuesta sin ir equipo por equipo.
+
+     Ahora esto es la mensajeria del club, con tres puertas:
+       RECIBIDOS · lo que le llega y lo que le preguntan (deuda: hay que contestar)
+       ENVIADOS  · lo que ha mandado, por fecha, con quien lo ha abierto
+       ESCRIBIR  · elegir equipo y mandar, sin salir de aqui
+
+     En la pantalla del equipo se queda un atajo que abre esto con ese equipo
+     ya puesto: una sola implementacion, dos puertas. */
   pages['mis-avisos'] = function (view) {
     var me = SF.store.staffMe();
-    view.innerHTML = head('Mis avisos', 'Lo que te manda el club y lo que te preguntan las familias.');
+    view.innerHTML = head('Avisos', 'Lo que te llega, lo que has mandado y lo que quieras mandar.');
     if (!me) { view.appendChild(el('<div class="empty-panel"><p>No hay ninguna ficha de staff asociada a este usuario.</p></div>')); return; }
+
+    /* Si se llega desde un equipo con "Publicar aviso", se abre directamente
+       en Escribir y con ese equipo elegido. */
+    if (SF._avisoEquipo) { SF._avisosZona = 'escribir'; }
+
+    var misEq = equiposDeAvisos(me);
+    var ZONAS = [
+      { k: 'recibidos', label: 'Recibidos' },
+      { k: 'enviados',  label: 'Enviados' },
+      { k: 'escribir',  label: 'Escribir' }
+    ].filter(function (z) { return z.k !== 'escribir' || misEq.length; });
+
+    var zona = SF._avisosZona;
+    if (!ZONAS.some(function (z) { return z.k === zona; })) zona = 'recibidos';
+    SF._avisosZona = zona;
+
+    var sinLeerTot = SF.store.commsForStaff(me.id).filter(function (x) { return !x.leido; }).length +
+      SF.store.convsForStaff(me.id).filter(function (c) { return !c.closed_at && SF.store.convSinLeer(c, me.id); }).length;
+
+    var fila = el('<div class="row-c eq-filtros"></div>');
+    ZONAS.forEach(function (z) {
+      var n = z.k === 'recibidos' ? sinLeerTot
+            : z.k === 'enviados' ? avisosEnviadosDe(me, misEq).length : null;
+      var b = el('<button class="eq-chip' + (z.k === zona ? ' on' : '') + '">' + z.label +
+        (n ? '<span class="eq-n">' + n + '</span>' : '') + '</button>');
+      b.onclick = function () { SF._avisosZona = z.k; SF.router.render(); };
+      fila.appendChild(b);
+    });
+    view.appendChild(fila);
+
+    if (zona === 'enviados') return avisosEnviados(view, me, misEq);
+    if (zona === 'escribir') return avisosEscribir(view, me, misEq);
+    return avisosRecibidos(view, me);
+  };
+
+  /* Los equipos a los que este usuario puede escribir. Quien lleva el club
+     entero los tiene todos; un entrenador, los suyos. Si escribes a un equipo
+     que no llevas, el aviso sale con tu nombre y nadie sabe por que. */
+  function equiposDeAvisos(me) {
+    var r = role();
+    var todos = SF.store.teams();
+    if (r.canManageTeams || !r.team_scope) return todos;
+    var nombre = SF.store.currentUser().name;
+    return todos.filter(function (t) {
+      return ((me && me.team_ids) || []).indexOf(t.id) >= 0 || (t.coaches || []).indexOf(nombre) >= 0;
+    });
+  }
+
+  /* Lo que ha mandado esta persona. Se buscan por AUTOR, no por equipo: si un
+     entrenador deja de llevar un equipo, lo que mando sigue siendo suyo y
+     tiene que poder verlo. Y quien dirige ve lo de sus equipos aunque lo
+     mandara otro, que es como se supervisa. */
+  function avisosEnviadosDe(me, misEq) {
+    var yo = SF.store.currentUser().name;
+    var ids = misEq.map(function (t) { return t.id; });
+    var mando = role().canManageTeams;
+    return SF.store.announcements().filter(function (a) {
+      if (a.retracted_at) return false;
+      if (a.author === yo) return true;
+      return mando && ids.indexOf(a.team_id) >= 0;
+    }).sort(function (x, y) { return (y.created_at || '').localeCompare(x.created_at || ''); });
+  }
+
+  function avisosRecibidos(view, me) {
 
     /* --- Conversaciones: primero, porque son lo que hay que CONTESTAR ---
        Un aviso se lee y se olvida; una consulta de una familia esperando
@@ -17947,6 +18218,128 @@ window.SF = window.SF || {};
       view.appendChild(b);
     });
   };
+
+  /* ---------- ENVIADOS ----------
+     Agrupados por dia y con el acuse delante. "Se lo mande a las doce familias
+     y lo han abierto ocho" es la frase que un club necesita poder decir, y
+     hasta ahora habia que ir equipo por equipo para reunirla. */
+  function avisosEnviados(view, me, misEq) {
+    var todos = avisosEnviadosDe(me, misEq);
+    if (!todos.length) {
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('bell') + '</div>' +
+        '<p>Todavía no has mandado ningún aviso.</p>' +
+        '<p class="hint">Los que mandes aparecerán aquí por fecha, con cuántos lo han abierto.</p></div>'));
+      return;
+    }
+
+    /* Filtro por equipo, solo si hay mas de uno: un desplegable con una opcion
+       es un desplegable que estorba. */
+    var eqIds = Array.from(new Set(todos.map(function (a) { return a.team_id || ''; })));
+    var filtro = SF._avisosEq || '';
+    if (eqIds.length > 1) {
+      var bar = el('<div class="filters"></div>');
+      bar.innerHTML = '<select id="fe"><option value="">Todos los equipos</option>' +
+        eqIds.map(function (id) {
+          var t = id ? SF.store.teamGet(id) : null;
+          return '<option value="' + esc(id) + '"' + (id === filtro ? ' selected' : '') + '>' +
+            esc(t ? t.name : 'Sin equipo') + '</option>';
+        }).join('') + '</select>';
+      bar.querySelector('#fe').onchange = function () { SF._avisosEq = this.value; SF.router.render(); };
+      view.appendChild(bar);
+    }
+    var lista = filtro ? todos.filter(function (a) { return (a.team_id || '') === filtro; }) : todos;
+
+    /* Por dia. Un club manda tres avisos un martes y ninguno en dos semanas:
+       la fecha es la unica agrupacion que se lee sola. */
+    var porDia = {};
+    lista.forEach(function (a) {
+      var f = (a.created_at || '').slice(0, 10);
+      (porDia[f] = porDia[f] || []).push(a);
+    });
+    Object.keys(porDia).sort().reverse().forEach(function (f) {
+      view.appendChild(el('<p class="sec-label">' + fmtDate(f) + '</p>'));
+      var ml = el('<div class="mini-list"></div>');
+      porDia[f].forEach(function (a) {
+        var t = a.team_id ? SF.store.teamGet(a.team_id) : null;
+        var dest = (a.targets || []).filter(function (x) { return x.to_player || x.to_family; });
+        var abiertos = dest.filter(function (x) { return x.read_player || x.read_family; }).length;
+        var resp = a.needs_rsvp ? dest.filter(function (x) { return x.rsvp; }).length : null;
+        var fila = el('<div class="mini-row mr-wrap"><span><b>' + esc(a.title) + '</b>' +
+          '<span class="hint"> · ' + esc(t ? t.name : 'sin equipo') + ' · ' + esc(a.author || '') + '</span></span>' +
+          '<span class="tag ' + (abiertos === dest.length && dest.length ? 'tag-green' : 'tag-gray') + '">' +
+          abiertos + ' de ' + dest.length + ' abiertos</span>' +
+          (resp === null ? '' : '<span class="tag ' + (resp === dest.length ? 'tag-green' : 'tag-warn') + '">' +
+            resp + ' de ' + dest.length + ' han contestado</span>') + '</div>');
+        var b = el('<button class="btn btn-sm">Ver quién lo ha abierto</button>');
+        b.onclick = function () {
+          var roster = SF.store.players().filter(function (p) { return p.team_id === a.team_id; });
+          U.modal(a.title, annResponses(a, roster));
+        };
+        fila.appendChild(b);
+        ml.appendChild(fila);
+      });
+      view.appendChild(ml);
+    });
+  }
+
+  /* ---------- ESCRIBIR ----------
+     Primero el equipo, luego el mensaje. Al reves -escribir y luego elegir a
+     quien- es como se manda al equipo equivocado. */
+  function avisosEscribir(view, me, misEq) {
+    if (!misEq.length) {
+      view.appendChild(el('<div class="empty-panel"><p>No llevas ningún equipo, así que no hay a quién escribir.</p></div>'));
+      return;
+    }
+    var elegido = SF._avisoEquipo || SF._avisosEscribirEq || misEq[0].id;
+    SF._avisoEquipo = null;
+    if (!misEq.some(function (t) { return t.id === elegido; })) elegido = misEq[0].id;
+    SF._avisosEscribirEq = elegido;
+
+    /* Un entrenador lleva dos o tres equipos y los quiere ver de un vistazo:
+       botones. Dirección lleva veintisiete y una pared de veintisiete botones
+       no es un vistazo: desplegable, y ordenados como en Equipos. */
+    if (misEq.length > 1 && misEq.length <= 8) {
+      view.appendChild(el('<p class="sec-label">¿A qué equipo?</p>'));
+      var chips = el('<div class="row-c eq-filtros"></div>');
+      misEq.forEach(function (t) {
+        var n = SF.store.players().filter(function (p) { return p.team_id === t.id; }).length;
+        var b = el('<button class="eq-chip eq-chip-sm' + (t.id === elegido ? ' on' : '') + '">' +
+          esc(t.name) + '<span class="eq-n">' + n + '</span></button>');
+        b.onclick = function () { SF._avisosEscribirEq = t.id; SF.router.render(); };
+        chips.appendChild(b);
+      });
+      view.appendChild(chips);
+    } else if (misEq.length > 8) {
+      view.appendChild(el('<p class="sec-label">¿A qué equipo?</p>'));
+      var bar = el('<div class="filters"></div>');
+      bar.innerHTML = '<select id="eqsel">' + SF.ordenaEquipos(misEq.slice()).map(function (t) {
+        var n = SF.store.players().filter(function (p) { return p.team_id === t.id; }).length;
+        return '<option value="' + esc(t.id) + '"' + (t.id === elegido ? ' selected' : '') + '>' +
+          esc(t.name) + ' · ' + n + '</option>';
+      }).join('') + '</select>';
+      bar.querySelector('#eqsel').onchange = function () { SF._avisosEscribirEq = this.value; SF.router.render(); };
+      view.appendChild(bar);
+    }
+
+    var t = SF.store.teamGet(elegido);
+    var roster = SF.store.players().filter(function (p) { return p.team_id === elegido; });
+    view.appendChild(el('<p class="sec-label">' + esc(t.name) + ' · ' + roster.length +
+      (roster.length === 1 ? ' jugador' : ' jugadores') + '</p>'));
+    if (!roster.length) {
+      view.appendChild(el('<p class="hint">Este equipo todavía no tiene jugadores, así que no hay a quién escribir.</p>'));
+      return;
+    }
+    /* El mismo compositor que se usa desde el equipo, no una copia: el dia que
+       cambie a quien llega un aviso tiene que cambiar en un solo sitio. */
+    var caja = el('<div class="card"></div>');
+    /* Empieza con TODO EL EQUIPO marcado. Escribir "al equipo" y encontrarse
+       que no se envía porque no había nadie elegido es el paso que sobra: lo
+       normal es que sea para todos, y quitar a alguien es un clic. */
+    caja.appendChild(annComposer(t, roster,
+      { players: roster.map(function (p) { return p.id; }) },
+      function () { SF._avisosZona = 'enviados'; }));
+    view.appendChild(caja);
+  }
 
   /* ===================== RECEPCIÓN =====================
      La entrada a la plataforma. Se ve una vez por sesión y por rol: da
@@ -18274,7 +18667,7 @@ SF.router = (function () {
     ['config', 'Configuración', 'cog'],
     ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'],
     ['adjuntos', 'Personal adjunto', 'users'],
-    ['mis-avisos', 'Mis avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
+    ['mis-avisos', 'Avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
     ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
   /* Los grupos del menú lateral. Con 18 entradas seguidas no se lee: hay que
