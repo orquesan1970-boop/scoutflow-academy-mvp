@@ -1939,6 +1939,116 @@ SF.pendientesDe = function (p, opts) {
   if ((opts || {}).finanzas && SF.finHas(p, 'vencido')) out.push({ k: 'pago', t: 'Pago vencido', c: 'danger' });
   return out;
 };
+/* ===================== EL BUSCADOR =====================
+   Buscar "sin equipo" no devolvia nada, y era razonable esperar que si: no es
+   una palabra que este escrita en ninguna ficha, es una CONDICION. Un club
+   pregunta las dos cosas -"Martin", pero tambien "quien no tiene equipo"- y un
+   buscador que solo sabe hacer lo primero se queda a medias.
+
+   Asi que la consulta se parte en dos: las condiciones que reconocemos, y el
+   texto libre que queda. Se aplican juntas, asi que "cadete sin video" es una
+   pregunta valida.
+
+   Y todo esto pasa AQUI, en el navegador, sin IA: es instantaneo, no cuesta
+   dinero y no manda el nombre de un menor a ningun sitio. */
+
+SF.CONDICIONES = [
+  { k: 'sin_equipo', label: 'Sin equipo', ayuda: 'No está asignado a ningún equipo',
+    frases: ['sin equipo', 'sin conjunto', 'no tiene equipo'],
+    test: function (p) { return !p.team_id; } },
+  { k: 'con_equipo', label: 'Con equipo', frases: ['con equipo'],
+    test: function (p) { return !!p.team_id; } },
+
+  { k: 'sin_foto', label: 'Sin foto', ayuda: 'Su ficha no tiene fotografía',
+    frases: ['sin foto', 'sin fotografia', 'sin imagen'],
+    test: function (p) { return !p.photo_url; } },
+
+  { k: 'sin_video', label: 'Sin vídeo', ayuda: 'No ha entregado vídeo de highlights',
+    frases: ['sin video', 'sin videos', 'sin highlights'],
+    test: function (p) {
+      if ((p.videos || []).length) return false;
+      var st = (p.documents || {}).video_highlights;
+      return st !== 'validado' && st !== 'recibido';
+    } },
+
+  { k: 'sin_docs', label: 'Documentos pendientes', ayuda: 'Le falta entregar algún documento',
+    frases: ['sin documentos', 'documentos pendientes', 'falta documentacion', 'sin papeles'],
+    test: function (p) { return (SF.docsPend(p) || []).length > 0; } },
+  { k: 'sin_pasaporte', label: 'Sin DNI ni pasaporte', frases: ['sin pasaporte', 'sin dni', 'sin documento de identidad'],
+    test: function (p) {
+      return (SF.docsPend(p) || []).some(function (d) { return /dni|pasaporte|identidad/i.test(d.key + ' ' + d.label); });
+    } },
+
+  { k: 'sin_familia', label: 'Sin contacto de familia', ayuda: 'Nadie a quien llamar si pasa algo',
+    frases: ['sin familia', 'sin contacto', 'sin tutor', 'sin padres'],
+    test: function (p) { return !((p.family || {}).contact || '').trim(); } },
+  { k: 'sin_telefono', label: 'Sin teléfono', frases: ['sin telefono', 'sin movil'],
+    test: function (p) { return !((p.phone || '') + ((p.family || {}).phone || '')).trim(); } },
+  { k: 'sin_email', label: 'Sin email', frases: ['sin email', 'sin correo'],
+    test: function (p) { return !((p.email || '') + ((p.family || {}).email || '')).trim(); } },
+
+  { k: 'family_no', label: 'Sin acceso Family', ayuda: 'La familia no tiene el portal activado',
+    frases: ['sin family', 'sin portal', 'family sin activar'],
+    test: function (p) { return !p.family_active; } },
+  { k: 'family_si', label: 'Con acceso Family', frases: ['con family', 'family activo'],
+    test: function (p) { return !!p.family_active; } },
+
+  { k: 'sin_evaluar', label: 'Sin evaluar', ayuda: 'Todavía no tiene Scout Score',
+    frases: ['sin evaluar', 'sin evaluacion', 'sin score', 'sin puntuar'],
+    permiso: 'canSeeScore',
+    test: function (p) { return !SF.scoutScore(p); } },
+
+  { k: 'sin_fecha', label: 'Sin fecha de nacimiento', frases: ['sin fecha de nacimiento', 'sin edad', 'sin año'],
+    test: function (p) { return !p.birth_date && !p.birth_year; } },
+  { k: 'sin_altura', label: 'Sin altura', frases: ['sin altura', 'sin medir'],
+    test: function (p) { return !p.height_cm; } },
+
+  /* Dinero: solo para quien puede ver finanzas. Si no, la condicion ni se
+     ofrece ni se aplica: encontrar a alguien por lo que debe seria enseñar lo
+     que debe. */
+  { k: 'debe', label: 'Debe dinero', ayuda: 'Tiene cuotas pendientes de pago',
+    frases: ['debe', 'debe dinero', 'impago', 'impagos', 'pago pendiente', 'pagos pendientes', 'moroso'],
+    permiso: 'canSeeFinance',
+    test: function (p) { return (SF.deudaDetalle(p) || {}).total > 0; } },
+  { k: 'vencido', label: 'Con recibo vencido', frases: ['vencido', 'vencidos', 'cuota vencida'],
+    permiso: 'canSeeFinance',
+    test: function (p) { return SF.finHas(p, 'vencido'); } },
+  { k: 'al_dia', label: 'Al corriente de pago', frases: ['al corriente', 'al dia de pago', 'sin deuda'],
+    permiso: 'canSeeFinance',
+    test: function (p) { return !((SF.deudaDetalle(p) || {}).total > 0); } },
+
+  { k: 'no_disponible', label: 'No puede jugar', ayuda: 'Marcado como no disponible',
+    frases: ['no disponible', 'no puede jugar', 'de baja deportiva'],
+    test: function (p) { return ((p.availability || {}).estado || 'disponible') !== 'disponible'; } }
+];
+
+/* Que condiciones puede usar este rol. */
+SF.condicionesDe = function (r) {
+  return SF.CONDICIONES.filter(function (c) { return !c.permiso || !!(r || {})[c.permiso]; });
+};
+
+/* Parte la consulta: primero las condiciones -las frases largas antes que las
+   cortas, para que "sin documentos" no lo coma "sin"- y lo que sobra es texto.
+   Devuelve tambien las frases que se ha comido, para poder decirlo en pantalla:
+   un buscador que filtra en silencio es un buscador que miente. */
+SF.parseBusqueda = function (q, r) {
+  var texto = ' ' + SF.norm(q || '') + ' ';
+  var conds = [], usadas = [];
+  var cands = [];
+  SF.condicionesDe(r).forEach(function (c) {
+    c.frases.forEach(function (f) { cands.push({ c: c, f: SF.norm(f) }); });
+  });
+  cands.sort(function (a, b) { return b.f.length - a.f.length; });
+  cands.forEach(function (x) {
+    if (conds.indexOf(x.c) >= 0) return;
+    var i = texto.indexOf(' ' + x.f + ' ');
+    if (i < 0) return;
+    conds.push(x.c); usadas.push(x.f);
+    texto = texto.slice(0, i + 1) + texto.slice(i + 1 + x.f.length);
+  });
+  return { conds: conds, usadas: usadas, terms: texto.trim().split(/\s+/).filter(Boolean) };
+};
+
 SF.PIPELINE_INFO = {
   'Nuevo': 'Primer contacto registrado con el jugador.',
   'Datos incompletos': 'Faltan datos clave de la ficha por completar.',
@@ -2012,7 +2122,7 @@ SF.COACHES = ['Carlos Gorosito', 'Laura Méndez', 'Diego Pérez'];
 SF.ROLES = {
   director: {
     label: 'Director',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
     tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, canSetAvailability: true, canSeeMedical: true, canAskCita: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
   dt_general: {
@@ -2104,7 +2214,7 @@ SF.ROLES = {
   },
   administrativo: {
     label: 'Administrativo',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'documentos', 'licencias', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'documentos', 'licencias', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
@@ -3044,6 +3154,7 @@ SF.SECCION_LABEL = {
   licencias: 'Licencias', informes: 'Informes', family: 'Family', finanzas: 'Finanzas',
   presupuesto: 'Presupuesto', economia: 'Economía', sueldos: 'Sueldos', permisos: 'Permisos',
   config: 'Configuración', 'mi-equipo': 'Mi equipo', comunicados: 'Comunicados', staff: 'Staff',
+  adjuntos: 'Personal adjunto',
   'mis-avisos': 'Mis avisos', 'mi-ficha': 'Mi ficha', 'portal-family': 'Portal Family',
   'portal-jugador': 'Mi ScoutFlow', jugador: 'la ficha de un jugador', equipo: 'la ficha de un equipo',
   'staff-ficha': 'la ficha de una persona del club', buscar: 'la búsqueda', inscripcion: 'Inscripción'
@@ -3054,7 +3165,7 @@ SF.seccionLabel = function (k) { return SF.SECCION_LABEL[k] || k; };
    los portales no se conceden, se tienen por ser quien eres. */
 SF.SECCIONES_REPARTIBLES = ['inicio', 'agenda', 'jugadores', 'equipos', 'calendario', 'horarios',
   'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family',
-  'finanzas', 'presupuesto', 'economia', 'sueldos', 'comunicados', 'staff', 'mi-equipo'];
+  'finanzas', 'presupuesto', 'economia', 'sueldos', 'comunicados', 'staff', 'adjuntos', 'mi-equipo'];
 
 /* Las capacidades que se pueden dar o quitar a un rol, agrupadas por la
    pregunta que responden. El orden es el de la conversacion real: primero que
@@ -3539,6 +3650,39 @@ SF.TARIFAS_SEED = [
 
 SF.SUELDO_ESTADOS = ['activo', 'baja'];
 
+/* ===================== PERSONAL ADJUNTO =====================
+   La conserje, la cocinera, quien atiende la tienda, la limpieza. Gente del
+   club que NO trabaja con jugadores, y que hasta ahora solo existia si alguien
+   le daba de alta un sueldo: no habia donde apuntar quien es, que hace ni como
+   localizarla.
+
+   POR QUE NO VAN EN STAFF, que seria lo facil: la ficha de staff es deportiva
+   -licencia federativa, titulacion, habilitacion para trabajar con menores,
+   equipos asignados- y meterlos ahi les pintaria media ficha en rojo con
+   documentacion que no les corresponde. Ademas la ficha de staff la ven
+   entrenadores y delegados; la nomina de la cocinera no es asunto suyo.
+
+   SU DINERO NO SE DUPLICA. Lo que cobran son los mismos CONCEPTOS de Sueldos
+   -una persona, varios conceptos-, enlazados por `adjunto_id` igual que los del
+   staff lo estan por `staff_id`. Asi la cocinera que ademas hace turnos en la
+   tienda sigue siendo una persona con dos conceptos, y sigue sumando en el
+   presupuesto por su destino, sin que haya que mantener dos listas. */
+SF.AREAS_ADJUNTO = {
+  conserjeria:    'Conserjería',
+  cocina:         'Cocina',
+  tienda:         'Tienda del club',
+  limpieza:       'Limpieza',
+  mantenimiento:  'Mantenimiento',
+  administracion: 'Administración',
+  otros:          'Otros'
+};
+
+/* Lo que cobra un adjunto: sus conceptos, buscados por enlace. */
+SF.sueldoDeAdjunto = function (id) {
+  return ((SF.store && SF.store.sueldos) ? SF.store.sueldos() : [])
+    .filter(function (x) { return x.adjunto_id === id; })[0] || null;
+};
+
 /* --- calculos, siempre sobre un CONCEPTO --- */
 SF.conceptoAnual = function (c) {
   if (!c) return 0;
@@ -3570,12 +3714,22 @@ SF.sueldoNombre = function (x) {
     var s = SF.store.staffGet(x.staff_id);
     if (s) return s.full_name;
   }
+  /* Igual que con el staff: si esta enlazado a una ficha, el nombre sale de
+     ella y no se queda uno viejo cuando alguien corrija una tilde. */
+  if (x && x.adjunto_id && SF.store && SF.store.adjuntoGet) {
+    var a = SF.store.adjuntoGet(x.adjunto_id);
+    if (a) return a.nombre;
+  }
   return (x && x.nombre) || '';
 };
 SF.sueldoPuesto = function (x) {
   if (x && x.staff_id && SF.store && SF.store.staffGet) {
     var s = SF.store.staffGet(x.staff_id);
-    if (s) return (SF.ROLES[s.role] || {}).label || s.role;
+    if (s) return (SF.rolDe(s.role) || {}).label || s.role;
+  }
+  if (x && x.adjunto_id && SF.store && SF.store.adjuntoGet) {
+    var a2 = SF.store.adjuntoGet(x.adjunto_id);
+    if (a2) return a2.puesto || (SF.AREAS_ADJUNTO[a2.area] || '');
   }
   return (x && x.puesto) || '';
 };
@@ -5184,6 +5338,33 @@ SF.store = (function () {
     tarifaRemove: function (id) {
       var d = db();
       d.academy.tarifas = (d.academy.tarifas || []).filter(function (x) { return x.id !== id; });
+      save(d);
+    },
+
+    /* --- Personal adjunto --- */
+    adjuntos: function () { return (db().adjuntos || []).slice(); },
+    adjuntoGet: function (id) {
+      return (db().adjuntos || []).filter(function (x) { return x.id === id; })[0] || null;
+    },
+    adjuntoSave: function (x) {
+      var d = db(); d.adjuntos = d.adjuntos || [];
+      if (x.id) {
+        d.adjuntos = d.adjuntos.map(function (y) { return y.id === x.id ? Object.assign({}, y, x) : y; });
+      } else {
+        x.id = 'ad' + Date.now() + Math.floor(Math.random() * 100);
+        x.alta_at = new Date().toISOString();
+        if (!x.estado) x.estado = 'activo';
+        d.adjuntos.push(x);
+      }
+      save(d); return x;
+    },
+    /* Se borra la persona, y con ella su sueldo: dejar los conceptos sueltos
+       significaria un gasto en el presupuesto sin nadie detras, que es la peor
+       clase de descuadre -aparece y nadie sabe de donde sale-. */
+    adjuntoRemove: function (id) {
+      var d = db();
+      d.adjuntos = (d.adjuntos || []).filter(function (x) { return x.id !== id; });
+      d.sueldos = (d.sueldos || []).filter(function (x) { return x.adjunto_id !== id; });
       save(d);
     },
 
@@ -12489,6 +12670,259 @@ window.SF = window.SF || {};
     U.modal('Llevar los sueldos al presupuesto · ' + esc(temp), w);
   }
 
+  /* ===================== PERSONAL ADJUNTO =====================
+     Quien hace que el club funcione sin pisar la pista. Dos cosas en la misma
+     pantalla, y a proposito separadas por permiso:
+
+       · QUIEN ES. Nombre, puesto, area y como localizarle. Esto lo lleva quien
+         gestiona el club, y no necesita saber lo que cobra nadie.
+       · LO QUE COBRA. Solo si tienes la llave de Sueldos. Son los MISMOS
+         conceptos de Sueldos, no una copia: se editan aqui porque es aqui
+         donde se piensa en la persona, y suman en el presupuesto por su
+         destino, como los demas. */
+  pages.adjuntos = function (view) {
+    var r = role();
+    var vePasta = !!r.canSeeSalaries;
+    var puede = !!r.canManageTeams || SF.store.role() === 'director' || SF.store.role() === 'administrativo';
+
+    var actions = puede ? '<button class="btn btn-primary" id="na">' + ico('plus') + 'Añadir persona</button>' : '';
+    view.innerHTML = head('Personal adjunto',
+      'Conserjería, cocina, tienda, limpieza y administración: quien hace que el club funcione sin pisar la pista.',
+      actions);
+    var bN = view.querySelector('#na');
+    if (bN) bN.onclick = function () { formAdjunto(null); };
+
+    var todos = SF.store.adjuntos();
+
+    /* --- Los que estan en Sueldos a mano y no tienen ficha aqui ---
+       Se ofrece traerlos en vez de hacerlo solo: son datos de alguien y la app
+       no decide por su cuenta que una linea de sueldo es una persona. */
+    var sueltos = SF.store.sueldos().filter(function (x) {
+      return !x.staff_id && !x.adjunto_id && (x.nombre || '').trim();
+    });
+    if (vePasta && puede && sueltos.length) {
+      var aviso = el('<div class="foco"><div class="foco-ic">' + ico('users') + '</div><div class="foco-body">' +
+        '<p class="foco-t">' + sueltos.length + (sueltos.length === 1
+          ? ' persona tiene sueldo pero no ficha aquí' : ' personas tienen sueldo pero no ficha aquí') + '</p>' +
+        '<p class="foco-s">' + esc(sueltos.map(function (x) { return x.nombre; }).join(', ')) +
+        '. Si les creo la ficha, mantienen sus conceptos y pasan a tener puesto, área y contacto.</p></div></div>');
+      var bTraer = el('<button class="btn btn-light btn-sm">Crearles la ficha</button>');
+      bTraer.onclick = function () {
+        sueltos.forEach(function (x) {
+          var a = SF.store.adjuntoSave({ nombre: x.nombre, puesto: x.puesto || '', area: 'otros', estado: 'activo' });
+          SF.store.sueldoSave({ id: x.id, adjunto_id: a.id });
+        });
+        U.toast('Fichas creadas'); SF.router.render();
+      };
+      aviso.querySelector('.foco-body').appendChild(bTraer);
+      view.appendChild(aviso);
+    }
+
+    if (!todos.length) {
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('users') + '</div>' +
+        '<h3>Todavía no hay nadie</h3>' +
+        '<p>Aquí va la gente del club que no trabaja con jugadores: conserjería, cocina, la tienda, ' +
+        'limpieza, mantenimiento o administración.</p>' +
+        '<p class="hint">No van en Staff a propósito: esa ficha es deportiva —licencia federativa, ' +
+        'titulación, habilitación— y les saldría media ficha en rojo con papeles que no les tocan.</p></div>'));
+      return;
+    }
+
+    /* --- Botones por area, como en Equipos --- */
+    var AREAS = Object.keys(SF.AREAS_ADJUNTO)
+      .filter(function (k) { return todos.some(function (a) { return (a.area || 'otros') === k; }); });
+    var area = SF._adjArea;
+    if (area && AREAS.indexOf(area) < 0) area = null;
+
+    var fila = el('<div class="row-c eq-filtros"></div>');
+    var bTodos = el('<button class="eq-chip' + (!area ? ' on' : '') + '">Todas<span class="eq-n">' +
+      todos.length + '</span></button>');
+    bTodos.onclick = function () { SF._adjArea = null; SF.router.render(); };
+    fila.appendChild(bTodos);
+    AREAS.forEach(function (k) {
+      var n = todos.filter(function (a) { return (a.area || 'otros') === k; }).length;
+      var b = el('<button class="eq-chip' + (area === k ? ' on' : '') + '">' + esc(SF.AREAS_ADJUNTO[k]) +
+        '<span class="eq-n">' + n + '</span></button>');
+      b.onclick = function () { SF._adjArea = k; SF.router.render(); };
+      fila.appendChild(b);
+    });
+    view.appendChild(fila);
+
+    var lista = area ? todos.filter(function (a) { return (a.area || 'otros') === area; }) : todos.slice();
+    lista.sort(function (a, b) {
+      return (a.estado === 'baja' ? 1 : 0) - (b.estado === 'baja' ? 1 : 0) ||
+        (a.nombre || '').localeCompare(b.nombre || '', 'es');
+    });
+
+    /* --- Lo que cuesta, si se puede ver --- */
+    if (vePasta) {
+      var anual = 0, mensual = 0;
+      lista.forEach(function (a) {
+        var sd = SF.sueldoDeAdjunto(a.id);
+        anual += SF.sueldoAnual(sd); mensual += SF.sueldoMensual(sd);
+      });
+      if (anual) {
+        var kp = el('<div class="pf-kpis"></div>');
+        kp.appendChild(el('<div class="pf-kpi pf-kpi-tot"><b>' + eur(mensual) + '</b><i>al mes' +
+          (area ? ' · ' + esc(SF.AREAS_ADJUNTO[area]) : '') + '</i></div>'));
+        kp.appendChild(el('<div class="pf-kpi pf-azul"><b>' + eur(anual) + '</b><i>la temporada</i></div>'));
+        view.appendChild(kp);
+      }
+    }
+
+    var l = el('<div class="mini-list" style="margin-top:14px"></div>');
+    lista.forEach(function (a) {
+      var sd = vePasta ? SF.sueldoDeAdjunto(a.id) : null;
+      var n = sd ? (sd.conceptos || []).length : 0;
+      var contacto = [a.telefono, a.email].filter(Boolean).join(' · ');
+      var row = el('<div class="mini-row"' + (a.estado === 'baja' ? ' style="opacity:.55"' : '') + '>' +
+        '<span><b>' + esc(a.nombre) + '</b>' +
+        (a.puesto ? ' <span class="hint">· ' + esc(a.puesto) + '</span>' : '') +
+        (a.estado === 'baja' ? ' <span class="tag tag-gray">baja</span>' : '') +
+        '<br><span class="tag tag-purple">' + esc(SF.AREAS_ADJUNTO[a.area || 'otros']) + '</span> ' +
+        (contacto ? '<span class="hint">' + esc(contacto) + '</span>' : '<span class="hint">sin contacto</span>') +
+        (vePasta ? '<br><span class="hint">' + (n
+          ? n + (n === 1 ? ' concepto · ' : ' conceptos · ') + eur(SF.sueldoMensual(sd)) + ' al mes · ' +
+            eur(SF.sueldoAnual(sd)) + ' la temporada'
+          : 'sin cobros dados de alta') + '</span>' : '') +
+        '</span><span class="row-actions"></span></div>');
+      var acc = row.querySelector('.row-actions');
+      if (vePasta && puede) {
+        var bc = el('<button class="lnk">' + (n ? 'sus cobros' : 'darle cobros') + '</button>');
+        bc.onclick = function () { cobrosAdjunto(a); };
+        acc.appendChild(bc);
+      }
+      if (puede) {
+        var be = el('<button class="lnk">editar</button>');
+        be.onclick = function () { formAdjunto(a); };
+        acc.appendChild(be);
+      }
+      l.appendChild(row);
+    });
+    view.appendChild(l);
+
+    if (vePasta) {
+      view.appendChild(el('<p class="hint" style="margin-top:12px">Lo que cobran sale de los mismos conceptos que ' +
+        '<b>Sueldos</b>, y suma en el presupuesto por su destino. No hay dos listas que cuadrar.</p>'));
+    } else {
+      view.appendChild(el('<p class="hint" style="margin-top:12px">Lo que cobra cada persona no lo ves con tu rol. ' +
+        'Puedes dar de alta y mantener sus datos igualmente.</p>'));
+    }
+
+    /* --- Alta y edicion de la persona --- */
+    function formAdjunto(a) {
+      var esNuevo = !a;
+      a = a || { estado: 'activo', area: 'conserjeria' };
+      var areaOpts = Object.keys(SF.AREAS_ADJUNTO).map(function (k) {
+        return '<option value="' + k + '"' + (a.area === k ? ' selected' : '') + '>' + SF.AREAS_ADJUNTO[k] + '</option>';
+      }).join('');
+      var box = el('<div><div class="form-grid">' +
+        '<div class="frow"><label>Nombre y apellidos</label><input id="a-n" value="' + esc(a.nombre || '') + '" placeholder="Ana Gómez"></div>' +
+        '<div class="frow"><label>Área</label><select id="a-ar">' + areaOpts + '</select></div>' +
+        '<div class="frow"><label>Puesto</label><input id="a-p" value="' + esc(a.puesto || '') + '" placeholder="Cocinera"></div>' +
+        '<div class="frow"><label>Estado</label><select id="a-e">' +
+          '<option value="activo"' + (a.estado !== 'baja' ? ' selected' : '') + '>Activo</option>' +
+          '<option value="baja"' + (a.estado === 'baja' ? ' selected' : '') + '>Baja</option></select></div>' +
+        '<div class="frow"><label>Teléfono</label><input id="a-t" value="' + esc(a.telefono || '') + '"></div>' +
+        '<div class="frow"><label>Email</label><input id="a-m" value="' + esc(a.email || '') + '"></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Nota</label>' +
+        '<input id="a-no" value="' + esc(a.nota || '') + '" placeholder="Horario, convenio, con quién se coordina…"></div>' +
+        '</div></div>');
+      var foot = el('<div class="modal-actions"></div>');
+      if (!esNuevo && puede) {
+        var bDel = el('<button class="lnk-del">Borrar</button>');
+        bDel.onclick = function () {
+          var sd2 = SF.sueldoDeAdjunto(a.id);
+          var cn = sd2 ? (sd2.conceptos || []).length : 0;
+          if (!confirm('¿Borrar a ' + a.nombre + '?' + (cn
+            ? '\n\nTiene ' + cn + (cn === 1 ? ' concepto de cobro' : ' conceptos de cobro') +
+              ' y se borran con la persona: un gasto sin nadie detrás es un descuadre que nadie sabe explicar.'
+            : ''))) return;
+          SF.store.adjuntoRemove(a.id); U.closeModal(); U.toast('Borrado'); SF.router.render();
+        };
+        foot.appendChild(bDel);
+      }
+      var bC = el('<button class="btn">Cancelar</button>'); bC.onclick = U.closeModal;
+      var bG = el('<button class="btn btn-primary">Guardar</button>');
+      bG.onclick = function () {
+        var nombre = box.querySelector('#a-n').value.trim();
+        if (!nombre) { U.toast('Ponle nombre'); return; }
+        SF.store.adjuntoSave({
+          id: a.id, nombre: nombre,
+          area: box.querySelector('#a-ar').value,
+          puesto: box.querySelector('#a-p').value.trim(),
+          estado: box.querySelector('#a-e').value,
+          telefono: box.querySelector('#a-t').value.trim(),
+          email: box.querySelector('#a-m').value.trim(),
+          nota: box.querySelector('#a-no').value.trim()
+        });
+        U.closeModal(); U.toast(esNuevo ? 'Persona añadida' : 'Guardado'); SF.router.render();
+      };
+      foot.appendChild(bC); foot.appendChild(bG);
+      box.appendChild(foot);
+      U.modal(esNuevo ? 'Añadir personal adjunto' : esc(a.nombre), box);
+    }
+
+    /* --- Sus cobros. El mismo formulario de concepto que usa Sueldos: una
+           persona, varios conceptos, y cada uno dice a que linea del
+           presupuesto suma. --- */
+    function cobrosAdjunto(a) {
+      var sd = SF.sueldoDeAdjunto(a.id);
+      var x = sd ? JSON.parse(JSON.stringify(sd)) : { adjunto_id: a.id, estado: 'activo', conceptos: [] };
+      x.conceptos = x.conceptos || [];
+
+      var w = el('<div></div>');
+      w.appendChild(el('<p class="hint">Lo que cobra <b>' + esc(a.nombre) + '</b>. Cada cosa que hace va por ' +
+        'separado, para que se vea de dónde sale cada euro: la cocinera que además es tutora y hace turnos en ' +
+        'la tienda son tres conceptos, no un sueldo redondo.</p>'));
+      var lc = el('<div class="mini-list" style="margin:10px 0"></div>');
+      w.appendChild(lc);
+      var tot = el('<p class="hint"></p>');
+      w.appendChild(tot);
+      var zona = el('<div style="margin-top:10px"></div>');
+      w.appendChild(zona);
+      var bAdd = el('<button class="btn btn-sm" style="margin-top:10px">' + ico('plus') + 'Añadir concepto</button>');
+      w.appendChild(bAdd);
+
+      function pinta() {
+        lc.innerHTML = '';
+        if (!x.conceptos.length) lc.appendChild(el('<p class="hint">Todavía no cobra nada dado de alta.</p>'));
+        x.conceptos.forEach(function (c, i) {
+          var per = SF.SUELDO_PERIODOS[c.periodicidad] || '';
+          var row = el('<div class="mini-row"><span><b>' + esc(SF.conceptoLabel(c)) + '</b><br>' +
+            '<span class="hint">' + eur(+c.importe || 0) + ' · ' + esc(per.toLowerCase()) +
+            (c.periodicidad === 'mensual' ? ' · ' + (c.meses || 12) + ' meses' : '') +
+            ' · ' + esc(SF.SUELDO_DESTINOS[c.destino || 'tecnicos'] || '') + '</span></span>' +
+            '<span class="row-actions"><b>' + eur(SF.conceptoAnual(c)) + '</b></span></div>');
+          var bd = el('<button class="lnk-del" aria-label="Quitar">' + ico('x') + '</button>');
+          bd.onclick = function () { x.conceptos.splice(i, 1); pinta(); };
+          row.querySelector('.row-actions').appendChild(bd);
+          lc.appendChild(row);
+        });
+        tot.innerHTML = 'Suma: <b>' + eur(SF.sueldoMensual(x)) + '</b> al mes · <b>' +
+          eur(SF.sueldoAnual(x)) + '</b> la temporada';
+      }
+      bAdd.onclick = function () {
+        if (zona.firstChild) return;
+        zona.appendChild(conceptoForm(null, function (c) {
+          x.conceptos.push(c); zona.innerHTML = ''; pinta();
+        }, function () { zona.innerHTML = ''; }));
+      };
+      pinta();
+
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+        '<button class="btn btn-primary">Guardar</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        SF.store.sueldoSave(x);
+        U.closeModal(); U.toast('Cobros guardados'); SF.router.render();
+      };
+      w.appendChild(foot);
+      var back = U.modal('Cobros de ' + a.nombre, w);
+      back.querySelector('.modal').classList.add('modal-xl');
+    }
+  };
+
   /* ===================== PERMISOS ===================== */
   /* ===================== PERMISOS =====================
      La pantalla desde la que el director decide quien ve que. Antes era una
@@ -15981,10 +16415,39 @@ window.SF = window.SF || {};
      el presupuesto, ni el estado de pagos. Un buscador que encuentra por un
      dato es un buscador que enseña ese dato. */
 
-  function textoJugador(p) {
-    var t = [p.full_name, SF.fichaCode(p.ficha), p.scoutflow_id, p.birth_year,
+  /* Todo lo que se puede escribir para encontrar a un jugador, SEGUN QUIEN
+     BUSCA. Esto no es una lista larga por gusto: el buscador es una puerta
+     lateral a la ficha, y si encuentra por un campo que tu rol no puede ver,
+     acabas de enterarte de ese campo. Por eso el indice se construye con los
+     permisos en la mano y no de una vez para todos.
+
+     LA SALUD NO ENTRA NUNCA, ni para quien puede verla. Encontrar a un chaval
+     escribiendo "rodilla" es exactamente lo que no debe poder pasarle a la
+     ficha medica de un menor. */
+  function textoJugador(p, r) {
+    r = r || role();
+    var eq = p.team_id ? SF.store.teamGet(p.team_id) : null;
+    var ed = SF.ageAt(p);
+    var t = [
+      p.full_name, p.first_name, p.last_name, SF.fichaCode(p.ficha), p.scoutflow_id, p.dorsal,
+      p.birth_year, p.birth_date, ed ? ed.años + ' años' : '', p.gender,
       p.primary_position, p.secondary_position, (p.nationality || []).join(' '),
-      p.club, p.league, p.category, p.city, p.residence_country, p.status, p.school];
+      p.city, p.residence_country, p.status, p.objective,
+      p.club, p.league, p.category, p.school, p.course, p.english, p.other_languages,
+      (p.languages || []).join(' '), p.dominant_hand,
+      p.height_cm ? p.height_cm + ' cm' : '', p.weight_kg ? p.weight_kg + ' kg' : '',
+      p.channel, p.responsible,
+      eq ? eq.name : '', eq ? (eq.coaches || []).join(' ') : '', eq ? eq.category : ''
+    ];
+    /* El contacto de la familia solo para quien tiene esa pestaña. */
+    if ((r.tabs === 'all') || ((r.tabs || []).indexOf('familia') >= 0)) {
+      var fam = p.family || {};
+      t.push(fam.contact, fam.relation, fam.phone, fam.email, p.phone, p.email);
+    }
+    /* Las notas internas -presupuesto, situacion economica- solo para quien
+       las puede leer. Sin esto, un entrenador escribiendo "beca" encontraria
+       al jugador y sabria que hay una nota sobre eso. */
+    if (r.canSeeNotes) t.push(p.notes_internal);
     return SF.norm(t.filter(Boolean).join(' '));
   }
   /* La trayectoria va aparte para poder decir POR QUÉ ha salido:
@@ -16018,38 +16481,98 @@ window.SF = window.SF || {};
      no una o la otra. */
   function casa(texto, terms) { return terms.every(function (q) { return texto.indexOf(q) >= 0; }); }
 
+  /* El buscador entiende cosas que nadie ha escrito en ninguna ficha, y eso
+     hay que enseñarlo: Jorge dio con "sin equipo" por intuicion, pero nadie
+     adivina "sin acceso Family". Los chips se pulsan y buscan, que es la unica
+     forma de aprender un idioma sin leerse un manual.
+     La lista sale de los permisos: quien no ve finanzas no ve "debe dinero",
+     porque ofrecerselo y luego no aplicarlo seria peor que no ofrecerlo. */
+  function ayudaBuscador(r) {
+    var caja = el('<div class="card"><p class="sec-label">Además del texto, entiende esto</p>' +
+      '<p class="hint">Pulsa una y busca. Se pueden combinar con lo que escribas: ' +
+      '«cadete sin vídeo» o «2009 sin equipo».</p></div>');
+    var fila = el('<div class="row-c" style="margin-top:10px"></div>');
+    SF.condicionesDe(r).forEach(function (c) {
+      var b = el('<button class="eq-chip eq-chip-sm" title="' + esc(c.ayuda || c.label) + '">' +
+        esc(c.frases[0]) + '</button>');
+      b.onclick = function () {
+        SF._q = c.frases[0];
+        var caja2 = document.getElementById('gsearch');
+        if (caja2) caja2.value = c.frases[0];
+        location.hash = '#/buscar';
+        SF.router.render();
+      };
+      fila.appendChild(b);
+    });
+    caja.appendChild(fila);
+    caja.appendChild(el('<p class="hint" style="margin-top:12px">Y por texto: nombre, número de ficha, año, ' +
+      'edad, posición, nacionalidad, ciudad, equipo, entrenador, colegio, curso, dorsal, estado, ' +
+      'objetivo, y el club, la categoría o la competición de su trayectoria.</p>'));
+    return caja;
+  }
+
   pages.buscar = function (view) {
     var q = (SF._q || '').trim();
-    var terms = SF.norm(q).split(/\s+/).filter(Boolean);
     var r = role();
+    /* La consulta se parte en condiciones y texto. "cadete sin video" son las
+       dos cosas a la vez, y las dos se aplican. */
+    var parsed = SF.parseBusqueda(q, r);
+    var terms = parsed.terms;
 
     view.innerHTML = head('Resultados', q ? 'Buscando «' + esc(q) + '»' : 'Escribe algo en la barra de búsqueda.');
-    if (!terms.length) return;
+    if (!q) { view.appendChild(ayudaBuscador(r)); return; }
+    if (!terms.length && !parsed.conds.length) { view.appendChild(ayudaBuscador(r)); return; }
+
+    /* Lo que se ha entendido, dicho en voz alta. Un buscador que filtra en
+       silencio hace dudar de si ha buscado o se ha inventado algo. */
+    if (parsed.conds.length) {
+      var leido = el('<div class="row-c" style="margin-bottom:14px;align-items:center">' +
+        '<span class="hint">He entendido:</span></div>');
+      parsed.conds.forEach(function (c) {
+        leido.appendChild(el('<span class="tag tag-purple">' + esc(c.label) + '</span>'));
+      });
+      if (terms.length) leido.appendChild(el('<span class="hint">y el texto «' + esc(terms.join(' ')) + '»</span>'));
+      view.appendChild(leido);
+    }
 
     /* Jugadores: solo los de su ámbito. Un entrenador no busca en todo el club. */
-    var ps = scopedPlayers().map(function (p) {
-      var base = textoJugador(p), tray = textoTrayectoria(p);
+    var mios = scopedPlayers();
+    var ps = mios.map(function (p) {
+      if (!parsed.conds.every(function (c) { return c.test(p); })) return null;
+      if (!terms.length) return { p: p, lineas: [] };
+      var base = textoJugador(p, r), tray = textoTrayectoria(p);
       if (!casa(base + ' ' + tray, terms)) return null;
       return { p: p, porTray: !casa(base, terms), lineas: trayectoriaResumen(p, terms) };
     }).filter(Boolean);
 
     /* Personal: solo para quien tiene acceso al listado de staff. */
     var verStaff = r.nav.indexOf('staff') >= 0;
-    var ss = verStaff ? SF.store.staff().filter(function (s) { return casa(textoStaff(s), terms); }) : [];
+    /* Las condiciones son de jugador ("sin equipo", "debe"): si la consulta
+       lleva alguna, no tiene sentido colar personal ni equipos en la respuesta. */
+    var soloJugadores = parsed.conds.length > 0;
+    var ss = (verStaff && !soloJugadores && terms.length)
+      ? SF.store.staff().filter(function (s) { return casa(textoStaff(s), terms); }) : [];
 
-    var eqs = r.nav.indexOf('equipos') >= 0
-      ? SF.store.teams().filter(function (t) { return casa(SF.norm(t.name + ' ' + t.category + ' ' + (t.coaches || []).join(' ')), terms); })
+    var eqs = (r.nav.indexOf('equipos') >= 0 && !soloJugadores && terms.length)
+      ? SF.store.teams().filter(function (t) {
+          var txt = [t.name, t.category, (t.coaches || []).join(' '),
+            SF.SEGMENTS[t.segment] || t.segment, SF.PROGRAMAS[t.programa] || t.programa,
+            t.mancomunado ? 'mancomunado ' + (t.mancomunado_con || '') : ''].filter(Boolean).join(' ');
+          return casa(SF.norm(txt), terms);
+        })
       : [];
 
     if (!ps.length && !ss.length && !eqs.length) {
       view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('search') + '</div>' +
-        '<h3>Nada con «' + esc(q) + '»</h3><p>Puedes buscar por nombre, número de ficha, año, posición, nacionalidad, ' +
-        'club de la trayectoria, categoría o competición. Y por personal: nombre, rol, titulación o equipo.</p></div>'));
+        '<h3>Nada con «' + esc(q) + '»</h3>' +
+        '<p>Has buscado dentro de los <b>' + mios.length + '</b> jugadores que te corresponden.</p></div>'));
+      view.appendChild(ayudaBuscador(r));
       return;
     }
 
     if (ps.length) {
-      view.appendChild(el('<p class="sec-label">Jugadores · ' + ps.length + '</p>'));
+      view.appendChild(el('<p class="sec-label">Jugadores · ' + ps.length +
+        (ps.length === mios.length ? '' : ' de ' + mios.length) + '</p>'));
       var lp = el('<div class="mini-list"></div>');
       ps.slice(0, 25).forEach(function (x) {
         var p = x.p;
@@ -16664,6 +17187,7 @@ SF.router = (function () {
     ['sueldos', 'Sueldos', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
     ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'],
+    ['adjuntos', 'Personal adjunto', 'users'],
     ['mis-avisos', 'Mis avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
     ['portal-family', 'Portal Family', 'family'], ['portal-jugador', 'Mi ScoutFlow', 'users']
   ];
@@ -16676,7 +17200,7 @@ SF.router = (function () {
     { id: 'dia',      label: '',                keys: ['inicio', 'agenda', 'mi-equipo', 'jugadores', 'equipos'] },
     { id: 'captacion',label: 'Captación',       keys: ['captacion', 'importar'] },
     { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos'] },
-    { id: 'personas', label: 'Personas',        keys: ['staff', 'family', 'comunicados'] },
+    { id: 'personas', label: 'Personas',        keys: ['staff', 'adjuntos', 'family', 'comunicados'] },
     { id: 'dinero',   label: 'Dinero',          keys: ['finanzas', 'economia', 'sueldos'] },
     { id: 'ajustes',  label: 'Ajustes',         keys: ['permisos', 'config'] },
     { id: 'mio',      label: 'Lo mío',          keys: ['mis-avisos', 'mi-ficha', 'portal-family', 'portal-jugador'] }
@@ -16700,6 +17224,7 @@ SF.router = (function () {
     family: 'family', finanzas: 'sec-finanzas', economia: 'economia', sueldos: 'sueldos', permisos: 'permisos', config: 'config',
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
     staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo',
+    adjuntos: 'adjuntos',
     comunicados: 'comunicados', 'importar-datos': 'sec-importar', 'mis-avisos': 'mis-avisos',
     buscar: 'buscar', presupuesto: 'sec-finanzas', licencias: 'sec-documentos', inscripcion: 'inscripcion'
   };
@@ -16797,7 +17322,7 @@ SF.router = (function () {
       '<header class="topbar">' +
       /* Familia y jugador no buscan en el club: solo tienen su portal. */
       (r.nav.indexOf('jugadores') >= 0 || r.nav.indexOf('staff') >= 0
-        ? '<div class="search"><button class="search-go" id="gsearch-go" aria-label="Buscar" title="Buscar"><svg class="ic"><use href="#i-search"/></svg></button><input id="gsearch" placeholder="Buscar jugador, entrenador, club de su trayectoria, categoría…"></div>'
+        ? '<div class="search"><button class="search-go" id="gsearch-go" aria-label="Buscar" title="Buscar"><svg class="ic"><use href="#i-search"/></svg></button><input id="gsearch" placeholder="Nombre, año, posición… o «sin equipo», «sin vídeo», «debe»"></div>'
         : '<div class="search-none"></div>') +
       '<div class="top-right">' +
       campana(r) +
