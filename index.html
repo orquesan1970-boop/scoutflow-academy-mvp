@@ -979,6 +979,24 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .ph-nota-av{background:#FDF3E3}
 .ph-sw-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .ph-consent.es-sensible{border-left:3px solid #E8A33D}
+/* --- El registro de asistencia: sesiones en columnas, jugadores en filas --- */
+.reg-wrap{overflow-x:auto;margin-top:10px;border:1px solid var(--line);border-radius:10px}
+.reg{border-collapse:collapse;width:100%;font-size:13px}
+.reg th,.reg td{padding:7px 6px;border-bottom:1px solid var(--line);text-align:center;white-space:nowrap}
+.reg thead th{position:sticky;top:0;background:var(--surface);font-size:11px;font-weight:600;color:var(--ink-3)}
+.reg .reg-nom{text-align:left;position:sticky;left:0;background:var(--surface);z-index:1;
+  padding-left:12px;padding-right:14px;font-weight:500;max-width:190px;overflow:hidden;text-overflow:ellipsis}
+.reg thead .reg-nom{z-index:2}
+.reg .reg-c{width:30px}
+.reg thead .reg-c span{display:block;font-size:9px;opacity:.55;font-weight:500}
+.reg .reg-pct{text-align:right;padding-right:12px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.reg-m{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;
+  border-radius:6px;font-size:11px;font-weight:600;line-height:1}
+.reg-m.ok{background:var(--ok-bg,#DFF2E9);color:var(--ok-ink,#1B7A54)}
+.reg-m.no{background:#FBE3E3;color:#B03535}
+.reg-m.ju{background:#FBF0DC;color:#8A5A08}
+.reg-m.na{background:var(--bg);color:transparent}
+.reg-alta{color:#1B7A54}.reg-media{color:#8A5A08}.reg-baja{color:#B03535}
 .sf-sql{background:var(--sidebar);color:#D8D4F5;border-radius:10px;padding:14px 16px;margin:12px 0;
   font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;line-height:1.55;
   overflow-x:auto;white-space:pre;max-height:280px;overflow-y:auto}
@@ -2422,7 +2440,10 @@ SF.ROLES = {
   },
   preparador_fisico: {
     label: 'Preparador Físico',
-    nav: ['inicio', 'jugadores', 'equipos', 'informes', 'economia', 'mis-avisos', 'mi-ficha'],
+    /* "Mi equipo" el primero: el preparador físico tambien pasa lista de SUS
+       sesiones, y tiene que aterrizar donde estan sus grupos, no en un panel
+       general del club. */
+    nav: ['mi-equipo', 'inicio', 'jugadores', 'equipos', 'informes', 'economia', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false,
     canEvaluate: true, evalGroups: ['Física'], canEditPhysical: true,
@@ -2748,6 +2769,7 @@ SF.sesionesEntre = function (team, desde, hasta) {
     if (vistos[k]) return;
     vistos[k] = 1;
     slots.push({ dia: x.dia, franja: 'pf' + (x.hora_ini || ''), tipo: 'pf',
+      prep_id: x.prep_id || null,
       hora: (x.hora_ini || '') + (x.hora_fin ? ' – ' + x.hora_fin : ''),
       donde: pab(x.inst) + (x.pista ? ' · ' + x.pista : '') });
   });
@@ -2758,6 +2780,7 @@ SF.sesionesEntre = function (team, desde, hasta) {
     slots.forEach(function (sl) {
       if (sl.dia !== ds) return;
       out.push({ fecha: f, tipo: sl.tipo, franja: sl.franja, hora: sl.hora, donde: sl.donde,
+        prep_id: sl.prep_id || null,
         titulo: sl.tipo === 'pf' ? 'Preparación física' : 'Entrenamiento',
         clave: SF.claveSesion(team.id, f, sl.tipo, sl.franja) });
     });
@@ -15963,21 +15986,56 @@ window.SF = window.SF || {};
      hacia delante no tiene sentido, no se puede pasar lista de un martes que
      no ha llegado. */
   var DIAS_LISTA = 10;
-  function bloquePasarLista(view, t) {
-    if (!canManageThisTeam(t)) return;
-    var hoy = SF.hoyISO();
-    var ses = SF.sesionesEntre(t, SF.sumaDias(hoy, -DIAS_LISTA), hoy);
-    var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
 
-    view.appendChild(el('<p class="sec-label">Pasar lista</p>'));
+  /* QUE SESIONES PUEDE PASAR CADA UNO. No es lo mismo llevar el equipo que dar
+     su preparacion fisica: el entrenador pasa lista de sus entrenamientos y de
+     sus partidos; el preparador fisico, de SUS sesiones de PF, que son las que
+     el dirige. Si el preparador pudiera pasar lista del entrenamiento de
+     pista, la asistencia diria que alguien estuvo donde no estaba. */
+  function sesionesQuePuedePasar(t, ses) {
+    var rk = SF.store.role();
+    /* La preparacion fisica se mira ANTES que "lleva el equipo": un preparador
+       esta asignado al equipo, asi que tambien pasaria el filtro general, y
+       entonces podria pasar lista del entrenamiento de pista, donde no
+       estuvo. La asistencia diria que alguien vino a una sesion que el no
+       vio. Cada uno pasa lista de lo que dirige. */
+    if (rk === 'coord_pf') return ses.filter(function (x) { return x.tipo === 'pf'; });
+    if (rk === 'preparador_fisico') {
+      var yo = SF.store.staffMe();
+      return ses.filter(function (x) {
+        if (x.tipo !== 'pf') return false;
+        /* Si la sesion no dice quien la da, se deja pasar: mejor que la pase
+           quien esta delante del grupo a que no la pase nadie. */
+        return !x.prep_id || !yo || x.prep_id === yo.id;
+      });
+    }
+    if (canManageThisTeam(t)) return ses;
+    return [];
+  }
+
+  function bloquePasarLista(view, t) {
+    var hoy = SF.hoyISO();
+    var todas = SF.sesionesEntre(t, SF.sumaDias(hoy, -DIAS_LISTA), hoy);
+    var ses = sesionesQuePuedePasar(t, todas);
+    var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
+    var rk0 = SF.store.role();
+    var esPF = rk0 === 'preparador_fisico' || rk0 === 'coord_pf';
+    if (!canManageThisTeam(t) && !esPF) return;        // este rol no pasa lista
+
+    var rkL = SF.store.role();
+    var soloPF = rkL === 'preparador_fisico' || rkL === 'coord_pf';
+    view.appendChild(el('<p class="sec-label">' + (soloPF ? 'Pasar lista · preparación física' : 'Pasar lista') + '</p>'));
     if (!roster.length) {
       view.appendChild(el('<p class="hint">Este equipo todavía no tiene jugadores.</p>'));
       return;
     }
     if (!ses.length) {
-      view.appendChild(el('<p class="hint">No hay sesiones en los últimos ' + DIAS_LISTA + ' días. ' +
-        'Las sesiones salen del cuadrante de pista: si este equipo no tiene horario asignado, ' +
-        'aquí no aparecerá nada.</p>'));
+      view.appendChild(el('<p class="hint">' + (soloPF
+        ? 'Este equipo no tiene sesiones tuyas de preparación física en el cuadrante de los últimos ' +
+          DIAS_LISTA + ' días. En cuanto estén en el cuadrante de PF, aparecen aquí solas.'
+        : 'No hay sesiones en los últimos ' + DIAS_LISTA + ' días. Las sesiones salen del cuadrante: ' +
+          'si este equipo no tiene horario asignado, aquí no aparecerá nada. No hay que crear ninguna cita.') +
+        '</p>'));
       return;
     }
 
@@ -16004,10 +16062,134 @@ window.SF = window.SF || {};
       lista.appendChild(fila);
     });
     view.appendChild(lista);
-    view.appendChild(el('<p class="hint">' + (pend
+    var pie = el('<div class="row-c mr-wrap" style="margin-top:10px;align-items:center"></div>');
+    pie.appendChild(el('<span class="hint">' + (pend
       ? '<b>' + pend + '</b> ' + (pend === 1 ? 'sesión sin pasar' : 'sesiones sin pasar') +
         ' de los últimos ' + DIAS_LISTA + ' días. Salen solas del cuadrante: no hay que crear nada.'
-      : 'Todas las listas de los últimos ' + DIAS_LISTA + ' días están pasadas.') + '</p>'));
+      : 'Todas las listas de los últimos ' + DIAS_LISTA + ' días están pasadas.') + '</span>'));
+    var bReg = el('<button class="btn btn-sm">' + ico('list') + 'Ver el registro</button>');
+    bReg.onclick = function () { registroAsistencia(t); };
+    pie.appendChild(bReg);
+    view.appendChild(pie);
+  }
+
+  /* ---------- EL REGISTRO ----------
+     Pasar lista sin poder mirarla despues no sirve de nada: es rellenar un
+     papel que nadie abre. Esto es el papel abierto —quien vino a que sesion, y
+     cuanto falta cada uno—, y es lo que permite sentarse con una familia y
+     enseñarle algo que no sea una impresion.
+
+     Se lee al reves que la lista: las columnas son las sesiones (las ultimas a
+     la derecha, como un calendario) y las filas los jugadores, ordenados por
+     los que MAS faltan. Ordenar por nombre seria una guia de telefonos; el que
+     mira esto quiere ver arriba al que se esta descolgando. */
+  function registroAsistencia(t) {
+    var LARGO = { p: 'presente', a: 'ausente', j: 'justificado' };
+    var hoy = SF.hoyISO();
+    var dias = SF._regDias || 60;
+    var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
+
+    var box = el('<div></div>');
+
+    /* Periodo. Un mes es "como vamos"; la temporada es "como ha ido". */
+    var fila = el('<div class="row-c eq-filtros" style="margin-bottom:4px"></div>');
+    [[30, 'Último mes'], [60, 'Dos meses'], [365, 'La temporada']].forEach(function (o) {
+      var b = el('<button class="eq-chip eq-chip-sm' + (dias === o[0] ? ' on' : '') + '">' + o[1] + '</button>');
+      b.onclick = function () { SF._regDias = o[0]; U.closeModal(); registroAsistencia(t); };
+      fila.appendChild(b);
+    });
+    box.appendChild(fila);
+
+    /* Solo las sesiones con lista pasada: una columna vacia no dice "faltó",
+       dice "nadie la pasó", y mezclar las dos cosas convierte el porcentaje en
+       una cifra que no significa nada. */
+    var ses = SF.sesionesEntre(t, SF.sumaDias(hoy, -dias), hoy).map(function (x) {
+      var g = x.evento ? (x.evento.attendance ? { marcas: x.evento.attendance } : null)
+                       : SF.store.asistenciaDe(x.clave);
+      return g ? { s: x, marcas: g.marcas || {} } : null;
+    }).filter(Boolean);
+
+    if (!ses.length) {
+      box.appendChild(el('<div class="empty-panel"><p>Todavía no se ha pasado ninguna lista en este periodo.</p>' +
+        '<p class="hint">En cuanto se pase la primera, aquí aparece el registro: quién vino a cada sesión y cuánto falta cada uno.</p></div>'));
+      U.modal('Registro de asistencia — ' + t.name, box);
+      return;
+    }
+
+    function marcaDe(reg, pid) {
+      var v = reg.marcas[pid];
+      return v ? (LARGO[v] || v) : null;
+    }
+
+    /* Cuentas por jugador. "Sin marca" no cuenta ni a favor ni en contra: el
+       que se apunto en enero no puede arrastrar las faltas de septiembre. */
+    var cuentas = roster.map(function (p) {
+      var pres = 0, aus = 0, just = 0;
+      ses.forEach(function (r) {
+        var m = marcaDe(r, p.id);
+        if (m === 'presente') pres++;
+        else if (m === 'ausente') aus++;
+        else if (m === 'justificado') just++;
+      });
+      var tot = pres + aus + just;
+      return { p: p, pres: pres, aus: aus, just: just, tot: tot,
+        pct: tot ? Math.round(pres / tot * 100) : null };
+    }).sort(function (a, b) {
+      if (a.pct == null) return 1;
+      if (b.pct == null) return -1;
+      return a.pct - b.pct;                       // los que más faltan, arriba
+    });
+
+    box.appendChild(el('<p class="hint"><b>' + ses.length + '</b> ' +
+      (ses.length === 1 ? 'sesión con lista pasada' : 'sesiones con lista pasada') +
+      ' · <b>' + roster.length + '</b> ' + (roster.length === 1 ? 'jugador' : 'jugadores') + '</p>'));
+
+    var env = el('<div class="reg-wrap"></div>');
+    var tab = el('<table class="reg"><thead><tr></tr></thead><tbody></tbody></table>');
+    var thr = tab.querySelector('thead tr');
+    thr.appendChild(el('<th class="reg-nom">Jugador</th>'));
+    ses.forEach(function (r) {
+      var d = new Date(r.s.fecha + 'T00:00:00');
+      thr.appendChild(el('<th class="reg-c" title="' + esc(r.s.titulo + ' · ' + fmtDate(r.s.fecha)) + '">' +
+        (isNaN(d) ? '' : d.getDate()) + '<span>' + (r.s.tipo === 'pf' ? 'PF' : (r.s.tipo === 'partido' ? 'P' : '·')) + '</span></th>'));
+    });
+    thr.appendChild(el('<th class="reg-pct">Asist.</th>'));
+
+    var tb = tab.querySelector('tbody');
+    cuentas.forEach(function (c) {
+      var tr = el('<tr><td class="reg-nom">' + esc(c.p.full_name) + '</td></tr>');
+      ses.forEach(function (r) {
+        var m = marcaDe(r, c.p.id);
+        var cl = m === 'presente' ? 'ok' : m === 'ausente' ? 'no' : m === 'justificado' ? 'ju' : 'na';
+        var txt = m === 'presente' ? '·' : m === 'ausente' ? '✕' : m === 'justificado' ? 'J' : '';
+        tr.appendChild(el('<td class="reg-c"><span class="reg-m ' + cl + '" title="' +
+          (m || 'sin marca') + '">' + txt + '</span></td>'));
+      });
+      tr.appendChild(el('<td class="reg-pct">' + (c.pct == null
+        ? '<span class="hint">—</span>'
+        : '<b class="' + (c.pct >= 80 ? 'reg-alta' : c.pct >= 60 ? 'reg-media' : 'reg-baja') + '">' + c.pct + '%</b>' +
+          /* "0 faltas · 33%" se lee como una contradiccion. Una justificada
+             SIGUE SIENDO una ausencia para el porcentaje -no estuvo-, pero no
+             es lo mismo que plantarse, y por eso se nombra aparte en vez de
+             sumarse a las faltas. */
+          '<span class="hint"> ' +
+          (c.aus ? c.aus + (c.aus === 1 ? ' falta' : ' faltas') : '') +
+          (c.aus && c.just ? ' · ' : '') +
+          (c.just ? c.just + (c.just === 1 ? ' justificada' : ' justificadas') : '') +
+          (!c.aus && !c.just ? 'no ha faltado' : '') +
+          '</span>') + '</td>'));
+      tb.appendChild(tr);
+    });
+    env.appendChild(tab);
+    box.appendChild(env);
+
+    box.appendChild(el('<p class="hint" style="margin-top:12px">' +
+      '<span class="reg-m ok">·</span> vino &nbsp; <span class="reg-m no">✕</span> faltó &nbsp; ' +
+      '<span class="reg-m ju">J</span> justificada &nbsp; <span class="reg-m na"></span> sin marca. ' +
+      'Ordenados por los que más faltan. Las sesiones sin lista pasada no cuentan: ' +
+      'una casilla vacía diría «faltó» cuando lo que pasa es que nadie la pasó.</p>'));
+
+    U.modal('Registro de asistencia — ' + t.name, box);
   }
 
   function canManageThisTeam(t) {
@@ -16786,18 +16968,34 @@ window.SF = window.SF || {};
           rsvp: true, players: roster.map(function (p) { return p.id; })
         }));
       };
+      /* Este boton pedia una CITA PROXIMA para pasar lista, y una cita proxima
+         es por definicion una que aun no ha ocurrido: se pasaba lista de un
+         entrenamiento que no habia pasado. Y si no habia ninguna, no dejaba
+         hacer nada, que es lo que estaba viendo Jorge.
+         Ahora abre la ultima sesion del cuadrante que este sin pasar, que es
+         justo lo que uno viene a hacer al llegar del pabellon. */
       var b3 = el('<button class="btn btn-light btn-sm">' + ico('list') + 'Pasar lista</button>');
       b3.onclick = function () {
-        if (!nextEv) { U.toast('No hay ninguna cita próxima'); return; }
-        attendanceModal(t, nextEv, function () { SF.router.render(); });
+        var hoyB = SF.hoyISO();
+        var pendB = sesionesQuePuedePasar(t, SF.sesionesEntre(t, SF.sumaDias(hoyB, -DIAS_LISTA), hoyB))
+          .filter(function (x) {
+            return !(x.evento ? (x.evento.attendance ? 1 : 0) : SF.store.asistenciaDe(x.clave));
+          });
+        if (!pendB.length) { U.toast('No queda ninguna lista por pasar'); return; }
+        listaModal(t, pendB[pendB.length - 1], function () { SF.router.render(); });
       };
       var b4 = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir cita</button>');
       b4.onclick = function () { trainingModal(t, function () { SF.router.render(); }); };
       acts.appendChild(b1); acts.appendChild(b2); acts.appendChild(b3); acts.appendChild(b4);
       view.appendChild(acts);
 
+      /* Las sesiones del cuadrante, aqui, que es donde aterriza el entrenador. */
+      bloquePasarLista(view, t);
+
       /* --- Plantilla con asistencia --- */
       view.appendChild(el('<p class="sec-label">Plantilla y asistencia</p>'));
+      view.appendChild(el('<p class="hint">El porcentaje sale de las listas pasadas. ' +
+        'Pulsa <b>Ver el registro</b> arriba para ver quién vino a cada sesión.</p>'));
       var rl = el('<div class="mini-list"></div>');
       if (!roster.length) rl.appendChild(el('<p class="hint">Sin jugadores en la plantilla.</p>'));
       roster.forEach(function (p) {
