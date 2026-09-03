@@ -125,12 +125,18 @@ textarea{resize:vertical;min-height:90px}
 .av-b1 input{flex:1;min-width:0;font-family:inherit;font-size:14px;padding:9px 12px;border-radius:10px;
   border:1px solid var(--line);background:var(--bg);color:var(--ink)}
 .av-b1 .btn{flex:0 0 auto}
+.av-lupa{padding-left:14px;padding-right:16px}
+@media(max-width:600px){ .av-lupa span,.av-lupa{font-size:13px} }
 .btn.btn-on{border-color:var(--purple);color:var(--purple)}
 .av-b1 input:focus{outline:none;border-color:var(--purple-2)}
 .av-b2{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+/* `width:auto` a proposito: la regla global pone `width:100%` a todo input, y
+   eso hacia que cada campo de fecha se comiera una linea entera. Un rango de
+   fechas se lee de un vistazo cuando las dos van juntas. */
 .av-b2 input[type=date]{font-family:inherit;font-size:13px;padding:6px 10px;border-radius:9px;
-  border:1px solid var(--line);background:var(--bg);color:var(--ink)}
-@media(max-width:600px){ .av-b2{gap:6px} .av-b2 input[type=date]{flex:1 1 40%} }
+  border:1px solid var(--line);background:var(--bg);color:var(--ink);
+  width:auto;flex:0 0 auto;min-width:0}
+@media(max-width:600px){ .av-b2{gap:6px} .av-b2 input[type=date]{flex:1 1 40%;width:auto} }
 
 /* HOY: lo urgente y los avisos del sistema, en una sola tira fina. */
 .hoy{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);
@@ -18817,66 +18823,96 @@ window.SF = window.SF || {};
     return (u.at || c.created_at || '').slice(0, 10);
   }
 
-  /* La barra de busqueda. Una caja de texto y dos fechas, mas cuatro atajos
-     para los periodos que se piden de verdad. Sin desplegables de estado ni de
-     tipo: quien busca un mensaje se acuerda de una palabra, de un nombre o de
-     por cuando fue, no de en que estado quedo. */
-  function barraBusquedaAvisos(repinta) {
+  /* La barra de busqueda. Una caja de texto y un rango de fechas plegable.
+
+     CLAVE, y aqui estaba el fallo: escribir NO puede repintar la pagina. La
+     primera version llamaba a `SF.router.render()` en cada tecla, lo que
+     rehacia la pantalla entera —esta caja incluida— y el cursor se quedaba
+     fuera: habia que volver a pinchar despues de cada letra. La caja se
+     construye UNA vez y lo que se repinta es solo la lista de resultados.
+
+     Y por eso el aviso para el proximo que pase por aqui: una caja de texto no
+     se prueba escribiendo su `.value` desde codigo. Eso pasa aunque el foco
+     este roto. Se prueba TECLEANDO. */
+  function barraBusquedaAvisos(pinta) {
     var f = SF._avFiltro = SF._avFiltro || { q: '', desde: '', hasta: '' };
     var caja = el('<div class="av-buscar"></div>');
 
     var fila = el('<div class="av-b1"></div>');
     var inp = el('<input type="search" id="avq" placeholder="Buscar por palabra, persona, jugador o equipo…" value="' + esc(f.q) + '">');
-    var tmr = null;
-    inp.oninput = function () {
-      clearTimeout(tmr);
-      var v = this.value;
-      tmr = setTimeout(function () { f.q = v.trim(); repinta(); }, 250);
-    };
+    /* LA LUPA ES EL GATILLO. No se busca mientras escribes: se busca cuando lo
+       pides. Buscar en cada tecla obliga a repintar la lista letra a letra
+       —trabajo tirado, porque nadie mira los resultados de "mar" cuando esta
+       escribiendo "martin"— y es lo que rompio esto la primera vez. Con un
+       gatillo explicito, escribir es solo escribir. Enter hace lo mismo que la
+       lupa, que es lo que la mano hace sola al terminar de teclear. */
+    var bQ = el('<button class="btn btn-primary btn-sm av-lupa" title="Buscar" aria-label="Buscar">' + ico('search') + 'Buscar</button>');
+    function lanza() {
+      var v = inp.value.trim();
+      if (v === f.q) return;
+      f.q = v; pintaFechas(); pinta();
+    }
+    bQ.onclick = lanza;
+    inp.onkeydown = function (e) { if (e.key === 'Enter') { e.preventDefault(); lanza(); } };
+    /* Vaciar la caja del todo si limpia sola: la X del campo de busqueda no
+       manda un Enter, y quedarse con los resultados de una busqueda cuya caja
+       esta vacia es la forma mas rapida de creer que la app se ha colgado. */
+    inp.oninput = function () { if (!this.value.trim() && f.q) { f.q = ''; pintaFechas(); pinta(); } };
     fila.appendChild(inp);
+    fila.appendChild(bQ);
+
     /* Las fechas van plegadas. Casi siempre se busca por una palabra o por un
-       nombre; acotar por fechas es lo que se hace cuando eso no basta. Dos
-       campos de fecha desplegados a diario son media pantalla ocupada por algo
-       que se usa una vez de cada diez. */
-    var hayFechas = !!(f.desde || f.hasta);
-    var abFechas = SF._avFechas === true || hayFechas;
-    var bF = el('<button class="btn btn-light btn-sm' + (hayFechas ? ' btn-on' : '') + '">' + ico('cal') +
-      (hayFechas ? 'Fechas ·' : 'Fechas') + '</button>');
-    bF.onclick = function () { SF._avFechas = !abFechas; repinta(); };
+       nombre; acotar por fechas es lo que se hace cuando eso no basta. */
+    var zonaF = el('<div></div>');
+    var bF = el('<button class="btn btn-light btn-sm">' + ico('cal') + 'Fechas</button>');
     fila.appendChild(bF);
     caja.appendChild(fila);
-    if (!abFechas) {
-      if (f.q) {
-        var bl0 = el('<button class="lnk" style="margin-top:8px">Quitar la búsqueda</button>');
-        bl0.onclick = function () { SF._avFiltro = { q: '', desde: '', hasta: '' }; repinta(); };
-        caja.appendChild(bl0);
+    caja.appendChild(zonaF);
+
+    function pintaFechas() {
+      var hay = !!(f.desde || f.hasta);
+      var abierto = SF._avFechas === true || hay;
+      bF.classList.toggle('btn-on', hay);
+      zonaF.innerHTML = '';
+      if (!abierto) {
+        if (f.q) {
+          var bl0 = el('<button class="lnk" style="margin-top:8px">Quitar la búsqueda</button>');
+          bl0.onclick = function () { f.q = ''; inp.value = ''; pintaFechas(); pinta(); inp.focus(); };
+          zonaF.appendChild(bl0);
+        }
+        return;
       }
-      return caja;
-    }
+      var fila2 = el('<div class="av-b2"></div>');
+      fila2.appendChild(el('<span class="hint">Entre</span>'));
+      var d1 = el('<input type="date" value="' + esc(f.desde) + '" aria-label="Desde">');
+      var d2 = el('<input type="date" value="' + esc(f.hasta) + '" aria-label="Hasta">');
+      /* `input` ademas de `change`: un campo de fecha en Chrome no lanza
+         `change` hasta que pierde el foco, asi que elegir un dia en el
+         calendario no filtraba nada hasta pinchar en otro sitio. */
+      d1.onchange = d1.oninput = function () { f.desde = this.value; pintaFechas(); pinta(); };
+      d2.onchange = d2.oninput = function () { f.hasta = this.value; pintaFechas(); pinta(); };
+      fila2.appendChild(d1); fila2.appendChild(el('<span class="hint">y</span>')); fila2.appendChild(d2);
 
-    var fila2 = el('<div class="av-b2"></div>');
-    fila2.appendChild(el('<span class="hint">Entre</span>'));
-    var d1 = el('<input type="date" value="' + esc(f.desde) + '" aria-label="Desde">');
-    var d2 = el('<input type="date" value="' + esc(f.hasta) + '" aria-label="Hasta">');
-    d1.onchange = function () { f.desde = this.value; repinta(); };
-    d2.onchange = function () { f.hasta = this.value; repinta(); };
-    fila2.appendChild(d1); fila2.appendChild(el('<span class="hint">y</span>')); fila2.appendChild(d2);
-
-    var hoy = SF.hoyISO();
-    [['Este mes', SF.sumaDias(hoy, -30)], ['3 meses', SF.sumaDias(hoy, -90)],
-     ['Todo el curso', SF.seasonStartISO(hoy)]
-    ].forEach(function (o) {
-      var b = el('<button class="eq-chip eq-chip-sm' + (f.desde === o[1] && !f.hasta ? ' on' : '') + '">' + esc(o[0]) + '</button>');
-      b.onclick = function () { f.desde = o[1]; f.hasta = ''; repinta(); };
-      fila2.appendChild(b);
-    });
-    if (f.q || f.desde || f.hasta) {
-      var bl = el('<button class="lnk">Quitar filtros</button>');
-      /* eslint-disable-line */
-      bl.onclick = function () { SF._avFiltro = { q: '', desde: '', hasta: '' }; repinta(); };
-      fila2.appendChild(bl);
+      var hoy = SF.hoyISO();
+      [['Este mes', SF.sumaDias(hoy, -30)], ['3 meses', SF.sumaDias(hoy, -90)],
+       ['Todo el curso', SF.seasonStartISO(hoy)]
+      ].forEach(function (o) {
+        var b = el('<button class="eq-chip eq-chip-sm' + (f.desde === o[1] && !f.hasta ? ' on' : '') + '">' + esc(o[0]) + '</button>');
+        b.onclick = function () { f.desde = o[1]; f.hasta = ''; pintaFechas(); pinta(); };
+        fila2.appendChild(b);
+      });
+      if (f.q || f.desde || f.hasta) {
+        var bl = el('<button class="lnk">Quitar filtros</button>');
+        bl.onclick = function () {
+          f.q = ''; f.desde = ''; f.hasta = ''; inp.value = '';
+          pintaFechas(); pinta();
+        };
+        fila2.appendChild(bl);
+      }
+      zonaF.appendChild(fila2);
     }
-    caja.appendChild(fila2);
+    bF.onclick = function () { SF._avFechas = !(SF._avFechas === true || f.desde || f.hasta); pintaFechas(); };
+    pintaFechas();
     return caja;
   }
 
@@ -18892,7 +18928,7 @@ window.SF = window.SF || {};
     return SF.norm(f.q).split(/\s+/).filter(Boolean).every(function (w) { return t.indexOf(w) >= 0; });
   }
 
-  function filaHilo(c, me, hl) {
+  function filaHilo(c, me, hl, pinta) {
     var p = c.player_id ? SF.store.get(c.player_id) : null;
     var ult = c.messages[c.messages.length - 1];
     var nuevos = SF.store.convSinLeer(c, me.id);
@@ -18911,7 +18947,7 @@ window.SF = window.SF || {};
        o se cierra, no se aparta. */
     if (!mio && nuevos) {
       var bv = el('<button class="lnk" style="margin-right:12px">Visto</button>');
-      bv.onclick = function () { SF.store.convMarkRead(c.id, me.id); SF.router.render(); };
+      bv.onclick = function () { SF.store.convMarkRead(c.id, me.id); pinta(); };
       acc.appendChild(bv);
     }
     var ba = el('<button class="lnk">Abrir</button>');
@@ -18921,8 +18957,17 @@ window.SF = window.SF || {};
   }
 
   function avisosRecibidos(view, me) {
-    var repinta = function () { SF.router.render(); };
-    view.appendChild(barraBusquedaAvisos(repinta));
+    /* La caja de busqueda se pinta una sola vez y se queda quieta; todo lo
+       demas vive dentro de `res` y se rehace ahi. Asi el foco del teclado no
+       se pierde nunca al escribir. */
+    var res = el('<div></div>');
+    var pinta = function () { res.innerHTML = ''; pintaAvisos(res, me, pinta); SF.pintaCampana && SF.pintaCampana(); };
+    view.appendChild(barraBusquedaAvisos(pinta));
+    view.appendChild(res);
+    pintaAvisos(res, me, pinta);
+  }
+
+  function pintaAvisos(view, me, pinta) {
     var f = SF._avFiltro || {};
     var buscando = !!(f.q || f.desde || f.hasta);
 
@@ -18953,7 +18998,7 @@ window.SF = window.SF || {};
         : 'Aquí aparecerán las consultas de las familias y de tus compañeros dirigidas a ti. Nadie te ha escrito todavía.') + '</p>'));
     } else {
       var hl = el('<div class="mini-list" style="margin-bottom:18px"></div>');
-      mios.forEach(function (c) { filaHilo(c, me, hl); });
+      mios.forEach(function (c) { filaHilo(c, me, hl, pinta); });
       view.appendChild(hl);
     }
 
@@ -18968,14 +19013,14 @@ window.SF = window.SF || {};
         var bt = el('<button class="btn btn-light btn-sm">' + ico('check') + 'Marcar las ' + supNuevos.length + ' como vistas</button>');
         bt.onclick = function () {
           supNuevos.forEach(function (c) { SF.store.convMarkRead(c.id, me.id); });
-          U.toast(supNuevos.length + ' conversaciones archivadas'); SF.router.render();
+          U.toast(supNuevos.length + ' conversaciones archivadas'); pinta();
         };
         acc.appendChild(bt);
       }
       if (!buscando && sup.length > supNuevos.length) {
         var bv = el('<button class="btn btn-light btn-sm">' + ico(verSupTodas ? 'check' : 'grid') +
           (verSupTodas ? 'Ver solo las nuevas' : 'Ver también las ' + (sup.length - supNuevos.length) + ' vistas') + '</button>');
-        bv.onclick = function () { SF._avSupTodas = !verSupTodas; SF.router.render(); };
+        bv.onclick = function () { SF._avSupTodas = !verSupTodas; pinta(); };
         acc.appendChild(bv);
       }
       if (acc.children.length) view.appendChild(acc);
@@ -18984,7 +19029,7 @@ window.SF = window.SF || {};
         view.appendChild(el('<p class="hint">Nada nuevo que supervisar.</p>'));
       } else {
         var hs = el('<div class="mini-list" style="margin-bottom:18px"></div>');
-        supVer.forEach(function (c) { filaHilo(c, me, hs); });
+        supVer.forEach(function (c) { filaHilo(c, me, hs, pinta); });
         view.appendChild(hs);
       }
     }
@@ -19007,7 +19052,7 @@ window.SF = window.SF || {};
       var bt2 = el('<button class="btn btn-light btn-sm" style="margin-bottom:12px">' + ico('check') + 'Marcar todo como leído</button>');
       bt2.onclick = function () {
         lista.forEach(function (x) { if (!x.leido) SF.store.commMarkRead(x.c.id, me.id); });
-        U.toast('Todo marcado como leído'); SF.router.render();
+        U.toast('Todo marcado como leído'); pinta();
       };
       view.appendChild(bt2);
     }
@@ -19025,11 +19070,11 @@ window.SF = window.SF || {};
         var cuerpo = el('<div><p class="bz-body">' + esc(c.body) + '</p></div>');
         if (c.mode === 'reenviar' && x.team_id && !x.relayed) {
           var br = el('<button class="btn btn-primary btn-sm" style="margin-top:14px">Ya se lo he trasladado a las familias</button>');
-          br.onclick = function () { SF.store.commMarkRelayed(c.id, me.id, x.team_id); U.closeModal(); U.toast('Anotado'); SF.router.render(); };
+          br.onclick = function () { SF.store.commMarkRelayed(c.id, me.id, x.team_id); U.closeModal(); U.toast('Anotado'); pinta(); };
           cuerpo.appendChild(br);
         }
         U.modal(c.title, cuerpo);
-        SF.router.render();
+        pinta();
       };
       view.appendChild(b);
     });
@@ -19723,6 +19768,9 @@ SF.router = (function () {
          que estabas mirando no es del rol nuevo, se va a su sitio en vez de
          enseñarle una puerta cerrada que el usuario no ha llamado. */
       SF._cambioRol = true;
+      /* Cambiar de rol es cambiar de persona: el buzon que estabas mirando y lo
+         que estabas buscando en el no son de quien entra ahora. */
+      SF._avFiltro = null; SF._avFechas = false; SF._avSupTodas = false;
       SF.store.setRole(sel.value); renderShell(); location.hash = defaultRoute(); render(); recepcion();
       SF._cambioRol = false;
     };
