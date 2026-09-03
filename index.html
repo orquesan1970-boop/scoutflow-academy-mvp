@@ -108,6 +108,66 @@ textarea{resize:vertical;min-height:90px}
 .row-c{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px}
 
 /* KPIs */
+/* ===== INICIO · el rediseño =====
+   El panel decia lo mismo tres veces: cuatro tarjetas con numeros, seis cajas
+   de embudo y una lista de jugadores. Los tres eran vistas del MISMO puñado de
+   fichas, y por eso la pantalla parecia un muro: no habia mas informacion,
+   habia la misma repetida a tres volumenes distintos.
+
+   Ahora hay una sola lista, y los numeros son sus filtros. Menos elementos y
+   mas capacidad: antes pulsar "33 datos incompletos" te sacaba de la pantalla;
+   ahora filtra ahi mismo y puedes resolverlo sin irte. */
+
+/* HOY: lo urgente y los avisos del sistema, en una sola tira fina. */
+.hoy{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);
+  border-radius:var(--r-lg);overflow:hidden;margin-bottom:20px}
+.hoy-l{display:flex;align-items:center;gap:13px;background:var(--surface);padding:13px 16px}
+.hoy-p{width:7px;height:7px;border-radius:50%;flex:0 0 auto;background:var(--ink-3)}
+.hoy-p.rojo{background:#D14343}.hoy-p.ambar{background:#E8A33D}.hoy-p.verde{background:#28A56C}
+.hoy-p.morado{background:var(--purple)}.hoy-p.gris{background:var(--ink-3);opacity:.45}
+.hoy-mas{cursor:pointer;padding:9px 16px}
+.hoy-mas .hoy-t{font-size:13px;color:var(--ink-3);font-weight:600}
+.hoy-mas:hover .hoy-t{color:var(--purple)}
+.hoy-t{flex:1;min-width:0;font-size:14px;line-height:1.4}
+.hoy-t b{font-weight:600}
+.hoy-t span{color:var(--ink-3)}
+@media(max-width:600px){ .hoy-l{flex-wrap:wrap} .hoy-t{flex:1 1 100%;order:2} .hoy-l .btn{order:3} }
+
+/* LA BANDEJA: los filtros arriba, la lista debajo. */
+.bnd-chips{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 4px}
+.bnd-c{display:inline-flex;align-items:center;gap:7px;font-family:inherit;font-size:13px;font-weight:600;
+  padding:7px 13px;border-radius:999px;border:1px solid var(--line);background:var(--surface);
+  color:var(--ink-2);cursor:pointer;transition:.15s}
+.bnd-c:hover{border-color:var(--purple-2);color:var(--ink)}
+.bnd-c.on{background:var(--purple);border-color:var(--purple);color:#fff}
+.bnd-c i{font-style:normal;font-size:11.5px;font-weight:600;padding:1px 6px;border-radius:999px;
+  background:var(--bg);color:var(--ink-3)}
+.bnd-c.on i{background:rgba(255,255,255,.22);color:#fff}
+.bnd-c.cero{opacity:.5}
+.bnd-c.cero i{background:transparent}
+
+/* LA TIRA de captación: una barra proporcional, no seis cajas. Seis cajas del
+   mismo tamaño dicen que las seis etapas pesan igual, y no es verdad. */
+.bcol-foco{outline:2px solid var(--purple);outline-offset:2px;border-radius:var(--r)}
+.tira{display:flex;height:9px;border-radius:999px;overflow:hidden;background:var(--bg);gap:2px;margin:2px 0 10px}
+.tira-s{border:0;padding:0;cursor:pointer;transition:.15s;min-width:5px}
+.tira-s:hover{filter:brightness(1.15)}
+.tira-lg{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12.5px;color:var(--ink-3)}
+.tira-lg button{background:none;border:0;padding:0;font:inherit;color:inherit;cursor:pointer;
+  display:inline-flex;align-items:center;gap:6px}
+.tira-lg button:hover{color:var(--ink)}
+.tira-lg .pt{width:8px;height:8px;border-radius:2px;flex:0 0 auto}
+.tira-lg b{color:var(--ink);font-weight:600;font-variant-numeric:tabular-nums}
+
+/* ATAJOS: lo semanal, abajo y en fila. */
+.atajos{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:8px}
+.atajo{display:flex;align-items:center;gap:11px;background:var(--surface);border:1px solid var(--line);
+  border-radius:var(--r);padding:13px 15px;font-family:inherit;text-align:left;cursor:pointer;transition:.15s;width:100%}
+.atajo:hover{border-color:var(--purple-2);transform:translateY(-1px)}
+.atajo .ic{color:var(--purple);flex:0 0 auto}
+.atajo b{display:block;font-size:13.5px;font-weight:600;line-height:1.3}
+.atajo i{display:block;font-style:normal;font-size:12px;color:var(--ink-3);line-height:1.35;margin-top:1px}
+
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px;margin-bottom:8px}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);padding:15px 16px;text-align:left;font-family:inherit;cursor:default}
 button.kpi{cursor:pointer;transition:border-color .15s,transform .15s}
@@ -1136,6 +1196,18 @@ window.SF = window.SF || {};
    tilde en un buscador, ni "Suárez", ni "Martín". Sin esto, buscar "andres"
    no encuentra a Andrés, y lo peor: al importar un WhatsApp, "Andres" no
    reconocería la ficha de "Andrés" y crearía un duplicado. */
+/* LA FECHA DE HOY, EN HORA LOCAL, y lo primero de todo porque la usa medio
+   archivo. `toISOString()` devuelve en UTC: en Espana, entre las 00:00 y las
+   02:00, "hoy" salia siendo AYER. Eso convierte una entrevista de esta tarde
+   en una "que se paso de fecha" y una cuota que vence hoy en una vencida.
+   Nadie mira la app a esa hora todos los dias, y por eso es un fallo que
+   aparece de vez en cuando y no se reproduce al ir a buscarlo. */
+function isoLocal(d) {
+  var dos = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + dos(d.getMonth() + 1) + '-' + dos(d.getDate());
+}
+SF.hoyISO = function () { return isoLocal(new Date()); };
+
 SF.norm = function (s) {
   return String(s == null ? '' : s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
 };
@@ -2103,7 +2175,7 @@ SF.interviews = function (p) { return (p && p.interviews) || []; };
 
 /* La próxima que aún no se ha celebrado. */
 SF.nextInterview = function (p) {
-  var hoy = new Date().toISOString().slice(0, 10);
+  var hoy = SF.hoyISO();
   return SF.interviews(p)
     .filter(function (e) { return !e.done && e.date; })
     .sort(function (a, b) { return a.date.localeCompare(b.date); })
@@ -2111,7 +2183,7 @@ SF.nextInterview = function (p) {
 };
 /* Programada, con fecha ya pasada y sin cerrar: se quedó en el aire. */
 SF.overdueInterview = function (p) {
-  var hoy = new Date().toISOString().slice(0, 10);
+  var hoy = SF.hoyISO();
   return SF.interviews(p).filter(function (e) { return !e.done && e.date && e.date < hoy; })
     .sort(function (a, b) { return b.date.localeCompare(a.date); })[0] || null;
 };
@@ -2194,6 +2266,13 @@ SF.CONDICIONES = [
     test: function (p) { return !p.birth_date && !p.birth_year; } },
   { k: 'sin_altura', label: 'Sin altura', frases: ['sin altura', 'sin medir'],
     test: function (p) { return !p.height_cm; } },
+  /* "Sin medidas" es lo que cuenta el panel de Inicio: le falta la altura O el
+     peso. No existia como condicion, asi que el enlace del panel caia en "sin
+     altura" y devolvia menos gente de la que el propio panel acababa de decir.
+     Dos cifras para la misma pregunta hacen que no se crea ninguna. */
+  { k: 'sin_medidas', label: 'Sin medidas', ayuda: 'Le falta la altura o el peso',
+    frases: ['sin medidas', 'sin altura ni peso', 'sin peso'],
+    test: function (p) { return !p.height_cm || !p.weight_kg; } },
 
   /* Dinero: solo para quien puede ver finanzas. Si no, la condicion ni se
      ofrece ni se aplica: encontrar a alguien por lo que debe seria enseñar lo
@@ -2737,26 +2816,10 @@ SF.diaSemanaDe = function (iso) {
   if (isNaN(d.getTime())) return null;
   return (d.getDay() + 6) % 7;
 };
-/* LA FECHA, EN HORA LOCAL. Y esto no es una manía: `toISOString()` devuelve
-   SIEMPRE en UTC, y aquí estamos en UTC+2. `new Date('2026-09-03T00:00:00')`
-   es la medianoche de Madrid, que en UTC son las 22:00 del día ANTERIOR, así
-   que al pasarlo por `toISOString()` volvía el 2 de septiembre.
-
-   Sumarle un día devolvía otra vez el 3. El mismo día. Para siempre.
-
-   El bucle que expande el cuadrante avanza con esto, así que nunca llegaba al
-   final: la pestaña se quedaba colgada nada más entrar. Aquí, en un servidor
-   en UTC, funcionaba perfecto y pasó todas las pruebas; en España se colgaba
-   en cuanto un entrenador abría su equipo. Cualquier huso distinto de UTC lo
-   rompe, que son casi todos.
-
-   Se arma la fecha con las piezas LOCALES —año, mes, día— y no se pasa por
-   UTC en ningún momento. */
-function isoLocal(d) {
-  var dos = function (n) { return (n < 10 ? '0' : '') + n; };
-  return d.getFullYear() + '-' + dos(d.getMonth() + 1) + '-' + dos(d.getDate());
-}
-SF.hoyISO = function () { return isoLocal(new Date()); };
+/* Sumar dias sin pasar por UTC. Es lo que colgaba la app: `toISOString()`
+   devolvia el dia anterior, sumarle uno devolvia otra vez el mismo, y el bucle
+   que expande el cuadrante no terminaba nunca. `isoLocal` y `SF.hoyISO` estan
+   definidos arriba del todo, porque los usa medio archivo. */
 SF.sumaDias = function (iso, n) {
   var d = new Date(iso + 'T00:00:00');
   if (isNaN(d.getTime())) return iso;
@@ -3053,7 +3116,7 @@ SF.SEASON = '2026/2027';
    pantalla es lo último o una página vieja guardada por el navegador, que
    ya nos ha costado una evaluación mal guardada. Se ve en Configuración
    y en el pie del menú. */
-SF.BUILD = '2026-08-31';
+SF.BUILD = '2026-09-03';
 
 SF.STAFF_ROLES = ['entrenador', 'preparador_fisico', 'coord_pf', 'psicologo', 'fisio',
   'scout', 'delegado_equipo', 'delegado_campo', 'dt_general', 'dt_femenino',
@@ -3565,7 +3628,7 @@ SF.docsOf = function (p) {
    Por eso cuenta como pendiente aunque el papel ya esté en el club. */
 SF.docListo = function (d) { return !!d.delivered && !(d.apostilla && !d.apostillado); };
 SF.docsPend = function (p) { return SF.docsOf(p).filter(function (d) { return !SF.docListo(d); }); };
-SF.docVencido = function (d) { return !!(d.due && !SF.docListo(d) && d.due < new Date().toISOString().slice(0, 10)); };
+SF.docVencido = function (d) { return !!(d.due && !SF.docListo(d) && d.due < SF.hoyISO()); };
 
 /* ===================== PERMISOS PARTICULARES =====================
    La matriz por rol es el valor POR DEFECTO. Encima, el director puede dar
@@ -5278,11 +5341,42 @@ SF.store = (function () {
        escribir, que es la forma mas desconcertante de perder datos. */
     if (SF._sinSitio && mem) return mem;
     if (LS) {
+      /* Ni siquiera se pide el texto al navegador si sabemos que no ha
+         cambiado. `getItem` de un valor de casi 1 MB tiene que copiarlo entero
+         a memoria cada vez, y eso solo ya costaba mas de medio milisegundo por
+         acceso: multiplicado por los cientos de accesos de una pantalla, medio
+         segundo de nada. Quien escribe en ESTA pestaña refresca la cache al
+         guardar; si escribe OTRA pestaña, el navegador nos avisa con el evento
+         `storage` y marcamos que hay que releer. */
+      if (_parseado && !_sucio) return _parseado;
       var raw = localStorage.getItem(KEY);
-      return raw ? JSON.parse(raw) : null;
+      if (!raw) return null;
+      _sucio = false;
+      /* CACHE DE LECTURA.
+         Esta linea era `JSON.parse(raw)` a secas, y ahi estaba escondido el
+         problema de velocidad de toda la app: la base son casi 1 MB de texto,
+         parsearla cuesta 4 ms, y CADA acceso al almacen —players(), teams(),
+         horario(), staff()— la volvia a parsear entera. Una pantalla que toca
+         el almacen trescientas veces se iba a mas de un segundo sin hacer nada
+         util; Documentos, que lo toca miles, tardaba quince.
+
+         Se guarda lo ya parseado y se devuelve mientras el texto guardado sea
+         el mismo. Comparar el texto cuesta centesimas y es la comprobacion
+         honesta: si escribe otra pestaña, el texto cambia y se vuelve a
+         parsear. No hay que acordarse de invalidar nada. */
+      if (raw === _crudo && _parseado) return _parseado;
+      _parseado = JSON.parse(raw);
+      _crudo = raw;
+      return _parseado;
     }
     return mem;
   }
+  var _crudo = null, _parseado = null, _sucio = false;
+  try {
+    window.addEventListener('storage', function (e) {
+      if (!e || e.key === null || e.key === KEY) _sucio = true;
+    });
+  } catch (e) {}
   function write(db) {
     if (enNube()) { SF.cloud.escribir(db); return; }
     if (!LS) { mem = db; return; }
@@ -5292,7 +5386,12 @@ SF.store = (function () {
        Ahora se avisa, se sigue trabajando en memoria y se le dice que exporte,
        que es lo unico que salva la tarde. */
     try {
-      localStorage.setItem(KEY, JSON.stringify(db));
+      var txt = JSON.stringify(db);
+      localStorage.setItem(KEY, txt);
+      /* Al guardar se refresca la cache con lo que acabamos de escribir, para
+         que la siguiente lectura no tenga que volver a parsear lo que ya
+         tenemos delante. */
+      _crudo = txt; _parseado = db; _sucio = false;
       mem = db;
       if (SF._sinSitio) SF._sinSitio = false;
     } catch (e) {
@@ -5397,8 +5496,20 @@ SF.store = (function () {
   function db() {
     var d = read();
     if (!d) { d = seed(); write(d); }
+    /* Las migraciones se pasan UNA vez por cada estado de la base, no en cada
+       acceso. Antes se recorrian las veinte comprobaciones —y algun barrido de
+       los 277 jugadores— cada vez que alguien pedia players() o teams(), que
+       son cientos de veces por pantalla. Como ahora lo leido se cachea (ver
+       `read`), el objeto es el mismo entre escrituras y basta con marcarlo.
+       La marca es no enumerable a proposito: asi JSON.stringify no la guarda y
+       no acaba dentro del fichero de datos del club. */
+    if (d.__sf_migrado) return d;
     SF._migrando = true;
-    try { return migrar(d); } finally { SF._migrando = false; }
+    var m;
+    try { m = migrar(d); } finally { SF._migrando = false; }
+    try { Object.defineProperty(m, '__sf_migrado', { value: true, enumerable: false, configurable: true }); }
+    catch (e) {}
+    return m;
   }
 
   function migrar(d) {
@@ -5982,7 +6093,7 @@ SF.store = (function () {
     videoAdd: function (playerId, data) {
       var d = db(), u = (SF.USERS || {})[d.role] || d.role;
       var v = Object.assign({ id: 'v' + Date.now(), type: 'Highlights', title: '', url: '', date: '', notes: '',
-        by: u, added_at: new Date().toISOString().slice(0, 10) }, data);
+        by: u, added_at: SF.hoyISO() }, data);
       d.players = d.players.map(function (p) {
         if (p.id !== playerId) return p;
         var np = Object.assign({}, p, { videos: (p.videos || []).concat([v]) });
@@ -6008,7 +6119,7 @@ SF.store = (function () {
       var d = db(), u = (SF.USERS || {})[d.role] || d.role;
       var e = Object.assign({
         id: 'e' + Date.now(), date: '', time: '', type: '', place: '', with: u,
-        notes: '', done: false, outcome: '', created_at: new Date().toISOString().slice(0, 10)
+        notes: '', done: false, outcome: '', created_at: SF.hoyISO()
       }, data);
       d.players = d.players.map(function (p) {
         return p.id === playerId ? Object.assign({}, p, { interviews: (p.interviews || []).concat([e]) }) : p;
@@ -6036,7 +6147,7 @@ SF.store = (function () {
     /* Todas las entrevistas del club que aún no se han celebrado, en orden.
        Sirve para la agenda de Inicio: lo que viene, no lo que pasó. */
     interviewsUpcoming: function () {
-      var hoy = new Date().toISOString().slice(0, 10), out = [];
+      var hoy = SF.hoyISO(), out = [];
       db().players.forEach(function (p) {
         (p.interviews || []).forEach(function (e) {
           if (!e.done && e.date && e.date >= hoy) out.push({ p: p, e: e });
@@ -6153,7 +6264,7 @@ SF.store = (function () {
         if (d.role === 'scout') {
           if (!obj.scout_id) obj.scout_id = quien.id;
           if (!obj.responsible) obj.responsible = quien.full_name;
-          if (!obj.capture_date) obj.capture_date = new Date().toISOString().slice(0, 10);
+          if (!obj.capture_date) obj.capture_date = SF.hoyISO();
         }
       }
       d.players.unshift(obj);
@@ -6213,7 +6324,7 @@ SF.store = (function () {
       if (!t) return null;
       var ev = (t.events || []).filter(function (e) { return e.id === evId; })[0];
       if (!ev) return null;
-      ev.attendance = marks; ev.attendance_by = by; ev.attendance_at = new Date().toISOString().slice(0, 10);
+      ev.attendance = marks; ev.attendance_by = by; ev.attendance_at = SF.hoyISO();
       save(d); return ev;
     },
     /* ---- LISTA DE LAS SESIONES DEL CUADRANTE ----
@@ -6801,7 +6912,7 @@ SF.store = (function () {
     /* Solo los vigentes: los caducados dejan de aplicar solos, sin que
        nadie tenga que acordarse de quitarlos. */
     userPermsActive: function (staffId) {
-      var hoy = new Date().toISOString().slice(0, 10);
+      var hoy = SF.hoyISO();
       return (db().user_perms || []).filter(function (x) {
         return x.staff_id === staffId && !x.revoked_at && x.until >= hoy;
       });
@@ -6813,13 +6924,13 @@ SF.store = (function () {
         id: 'up' + Date.now(), staff_id: staffId, perm: perm,
         reason: reason, until: until,
         granted_by: (SF.USERS || {})[d.role] || d.role,
-        granted_at: new Date().toISOString().slice(0, 10), revoked_at: null
+        granted_at: SF.hoyISO(), revoked_at: null
       };
       d.user_perms.push(x); save(d); return x;
     },
     userPermRevoke: function (id) {
       var d = db();
-      (d.user_perms || []).forEach(function (x) { if (x.id === id) x.revoked_at = new Date().toISOString().slice(0, 10); });
+      (d.user_perms || []).forEach(function (x) { if (x.id === id) x.revoked_at = SF.hoyISO(); });
       save(d);
     },
 
@@ -7640,9 +7751,21 @@ window.SF = window.SF || {};
     ps.forEach(function (p) { var t = SF.finTotals(p); sum.paid += t.paid; sum.pending += t.pending; sum.overdue += t.overdue; });
     var pend = SF.store.expenses().filter(function (e) { return e.status === 'pendiente'; });
     view.innerHTML = head('Caja del mes', 'Cobros, impagos y gastos por aprobar.');
+    /* Cuatro cifras que no se podian pulsar. Un numero en un panel es una
+       pregunta —"quien debe eso?"— y si no lleva a la respuesta obliga a
+       buscarla a mano en otra pantalla. Ahora cada una abre SU lista. */
     var k = el('<div class="kpis"></div>');
-    [['Cobrado', sum.paid, ''], ['Pendiente', sum.pending, 'warn'], ['Vencido', sum.overdue, 'danger'], ['Gastos por aprobar', pend.length, 'purple']].forEach(function (x, i) {
-      k.appendChild(el('<div class="kpi ' + x[2] + '"><div class="kpi-top"><span>' + x[0] + '</span></div><div class="kpi-num">' + (i === 3 ? x[1] : eur(x[1])) + '</div></div>'));
+    [['Cobrado', eur(sum.paid), '', 'lo ingresado este curso', function () { location.hash = '#/finanzas'; }],
+     ['Pendiente', eur(sum.pending), 'warn', 'facturado y aún sin cobrar', function () { SF._jugQuery = '@Pagos pendientes'; location.hash = '#/jugadores'; }],
+     ['Vencido', eur(sum.overdue), 'danger', 'pasada la fecha de pago', function () { SF._jugQuery = '@Pagos vencidos'; location.hash = '#/jugadores'; }],
+     ['Gastos por aprobar', pend.length, 'purple', 'esperan tu visto bueno', function () { location.hash = '#/economia'; }]
+    ].forEach(function (x) {
+      var b = el('<button class="kpi is-btn ' + x[2] + '">' +
+        '<div class="kpi-top"><span>' + x[0] + '</span>' + ico('arrow') + '</div>' +
+        '<div class="kpi-num">' + x[1] + '</div>' +
+        '<div class="kpi-foot">' + esc(x[3]) + '</div></button>');
+      b.onclick = x[4];
+      k.appendChild(b);
     });
     view.appendChild(k);
     var deb = ps.map(function (p) { var t = SF.finTotals(p); return { p: p, due: t.pending + t.overdue }; }).filter(function (x) { return x.due > 0; }).sort(function (a, b) { return b.due - a.due; });
@@ -7661,29 +7784,10 @@ window.SF = window.SF || {};
     acts.appendChild(b1); acts.appendChild(b2); view.appendChild(acts);
   }
 
-  function inicioDT(view) {
-    var r = role(), teams = SF.store.teams().filter(function (t) { return r.segments === 'all' || r.segments.indexOf(t.segment) >= 0; });
-    view.innerHTML = head('Dirección técnica', 'Tus equipos y su seguimiento.');
-    var players = scopedPlayers();
-    var sinEval = players.filter(function (p) { return !(p.eval_log || []).length; });
-    var k = el('<div class="kpis"></div>');
-    k.appendChild(el('<div class="kpi"><div class="kpi-top"><span>Equipos</span></div><div class="kpi-num">' + teams.length + '</div></div>'));
-    k.appendChild(el('<div class="kpi"><div class="kpi-top"><span>Jugadores</span></div><div class="kpi-num">' + players.length + '</div></div>'));
-    k.appendChild(el('<div class="kpi warn"><div class="kpi-top"><span>Sin evaluar</span></div><div class="kpi-num">' + sinEval.length + '</div></div>'));
-    view.appendChild(k);
-    view.appendChild(el('<p class="sec-label">Equipos</p>'));
-    var tl = el('<div class="mini-list"></div>');
-    if (!teams.length) tl.appendChild(el('<p class="hint">Sin equipos en tu ámbito.</p>'));
-    teams.forEach(function (t) {
-      var n = SF.store.players().filter(function (p) { return p.team_id === t.id; }).length;
-      var nt = teamUpcoming(t, 'entrenamiento')[0], nm = teamUpcoming(t, 'partido')[0];
-      var nx = nm ? 'partido ' + fmtDate(nm.date) : nt ? 'entreno ' + fmtDate(nt.date) : 'sin citas';
-      var row = el('<div class="mini-row"><span><b>' + esc(t.name) + '</b> · ' + n + ' jugadores</span><span class="row-actions"><span class="hint">' + nx + '</span> <button class="lnk" data-o>abrir</button></span></div>');
-      row.querySelector('[data-o]').onclick = function () { location.hash = '#/equipo/' + t.id; };
-      tl.appendChild(row);
-    });
-    view.appendChild(tl);
-  }
+  /* inicioDT se ha retirado: las direcciones tecnicas entran por el Inicio
+     general (ver pages.inicio). Se borra en vez de dejarlo muerto para que
+     nadie lo arregle dentro de dos meses sin darse cuenta de que no se llama
+     desde ningun sitio. */
 
   /* El Inicio del scout. El panel general del club no le sirve: le contaba
      277 jugadores de los que 270 no son asunto suyo. Aquí solo hay dos
@@ -7693,7 +7797,7 @@ window.SF = window.SF || {};
     var yo = SF.store.staffMe();
     var u = SF.store.currentUser();
     var mios = scopedPlayers();
-    var hoy = new Date().toISOString().slice(0, 10);
+    var hoy = SF.hoyISO();
 
     view.innerHTML = '<div class="dash-hero"><div class="dash-hi">' + saludo() + ', ' + esc(u.name.split(' ')[0]) + '</div>' +
       '<p class="dash-date">' + fechaLarga() + ' · ' + esc(u.label) +
@@ -7851,7 +7955,13 @@ window.SF = window.SF || {};
     if (rk === 'scout') return inicioScout(view);
     if (rk === 'entrenador') return inicioEntrenador(view);
     if (rk === 'administrativo') return inicioAdministrativo(view);
-    if (rk.indexOf('dt_') === 0) return inicioDT(view);
+    /* Las direcciones tecnicas usaban su propio muro: tres tarjetas que no se
+       podian pulsar y una lista de equipos. Ademas contaba "sin evaluar" mirando
+       el registro de evaluaciones mientras el resto de la app mira el Scout
+       Score, asi que su panel decia un numero y el buscador otro. Ahora entran
+       por el mismo Inicio que todos —que ya se adapta solo a lo que cada rol
+       puede ver— y su lista de equipos baja a la columna de la derecha, que es
+       donde va lo de consulta. */
     var m = SF.store.metrics();
     var ps = SF.store.players();
     if (m.total === 0) {
@@ -7870,67 +7980,109 @@ window.SF = window.SF || {};
     var soloMios = mios.length !== ps.length;   // ¿ve una parte del club?
 
     /* --- Cabecera: saludo real, no uno fijo --- */
+    /* El tamano del club, en la linea que ya estaba. Quien lleva la academia
+       entera abria el Inicio y no veia por ninguna parte cuanta gente tiene:
+       los unicos numeros del muro eran los de lo que va mal. Un panel que solo
+       sabe contar problemas no dice si el club crece. */
+    var nEq = SF.store.teams().length;
+    var escala = soloMios
+      ? ' · ' + mios.length + (mios.length === 1 ? ' jugador a tu cargo' : ' jugadores a tu cargo')
+      : ' · ' + ps.length + (ps.length === 1 ? ' jugador' : ' jugadores') +
+        ' · ' + nEq + (nEq === 1 ? ' equipo' : ' equipos');
     view.innerHTML = '<div class="dash-hero"><div class="dash-hi">' + saludo() + ', ' + esc(u.name.split(' ')[0]) + '</div>' +
-      '<p class="dash-date">' + fechaLarga() + ' · ' + esc(u.label) + (soloMios ? ' · ' + mios.length + ' jugadores a tu cargo' : '') + '</p></div>';
+      '<p class="dash-date">' + fechaLarga() + ' · ' + esc(u.label) + escala + '</p></div>';
 
-    /* --- Aviso de copia, solo para quien puede hacerla ---
-       Va arriba del todo y solo cuando toca. Un botón de copia escondido en
-       Configuración lo pulsa la gente el día que ya es tarde; el aviso es lo
-       que convierte "hay copias" en "hay copias hechas". Se calla en cuanto se
-       hace una, para que no se vuelva ruido de fondo que ya nadie lee. */
-    if (SF.router.puede('config') && SF.tocaCopia()) {
-      var dS = SF.diasSinCopia();
-      var avC = el('<div class="card" style="border-left:3px solid #E8A33D"><h3>' +
-        (dS === null ? 'Nunca has descargado una copia' : 'Hace ' + dS + ' días de la última copia') + '</h3>' +
-        '<p class="hint">Los datos se guardan solos en la nube, pero sin historial: cada guardado pisa el ' +
-        'anterior. Si algo se borra por error, una copia descargada es lo único que permite volver atrás.</p>' +
-        '<div class="row-c"></div></div>');
-      var bC = el('<button class="btn btn-primary">' + ico('download') + 'Descargar copia ahora</button>');
-      bC.onclick = function () {
-        var blob = new Blob([SF.store.exportJSON()], { type: 'application/json' });
-        var url = URL.createObjectURL(blob);
-        var a2 = document.createElement('a'); a2.href = url; a2.download = SF.nombreCopia(); a2.click();
-        URL.revokeObjectURL(url);
-        SF.store.copiaHecha('manual');
-        U.toast('Copia descargada');
-        SF.router.render();
-      };
-      var bV = el('<button class="btn">Ver copias y versiones</button>');
-      bV.onclick = function () { location.hash = '#/config'; };
-      avC.querySelector('.row-c').appendChild(bC);
-      avC.querySelector('.row-c').appendChild(bV);
-      view.appendChild(avC);
+    /* --- Los avisos de HOY se recogen aquí y se pintan juntos, en una tira.
+       Antes cada uno era una tarjeta con su título y su párrafo, apiladas una
+       encima de otra antes de llegar al trabajo. Tres tarjetas de aviso no
+       avisan tres veces más: avisan menos, porque quien las ve todos los días
+       deja de leerlas y baja directo. --- */
+    var avisosHoy = [];
+
+    /* LO QUE FALTABA (1): las listas sin pasar.
+       Se puede pasar lista desde el equipo, pero desde el Inicio no habia
+       forma de saber que hay cinco sesiones de la semana pasada sin pasar. Una
+       funcion que solo se descubre entrando equipo por equipo no se usa. */
+    var equiposMios = SF.store.teams().filter(function (t) {
+      if (r.segments && r.segments !== 'all' && r.segments.indexOf(t.segment) < 0) return false;
+      return canManageThisTeam(t);
+    });
+    var sinPasar = 0, eqPasar = null, eqSinPasar = 0;
+    equiposMios.forEach(function (t) {
+      var n = sesionesPendientes(t).length;
+      if (n) { sinPasar += n; eqSinPasar++; if (!eqPasar) eqPasar = t; }
+    });
+    /* El numero se dice en la unidad que le sirve a quien lo lee. Un entrenador
+       con dos equipos pasa sesiones, asi que se le cuentan sesiones y el boton
+       le abre la lista. Quien lleva veintiocho equipos NO va a pasar sesenta y
+       una listas: lo suyo es saber que equipos se han quedado atras, y el
+       total en bruto no se lo dice. Un boton que ademas abriria el modal de
+       "el primer equipo que salga" es peor que no tener boton. */
+    if (sinPasar && equiposMios.length <= 3) {
+      avisosHoy.push({
+        p: 'ambar',
+        t: '<b>' + sinPasar + (sinPasar === 1 ? ' sesión sin pasar lista' : ' sesiones sin pasar lista') + '.</b> ' +
+           '<span>De los últimos ' + DIAS_LISTA + ' días. Salen solas del cuadrante: no hay que crear ninguna cita.</span>',
+        btn: 'Pasar lista', go: function () { modalPasarLista(eqPasar); }
+      });
+    } else if (eqSinPasar) {
+      avisosHoy.push({
+        p: 'ambar',
+        t: '<b>' + eqSinPasar + (eqSinPasar === 1 ? ' equipo no ha pasado lista' : ' equipos no han pasado lista') + '.</b> ' +
+           '<span>' + sinPasar + ' sesiones de los últimos ' + DIAS_LISTA + ' días, sin registrar quién vino.</span>',
+        btn: 'Ver equipos', go: function () { location.hash = '#/equipos'; }
+      });
     }
 
-    /* --- Los que cumplen 18 dentro de poco ---
-       El tercero al que hay que avisar. Al jugador y a la familia se les avisa
-       en su portal; al club, aquí. No es un dato curioso: ese día la familia
-       deja de ver casi todo, y si secretaría se entera por la llamada de un
-       padre enfadado, llega tarde. */
+    /* LO QUE FALTABA (2): el staff.
+       "Necesita tu atencion" solo miraba jugadores. Un entrenador sin habilitar
+       para esta temporada es un problema mas gordo que una ficha a medias, y no
+       aparecia en ningun sitio del muro. */
+    if (r.nav.indexOf('staff') >= 0) {
+      var staffMal = SF.store.staff().filter(function (x) {
+        return SF.staffStatus(x).level !== 'ok';
+      });
+      if (staffMal.length) {
+        avisosHoy.push({
+          p: 'rojo',
+          t: '<b>' + staffMal.length + (staffMal.length === 1 ? ' del staff con los papeles pendientes' :
+             ' del staff con los papeles pendientes') + '.</b> ' +
+             '<span>Sin habilitar o con la licencia de otra temporada.</span>',
+          btn: 'Ver staff', go: function () { location.hash = '#/staff'; }
+        });
+      }
+    }
+
+    if (SF.router.puede('config') && SF.tocaCopia()) {
+      var dS = SF.diasSinCopia();
+      avisosHoy.push({
+        p: 'ambar',
+        t: (dS === null ? '<b>Nunca has descargado una copia.</b>' : '<b>Hace ' + dS + ' días de la última copia.</b>') +
+           ' <span>Los datos se guardan solos, pero sin historial: una copia es lo único que permite volver atrás.</span>',
+        btn: 'Descargar', go: function () {
+          var blob = new Blob([SF.store.exportJSON()], { type: 'application/json' });
+          var url = URL.createObjectURL(blob);
+          var a2 = document.createElement('a'); a2.href = url; a2.download = SF.nombreCopia(); a2.click();
+          URL.revokeObjectURL(url);
+          SF.store.copiaHecha('manual'); U.toast('Copia descargada'); SF.router.render();
+        }
+      });
+    }
+
     if (SF.router.puede('family')) {
       var cumplen = mios.filter(function (p) {
         var d = SF.diasParaMayoria(p);
         return d != null && d <= SF.AVISO_MAYORIA_DIAS && (p.family || {}).contact;
       }).sort(function (a, c) { return SF.diasParaMayoria(a) - SF.diasParaMayoria(c); });
       if (cumplen.length) {
-        var c18 = el('<div class="card"><h3>' + cumplen.length +
-          (cumplen.length === 1 ? ' jugador cumple 18 este mes' : ' jugadores cumplen 18 este mes') + '</h3>' +
-          '<p class="hint">Ese día su familia deja de ver informes, documentos y salud. Siguen viendo los pagos, ' +
-          'porque quien paga tiene que poder pagar. A partir de ahí lo decide cada jugador desde su móvil, y el ' +
-          'club no puede abrirlo ni cerrarlo.</p><div class="mini-list" style="margin-top:10px"></div></div>');
-        var l18 = c18.querySelector('.mini-list');
-        cumplen.slice(0, 8).forEach(function (p) {
-          var d = SF.diasParaMayoria(p);
-          var fila = el('<div class="mini-row mr-wrap"><span><b>' + esc(p.full_name) + '</b>' +
-            '<span class="hint"> · en ' + (d === 0 ? 'hoy' : d === 1 ? '1 día' : d + ' días') + '</span></span></div>');
-          var bF = el('<button class="btn btn-sm">Ver ficha</button>');
-          bF.onclick = function () { location.hash = '#/jugador/' + p.id; };
-          fila.appendChild(bF);
-          l18.appendChild(fila);
+        var pr = cumplen[0], dd = SF.diasParaMayoria(pr);
+        avisosHoy.push({
+          p: 'morado',
+          t: '<b>' + esc(cumplen.length === 1 ? pr.full_name + ' cumple 18' : cumplen.length + ' jugadores cumplen 18') +
+             ' ' + (dd === 0 ? 'hoy' : dd === 1 ? 'mañana' : 'en ' + dd + ' días') + '.</b> ' +
+             '<span>Ese día su familia deja de ver todo menos los pagos.</span>',
+          btn: 'Ver ficha', go: function () { location.hash = '#/jugador/' + pr.id; }
         });
-        if (cumplen.length > 8) l18.appendChild(el('<div class="mini-row"><span class="hint">y ' +
-          (cumplen.length - 8) + ' más</span></div>'));
-        view.appendChild(c18);
       }
     }
 
@@ -7940,7 +8092,12 @@ window.SF = window.SF || {};
     var sinVid = mios.filter(function (p) { return p.documents && p.documents.video_highlights === 'pendiente'; });
     var venc = r.canSeeFinance ? mios.filter(function (p) { return SF.finHas(p, 'vencido'); }) : [];
     var sinMed = mios.filter(function (p) { return !p.height_cm || !p.weight_kg; });
-    var sinEval = mios.filter(function (p) { return !(p.eval_log || []).length; });
+    /* "Sin evaluar" tiene que significar LO MISMO aquí que en el buscador y que
+       en la ficha. Aquí se miraba el registro de evaluaciones y allí el Scout
+       Score, así que el panel decía 9 y el buscador devolvía 6. Dos cifras para
+       la misma pregunta es peor que no dar ninguna: quien las ve deja de fiarse
+       de las dos. Manda el Score, que es el que sale en la ficha. */
+    var sinEval = mios.filter(function (p) { return !SF.scoutScore(p); });
 
     /* Lo del fisioterapeuta. Su trabajo no es que falten datos ni vídeos:
        es quién no puede jugar, quién vuelve, y a quién hay que mirar. */
@@ -7986,59 +8143,103 @@ window.SF = window.SF || {};
       foco = { cls: 'is-ok', ic: 'check', t: 'Todo al día',
         s: 'No hay nada urgente' + (soloMios ? ' en tus jugadores' : ' en el club') + ' ahora mismo.', btn: null };
     }
-    var fc = el('<div class="foco ' + foco.cls + '"><div class="foco-ic">' + ico(foco.ic) + '</div>' +
-      '<div class="foco-body"><p class="foco-t">' + esc(foco.t) + '</p><p class="foco-s">' + esc(foco.s) + '</p></div></div>');
-    if (foco.btn) {
-      var fb = el('<button class="btn btn-primary btn-sm">' + esc(foco.btn) + '</button>');
-      fb.onclick = foco.go; fc.appendChild(fb);
+    /* HOY, en una tira: lo más urgente arriba y los avisos del sistema debajo,
+       una línea cada uno. La jerarquía la marca el punto de color y el orden,
+       no el tamaño de la caja: cuatro tarjetas grandes gritando a la vez es
+       exactamente lo que hace que no se lea ninguna. */
+    var COL = { 'is-danger': 'rojo', 'is-warn': 'ambar', 'is-ok': 'verde', '': 'morado' };
+    var hoy = el('<div class="hoy"></div>');
+    var lineas = [{ p: COL[foco.cls] || 'morado',
+      t: '<b>' + esc(foco.t) + '</b> <span>' + esc(foco.s) + '</span>',
+      btn: foco.btn, go: foco.go }].concat(avisosHoy);
+    /* TOPE DE CUATRO. Una tira de seis lineas vuelve a ser el muro que esto
+       venia a quitar. Se ven las cuatro primeras —ya vienen ordenadas por
+       urgencia— y el resto queda detras de una linea que se abre aqui mismo.
+       No se esconde nada: se dice cuantas quedan. */
+    var TOPE_HOY = 4;
+    var verTodas = SF._hoyTodo === true;
+    var visibles = verTodas ? lineas : lineas.slice(0, TOPE_HOY);
+    visibles.forEach(function (x) {
+      var ln = el('<div class="hoy-l"><span class="hoy-p ' + x.p + '"></span>' +
+        '<span class="hoy-t">' + x.t + '</span></div>');
+      if (x.btn) {
+        var b = el('<button class="btn btn-sm' + (x === lineas[0] ? ' btn-primary' : ' btn-light') + '">' + esc(x.btn) + '</button>');
+        b.onclick = x.go;
+        ln.appendChild(b);
+      }
+      hoy.appendChild(ln);
+    });
+    if (lineas.length > TOPE_HOY) {
+      var resto = lineas.length - TOPE_HOY;
+      var mas = el('<div class="hoy-l hoy-mas"><span class="hoy-p gris"></span><span class="hoy-t">' +
+        (verTodas ? 'Ver solo lo más urgente'
+                  : 'y ' + resto + (resto === 1 ? ' aviso más' : ' avisos más')) + '</span></div>');
+      mas.onclick = function () { SF._hoyTodo = !verTodas; SF.router.render(); };
+      hoy.appendChild(mas);
     }
-    view.appendChild(fc);
+    view.appendChild(hoy);
 
-    /* --- Indicadores: solo los que este rol puede ver Y hacer algo con ellos.
-       Un preparador físico no tiene por qué ver el dinero de las familias. --- */
-    var kpis = [];
+    /* --- Indicadores. Para SALUD siguen siendo tarjetas: su pantalla mira
+       cuatro cosas distintas que no forman una sola bandeja. Para el resto,
+       los números se han convertido en los filtros de la lista de abajo. --- */
     if (esSalud) {
-      /* Al fisioterapeuta no le sirve de nada saber cuántas fichas están
-         incompletas o a quién le falta el vídeo. Su pantalla es otra. */
+      var kpis = [];
       kpis.push({ cls: 'danger', n: bajas.length, l: 'No disponibles', q: '', foot: bajas.length ? 'no pueden jugar' : 'nadie de baja' });
       kpis.push({ cls: 'warn', n: limit.length, l: 'Con limitaciones', q: '', foot: 'pueden, con restricciones' });
       kpis.push({ cls: 'warn', n: caduc.length, l: 'Altas por revisar', q: '', foot: 'la fecha prevista ya pasó' });
       kpis.push({ cls: 'purple', n: asim.length, l: 'Asimetrías altas', q: '', foot: 'más del ' + SF.ASIMETRIA_AVISO + ' % entre piernas' });
       if (r.canEditPhysical) kpis.push({ cls: 'warn', n: sinMed.length, l: 'Sin medidas', q: '', foot: 'sin altura o peso' });
-    } else {
-      if (r.canSeeFinance) kpis.push({ cls: 'danger', n: venc.length, l: 'Pagos vencidos', q: '@Pagos vencidos', foot: venc.length ? 'requiere gestión' : 'todo cobrado' });
-      kpis.push({ cls: 'warn', n: incom.length, l: 'Datos incompletos', q: '@Datos incompletos', foot: 'faltan datos clave' });
-      if (r.canEvaluate) kpis.push({ cls: '', n: sinEval.length, l: 'Sin evaluar', q: '', foot: 'ninguna evaluación aún' });
-      if (r.canEditPhysical) kpis.push({ cls: 'warn', n: sinMed.length, l: 'Sin medidas', q: '', foot: 'sin altura o peso' });
-      kpis.push({ cls: 'warn', n: sinVid.length, l: 'Pendiente de vídeo', q: '@Pendiente de vídeo', foot: 'sin highlights' });
-      kpis.push({ cls: 'purple', n: enti.length, l: 'Entrevistas', q: '@Entrevistas', foot: 'por hacer' });
+      var kwrap = el('<div class="kpis"></div>');
+      kpis.slice(0, 4).forEach(function (k) {
+        var cero = k.n === 0;
+        var b = el('<button class="kpi is-btn ' + (cero ? 'ok' : k.cls) + '">' +
+          '<div class="kpi-top"><span>' + esc(k.l) + '</span>' + ico('arrow') + '</div>' +
+          '<div class="kpi-num">' + k.n + '</div>' +
+          '<div class="kpi-foot">' + esc(cero ? 'al día' : k.foot) + '</div></button>');
+        b.onclick = function () { if (k.q) SF._jugQuery = k.q; location.hash = '#/jugadores'; };
+        kwrap.appendChild(b);
+      });
+      view.appendChild(kwrap);
     }
 
-    var kwrap = el('<div class="kpis"></div>');
-    kpis.slice(0, 4).forEach(function (k) {
-      var cero = k.n === 0;
-      var b = el('<button class="kpi is-btn ' + (cero ? 'ok' : k.cls) + '">' +
-        '<div class="kpi-top"><span>' + esc(k.l) + '</span>' + ico('arrow') + '</div>' +
-        '<div class="kpi-num">' + k.n + '</div>' +
-        '<div class="kpi-foot">' + esc(cero ? 'al día' : k.foot) + '</div></button>');
-      b.onclick = function () { if (k.q) SF._jugQuery = k.q; location.hash = '#/jugadores'; };
-      kwrap.appendChild(b);
-    });
-    view.appendChild(kwrap);
-
-    /* --- Captación: solo para quien capta. Un fisio no mira el embudo. --- */
+    /* --- Captación, en una tira proporcional ---
+       Eran seis cajas del mismo tamaño, y seis cajas iguales dicen que las seis
+       etapas pesan lo mismo, que es justo lo contrario de lo que cuenta un
+       embudo. Ahora el ancho ES el dato. Y cada tramo lleva a SU etapa: antes
+       los seis botones iban al mismo sitio, así que pulsar "Oferta" y pulsar
+       "Nuevo" hacían exactamente lo mismo. --- */
     if (r.nav.indexOf('captacion') >= 0) {
-      view.appendChild(el('<p class="sec-label">Captación · de prospecto a jugador</p>'));
-      var funnel = el('<div class="funnel"></div>');
-      var fcol = { 'Nuevo': 'gray', 'Datos incompletos': 'warn', 'En evaluación': 'info', 'Entrevista': 'purple', 'Oferta enviada': 'teal', 'Inscrito': 'green' };
-      SF.PIPELINE.forEach(function (s) {
-        var n = mios.filter(SF.esProspecto).filter(function (p) { return p.status === s; }).length;
-        var b = el('<button class="stage st-' + fcol[s] + '"><div class="n">' + n + '</div><div class="l">' +
-          esc(s.replace('Datos incompletos', 'Incompleto').replace('Oferta enviada', 'Oferta')) + '</div></button>');
-        b.onclick = function () { location.hash = '#/captacion'; };
-        funnel.appendChild(b);
+      var prospectos = mios.filter(SF.esProspecto);
+      var FCOL = { 'Nuevo': '#9A94B8', 'Datos incompletos': '#E8A33D', 'En evaluación': '#4C8FD6',
+        'Entrevista': '#8D7CFF', 'Oferta enviada': '#2FA98A', 'Inscrito': '#28A56C' };
+      var etapas = SF.PIPELINE.map(function (st) {
+        return { st: st, n: prospectos.filter(function (p) { return p.status === st; }).length,
+          col: FCOL[st] || '#9A94B8',
+          lbl: st.replace('Datos incompletos', 'Incompleto').replace('Oferta enviada', 'Oferta') };
       });
-      view.appendChild(funnel);
+      var totalP = etapas.reduce(function (a, x) { return a + x.n; }, 0);
+      view.appendChild(el('<p class="sec-label">Captación · ' + totalP +
+        (totalP === 1 ? ' prospecto' : ' prospectos') + '</p>'));
+      if (!totalP) {
+        view.appendChild(el('<p class="hint">Ningún prospecto en curso ahora mismo.</p>'));
+      } else {
+        var tira = el('<div class="tira"></div>');
+        var leyenda = el('<div class="tira-lg"></div>');
+        etapas.forEach(function (e) {
+          if (e.n) {
+            var seg = el('<button class="tira-s" style="flex:' + e.n + ';background:' + e.col +
+              '" title="' + esc(e.lbl + ': ' + e.n) + '" aria-label="' + esc(e.lbl + ': ' + e.n) + '"></button>');
+            seg.onclick = function () { SF._capEstado = e.st; location.hash = '#/captacion'; };
+            tira.appendChild(seg);
+          }
+          var lb = el('<button><span class="pt" style="background:' + e.col + '"></span>' +
+            '<b>' + e.n + '</b> ' + esc(e.lbl.toLowerCase()) + '</button>');
+          lb.onclick = function () { SF._capEstado = e.st; location.hash = '#/captacion'; };
+          leyenda.appendChild(lb);
+        });
+        view.appendChild(tira);
+        view.appendChild(leyenda);
+      }
     }
 
     /* --- Dos columnas: lo que hay que resolver, y lo que viene --- */
@@ -8075,28 +8276,105 @@ window.SF = window.SF || {};
       });
       sinMed.forEach(function (p) { bruto.push({ p: p, d: 'Sin altura o peso', t: 'gray', tt: 'Medidas', tab: 'deportivo' }); });
     } else {
-      venc.forEach(function (p) { bruto.push({ p: p, d: 'Cuota vencida', t: 'danger', tt: 'Pago', tab: 'finanzas' }); });
-      incom.forEach(function (p) { bruto.push({ p: p, d: 'Faltan datos clave', t: 'warn', tt: 'Incompleto' }); });
-      enti.forEach(function (p) { bruto.push({ p: p, d: 'Entrevista pendiente', t: 'purple', tt: 'Agenda' }); });
-      if (r.canEditPhysical) sinMed.forEach(function (p) { bruto.push({ p: p, d: 'Sin altura o peso', t: 'gray', tt: 'Medidas' }); });
+      /* El orden de estos cuatro ES la prioridad: el primero que aparece por
+         jugador es el que se muestra. El dinero antes que los papeles, y los
+         papeles antes que las medidas. */
+      venc.forEach(function (p) { bruto.push({ g: 'pagos', p: p, d: 'Cuota vencida', t: 'danger', tt: 'Pago', tab: 'finanzas' }); });
+      incom.forEach(function (p) { bruto.push({ g: 'datos', p: p, d: 'Faltan datos clave', t: 'warn', tt: 'Incompleto' }); });
+      enti.forEach(function (p) { bruto.push({ g: 'entrevistas', p: p, d: 'Entrevista pendiente', t: 'purple', tt: 'Agenda', tab: 'captacion' }); });
+      if (r.canEvaluate) sinEval.forEach(function (p) { bruto.push({ g: 'evaluar', p: p, d: 'Sin ninguna evaluación', t: 'gray', tt: 'Evaluar', tab: 'deportivo' }); });
+      if (r.canEditPhysical) sinMed.forEach(function (p) { bruto.push({ g: 'medidas', p: p, d: 'Sin altura o peso', t: 'gray', tt: 'Medidas', tab: 'deportivo' }); });
     }
 
-    var porJug = {}, items = [];
-    bruto.forEach(function (x) {                      // el primero que llega es el más urgente
-      if (porJug[x.p.id]) { porJug[x.p.id].mas++; return; }
-      x.mas = 0; porJug[x.p.id] = x; items.push(x);
-    });
+    /* LOS NÚMEROS SON LOS FILTROS DE ESTA LISTA, no cuatro tarjetas aparte.
+       Antes pulsar "33 datos incompletos" te sacaba a Jugadores; y "8 sin
+       evaluar" te sacaba a Jugadores SIN filtrar nada, porque no había
+       consulta para eso: veías los 277 y te las apañabas. Ahora el filtro pasa
+       aquí mismo y la fila lleva a la pestaña donde se arregla. */
+    var GRUPOS = [
+      { k: 'pagos', l: 'Pagos', ver: r.canSeeFinance },
+      { k: 'datos', l: 'Datos' },
+      { k: 'entrevistas', l: 'Entrevistas' },
+      { k: 'evaluar', l: 'Sin evaluar', ver: r.canEvaluate },
+      { k: 'medidas', l: 'Medidas', ver: r.canEditPhysical }
+    ].filter(function (g) { return g.ver !== false && bruto.some(function (x) { return x.g === g.k; }); });
 
-    items.slice(0, 7).forEach(function (it) {
-      var b = el('<button class="at-item"><div class="av av-purple">' + U.initials(it.p.full_name) + '</div>' +
-        '<div class="at-body"><p class="at-name">' + esc(it.p.full_name) + '</p><p class="at-desc">' + esc(it.d) +
-        (it.mas ? ' · y ' + it.mas + (it.mas === 1 ? ' cosa más' : ' cosas más') : '') + '</p></div>' +
-        '<span class="tag tag-' + it.t + '">' + it.tt + '</span></button>');
-      b.onclick = function () { if (it.tab) SF._openTab = it.tab; location.hash = '#/jugador/' + it.p.id; };
-      list.appendChild(b);
-    });
-    if (items.length > 7) list.appendChild(el('<p class="hint" style="padding-top:10px">y ' + (items.length - 7) + ' jugadores más.</p>'));
-    if (!items.length) list.appendChild(el('<div class="at-empty">' + ico('check') + '<span>Nada pendiente. Buen momento para adelantar trabajo.</span></div>'));
+    function colapsa(lista) {
+      var vistos = {}, out = [];
+      lista.forEach(function (x) {                    // el primero que llega es el más urgente
+        if (vistos[x.p.id]) { vistos[x.p.id].mas++; return; }
+        var y = Object.assign({}, x, { mas: 0 });
+        vistos[x.p.id] = y; out.push(y);
+      });
+      return out;
+    }
+
+    var TOPE = 7;
+    var chips = null;
+    if (!esSalud && GRUPOS.length > 1) {
+      chips = el('<div class="bnd-chips"></div>');
+      att.querySelector('.hint').insertAdjacentElement('afterend', chips);
+    }
+
+    function pintaBandeja() {
+      var sel = SF._inicioFiltro;
+      if (sel && !GRUPOS.some(function (g) { return g.k === sel; })) sel = null;
+      var todos = colapsa(bruto);
+      var items = sel ? colapsa(bruto.filter(function (x) { return x.g === sel; })) : todos;
+
+      if (chips) {
+        chips.innerHTML = '';
+        var bT = el('<button class="bnd-c' + (sel ? '' : ' on') + '">Todo <i>' + todos.length + '</i></button>');
+        bT.onclick = function () { SF._inicioFiltro = null; pintaBandeja(); };
+        chips.appendChild(bT);
+        GRUPOS.forEach(function (g) {
+          var n = colapsa(bruto.filter(function (x) { return x.g === g.k; })).length;
+          var b = el('<button class="bnd-c' + (sel === g.k ? ' on' : '') + (n ? '' : ' cero') + '">' +
+            esc(g.l) + ' <i>' + n + '</i></button>');
+          b.onclick = function () { SF._inicioFiltro = (sel === g.k ? null : g.k); pintaBandeja(); };
+          chips.appendChild(b);
+        });
+      }
+
+      list.innerHTML = '';
+      if (!items.length) {
+        list.appendChild(el('<div class="at-empty">' + ico('check') + '<span>' +
+          (sel ? 'Nada pendiente en este apartado.' : 'Nada pendiente. Buen momento para adelantar trabajo.') +
+          '</span></div>'));
+        return;
+      }
+      items.slice(0, TOPE).forEach(function (it) {
+        var b = el('<button class="at-item"><div class="av av-purple">' + U.initials(it.p.full_name) + '</div>' +
+          '<div class="at-body"><p class="at-name">' + esc(it.p.full_name) + '</p><p class="at-desc">' + esc(it.d) +
+          (it.mas ? ' · y ' + it.mas + (it.mas === 1 ? ' cosa más' : ' cosas más') : '') + '</p></div>' +
+          '<span class="tag tag-' + it.t + '">' + it.tt + '</span></button>');
+        b.onclick = function () { if (it.tab) SF._openTab = it.tab; location.hash = '#/jugador/' + it.p.id; };
+        list.appendChild(b);
+      });
+      if (items.length > TOPE) {
+        var mas = el('<button class="lnk" style="margin-top:10px">Ver los ' + items.length + ' en Jugadores</button>');
+        mas.onclick = function () {
+          /* Se pasa el filtro a Jugadores para no perderlo por el camino: ir de
+             una lista filtrada a otra sin filtrar es empezar de cero. */
+          var Q = { pagos: '@Pagos vencidos', datos: '@Datos incompletos',
+            entrevistas: '@Entrevistas', video: '@Pendiente de vídeo' };
+          if (sel && Q[sel]) { SF._jugQuery = Q[sel]; location.hash = '#/jugadores'; return; }
+          /* "Sin evaluar" y "Sin medidas" NO tienen consulta en Jugadores: el
+             buscador sí las entiende como condiciones, así que van allí. Antes
+             te dejaban en la lista completa de 277 y a apañártelas. */
+          var C = { evaluar: 'sin evaluar', medidas: 'sin medidas' };
+          if (sel && C[sel]) {
+            SF._q = C[sel];
+            var caja = document.getElementById('gsearch');
+            if (caja) caja.value = C[sel];
+            location.hash = '#/buscar'; return;
+          }
+          location.hash = '#/jugadores';
+        };
+        list.appendChild(mas);
+      }
+    }
+    pintaBandeja();
     cols.appendChild(att);
 
     var lado = el('<div></div>');
@@ -8118,8 +8396,13 @@ window.SF = window.SF || {};
     var ag = el('<div class="card"><h3>Lo que viene</h3><p class="hint">Próximos partidos y entrenamientos.</p></div>');
     var esCuadrantes = r.nav.indexOf('horarios') >= 0 && !esSalud;
     if (esCuadrantes) {
-      ag.querySelector('h3').textContent = 'Cuadrantes';
-      ag.querySelector('.hint').textContent = 'Quién tiene pista y quién hace preparación física.';
+      /* NO se llama "Cuadrantes": el desplegable del final de la página ya se
+         llama así, con el mismo subtítulo, y la misma cosa dicha dos veces en
+         una pantalla es la pantalla diciendo que no sabe lo que enseña. Esta
+         tarjeta no ES el cuadrante, es la puerta al cuadrante más los partidos
+         del finde, así que se llama por lo que trae. */
+      ag.querySelector('h3').textContent = 'Esta semana';
+      ag.querySelector('.hint').textContent = 'Los cuadrantes, y los partidos del sábado y el domingo.';
     }
 
     /* --- Resumen de los siete días, para quien lleva varios equipos ---
@@ -8244,6 +8527,31 @@ window.SF = window.SF || {};
         cont.appendChild(row);
       });
       lado.appendChild(ags);
+    } else if (SF.store.role().indexOf('dt_') === 0) {
+      /* Lo unico que la direccion tecnica tenia y el Inicio general no: sus
+         equipos y cuando juega cada uno. */
+      var misT = SF.store.teams().filter(function (t) {
+        return r.segments === 'all' || !r.segments || r.segments.indexOf(t.segment) >= 0;
+      });
+      var tc = el('<div class="card"><h3>Tus equipos</h3><p class="hint">' + misT.length +
+        (misT.length === 1 ? ' equipo en tu ámbito.' : ' equipos en tu ámbito.') + '</p><div class="mini-list"></div></div>');
+      var tl2 = tc.querySelector('.mini-list');
+      if (!misT.length) tl2.appendChild(el('<p class="hint">Sin equipos en tu ámbito.</p>'));
+      SF.ordenaEquipos(misT.slice()).slice(0, 8).forEach(function (t) {
+        var n = SF.store.players().filter(function (x) { return x.team_id === t.id; }).length;
+        var nt = teamUpcoming(t, 'entrenamiento')[0], nm = teamUpcoming(t, 'partido')[0];
+        var nx = nm ? 'partido ' + fmtDate(nm.date) : nt ? 'entreno ' + fmtDate(nt.date) : 'sin citas';
+        var row = el('<div class="mini-row"><span><b>' + esc(t.name) + '</b><br><span class="hint">' +
+          n + ' jugadores</span></span><span class="hint">' + esc(nx) + '</span></div>');
+        row.onclick = function () { location.hash = '#/equipo/' + t.id; };
+        tl2.appendChild(row);
+      });
+      if (misT.length > 8) {
+        var vt = el('<button class="lnk" style="margin-top:10px">Ver los ' + misT.length + ' en Equipos</button>');
+        vt.onclick = function () { location.hash = '#/equipos'; };
+        tc.appendChild(vt);
+      }
+      lado.appendChild(tc);
     } else {
       var rec = el('<div class="card"><h3>Últimos jugadores</h3><p class="hint">Recién añadidos.</p><div class="rec-list"></div></div>');
       mios.slice(0, 4).forEach(function (p) {
@@ -8411,7 +8719,10 @@ window.SF = window.SF || {};
     var out = el('<div id="jug-out"></div>'); view.appendChild(out);
 
     // aplicar query global (desde KPI o buscador)
-    var qmap = { '@Pagos vencidos': function (p) { return SF.finHas(p, 'vencido'); }, '@Datos incompletos': function (p) { return p.status === 'Datos incompletos'; }, '@Pendiente de vídeo': function (p) { return p.documents.video_highlights === 'pendiente'; }, '@Entrevistas': function (p) { return p.status === 'Entrevista'; } };
+    /* '@Pagos pendientes' es nueva: la caja de Administracion tenia una cifra
+       de pendiente y no habia forma de ver de QUIEN era. Vencido es lo que ya
+       pasó de fecha; pendiente es todo lo que se debe, haya vencido o no. */
+    var qmap = { '@Pagos vencidos': function (p) { return SF.finHas(p, 'vencido'); }, '@Pagos pendientes': function (p) { var t = SF.finTotals(p); return (t.pending + t.overdue) > 0; }, '@Datos incompletos': function (p) { return p.status === 'Datos incompletos'; }, '@Pendiente de vídeo': function (p) { return p.documents.video_highlights === 'pendiente'; }, '@Entrevistas': function (p) { return p.status === 'Entrevista'; } };
     var gq = SF._jugQuery || ''; SF._jugQuery = null;
     var preFilter = qmap[gq] || null;
     if (gq && !preFilter) bar.querySelector('#q').value = gq;
@@ -8543,7 +8854,7 @@ window.SF = window.SF || {};
     var cita = SF.nextInterview(p), citaTarde = SF.overdueInterview(p);
     if (cita || citaTarde) {
       var c = cita || citaTarde;
-      var hoyF = new Date().toISOString().slice(0, 10);
+      var hoyF = SF.hoyISO();
       var esHoy = c.date === hoyF;
       var bCita = el('<button class="tag-lnk"><span class="tag ' + (citaTarde && !cita ? 'tag-warn' : esHoy ? 'tag-purple' : 'tag-info') + '">' +
         ico('cal') + (esHoy ? 'Entrevista HOY' : 'Entrevista ' + fmtDate(c.date)) + (c.time ? ' · ' + esc(c.time) : '') +
@@ -8936,7 +9247,7 @@ window.SF = window.SF || {};
                 hint: 'Importa: si cambiáis de método a mitad de temporada, los números dejan de ser comparables' }
             ], p, function (d) {
               var u = SF.store.currentUser();
-              var hoy = new Date().toISOString().slice(0, 10);
+              var hoy = SF.hoyISO();
               var entry = Object.assign({ by: u.name, role: u.label, date: hoy, season: SF.seasonOf(hoy) }, d);
               var newLog = (p.measure_log || []).slice(); newLog.push(entry);
               SF.store.update(p.id, Object.assign({}, d, { measure_log: newLog }));
@@ -9046,7 +9357,7 @@ window.SF = window.SF || {};
               /* Se guarda la escala con la que se puntuó. Sin esto, si mañana
                  cambia la escala no hay forma de saber si un 5 era "la mitad"
                  o "el máximo": es justo lo que nos pasó al pasar de 5 a 10. */
-              var hoy = new Date().toISOString().slice(0, 10);
+              var hoy = SF.hoyISO();
               var temp = SF.seasonOf(hoy);
               /* Una entrada por temporada. Si ya hay evaluación de esta
                  temporada se corrige esa; si no, nace una nueva y la del año
@@ -9318,7 +9629,7 @@ window.SF = window.SF || {};
               var bt = el('<button class="lnk">' + (d.delivered ? 'Marcar pendiente' : 'Marcar entregado') + '</button>');
               bt.onclick = function () {
                 var l = docs.slice();
-                l[i] = Object.assign({}, d, { delivered: !d.delivered, delivered_at: d.delivered ? '' : new Date().toISOString().slice(0, 10) });
+                l[i] = Object.assign({}, d, { delivered: !d.delivered, delivered_at: d.delivered ? '' : SF.hoyISO() });
                 guardar(l, 'Actualizado');
               };
               if (d.apostilla) {
@@ -9547,7 +9858,7 @@ window.SF = window.SF || {};
         var prox = SF.interviews(p).filter(function (e) { return !e.done; })
           .sort(function (a, b) { return (a.date || '').localeCompare(b.date || ''); });
         var hechas = SF.pastInterviews(p);
-        var hoyS = new Date().toISOString().slice(0, 10);
+        var hoyS = SF.hoyISO();
 
         if (!prox.length && !hechas.length) body.appendChild(el('<p class="hint">Todavía no hay ninguna entrevista.</p>'));
 
@@ -9647,7 +9958,7 @@ window.SF = window.SF || {};
                 { name: 'done', label: '¿Completado?', type: 'select', options: ['Sí', 'No'] },
                 { name: 'date', label: 'Fecha', type: 'date' },
                 { name: 'note', label: 'Anotación', type: 'textarea' }
-              ], { done: done ? 'Sí' : 'No', date: st.date || new Date().toISOString().slice(0, 10), note: st.note || '' }, function (d) {
+              ], { done: done ? 'Sí' : 'No', date: st.date || SF.hoyISO(), note: st.note || '' }, function (d) {
                 var t2 = JSON.parse(JSON.stringify(p.tracking || { steps: {}, log: [] })); if (!t2.steps) t2.steps = {};
                 t2.steps[s] = { done: d.done === 'Sí', date: d.date, by: SF.store.currentUser().name, note: d.note };
                 SF.store.update(p.id, { tracking: t2 }); p = SF.store.get(p.id); U.toast('Hito actualizado'); paint();
@@ -9671,7 +9982,7 @@ window.SF = window.SF || {};
           comp.querySelector('#ta').onclick = function () {
             var txt = comp.querySelector('#tn').value.trim(); if (!txt) return;
             var t2 = JSON.parse(JSON.stringify(p.tracking || { steps: {}, log: [] })); if (!t2.log) t2.log = [];
-            t2.log.push({ date: new Date().toISOString().slice(0, 10), by: SF.store.currentUser().name, text: txt });
+            t2.log.push({ date: SF.hoyISO(), by: SF.store.currentUser().name, text: txt });
             SF.store.update(p.id, { tracking: t2 }); p = SF.store.get(p.id); U.toast('Anotación añadida'); paint();
           };
         }
@@ -10135,7 +10446,7 @@ window.SF = window.SF || {};
     var r = role();
     var yo = SF.store.staffMe();
     var mios = scopedPlayers();
-    var hoy = new Date().toISOString().slice(0, 10);
+    var hoy = SF.hoyISO();
 
     var acciones = '<button class="btn btn-primary" id="a-ojeo">' + ico('plus') + 'Nuevo ojeo</button>' +
       '<button class="btn" id="a-viaje">' + ico('cal') + 'Viaje o torneo</button>';
@@ -10528,7 +10839,7 @@ window.SF = window.SF || {};
     var r = role();
     view.innerHTML = head('Captación', 'De prospecto a jugador. Solo quien todavía no tiene equipo: al asignárselo, sale del tablero.');
     var ps = scopedPlayers().filter(SF.esProspecto);
-    var hoy = new Date().toISOString().slice(0, 10);
+    var hoy = SF.hoyISO();
 
     /* Lo que hay que atender hoy, antes del tablero: una entrevista que se
        pasó de fecha sin cerrar es lo más fácil de perder de vista. */
@@ -10550,9 +10861,18 @@ window.SF = window.SF || {};
     }
 
     var board = el('<div class="board"></div>');
+    var focoEtapa = SF._capEstado; SF._capEstado = null;
     SF.PIPELINE.forEach(function (stage) {
       var enEtapa = ps.filter(function (p) { return p.status === stage; });
-      var col = el('<div class="bcol"><div class="bcol-head">' + esc(stage) + ' <span>' + enEtapa.length + '</span></div><div class="bcol-body"></div></div>');
+      /* Si se ha llegado pulsando un tramo de la tira del Inicio, esa columna
+         se marca y se sube a ella. Los seis tramos iban antes al mismo sitio:
+         pulsar "Oferta" y pulsar "Nuevo" hacían lo mismo, así que el tablero
+         se abría por el principio y había que buscar la etapa a mano. */
+      var esFoco = focoEtapa === stage;
+      var col = el('<div class="bcol' + (esFoco ? ' bcol-foco' : '') + '"><div class="bcol-head">' + esc(stage) + ' <span>' + enEtapa.length + '</span></div><div class="bcol-body"></div></div>');
+      if (esFoco) setTimeout(function () {
+        try { col.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' }); } catch (e) {}
+      }, 80);
       var bd = col.querySelector('.bcol-body');
 
       if (!enEtapa.length) bd.appendChild(el('<p class="bcol-vacio">Nadie aquí</p>'));
@@ -10768,7 +11088,7 @@ window.SF = window.SF || {};
               '\n\n' + SF.DOC_FORMATO +
               '\n\nPuedes enviarlo por correo a secretaría o entregarlo en el club. Lo marcamos al recibirlo.'
       }, [p.id]);
-      SF.store.update(p.id, { doc_reminder_at: new Date().toISOString().slice(0, 10) });
+      SF.store.update(p.id, { doc_reminder_at: SF.hoyISO() });
       return true;
     }
 
@@ -10787,7 +11107,7 @@ window.SF = window.SF || {};
               '\n\nSi ya lo has entregado, avisa a administración y lo revisamos.'
       }, [{ staff_id: s.id, team_id: null }]);
 
-      SF.store.staffUpdate(s.id, { doc_reminder_at: new Date().toISOString().slice(0, 10) },
+      SF.store.staffUpdate(s.id, { doc_reminder_at: SF.hoyISO() },
         'Recordatorio de documentación enviado: ' + pend.map(function (d) { return d.label; }).join(', '));
       return true;
     }
@@ -13917,7 +14237,7 @@ window.SF = window.SF || {};
         'equipo, o quien cubre a la coordinación una semana. <b>Suma</b> sobre lo que da su rol —nunca quita—, ' +
         '<b>caduca sola</b> y queda escrito por qué.</p>'));
       var todos = SF.store.userPerms().filter(function (x) { return !x.revoked_at; });
-      var hoy = new Date().toISOString().slice(0, 10);
+      var hoy = SF.hoyISO();
       var l = el('<div class="mini-list"></div>');
       SF.store.staff().forEach(function (s) {
         var suyos = todos.filter(function (x) { return x.staff_id === s.id && x.until >= hoy; });
@@ -13938,7 +14258,7 @@ window.SF = window.SF || {};
     }
 
     function abrirPersona(s) {
-      var hoy = new Date().toISOString().slice(0, 10);
+      var hoy = SF.hoyISO();
       var suyos = SF.store.userPerms().filter(function (x) {
         return x.staff_id === s.id && !x.revoked_at && x.until >= hoy;
       });
@@ -14019,7 +14339,7 @@ window.SF = window.SF || {};
        día, probablemente por teléfono y con prisa. */
     function pintaMapa() {
       var todos = SF.store.userPerms().filter(function (x) { return !x.revoked_at; });
-      var hoy = new Date().toISOString().slice(0, 10);
+      var hoy = SF.hoyISO();
       view.appendChild(el('<p class="sec-label">Secciones</p>'));
       var s1 = el('<div class="mini-list"></div>');
       SF.SECCIONES_REPARTIBLES.forEach(function (sec) {
@@ -14386,7 +14706,7 @@ window.SF = window.SF || {};
       '<div class="frow"><label>Concepto</label><input id="c" placeholder="Escríbelo, ej.: compra en supermercado"></div>' +
       '<div class="frow"><label>Categoría</label><input id="cat" list="sf-catlist" placeholder="Ej.: Supermercado"><datalist id="sf-catlist">' + cats + '</datalist></div>' +
       '<div class="frow"><label>Importe (€)</label><input id="amt" type="number"></div>' +
-      '<div class="frow"><label>Fecha</label><input id="d" type="date" value="' + new Date().toISOString().slice(0, 10) + '"></div>' +
+      '<div class="frow"><label>Fecha</label><input id="d" type="date" value="' + SF.hoyISO() + '"></div>' +
       '<div class="frow"><label>Ticket / factura (foto, si procede)</label><input id="tk" type="file" accept="image/*,application/pdf" capture="environment"></div>' +
       '<div class="frow"><label>Nota (opcional)</label><input id="n"></div></div>');
     var prev = el('<div class="tk-prev"></div>'); f.appendChild(prev);
@@ -14429,7 +14749,7 @@ window.SF = window.SF || {};
     if (canManage) {
       var b;
       if ((b = row.querySelector('[data-ap]'))) b.onclick = function () { SF.store.expenseUpdate(e.id, { status: 'aprobado' }); U.toast('Aprobado. Aún no ha salido el dinero'); refresh(); };
-      if ((b = row.querySelector('[data-pay]'))) b.onclick = function () { SF.store.expenseUpdate(e.id, { status: 'pagado', paid_on: new Date().toISOString().slice(0, 10) }); U.toast('Pagado. Descontado de la caja'); refresh(); };
+      if ((b = row.querySelector('[data-pay]'))) b.onclick = function () { SF.store.expenseUpdate(e.id, { status: 'pagado', paid_on: SF.hoyISO() }); U.toast('Pagado. Descontado de la caja'); refresh(); };
       if ((b = row.querySelector('[data-un]'))) b.onclick = function () { SF.store.expenseUpdate(e.id, { status: e.status === 'pagado' ? 'aprobado' : 'pendiente', paid_on: '' }); refresh(); };
       if ((b = row.querySelector('[data-rm]'))) b.onclick = function () { SF.store.expenseRemove(e.id); refresh(); };
     }
@@ -14830,7 +15150,7 @@ window.SF = window.SF || {};
     b.appendChild(el('<p class="hint">' + esc(kit.pack_name || 'Pack deportivo') + (kit.pack_price ? ' · ' + kit.pack_price + ' €' : '') + ' · ' + (ko.status ? esc(ko.status) : 'sin pedido') + '</p>'));
     if (ko.sizes && Object.keys(ko.sizes).length) (kit.garments || []).forEach(function (g) { if (ko.sizes[g]) b.appendChild(el('<div class="ph-row"><span>' + esc(g) + '</span><span class="hint">Talla ' + esc(ko.sizes[g]) + '</span></div>')); });
     var kb = el('<button class="ph-btn pay full">' + (ko.status ? 'Modificar pedido de ropa' : 'Hacer pedido de ropa') + '</button>');
-    kb.onclick = function () { U.modal('Pedido de equipación', kitOrderForm(p, function (d) { SF.store.update(p.id, { kit_order: Object.assign({}, ko, d, { status: ko.status || 'pedido', requested_at: ko.requested_at || new Date().toISOString().slice(0, 10) }) }); U.toast('Pedido enviado al club'); SF.router.render(); })); };
+    kb.onclick = function () { U.modal('Pedido de equipación', kitOrderForm(p, function (d) { SF.store.update(p.id, { kit_order: Object.assign({}, ko, d, { status: ko.status || 'pedido', requested_at: ko.requested_at || SF.hoyISO() }) }); U.toast('Pedido enviado al club'); SF.router.render(); })); };
     b.appendChild(kb);
 
     b.appendChild(el('<p class="ph-sec">Datos bancarios</p>'));
@@ -15075,7 +15395,7 @@ window.SF = window.SF || {};
     function saveProfile(patch, action) {
       if (!isAdminRole() && lk.state === 'desbloqueada') {
         patch = Object.assign({}, patch, {
-          lock: { state: 'confirmada', confirmed_at: new Date().toISOString().slice(0, 10), confirmed_by: s.full_name }
+          lock: { state: 'confirmada', confirmed_at: SF.hoyISO(), confirmed_by: s.full_name }
         });
         action = (action || 'Cambio') + ' · la ficha se vuelve a bloquear';
       }
@@ -15101,7 +15421,7 @@ window.SF = window.SF || {};
         var bconf = el('<button class="btn btn-primary btn-sm">' + ico('shield') + 'Confirmar ficha y bloquear</button>');
         bconf.onclick = function () {
           if (!confirm('Al confirmar, la ficha queda bloqueada. Para cambiar algo tendrás que pedir autorización a administración. ¿Confirmas?')) return;
-          SF.store.staffUpdate(s.id, { lock: { state: 'confirmada', confirmed_at: new Date().toISOString().slice(0, 10), confirmed_by: s.full_name } }, 'Ficha confirmada y bloqueada por el interesado');
+          SF.store.staffUpdate(s.id, { lock: { state: 'confirmada', confirmed_at: SF.hoyISO(), confirmed_by: s.full_name } }, 'Ficha confirmada y bloqueada por el interesado');
           U.toast('Ficha confirmada'); SF.router.render();
         };
         lockBox.appendChild(bconf);
@@ -15126,7 +15446,7 @@ window.SF = window.SF || {};
         var bunl = el('<button class="btn btn-primary btn-sm">' + ico('shield') + (s.unlock_request ? 'Autorizar el cambio' : 'Desbloquear para edición') + '</button>');
         bunl.onclick = function () {
           SF.store.staffUpdate(s.id, {
-            lock: { state: 'desbloqueada', unlocked_at: new Date().toISOString().slice(0, 10), unlocked_by: SF.store.me().name, reason: (s.unlock_request || {}).reason || '' },
+            lock: { state: 'desbloqueada', unlocked_at: SF.hoyISO(), unlocked_by: SF.store.me().name, reason: (s.unlock_request || {}).reason || '' },
             unlock_request: null
           }, 'Autorizado un cambio' + ((s.unlock_request || {}).reason ? ': ' + s.unlock_request.reason : ''));
           U.toast('Ficha desbloqueada'); SF.router.render();
@@ -15185,7 +15505,7 @@ window.SF = window.SF || {};
             body: 'Hola ' + s.full_name.split(' ')[0] + ':\n\nPara poder estar habilitado esta temporada (' + SF.SEASON + ') falta esto:\n\n' + lista +
                   '\n\nSi ya lo has entregado, avisa a administración y lo revisamos.'
           }, [{ staff_id: s.id, team_id: null }]);
-          SF.store.staffUpdate(s.id, { doc_reminder_at: new Date().toISOString().slice(0, 10) },
+          SF.store.staffUpdate(s.id, { doc_reminder_at: SF.hoyISO() },
             'Recordatorio de documentación enviado: ' + pend.map(function (d) { return d.label; }).join(', '));
           U.toast('Recordatorio enviado a ' + s.full_name); SF.router.render();
         };
@@ -15222,7 +15542,7 @@ window.SF = window.SF || {};
       sec('Permisos particulares');
       var pl = el('<div class="mini-list"></div>');
       misPerm.forEach(function (x) {
-        var dias = Math.round((new Date(x.until) - new Date(new Date().toISOString().slice(0, 10))) / 86400000);
+        var dias = Math.round((new Date(x.until) - new Date(SF.hoyISO())) / 86400000);
         pl.appendChild(el('<div class="mini-row"><span><b>' + esc(SF.permLabel(x.perm)) + '</b><br>' +
           '<span class="hint">Hasta ' + fmtDate(x.until) + (dias <= 30 ? ' · <b>caduca en ' + dias + ' días</b>' : '') +
           ' · concedido por ' + esc(x.granted_by) + '<br><i>"' + esc(x.reason) + '"</i></span></span></div>'));
@@ -15932,7 +16252,7 @@ window.SF = window.SF || {};
   var SF_MON = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
   function fmtDate(d) { var x = new Date(d + 'T00:00:00'); if (isNaN(x.getTime())) return d; return SF_DOW[x.getDay()] + ' ' + x.getDate() + ' ' + SF_MON[x.getMonth()]; }
   function teamEventsSorted(t, type) { return (t.events || []).filter(function (e) { return !type || e.type === type; }).sort(function (a, b) { return (a.date + (a.time || '')).localeCompare(b.date + (b.time || '')); }); }
-  function teamUpcoming(t, type) { var today = new Date().toISOString().slice(0, 10); return teamEventsSorted(t, type).filter(function (e) { return e.date >= today; }); }
+  function teamUpcoming(t, type) { var today = SF.hoyISO(); return teamEventsSorted(t, type).filter(function (e) { return e.date >= today; }); }
   function eventDesc(ev) {
     if (ev.type === 'partido') return 'vs ' + esc(ev.opponent || 'rival') + ' · ' + fmtDate(ev.date) + (ev.time ? ' · ' + ev.time : '') + (ev.place ? ' · ' + esc(ev.place) : '') + (ev.competition ? ' · ' + esc(ev.competition) : '');
     return fmtDate(ev.date) + (ev.time ? ' · ' + ev.time : '') + (ev.place ? ' · ' + esc(ev.place) : '') + (ev.note ? ' · ' + esc(ev.note) : '');
@@ -16034,6 +16354,13 @@ window.SF = window.SF || {};
        entonces podria pasar lista del entrenamiento de pista, donde no
        estuvo. La asistencia diria que alguien vino a una sesion que el no
        vio. Cada uno pasa lista de lo que dirige. */
+    /* Salud (fisioterapeuta, psicologo) NO pasa lista de nada. Estan asignados
+       a equipos, asi que pasaban el filtro general de "lleva este equipo" y la
+       app les dejaba firmar la asistencia de un entrenamiento de pista en el
+       que no estuvieron. Una lista dice quien vino, y solo la puede decir quien
+       estaba delante del grupo. Su trabajo son las citas, no la asistencia. */
+    var rr = role();
+    if (rr.canSetAvailability && !rr.canSeeFinance && rk !== 'preparador_fisico' && rk !== 'coord_pf') return [];
     if (rk === 'coord_pf') return ses.filter(function (x) { return x.tipo === 'pf'; });
     if (rk === 'preparador_fisico') {
       var yo = SF.store.staffMe();
@@ -16128,11 +16455,22 @@ window.SF = window.SF || {};
     var rk = SF.store.role();
     var esPF = rk === 'preparador_fisico' || rk === 'coord_pf';
     if (!canManageThisTeam(t) && !esPF) return;
+    /* Y si de este equipo no hay NINGUNA sesion que este rol pueda pasar, no se
+       le pone el boton: ofrecer una accion que al abrirla dice "no tienes
+       nada" es prometer y no dar. Se mira el periodo de verdad, no una
+       capacidad teorica, porque un preparador asignado a un equipo que no
+       tiene preparacion fisica en el cuadrante tampoco tiene nada que pasar. */
+    var hoyB = SF.hoyISO();
+    var puede = sesionesQuePuedePasar(t, SF.sesionesEntre(t, SF.sumaDias(hoyB, -DIAS_LISTA), hoyB));
+    var hayReg = SF.store.asistenciasDe(t.id).length || (t.events || []).some(function (e) { return e.attendance; });
+    if (!puede.length && !hayReg) return;
     var pend = sesionesPendientes(t).length;
-    var b1 = el('<button class="btn btn-light btn-sm">' + ico('list') + 'Pasar lista' +
-      (pend ? '<span class="eq-n">' + pend + '</span>' : '') + '</button>');
-    b1.onclick = function () { modalPasarLista(t); };
-    fila.appendChild(b1);
+    if (puede.length) {
+      var b1 = el('<button class="btn btn-light btn-sm">' + ico('list') + 'Pasar lista' +
+        (pend ? '<span class="eq-n">' + pend + '</span>' : '') + '</button>');
+      b1.onclick = function () { modalPasarLista(t); };
+      fila.appendChild(b1);
+    }
     if (SF.store.asistenciasDe(t.id).length || (t.events || []).some(function (e) { return e.attendance; })) {
       var b2 = el('<button class="btn btn-light btn-sm">' + ico('grid') + 'Registro</button>');
       b2.onclick = function () { registroAsistencia(t); };
@@ -17830,7 +18168,7 @@ window.SF = window.SF || {};
           /* El consentimiento, con quién firmó y cuándo. Si algún día alguien
              pregunta "¿quién autorizó esta foto?", aquí está la respuesta. */
           inscripcion: {
-            fecha: new Date().toISOString().slice(0, 10),
+            fecha: SF.hoyISO(),
             firmado_por: D.firma_nombre, dni_firmante: D.firma_dni, relacion: D.fam_relation,
             consentimientos: Object.assign({}, D.consent),
             recogido_por: SF.store.currentUser().name
