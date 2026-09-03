@@ -19393,6 +19393,40 @@ SF.router = (function () {
       (n ? '<span class="bell-n">' + (n > 9 ? '9+' : n) + '</span>' : '') + '</button>';
   }
 
+  /* REPINTAR SOLO LA CAMPANA.
+     La campana se dibujaba dentro de `renderShell`, que solo se llama al
+     cargar la pagina, al cambiar de rol y en un par de sitios mas. Es decir:
+     el numero era una foto del momento en que se dibujo la barra, y no se
+     volvia a mirar. Si entraba un aviso mientras trabajabas, la campana no se
+     enteraba —ni cambiando de pantalla—, asi que avisaba de lo que habia hace
+     un rato. Una campana que no se actualiza no es una campana.
+
+     Esto recalcula el numero y lo pinta en el boton que ya esta puesto, sin
+     rehacer la barra lateral (que ademas perderia los grupos que el usuario
+     tenga plegados). */
+  function pintaCampana() {
+    var b = document.getElementById('bell');
+    if (!b) return;
+    var me = SF.store.staffMe();
+    var n = 0;
+    if (me) {
+      n = SF.store.commUnread(me.id);
+      SF.store.convsForStaff(me.id).forEach(function (c) {
+        if (!c.closed_at && SF.store.convSinLeer(c, me.id)) n++;
+      });
+    }
+    b.classList.toggle('has', !!n);
+    var t = n ? n + (n === 1 ? ' cosa sin leer' : ' cosas sin leer') : 'Sin avisos nuevos';
+    b.title = t;
+    b.setAttribute('aria-label', n ? n + ' sin leer' : 'Avisos');
+    var pun = b.querySelector('.bell-n');
+    if (n) {
+      if (!pun) { pun = document.createElement('span'); pun.className = 'bell-n'; b.appendChild(pun); }
+      pun.textContent = n > 9 ? '9+' : n;
+    } else if (pun) { pun.remove(); }
+  }
+  SF.pintaCampana = pintaCampana;
+
   function renderShell() {
     var r = SF.perms();   // rol + permisos particulares: si le dan una sección, sale en el menú
     var a = SF.store.academy();
@@ -19617,6 +19651,10 @@ SF.router = (function () {
     if (p.route === 'jugadores' && SF._jugQuery) { /* handled in page via closure variable */ }
     view.innerHTML = '';
     try { fn(view, p.param, p.route); } catch (e) { view.innerHTML = '<div class="empty-panel"><p>Error al pintar la sección.</p></div>'; console.error(e); }
+    /* Cada vez que se pinta una pantalla se vuelve a mirar el buzon. Es
+       barato —el almacen ya esta en memoria— y es el momento natural: si has
+       navegado, has tardado un rato, y en ese rato puede haber entrado algo. */
+    pintaCampana();
 
     document.querySelectorAll('.nav-item').forEach(function (b) { b.classList.toggle('active', b.dataset.key === navKey); });
     view.scrollTop = 0;
