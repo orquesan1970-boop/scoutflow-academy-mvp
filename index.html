@@ -118,6 +118,20 @@ textarea{resize:vertical;min-height:90px}
    mas capacidad: antes pulsar "33 datos incompletos" te sacaba de la pantalla;
    ahora filtra ahi mismo y puedes resolverlo sin irte. */
 
+/* Buscar dentro de Avisos: una caja de texto y un rango de fechas. */
+.av-buscar{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
+  padding:12px 14px;margin-bottom:18px}
+.av-b1{display:flex;gap:8px;align-items:center}
+.av-b1 input{flex:1;min-width:0;font-family:inherit;font-size:14px;padding:9px 12px;border-radius:10px;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+.av-b1 .btn{flex:0 0 auto}
+.btn.btn-on{border-color:var(--purple);color:var(--purple)}
+.av-b1 input:focus{outline:none;border-color:var(--purple-2)}
+.av-b2{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.av-b2 input[type=date]{font-family:inherit;font-size:13px;padding:6px 10px;border-radius:9px;
+  border:1px solid var(--line);background:var(--bg);color:var(--ink)}
+@media(max-width:600px){ .av-b2{gap:6px} .av-b2 input[type=date]{flex:1 1 40%} }
+
 /* HOY: lo urgente y los avisos del sistema, en una sola tira fina. */
 .hoy{display:flex;flex-direction:column;gap:1px;background:var(--line);border:1px solid var(--line);
   border-radius:var(--r-lg);overflow:hidden;margin-bottom:20px}
@@ -1858,6 +1872,17 @@ SF.seasonOf = function (dateStr) {
   var y = d.getFullYear();
   var ini = d.getMonth() >= 6 ? y : y - 1;      // julio (mes 6) abre temporada
   return ini + '/' + (ini + 1);
+};
+
+/* El primer dia de la temporada en curso. Julio abre temporada, igual que en
+   `seasonOf`: asi "todo el curso" en el buscador de avisos significa la
+   temporada de verdad y no "los ultimos doce meses", que en marzo se comeria
+   media temporada anterior. */
+SF.seasonStartISO = function (hoyISO) {
+  var d = hoyISO ? new Date(hoyISO + 'T00:00:00') : new Date();
+  if (isNaN(d)) d = new Date();
+  var y = d.getFullYear();
+  return (d.getMonth() >= 6 ? y : y - 1) + '-07-01';
 };
 
 /* Edad exacta en una fecha dada. Si solo hay año de nacimiento, se dice
@@ -6815,6 +6840,27 @@ SF.store = (function () {
     },
     convSinLeer: function (c, quien) {
       return (c.messages || []).filter(function (m) { return (m.read_by || []).indexOf(quien) < 0; }).length;
+    },
+
+    /* TUYO o SUPERVISADO. Un solo sitio decide esto, porque de ello dependen
+       la campana, el orden de la lista y lo que se puede archivar: si cada
+       pantalla lo calculaba por su cuenta, tarde o temprano una decia una cosa
+       y otra la contraria. */
+    convEsMio: function (c, quien) {
+      var dest = c.to_staff_ids || (c.to_staff ? [c.to_staff] : []);
+      if (dest.indexOf(quien) >= 0) return true;
+      return !!(c.opened_by && c.opened_by.kind === 'staff' && c.opened_by.id === quien);
+    },
+    /* Lo que de verdad tiene que sonar: lo que va dirigido a ti. Lo que solo
+       supervisas se queda en Recibidos, pero no enciende la campana. Una
+       campana permanentemente en 9+ deja de avisar: quien la ve todos los dias
+       en rojo deja de mirarla, y entonces el aviso que SI era suyo se pierde
+       entre los treinta que no lo eran. */
+    convSinLeerMios: function (quien) {
+      var self = this;
+      return this.convsForStaff(quien).filter(function (c) {
+        return !c.closed_at && self.convEsMio(c, quien) && self.convSinLeer(c, quien);
+      }).length;
     },
 
     annRsvp: function (annId, playerId, value, by) {
@@ -18691,7 +18737,7 @@ window.SF = window.SF || {};
     SF._avisosZona = zona;
 
     var sinLeerTot = SF.store.commsForStaff(me.id).filter(function (x) { return !x.leido; }).length +
-      SF.store.convsForStaff(me.id).filter(function (c) { return !c.closed_at && SF.store.convSinLeer(c, me.id); }).length;
+      SF.store.convSinLeerMios(me.id);
 
     var fila = el('<div class="row-c eq-filtros"></div>');
     ZONAS.forEach(function (z) {
@@ -18737,62 +18783,233 @@ window.SF = window.SF || {};
     }).sort(function (x, y) { return (y.created_at || '').localeCompare(x.created_at || ''); });
   }
 
+  /* ---------- RECIBIDOS ----------
+     Tres problemas que arreglar aqui, todos del mismo sitio: el buzon crece.
+
+     1. LO TUYO PRIMERO. Un director ve tambien las conversaciones que solo
+        supervisa —administracion escribiendo a las familias por las cuotas—.
+        Mezcladas por fecha, las tres que van dirigidas a el quedan sepultadas
+        entre las treinta que no. Ahora son dos bloques y el suyo va arriba.
+     2. LO SUPERVISADO SE PUEDE ARCHIVAR. No se cierra el hilo: cerrar es una
+        decision que afecta a todos los que estan dentro. Se marca como visto,
+        que es personal, y desaparece de la vista de diario sin borrarse.
+     3. SE PUEDE BUSCAR. Una temporada son cientos de conversaciones, y
+        "recuperar lo que el entrenador le escribio a esa familia en octubre"
+        no se resuelve desplazandose. Se busca por texto, por persona, por
+        jugador y por fechas, y busca TAMBIEN en lo leido, lo archivado y lo
+        cerrado: si solo buscara en lo pendiente no serviria para lo unico
+        para lo que se usa un buscador de mensajes, que es mirar atras. */
+
+  function textoDeHilo(c) {
+    var p = c.player_id ? SF.store.get(c.player_id) : null;
+    var t = SF.store.teamGet(c.team_id);
+    return [c.subject, p ? p.full_name : '', t ? t.name : '',
+      (c.opened_by || {}).name, (c.opened_by || {}).role,
+      (c.messages || []).map(function (m) {
+        return [m.text, (m.by || {}).name, (m.by || {}).role].join(' ');
+      }).join(' ')].filter(Boolean).join(' ');
+  }
+  function textoDeComm(x) {
+    return [x.c.title, x.c.body, x.c.author, x.c.author_role].filter(Boolean).join(' ');
+  }
+  function fechaDeHilo(c) {
+    var u = c.messages[c.messages.length - 1];
+    return (u.at || c.created_at || '').slice(0, 10);
+  }
+
+  /* La barra de busqueda. Una caja de texto y dos fechas, mas cuatro atajos
+     para los periodos que se piden de verdad. Sin desplegables de estado ni de
+     tipo: quien busca un mensaje se acuerda de una palabra, de un nombre o de
+     por cuando fue, no de en que estado quedo. */
+  function barraBusquedaAvisos(repinta) {
+    var f = SF._avFiltro = SF._avFiltro || { q: '', desde: '', hasta: '' };
+    var caja = el('<div class="av-buscar"></div>');
+
+    var fila = el('<div class="av-b1"></div>');
+    var inp = el('<input type="search" id="avq" placeholder="Buscar por palabra, persona, jugador o equipo…" value="' + esc(f.q) + '">');
+    var tmr = null;
+    inp.oninput = function () {
+      clearTimeout(tmr);
+      var v = this.value;
+      tmr = setTimeout(function () { f.q = v.trim(); repinta(); }, 250);
+    };
+    fila.appendChild(inp);
+    /* Las fechas van plegadas. Casi siempre se busca por una palabra o por un
+       nombre; acotar por fechas es lo que se hace cuando eso no basta. Dos
+       campos de fecha desplegados a diario son media pantalla ocupada por algo
+       que se usa una vez de cada diez. */
+    var hayFechas = !!(f.desde || f.hasta);
+    var abFechas = SF._avFechas === true || hayFechas;
+    var bF = el('<button class="btn btn-light btn-sm' + (hayFechas ? ' btn-on' : '') + '">' + ico('cal') +
+      (hayFechas ? 'Fechas ·' : 'Fechas') + '</button>');
+    bF.onclick = function () { SF._avFechas = !abFechas; repinta(); };
+    fila.appendChild(bF);
+    caja.appendChild(fila);
+    if (!abFechas) {
+      if (f.q) {
+        var bl0 = el('<button class="lnk" style="margin-top:8px">Quitar la búsqueda</button>');
+        bl0.onclick = function () { SF._avFiltro = { q: '', desde: '', hasta: '' }; repinta(); };
+        caja.appendChild(bl0);
+      }
+      return caja;
+    }
+
+    var fila2 = el('<div class="av-b2"></div>');
+    fila2.appendChild(el('<span class="hint">Entre</span>'));
+    var d1 = el('<input type="date" value="' + esc(f.desde) + '" aria-label="Desde">');
+    var d2 = el('<input type="date" value="' + esc(f.hasta) + '" aria-label="Hasta">');
+    d1.onchange = function () { f.desde = this.value; repinta(); };
+    d2.onchange = function () { f.hasta = this.value; repinta(); };
+    fila2.appendChild(d1); fila2.appendChild(el('<span class="hint">y</span>')); fila2.appendChild(d2);
+
+    var hoy = SF.hoyISO();
+    [['Este mes', SF.sumaDias(hoy, -30)], ['3 meses', SF.sumaDias(hoy, -90)],
+     ['Todo el curso', SF.seasonStartISO(hoy)]
+    ].forEach(function (o) {
+      var b = el('<button class="eq-chip eq-chip-sm' + (f.desde === o[1] && !f.hasta ? ' on' : '') + '">' + esc(o[0]) + '</button>');
+      b.onclick = function () { f.desde = o[1]; f.hasta = ''; repinta(); };
+      fila2.appendChild(b);
+    });
+    if (f.q || f.desde || f.hasta) {
+      var bl = el('<button class="lnk">Quitar filtros</button>');
+      /* eslint-disable-line */
+      bl.onclick = function () { SF._avFiltro = { q: '', desde: '', hasta: '' }; repinta(); };
+      fila2.appendChild(bl);
+    }
+    caja.appendChild(fila2);
+    return caja;
+  }
+
+  function pasaFiltroAvisos(texto, fecha) {
+    var f = SF._avFiltro || {};
+    if (f.desde && fecha < f.desde) return false;
+    if (f.hasta && fecha > f.hasta) return false;
+    if (!f.q) return true;
+    /* Cada palabra por separado y sin acentos: "martin rios" encuentra
+       "Martín Ríos", y "cuota martin" encuentra el hilo aunque las dos
+       palabras esten lejos una de otra. */
+    var t = SF.norm(texto);
+    return SF.norm(f.q).split(/\s+/).filter(Boolean).every(function (w) { return t.indexOf(w) >= 0; });
+  }
+
+  function filaHilo(c, me, hl) {
+    var p = c.player_id ? SF.store.get(c.player_id) : null;
+    var ult = c.messages[c.messages.length - 1];
+    var nuevos = SF.store.convSinLeer(c, me.id);
+    var dIds = c.to_staff_ids || (c.to_staff ? [c.to_staff] : []);
+    var mio = SF.store.convEsMio(c, me.id);
+    var row = el('<div class="mini-row"><span><b>' + esc(c.subject) + '</b>' +
+      (nuevos ? ' <span class="tag tag-purple">' + nuevos + ' sin leer</span>' : '') +
+      (dIds.length > 1 ? ' <span class="tag tag-gray">a ' + dIds.length + '</span>' : '') +
+      (mio ? '' : ' <span class="tag tag-gray">supervisas</span>') +
+      (c.closed_at ? ' <span class="tag tag-green">cerrada</span>' : '') +
+      '<br><span class="hint">' + esc(ult.by.name) + ' · ' + esc(ult.by.role) +
+      (p ? ' · sobre ' + esc(p.full_name) : '') + ' · ' + fmtDate((ult.at || '').slice(0, 10)) +
+      '</span></span><span class="row-actions"></span></div>');
+    var acc = row.querySelector('.row-actions');
+    /* Archivar solo tiene sentido en lo que no es tuyo: lo tuyo se contesta
+       o se cierra, no se aparta. */
+    if (!mio && nuevos) {
+      var bv = el('<button class="lnk" style="margin-right:12px">Visto</button>');
+      bv.onclick = function () { SF.store.convMarkRead(c.id, me.id); SF.router.render(); };
+      acc.appendChild(bv);
+    }
+    var ba = el('<button class="lnk">Abrir</button>');
+    ba.onclick = function () { abrirHilo(c, me); };
+    acc.appendChild(ba);
+    hl.appendChild(row);
+  }
+
   function avisosRecibidos(view, me) {
+    var repinta = function () { SF.router.render(); };
+    view.appendChild(barraBusquedaAvisos(repinta));
+    var f = SF._avFiltro || {};
+    var buscando = !!(f.q || f.desde || f.hasta);
 
-    /* --- Conversaciones: primero, porque son lo que hay que CONTESTAR ---
-       Un aviso se lee y se olvida; una consulta de una familia esperando
-       respuesta es una deuda. Por eso van arriba. */
-    var hilos = SF.store.convsForStaff(me.id);
-    var pendientes = hilos.filter(function (c) { return !c.closed_at && SF.store.convSinLeer(c, me.id); });
+    var todos = SF.store.convsForStaff(me.id);
+    var visibles = todos.filter(function (c) { return pasaFiltroAvisos(textoDeHilo(c), fechaDeHilo(c)); });
 
-    view.appendChild(el('<p class="sec-label">Conversaciones' +
-      (pendientes.length ? ' · ' + pendientes.length + ' sin leer' : '') + '</p>'));
+    var mios = visibles.filter(function (c) { return SF.store.convEsMio(c, me.id); });
+    var sup = visibles.filter(function (c) { return !SF.store.convEsMio(c, me.id); });
+    var supNuevos = sup.filter(function (c) { return SF.store.convSinLeer(c, me.id); });
+    /* Buscando se enseña TODO lo que casa, tambien lo archivado: si no, buscar
+       una conversacion de hace dos meses no la encontraria nunca, que es justo
+       para lo que se busca. */
+    var verSupTodas = buscando || SF._avSupTodas === true;
+    var supVer = verSupTodas ? sup : supNuevos;
+
+    /* --- LO TUYO --- */
+    var pend = mios.filter(function (c) { return !c.closed_at && SF.store.convSinLeer(c, me.id); }).length;
+    view.appendChild(el('<p class="sec-label">Para ti' +
+      (pend ? ' · ' + pend + ' sin leer' : mios.length ? ' · ' + mios.length : '') + '</p>'));
 
     var bNuevo = el('<button class="btn btn-light btn-sm" style="margin-bottom:10px">' + ico('arrow') + 'Escribir a un compañero</button>');
     bNuevo.onclick = function () { nuevoHiloStaff(me); };
     view.appendChild(bNuevo);
 
-    if (!hilos.length) {
-      view.appendChild(el('<p class="hint">Aquí aparecerán las consultas de las familias y de tus compañeros. Nadie te ha escrito todavía.</p>'));
+    if (!mios.length) {
+      view.appendChild(el('<p class="hint">' + (buscando
+        ? 'Ninguna conversación tuya coincide con la búsqueda.'
+        : 'Aquí aparecerán las consultas de las familias y de tus compañeros dirigidas a ti. Nadie te ha escrito todavía.') + '</p>'));
     } else {
       var hl = el('<div class="mini-list" style="margin-bottom:18px"></div>');
-      hilos.forEach(function (c) {
-        var p = c.player_id ? SF.store.get(c.player_id) : null;
-        var ult = c.messages[c.messages.length - 1];
-        var nuevos = SF.store.convSinLeer(c, me.id);
-        var dIds = c.to_staff_ids || (c.to_staff ? [c.to_staff] : []);
-        var mio = dIds.indexOf(me.id) >= 0 || (c.opened_by && c.opened_by.id === me.id);
-        var row = el('<div class="mini-row"><span><b>' + esc(c.subject) + '</b>' +
-          (nuevos ? ' <span class="tag tag-purple">' + nuevos + ' sin leer</span>' : '') +
-          (dIds.length > 1 ? ' <span class="tag tag-gray">a ' + dIds.length + '</span>' : '') +
-          (mio ? '' : ' <span class="tag tag-gray">supervisas</span>') +
-          (c.closed_at ? ' <span class="tag tag-green">cerrada</span>' : '') +
-          '<br><span class="hint">' + esc(ult.by.name) + ' · ' + esc(ult.by.role) +
-          (p ? ' · sobre ' + esc(p.full_name) : '') + ' · ' + fmtDate((ult.at || '').slice(0, 10)) +
-          '</span></span><span class="row-actions"><button class="lnk" data-a>Abrir</button></span></div>');
-        row.querySelector('[data-a]').onclick = function () { abrirHilo(c, me); };
-        hl.appendChild(row);
-      });
+      mios.forEach(function (c) { filaHilo(c, me, hl); });
       view.appendChild(hl);
     }
 
-    view.appendChild(el('<p class="sec-label">Avisos del club</p>'));
+    /* --- LO QUE SUPERVISAS --- */
+    if (sup.length) {
+      view.appendChild(el('<p class="sec-label">Supervisas · ' + sup.length +
+        (supNuevos.length ? ' · ' + supNuevos.length + ' sin ver' : '') + '</p>'));
+      view.appendChild(el('<p class="hint" style="margin-top:-4px">Conversaciones de tu club que no van dirigidas a ti. No suenan en la campana. Están aquí por si un día hace falta ver cómo se habló con una familia.</p>'));
 
-    var lista = SF.store.commsForStaff(me.id);
+      var acc = el('<div class="row-c" style="margin-bottom:10px"></div>');
+      if (supNuevos.length > 1) {
+        var bt = el('<button class="btn btn-light btn-sm">' + ico('check') + 'Marcar las ' + supNuevos.length + ' como vistas</button>');
+        bt.onclick = function () {
+          supNuevos.forEach(function (c) { SF.store.convMarkRead(c.id, me.id); });
+          U.toast(supNuevos.length + ' conversaciones archivadas'); SF.router.render();
+        };
+        acc.appendChild(bt);
+      }
+      if (!buscando && sup.length > supNuevos.length) {
+        var bv = el('<button class="btn btn-light btn-sm">' + ico(verSupTodas ? 'check' : 'grid') +
+          (verSupTodas ? 'Ver solo las nuevas' : 'Ver también las ' + (sup.length - supNuevos.length) + ' vistas') + '</button>');
+        bv.onclick = function () { SF._avSupTodas = !verSupTodas; SF.router.render(); };
+        acc.appendChild(bv);
+      }
+      if (acc.children.length) view.appendChild(acc);
+
+      if (!supVer.length) {
+        view.appendChild(el('<p class="hint">Nada nuevo que supervisar.</p>'));
+      } else {
+        var hs = el('<div class="mini-list" style="margin-bottom:18px"></div>');
+        supVer.forEach(function (c) { filaHilo(c, me, hs); });
+        view.appendChild(hs);
+      }
+    }
+
+    /* --- AVISOS DEL CLUB --- */
+    var lista = SF.store.commsForStaff(me.id)
+      .filter(function (x) { return pasaFiltroAvisos(textoDeComm(x), (x.c.created_at || '').slice(0, 10)); });
     var sinLeer = lista.filter(function (x) { return !x.leido; }).length;
 
+    view.appendChild(el('<p class="sec-label">Avisos del club' + (lista.length ? ' · ' + lista.length : '') + '</p>'));
+
     if (!lista.length) {
-      view.appendChild(el('<p class="hint">No tienes avisos. Aquí te llegan las comunicaciones del club: documentación pendiente, cambios de horario y avisos de dirección.</p>'));
+      view.appendChild(el('<p class="hint">' + (buscando
+        ? 'Ningún aviso del club coincide con la búsqueda.'
+        : 'No tienes avisos. Aquí te llegan las comunicaciones del club: documentación pendiente, cambios de horario y avisos de dirección.') + '</p>'));
       return;
     }
 
     if (sinLeer) {
-      var bt = el('<button class="btn btn-light btn-sm" style="margin-bottom:12px">' + ico('check') + 'Marcar todo como leído</button>');
-      bt.onclick = function () {
+      var bt2 = el('<button class="btn btn-light btn-sm" style="margin-bottom:12px">' + ico('check') + 'Marcar todo como leído</button>');
+      bt2.onclick = function () {
         lista.forEach(function (x) { if (!x.leido) SF.store.commMarkRead(x.c.id, me.id); });
-        U.toast('Todo marcado como leído'); SF.router.render(); SF.router.renderShell();
+        U.toast('Todo marcado como leído'); SF.router.render();
       };
-      view.appendChild(bt);
+      view.appendChild(bt2);
     }
 
     lista.forEach(function (x) {
@@ -18806,15 +19023,13 @@ window.SF = window.SF || {};
       b.onclick = function () {
         if (!x.leido) SF.store.commMarkRead(c.id, me.id);
         var cuerpo = el('<div><p class="bz-body">' + esc(c.body) + '</p></div>');
-        /* Si el club pide que se traslade a las familias, lo dice aquí y
-           queda constancia de quién lo trasladó. */
         if (c.mode === 'reenviar' && x.team_id && !x.relayed) {
           var br = el('<button class="btn btn-primary btn-sm" style="margin-top:14px">Ya se lo he trasladado a las familias</button>');
           br.onclick = function () { SF.store.commMarkRelayed(c.id, me.id, x.team_id); U.closeModal(); U.toast('Anotado'); SF.router.render(); };
           cuerpo.appendChild(br);
         }
         U.modal(c.title, cuerpo);
-        SF.router.renderShell(); SF.router.render();
+        SF.router.render();
       };
       view.appendChild(b);
     });
@@ -19381,10 +19596,7 @@ SF.router = (function () {
        una familia no hiciera sonar la campana, se quedaría sin contestar. */
     var n = 0;
     if (me) {
-      n = SF.store.commUnread(me.id);
-      SF.store.convsForStaff(me.id).forEach(function (c) {
-        if (!c.closed_at && SF.store.convSinLeer(c, me.id)) n++;
-      });
+      n = SF.store.commUnread(me.id) + SF.store.convSinLeerMios(me.id);
     }
     return '<button class="bell' + (n ? ' has' : '') + '" id="bell" title="' +
       (n ? n + (n === 1 ? ' cosa sin leer' : ' cosas sin leer') : 'Sin avisos nuevos') + '" aria-label="' +
@@ -19410,10 +19622,7 @@ SF.router = (function () {
     var me = SF.store.staffMe();
     var n = 0;
     if (me) {
-      n = SF.store.commUnread(me.id);
-      SF.store.convsForStaff(me.id).forEach(function (c) {
-        if (!c.closed_at && SF.store.convSinLeer(c, me.id)) n++;
-      });
+      n = SF.store.commUnread(me.id) + SF.store.convSinLeerMios(me.id);
     }
     b.classList.toggle('has', !!n);
     var t = n ? n + (n === 1 ? ' cosa sin leer' : ' cosas sin leer') : 'Sin avisos nuevos';
