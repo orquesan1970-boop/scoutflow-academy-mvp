@@ -2729,11 +2729,31 @@ SF.diaSemanaDe = function (iso) {
   if (isNaN(d.getTime())) return null;
   return (d.getDay() + 6) % 7;
 };
-SF.hoyISO = function () { return new Date().toISOString().slice(0, 10); };
+/* LA FECHA, EN HORA LOCAL. Y esto no es una manía: `toISOString()` devuelve
+   SIEMPRE en UTC, y aquí estamos en UTC+2. `new Date('2026-09-03T00:00:00')`
+   es la medianoche de Madrid, que en UTC son las 22:00 del día ANTERIOR, así
+   que al pasarlo por `toISOString()` volvía el 2 de septiembre.
+
+   Sumarle un día devolvía otra vez el 3. El mismo día. Para siempre.
+
+   El bucle que expande el cuadrante avanza con esto, así que nunca llegaba al
+   final: la pestaña se quedaba colgada nada más entrar. Aquí, en un servidor
+   en UTC, funcionaba perfecto y pasó todas las pruebas; en España se colgaba
+   en cuanto un entrenador abría su equipo. Cualquier huso distinto de UTC lo
+   rompe, que son casi todos.
+
+   Se arma la fecha con las piezas LOCALES —año, mes, día— y no se pasa por
+   UTC en ningún momento. */
+function isoLocal(d) {
+  var dos = function (n) { return (n < 10 ? '0' : '') + n; };
+  return d.getFullYear() + '-' + dos(d.getMonth() + 1) + '-' + dos(d.getDate());
+}
+SF.hoyISO = function () { return isoLocal(new Date()); };
 SF.sumaDias = function (iso, n) {
   var d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
   d.setDate(d.getDate() + n);
-  return d.toISOString().slice(0, 10);
+  return isoLocal(d);
 };
 
 /* La clave de una sesion. Sale del equipo, el dia y la franja: no de un id
@@ -2775,7 +2795,14 @@ SF.sesionesEntre = function (team, desde, hasta) {
   });
 
   var out = [];
-  for (var f = desde; f <= hasta; f = SF.sumaDias(f, 1)) {
+  /* Tope de vueltas. Aunque `sumaDias` ya avanza bien, un bucle cuyo final
+     depende de una fecha no puede tener la posibilidad de no terminar: si
+     alguna vez vuelve a fallar, que devuelva de menos y se vea, y no que
+     cuelgue el navegador de un entrenador en el pabellón. Dos años de días es
+     mucho más de lo que se pide nunca. */
+  var vueltas = 0;
+  for (var f = desde; f <= hasta && vueltas < 800; f = SF.sumaDias(f, 1)) {
+    vueltas++;
     var ds = SF.diaSemanaDe(f);
     slots.forEach(function (sl) {
       if (sl.dia !== ds) return;
