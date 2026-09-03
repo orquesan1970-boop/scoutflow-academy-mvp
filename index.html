@@ -6844,6 +6844,26 @@ SF.store = (function () {
         })
         .sort(function (a, b) { return (b.messages[b.messages.length - 1].at).localeCompare(a.messages[a.messages.length - 1].at); });
     },
+    /* Las conversaciones de unos equipos, para el REGISTRO del club.
+       No sirve `convsForStaff` aqui: esa devuelve lo que te toca a TI —lo
+       dirigido a ti y aquello en lo que te apuntaron de supervisor al
+       crearlo—, y un archivo del club no puede depender de a quien se acordo
+       de apuntar quien abrio el hilo hace ocho meses. Aqui manda el ambito:
+       los equipos que diriges. Lo que NO cambia es la regla del dinero: un
+       hilo de cobros no se enseña a quien no puede ver finanzas, ni siquiera
+       en el registro. */
+    convsDeEquipos: function (teamIds, staffId) {
+      var yo = (db().staff || []).filter(function (x) { return x.id === staffId; })[0];
+      var rl = yo ? (SF.rolDe(yo.role) || {}) : {};
+      var vePasta = !!(rl.canSeeFinance || rl.canManageFinance);
+      return (db().convs || []).filter(function (c) {
+        if (SF.esHiloDeDinero(c) && !vePasta) return false;
+        if (!c.team_id) return true;                 // sin equipo: del club
+        return teamIds.indexOf(c.team_id) >= 0;
+      }).sort(function (a, b) {
+        return (b.messages[b.messages.length - 1].at).localeCompare(a.messages[a.messages.length - 1].at);
+      });
+    },
     convSinLeer: function (c, quien) {
       return (c.messages || []).filter(function (m) { return (m.read_by || []).indexOf(quien) < 0; }).length;
     },
@@ -18732,11 +18752,20 @@ window.SF = window.SF || {};
     if (SF._avisoEquipo) { SF._avisosZona = 'escribir'; }
 
     var misEq = equiposDeAvisos(me);
+    /* El Registro es solo para quien supervisa: direccion y direcciones
+       tecnicas. Un entrenador ya tiene en Enviados lo suyo, y darle un archivo
+       del club entero seria enseñarle conversaciones de equipos que no lleva. */
+    var superviso = role().canManageTeams;
     var ZONAS = [
       { k: 'recibidos', label: 'Recibidos' },
       { k: 'enviados',  label: 'Enviados' },
-      { k: 'escribir',  label: 'Escribir' }
-    ].filter(function (z) { return z.k !== 'escribir' || misEq.length; });
+      { k: 'escribir',  label: 'Escribir' },
+      { k: 'registro',  label: 'Registro' }
+    ].filter(function (z) {
+      if (z.k === 'escribir') return !!misEq.length;
+      if (z.k === 'registro') return superviso;
+      return true;
+    });
 
     var zona = SF._avisosZona;
     if (!ZONAS.some(function (z) { return z.k === zona; })) zona = 'recibidos';
@@ -18751,13 +18780,14 @@ window.SF = window.SF || {};
             : z.k === 'enviados' ? avisosEnviadosDe(me, misEq).length : null;
       var b = el('<button class="eq-chip' + (z.k === zona ? ' on' : '') + '">' + z.label +
         (n ? '<span class="eq-n">' + n + '</span>' : '') + '</button>');
-      b.onclick = function () { SF._avisosZona = z.k; SF.router.render(); };
+      b.onclick = function () { SF._avisosZona = z.k; SF._avFiltro = null; SF._regTipo = null; SF.router.render(); };
       fila.appendChild(b);
     });
     view.appendChild(fila);
 
     if (zona === 'enviados') return avisosEnviados(view, me, misEq);
     if (zona === 'escribir') return avisosEscribir(view, me, misEq);
+    if (zona === 'registro') return avisosRegistro(view, me, misEq);
     return avisosRecibidos(view, me);
   };
 
@@ -18767,9 +18797,19 @@ window.SF = window.SF || {};
   function equiposDeAvisos(me) {
     var r = role();
     var todos = SF.store.teams();
-    if (r.canManageTeams || !r.team_scope) return todos;
+    /* EL AMBITO MANDA, tambien para quien dirige. Esto devolvia TODOS los
+       equipos a cualquiera con `canManageTeams`, y eso incluye a las
+       direcciones tecnicas de una sola rama: la de femenino podia escribir a
+       un equipo masculino y ver sus avisos. Un director de rama dirige SU
+       rama; el club entero es del director general, que tiene segments 'all'
+       y por eso pasa este filtro sin quedarse fuera de nada. */
+    function delAmbito(t) {
+      return !r.segments || r.segments === 'all' || r.segments.indexOf(t.segment) >= 0;
+    }
+    if (r.canManageTeams || !r.team_scope) return todos.filter(delAmbito);
     var nombre = SF.store.currentUser().name;
     return todos.filter(function (t) {
+      if (!delAmbito(t)) return false;
       return ((me && me.team_ids) || []).indexOf(t.id) >= 0 || (t.coaches || []).indexOf(nombre) >= 0;
     });
   }
@@ -19141,6 +19181,184 @@ window.SF = window.SF || {};
       });
       view.appendChild(ml);
     });
+  }
+
+
+  /* ---------- REGISTRO ----------
+     Por que existe esta pantalla, con las palabras de Jorge: "el contexto de
+     buscar todas las comunicaciones y que queden grabadas es por si alguna vez
+     existiera un conflicto".
+
+     Ese uso NO es el del buzon. Al buzon se entra a diario a ver que hay
+     pendiente; aqui se entra un dia, con una fecha o un nombre en la cabeza, a
+     reconstruir que se dijo. Mezclarlos empeora los dos: el buzon se llena de
+     cosas viejas y la busqueda se pierde entre lo pendiente.
+
+     Lo que faltaba de verdad: los avisos que un entrenador manda a su equipo
+     —"cambio de horario del partido"— viven en `announcements`, que es un
+     sistema DISTINTO de las conversaciones. El buscador del buzon solo miraba
+     conversaciones y comunicados, asi que el director podia ver el aviso en
+     Enviados pero no encontrarlo buscando. Aqui esta todo junto: avisos a
+     equipos, conversaciones con familias y comunicados internos.
+
+     Tres reglas de un registro que sirva para lo que se pide:
+       1. NO SE BORRA. Un aviso retirado sigue aqui, marcado como retirado y
+          con la fecha. Que alguien mandara algo y luego lo quitara es
+          precisamente el dato que importa en un conflicto.
+       2. SE VE ENTERO. Cada linea se abre con el texto tal cual se mando, a
+          quien fue y quien lo abrio. Un registro que solo da titulares no
+          sirve de prueba de nada.
+       3. ALCANCE POR ROL. El director ve el club entero; una direccion
+          tecnica, sus equipos. No se enseña mas de lo que a cada uno le toca. */
+
+  function registroEntradas(me, misEq) {
+    var ids = misEq.map(function (t) { return t.id; });
+    var out = [];
+
+    /* 1. Avisos a equipos. Los retirados TAMBIEN. */
+    SF.store.announcements().forEach(function (a) {
+      if (a.team_id && ids.indexOf(a.team_id) < 0) return;
+      var t = a.team_id ? SF.store.teamGet(a.team_id) : null;
+      var dest = (a.targets || []).filter(function (x) { return x.to_player || x.to_family; });
+      var abiertos = dest.filter(function (x) { return x.read_player || x.read_family; }).length;
+      out.push({
+        tipo: 'aviso', fecha: (a.created_at || '').slice(0, 10),
+        titulo: a.title, quien: a.author || '', rol: a.author_role || '',
+        donde: t ? t.name : 'sin equipo',
+        a: a.audience === 'ambos' ? 'familias y jugadores' : (a.audience === 'jugadores' ? 'jugadores' : 'familias'),
+        cuantos: dest.length, abiertos: abiertos,
+        retirado: a.retracted_at ? (a.retracted_at || '').slice(0, 10) : null,
+        texto: [a.title, a.body, a.author, a.author_role, t ? t.name : ''].filter(Boolean).join(' '),
+        abrir: function () {
+          var roster = SF.store.players().filter(function (p) { return p.team_id === a.team_id; });
+          var box = el('<div></div>');
+          box.appendChild(el('<p class="hint">' + esc(a.author || '') + ' · ' + esc(a.author_role || '') +
+            ' · ' + fmtDate((a.created_at || '').slice(0, 10)) + (t ? ' · ' + esc(t.name) : '') + '</p>'));
+          if (a.retracted_at) box.appendChild(el('<p class="aviso-lin">Retirado el ' +
+            fmtDate((a.retracted_at || '').slice(0, 10)) + '. Las familias dejaron de verlo ese día, pero queda aquí porque se mandó.</p>'));
+          box.appendChild(el('<p class="bz-body">' + esc(a.body || '') + '</p>'));
+          box.appendChild(el('<p class="sec-label" style="margin-top:16px">Quién lo ha abierto</p>'));
+          box.appendChild(annResponses(a, roster));
+          U.modal(a.title, box);
+        }
+      });
+    });
+
+    /* 2. Conversaciones con familias y entre el staff, por AMBITO. */
+    SF.store.convsDeEquipos(ids, me.id).forEach(function (c) {
+      var p = c.player_id ? SF.store.get(c.player_id) : null;
+      var t = c.team_id ? SF.store.teamGet(c.team_id) : null;
+      out.push({
+        tipo: 'conversación', fecha: fechaDeHilo(c),
+        titulo: c.subject, quien: (c.opened_by || {}).name || '', rol: (c.opened_by || {}).role || '',
+        donde: p ? p.full_name : (t ? t.name : 'el club'),
+        a: (c.messages || []).length + (c.messages.length === 1 ? ' mensaje' : ' mensajes'),
+        cuantos: null, abiertos: null,
+        retirado: null,
+        texto: textoDeHilo(c),
+        abrir: function () { abrirHilo(c, me); }
+      });
+    });
+
+    /* 3. Comunicados internos del club, al personal. */
+    SF.store.comms().forEach(function (c) {
+      out.push({
+        tipo: 'comunicado', fecha: (c.created_at || '').slice(0, 10),
+        titulo: c.title, quien: c.author || '', rol: c.author_role || '',
+        donde: 'al personal',
+        a: (c.staff_targets || []).length + ' personas',
+        cuantos: (c.staff_targets || []).length,
+        abiertos: (c.staff_targets || []).filter(function (x) { return x.read_at; }).length,
+        retirado: null,
+        texto: [c.title, c.body, c.author, c.author_role].filter(Boolean).join(' '),
+        abrir: function () {
+          var box = el('<div></div>');
+          box.appendChild(el('<p class="hint">' + esc(c.author || '') + ' · ' + esc(c.author_role || '') +
+            ' · ' + fmtDate((c.created_at || '').slice(0, 10)) + '</p>'));
+          box.appendChild(el('<p class="bz-body">' + esc(c.body || '') + '</p>'));
+          U.modal(c.title, box);
+        }
+      });
+    });
+
+    return out.sort(function (x, y) { return (y.fecha || '').localeCompare(x.fecha || ''); });
+  }
+
+  function avisosRegistro(view, me, misEq) {
+    var res = el('<div></div>');
+    var pinta = function () { res.innerHTML = ''; pintaRegistro(res, me, misEq, pinta); };
+    view.appendChild(el('<p class="hint">Todo lo que el club ha comunicado: avisos a los equipos, conversaciones con las familias y comunicados internos. No se borra nada — si un aviso se retira, sigue aquí marcado como retirado.</p>'));
+    view.appendChild(barraBusquedaAvisos(pinta));
+    view.appendChild(res);
+    pintaRegistro(res, me, misEq, pinta);
+  }
+
+  function pintaRegistro(view, me, misEq, pinta) {
+    var f = SF._avFiltro || {};
+    var buscando = !!(f.q || f.desde || f.hasta);
+    var todo = registroEntradas(me, misEq);
+    var lista = todo.filter(function (x) { return pasaFiltroAvisos(x.texto, x.fecha); });
+
+    /* El tipo, como filtro, solo si hay de mas de uno: un filtro con una
+       opcion no filtra nada y ocupa una linea. */
+    var TIPOS = ['aviso', 'conversación', 'comunicado'].filter(function (k) {
+      return todo.some(function (x) { return x.tipo === k; });
+    });
+    var sel = SF._regTipo;
+    if (TIPOS.indexOf(sel) < 0) sel = null;
+    if (TIPOS.length > 1) {
+      var chips = el('<div class="bnd-chips"></div>');
+      var bT = el('<button class="bnd-c' + (sel ? '' : ' on') + '">Todo <i>' + lista.length + '</i></button>');
+      bT.onclick = function () { SF._regTipo = null; pinta(); };
+      chips.appendChild(bT);
+      TIPOS.forEach(function (k) {
+        var n = lista.filter(function (x) { return x.tipo === k; }).length;
+        var et = k === 'aviso' ? 'Avisos a equipos' : k === 'conversación' ? 'Conversaciones' : 'Comunicados';
+        var b = el('<button class="bnd-c' + (sel === k ? ' on' : '') + (n ? '' : ' cero') + '">' + et + ' <i>' + n + '</i></button>');
+        b.onclick = function () { SF._regTipo = (sel === k ? null : k); pinta(); };
+        chips.appendChild(b);
+      });
+      view.appendChild(chips);
+    }
+    if (sel) lista = lista.filter(function (x) { return x.tipo === sel; });
+
+    if (!lista.length) {
+      view.appendChild(el('<div class="empty-panel"><p>' + (buscando
+        ? 'Nada coincide con esta búsqueda.'
+        : 'Todavía no hay ninguna comunicación registrada.') + '</p></div>'));
+      return;
+    }
+
+    view.appendChild(el('<p class="sec-label">' + lista.length +
+      (lista.length === 1 ? ' comunicación' : ' comunicaciones') +
+      (buscando ? ' encontradas' : '') + '</p>'));
+
+    var TOPE = 60;
+    var porDia = {};
+    lista.slice(0, TOPE).forEach(function (x) { (porDia[x.fecha] = porDia[x.fecha] || []).push(x); });
+    Object.keys(porDia).sort().reverse().forEach(function (d) {
+      view.appendChild(el('<p class="sec-label">' + fmtDate(d) + '</p>'));
+      var ml = el('<div class="mini-list"></div>');
+      porDia[d].forEach(function (x) {
+        var tg = x.tipo === 'aviso' ? 'tag-purple' : x.tipo === 'conversación' ? 'tag-gray' : 'tag-green';
+        var fila = el('<div class="mini-row mr-wrap"><span><b>' + esc(x.titulo) + '</b> ' +
+          '<span class="tag ' + tg + '">' + esc(x.tipo) + '</span>' +
+          (x.retirado ? ' <span class="tag tag-danger">retirado el ' + fmtDate(x.retirado) + '</span>' : '') +
+          '<br><span class="hint">' + esc(x.quien) + (x.rol ? ' · ' + esc(x.rol) : '') +
+          ' · ' + esc(x.donde) + ' · a ' + esc(x.a) + '</span></span>' +
+          (x.cuantos ? '<span class="tag ' + (x.abiertos === x.cuantos ? 'tag-green' : 'tag-gray') + '">' +
+            x.abiertos + ' de ' + x.cuantos + ' abiertos</span>' : '') + '</div>');
+        var b = el('<button class="btn btn-sm">Ver</button>');
+        b.onclick = x.abrir;
+        fila.appendChild(b);
+        ml.appendChild(fila);
+      });
+      view.appendChild(ml);
+    });
+    if (lista.length > TOPE) {
+      view.appendChild(el('<p class="hint">Se muestran las ' + TOPE + ' más recientes de ' + lista.length +
+        '. Acota con el buscador o con las fechas para ver el resto.</p>'));
+    }
   }
 
   /* ---------- ESCRIBIR ----------
