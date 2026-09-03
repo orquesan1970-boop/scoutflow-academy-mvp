@@ -979,6 +979,14 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .ph-nota-av{background:#FDF3E3}
 .ph-sw-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .ph-consent.es-sensible{border-left:3px solid #E8A33D}
+/* El número de pendientes, dentro del botón. Es todo lo que queda fuera de la
+   pantalla de pasar lista: un número avisa igual que nueve filas naranjas y no
+   se come el sitio de lo que se viene a mirar. */
+.btn .eq-n{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;
+  margin-left:7px;padding:0 5px;border-radius:999px;background:var(--purple);color:#fff;
+  font-size:11px;font-weight:600;line-height:1}
+.btn-primary .eq-n{background:rgba(255,255,255,.24)}
+
 /* --- El registro de asistencia: sesiones en columnas, jugadores en filas --- */
 .reg-wrap{overflow-x:auto;margin-top:10px;border:1px solid var(--line);border-radius:10px}
 .reg{border-collapse:collapse;width:100%;font-size:13px}
@@ -7623,7 +7631,7 @@ window.SF = window.SF || {};
       var bo = el('<button class="btn btn-light btn-sm">' + ico('grid') + 'Abrir equipo</button>');
       bo.onclick = function () { location.hash = '#/equipo/' + t.id; };
       acts.appendChild(bw); acts.appendChild(bo); view.appendChild(acts);
-      bloquePasarLista(view, t);
+      botonesLista(t, acts);
     });
   }
 
@@ -16040,64 +16048,96 @@ window.SF = window.SF || {};
     return [];
   }
 
-  function bloquePasarLista(view, t) {
+  /* Las sesiones pendientes de este equipo, para quien las pueda pasar. */
+  function sesionesPendientes(t) {
     var hoy = SF.hoyISO();
-    var todas = SF.sesionesEntre(t, SF.sumaDias(hoy, -DIAS_LISTA), hoy);
-    var ses = sesionesQuePuedePasar(t, todas);
-    var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
-    var rk0 = SF.store.role();
-    var esPF = rk0 === 'preparador_fisico' || rk0 === 'coord_pf';
-    if (!canManageThisTeam(t) && !esPF) return;        // este rol no pasa lista
+    var ses = sesionesQuePuedePasar(t, SF.sesionesEntre(t, SF.sumaDias(hoy, -DIAS_LISTA), hoy));
+    return ses.filter(function (x) {
+      return !(x.evento ? (x.evento.attendance ? 1 : 0) : SF.store.asistenciaDe(x.clave));
+    });
+  }
 
-    var rkL = SF.store.role();
-    var soloPF = rkL === 'preparador_fisico' || rkL === 'coord_pf';
-    view.appendChild(el('<p class="sec-label">' + (soloPF ? 'Pasar lista · preparación física' : 'Pasar lista') + '</p>'));
+  /* PASAR LISTA, DENTRO DE UN BOTON.
+     Esto era una lista desplegada con las nueve sesiones de los ultimos diez
+     dias, cada una en su fila naranja. Tenia toda la informacion y no se podia
+     mirar: una pared de avisos deja de avisar, porque la vista se acostumbra y
+     empieza a saltarsela entera. Y encima empujaba hacia abajo la plantilla,
+     que es lo que uno viene a ver.
+
+     Ahora es lo mismo detras de un boton, y lo unico que se queda fuera es el
+     NUMERO: "Pasar lista · 8". Un numero en un boton avisa igual que nueve
+     filas y no ocupa la pantalla. */
+  function modalPasarLista(t) {
+    var hoy = SF.hoyISO();
+    var todas = sesionesQuePuedePasar(t, SF.sesionesEntre(t, SF.sumaDias(hoy, -DIAS_LISTA), hoy));
+    var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
+    var box = el('<div></div>');
+
     if (!roster.length) {
-      view.appendChild(el('<p class="hint">Este equipo todavía no tiene jugadores.</p>'));
-      return;
+      box.appendChild(el('<p class="hint">Este equipo todavía no tiene jugadores.</p>'));
+      U.modal('Pasar lista — ' + t.name, box); return;
     }
-    if (!ses.length) {
-      view.appendChild(el('<p class="hint">' + (soloPF
-        ? 'Este equipo no tiene sesiones tuyas de preparación física en el cuadrante de los últimos ' +
-          DIAS_LISTA + ' días. En cuanto estén en el cuadrante de PF, aparecen aquí solas.'
-        : 'No hay sesiones en los últimos ' + DIAS_LISTA + ' días. Las sesiones salen del cuadrante: ' +
-          'si este equipo no tiene horario asignado, aquí no aparecerá nada. No hay que crear ninguna cita.') +
-        '</p>'));
-      return;
+    if (!todas.length) {
+      var rkV = SF.store.role();
+      var pfV = rkV === 'preparador_fisico' || rkV === 'coord_pf';
+      box.appendChild(el('<div class="empty-panel"><p>' + (pfV
+        ? 'No tienes sesiones de preparación física de este equipo en los últimos ' + DIAS_LISTA + ' días.'
+        : 'No hay sesiones en los últimos ' + DIAS_LISTA + ' días.') + '</p>' +
+        '<p class="hint">Las sesiones salen solas del cuadrante: si este equipo no tiene horario asignado, ' +
+        'aquí no aparece nada. No hay que crear ninguna cita.</p></div>'));
+      U.modal('Pasar lista — ' + t.name, box); return;
     }
 
     var pend = 0;
     var lista = el('<div class="mini-list"></div>');
-    ses.slice().reverse().forEach(function (x) {
+    todas.slice().reverse().forEach(function (x) {
       var g = x.evento ? (x.evento.attendance ? { marcas: x.evento.attendance } : null)
                        : SF.store.asistenciaDe(x.clave);
-      var hecha = !!g;
-      var pres = 0;
+      var hecha = !!g, pres = 0;
       if (hecha) Object.keys(g.marcas || {}).forEach(function (k) {
         var v = g.marcas[k]; if (v === 'p' || v === 'presente') pres++;
       });
       if (!hecha) pend++;
-      var fila = el('<div class="mini-row mr-wrap' + (hecha ? '' : ' pf-naranja') + '">' +
-        '<span><b>' + esc(x.titulo) + '</b> <span class="hint">· ' + fmtDate(x.fecha) +
-        (x.hora ? ' · ' + esc(x.hora) : '') + (x.donde ? ' · ' + esc(x.donde) : '') + '</span></span>' +
+      var fila = el('<div class="mini-row mr-wrap">' +
+        '<span><b>' + esc(x.titulo) + '</b><span class="hint"> · ' + fmtDate(x.fecha) +
+        (x.hora ? ' · ' + esc(x.hora) : '') + '</span></span>' +
         '<span class="tag ' + (hecha ? 'tag-green' : 'tag-warn') + '">' +
         (hecha ? pres + ' de ' + roster.length : 'sin pasar') + '</span></div>');
       var b = el('<button class="btn btn-sm' + (hecha ? '' : ' btn-primary') + '">' +
-        (hecha ? 'Ver o corregir' : 'Pasar lista') + '</button>');
-      b.onclick = function () { listaModal(t, x, function () { SF.router.render(); }); };
+        (hecha ? 'Ver o corregir' : 'Pasar') + '</button>');
+      b.onclick = function () {
+        U.closeModal();
+        listaModal(t, x, function () { SF.router.render(); });
+      };
       fila.appendChild(b);
       lista.appendChild(fila);
     });
-    view.appendChild(lista);
-    var pie = el('<div class="row-c mr-wrap" style="margin-top:10px;align-items:center"></div>');
-    pie.appendChild(el('<span class="hint">' + (pend
+    box.appendChild(el('<p class="hint">' + (pend
       ? '<b>' + pend + '</b> ' + (pend === 1 ? 'sesión sin pasar' : 'sesiones sin pasar') +
-        ' de los últimos ' + DIAS_LISTA + ' días. Salen solas del cuadrante: no hay que crear nada.'
-      : 'Todas las listas de los últimos ' + DIAS_LISTA + ' días están pasadas.') + '</span>'));
-    var bReg = el('<button class="btn btn-sm">' + ico('list') + 'Ver el registro</button>');
-    bReg.onclick = function () { registroAsistencia(t); };
-    pie.appendChild(bReg);
-    view.appendChild(pie);
+        ' de los últimos ' + DIAS_LISTA + ' días.'
+      : 'Todo pasado en los últimos ' + DIAS_LISTA + ' días.') +
+      ' Salen solas del cuadrante: no hay que crear nada.</p>'));
+    box.appendChild(lista);
+    U.modal('Pasar lista — ' + t.name, box);
+  }
+
+  /* Los dos botones, para las pantallas que los quieran. El de pasar lista
+     lleva el numero pendiente encima; el del registro solo aparece si hay algo
+     que mirar, porque un boton que abre un vacio es un boton que estorba. */
+  function botonesLista(t, fila) {
+    var rk = SF.store.role();
+    var esPF = rk === 'preparador_fisico' || rk === 'coord_pf';
+    if (!canManageThisTeam(t) && !esPF) return;
+    var pend = sesionesPendientes(t).length;
+    var b1 = el('<button class="btn btn-light btn-sm">' + ico('list') + 'Pasar lista' +
+      (pend ? '<span class="eq-n">' + pend + '</span>' : '') + '</button>');
+    b1.onclick = function () { modalPasarLista(t); };
+    fila.appendChild(b1);
+    if (SF.store.asistenciasDe(t.id).length || (t.events || []).some(function (e) { return e.attendance; })) {
+      var b2 = el('<button class="btn btn-light btn-sm">' + ico('grid') + 'Registro</button>');
+      b2.onclick = function () { registroAsistencia(t); };
+      fila.appendChild(b2);
+    }
   }
 
   /* ---------- EL REGISTRO ----------
@@ -17001,28 +17041,20 @@ window.SF = window.SF || {};
          hacer nada, que es lo que estaba viendo Jorge.
          Ahora abre la ultima sesion del cuadrante que este sin pasar, que es
          justo lo que uno viene a hacer al llegar del pabellon. */
-      var b3 = el('<button class="btn btn-light btn-sm">' + ico('list') + 'Pasar lista</button>');
-      b3.onclick = function () {
-        var hoyB = SF.hoyISO();
-        var pendB = sesionesQuePuedePasar(t, SF.sesionesEntre(t, SF.sumaDias(hoyB, -DIAS_LISTA), hoyB))
-          .filter(function (x) {
-            return !(x.evento ? (x.evento.attendance ? 1 : 0) : SF.store.asistenciaDe(x.clave));
-          });
-        if (!pendB.length) { U.toast('No queda ninguna lista por pasar'); return; }
-        listaModal(t, pendB[pendB.length - 1], function () { SF.router.render(); });
-      };
       var b4 = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Añadir cita</button>');
       b4.onclick = function () { trainingModal(t, function () { SF.router.render(); }); };
-      acts.appendChild(b1); acts.appendChild(b2); acts.appendChild(b3); acts.appendChild(b4);
+      acts.appendChild(b1); acts.appendChild(b2);
+      /* Pasar lista y el registro entran aquí, en la misma fila. Estaban
+         desplegados debajo, con las nueve sesiones una a una: toda la
+         información y ninguna forma de mirarla. */
+      botonesLista(t, acts);
+      acts.appendChild(b4);
       view.appendChild(acts);
-
-      /* Las sesiones del cuadrante, aqui, que es donde aterriza el entrenador. */
-      bloquePasarLista(view, t);
 
       /* --- Plantilla con asistencia --- */
       view.appendChild(el('<p class="sec-label">Plantilla y asistencia</p>'));
       view.appendChild(el('<p class="hint">El porcentaje sale de las listas pasadas. ' +
-        'Pulsa <b>Ver el registro</b> arriba para ver quién vino a cada sesión.</p>'));
+        'En <b>Registro</b>, arriba, se ve quién vino a cada sesión.</p>'));
       var rl = el('<div class="mini-list"></div>');
       if (!roster.length) rl.appendChild(el('<p class="hint">Sin jugadores en la plantilla.</p>'));
       roster.forEach(function (p) {
@@ -17375,8 +17407,14 @@ window.SF = window.SF || {};
     horarioDeEquipo(view, t);
 
     /* Pasar lista, antes del calendario a propósito: es lo que un entrenador
-       viene a hacer cuando entra aquí un miércoles por la noche. */
-    bloquePasarLista(view, t);
+       viene a hacer cuando entra aquí un miércoles por la noche. Detrás de un
+       botón, no desplegado: aquí abajo viene el calendario y la plantilla, y
+       una lista de nueve sesiones los empujaba fuera de la pantalla. */
+    (function () {
+      var filaL = el('<div class="row-c" style="margin:4px 0 18px"></div>');
+      botonesLista(t, filaL);
+      if (filaL.children.length) view.appendChild(filaL);
+    })();
 
     // Calendario — entrenamientos y partidos
     view.appendChild(el('<p class="sec-label">Calendario — entrenamientos y partidos</p>'));
