@@ -118,6 +118,8 @@ textarea{resize:vertical;min-height:90px}
    mas capacidad: antes pulsar "33 datos incompletos" te sacaba de la pantalla;
    ahora filtra ahi mismo y puedes resolverlo sin irte. */
 
+.tempn{display:flex;flex-wrap:wrap;gap:6px 22px;padding:12px 0 4px;font-size:14px;color:var(--ink-3)}
+.tempn b{font-size:22px;font-weight:700;color:var(--ink);margin-right:4px}
 .dispo-nota{margin:8px 0 0;padding:9px 12px;background:var(--bg);border-radius:10px;
   font-size:13.5px;line-height:1.5;color:var(--ink-2)}
 
@@ -1659,6 +1661,112 @@ SF.consigna = function (p) {
     vencida: vencida, activa: dz.activa,
     linea: linea.join(' · ')
   };
+};
+
+/* ¿ESTE JUGADOR ESTA BAJO CUIDADO DEL FISIOTERAPEUTA?
+   Dos formas de entrar y una de salir:
+     · entra porque alguien le pide una cita, o porque tiene una consigna
+       puesta (esta en proceso);
+     · sale cuando se le da el alta, y entonces desaparece de su lista.
+   Esto es lo que hace que la pantalla del fisio sea SU lista y no el listin
+   del club: un fisioterapeuta no lleva a 277 jugadores, lleva a los cinco que
+   tiene entre manos esta semana. */
+SF.bajoCuidado = function (p) {
+  if (!p) return false;
+  if (SF.dispo(p).activa) return true;
+  return (SF.store.citasDeJugador(p.id) || []).some(function (c) {
+    return c.estado === 'solicitada' || c.estado === 'confirmada';
+  });
+};
+
+/* EL HISTORIAL CON EL FISIOTERAPEUTA.
+   Se arma con lo que la app ya guardaba y no enseñaba junto: las citas
+   atendidas y cada cambio de consigna. No inventa nada ni añade un dato
+   clinico nuevo; solo pone en orden lo que ya paso.
+
+   Sirve para dos cosas distintas y las dos importan: en la ficha, para que
+   quien la abra vea cuantas veces ha pasado por ahi ese chaval; y sumado, para
+   saber como ha ido la temporada. */
+SF.historialFisio = function (pid) {
+  var out = [];
+  (SF.store.citasDeJugador(pid) || []).forEach(function (c) {
+    if (c.estado !== 'realizada') return;
+    out.push({ tipo: 'visita', fecha: c.fecha || (c.creada_at || '').slice(0, 10),
+      titulo: 'Visita', detalle: c.motivo || '', nota: c.nota || '',
+      quien: (c.pedida_por || {}).name || '' });
+  });
+  var p = SF.store.get(pid);
+  var log = (p && p.availability_log) || [];
+  var antes = null;
+  log.forEach(function (a) {
+    var def = SF.DISPO.filter(function (x) { return x.k === a.estado; })[0] || SF.DISPO[0];
+    /* El ALTA es el paso de estar tocado a estar disponible. Merece su propia
+       linea: es el final de un proceso, no un cambio mas de consigna. */
+    var esAlta = a.estado === 'disponible' && antes && antes !== 'disponible';
+    var lims = (a.limitaciones && a.limitaciones.length) ? a.limitaciones : (a.limitacion ? [a.limitacion] : []);
+    out.push({ tipo: esAlta ? 'alta' : 'consigna',
+      fecha: (a.at || '').slice(0, 10),
+      titulo: esAlta ? 'Alta' : def.corto,
+      detalle: esAlta ? 'Vuelve a estar disponible' : lims.join(', '),
+      nota: a.nota || '', quien: a.by || '' });
+    antes = a.estado;
+  });
+  return out.sort(function (x, y) { return (y.fecha || '').localeCompare(x.fecha || ''); });
+};
+
+/* Cuantas veces ha pasado por el fisio, y cuando fue la ultima.
+   Se cuentan por separado tres cosas que NO son la misma:
+     · CITAS  -> veces que le han mandado a verle y le ha visto;
+     · PROCESOS -> veces que ha entrado en una lesion, es decir que ha pasado
+       de estar disponible a no estarlo. Dos consignas seguidas del mismo
+       proceso son UN proceso, no dos;
+     · ALTAS -> veces que ha vuelto a estar disponible.
+   Meterlo todo en "visitas" era mentir: salian jugadores con "0 visitas" en
+   una lista titulada "quien ha venido". */
+SF.resumenFisio = function (pid, temporada) {
+  var todo = SF.historialFisio(pid);
+  var h = todo.filter(function (x) { return !temporada || SF.seasonOf(x.fecha) === temporada; });
+  /* Los procesos se cuentan sobre el log en orden, no sobre el historial ya
+     ordenado del reves. */
+  var p = SF.store.get(pid);
+  var procesos = 0, antes = 'disponible';
+  ((p && p.availability_log) || []).forEach(function (a) {
+    var f = (a.at || '').slice(0, 10);
+    var dentro = !temporada || SF.seasonOf(f) === temporada;
+    if (a.estado !== 'disponible' && antes === 'disponible' && dentro) procesos++;
+    antes = a.estado;
+  });
+  return {
+    citas: h.filter(function (x) { return x.tipo === 'visita'; }).length,
+    altas: h.filter(function (x) { return x.tipo === 'alta'; }).length,
+    procesos: procesos,
+    total: h.length, ultima: h.length ? h[0].fecha : ''
+  };
+};
+
+/* La temporada del club, sumando a todos. Se guarda por temporada y no se
+   pisa: el año que viene esta seguira estando. */
+SF.temporadaFisio = function (jugadores, temporada) {
+  var atendidos = [], citas = 0, altas = 0, procesos = 0;
+  (jugadores || []).forEach(function (p) {
+    var r = SF.resumenFisio(p.id, temporada);
+    if (!r.total) return;
+    atendidos.push({ p: p, r: r });
+    citas += r.citas; altas += r.altas; procesos += r.procesos;
+  });
+  atendidos.sort(function (a, b) { return b.r.total - a.r.total; });
+  return { temporada: temporada, atendidos: atendidos, jugadores: atendidos.length,
+    citas: citas, altas: altas, procesos: procesos };
+};
+
+/* Las temporadas que tienen algo guardado, de la actual hacia atras. */
+SF.temporadasConFisio = function (jugadores) {
+  var set = {};
+  (jugadores || []).forEach(function (p) {
+    SF.historialFisio(p.id).forEach(function (x) { if (x.fecha) set[SF.seasonOf(x.fecha)] = 1; });
+  });
+  set[SF.SEASON] = 1;
+  return Object.keys(set).sort().reverse();
 };
 
 /* Los dias que lleva un jugador sin estar disponible del todo. Un fisio
@@ -7366,7 +7474,21 @@ window.SF = window.SF || {};
         if (me && (me.team_ids || []).indexOf(t.id) >= 0) return true;
         return (t.coaches || []).indexOf(nombre) >= 0;
       }).map(function (t) { return t.id; });
-      return all.filter(function (p) { return myTeams.indexOf(p.team_id) >= 0; });
+      var delEquipo = all.filter(function (p) { return myTeams.indexOf(p.team_id) >= 0; });
+      /* EL FISIOTERAPEUTA VE A LOS SUYOS, NO A LOS DEL CLUB.
+         Antes le salian los doce jugadores de cada equipo al que esta
+         asignado, estuvieran sanos o no. Eso no es su lista: un fisio lleva a
+         los cinco que tiene entre manos esta semana, y cuando le da el alta a
+         uno, ese sale. Entra por una cita o por una consigna; sale por el
+         alta.
+         `SF._fisioTodos` es la escotilla: desde Jugadores puede pedir ver el
+         club entero para buscar a alguien que viene por su cuenta. No se le
+         cierra la puerta, solo se le quita de delante lo que no esta
+         llevando. */
+      if (r.canSeeMedical && r.canSetAvailability && !r.canManageTeams && !SF._fisioTodos) {
+        return delEquipo.filter(SF.bajoCuidado);
+      }
+      return delEquipo;
     }
     /* Alcance del scout: su cartera. Dos vías, y basta con una:
          · lo captó él      -> `scout_id`, que se sella solo al crear la ficha;
@@ -7962,7 +8084,12 @@ window.SF = window.SF || {};
   function inicioSalud(view) {
     var u = SF.store.currentUser();
     var yo = SF.store.staffMe();
-    var mios = scopedPlayers();
+    /* Sus jugadores son los de sus equipos, no solo los que lleva: la
+       estadistica de la temporada tiene que contar tambien a los que ya
+       recibieron el alta. Para la lista de "bajo tu cuidado" se filtra abajo. */
+    var todosSuyos = (function () { var g = SF._fisioTodos; SF._fisioTodos = true;
+      var r = scopedPlayers(); SF._fisioTodos = g; return r; })();
+    var mios = todosSuyos;
     var hoyISO = SF.hoyISO();
 
     var enProceso = mios.filter(function (p) { return SF.dispo(p).activa; })
@@ -8048,6 +8175,10 @@ window.SF = window.SF || {};
        cuidados lleva la consigna entera —carga, minutos, que evita, si
        compite, dias en proceso—. Ponerla en la columna estrecha la partia en
        cuatro renglones y dejaba media pantalla vacia al lado. */
+    /* Dos contenedores, uno por columna. Sin esto, cada tarjeta que se
+       añadiera a `cols` caeria en una celda distinta del grid y la segunda
+       lista acabaria al lado de la primera en vez de debajo. */
+    var principal = el('<div></div>');
     var lado = el('<div></div>');
     lado.appendChild(cA);
     var cB = el('<div class="card"><h3>Bajo tu cuidado</h3><p class="hint">Quién está en proceso y qué puede hacer hoy. Toca para actualizar la consigna.</p><div class="mini-list"></div></div>');
@@ -8080,7 +8211,7 @@ window.SF = window.SF || {};
         lB.appendChild(fila);
       });
     }
-    cols.appendChild(cB);
+    principal.appendChild(cB);
 
     /* --- Lo que mira un preparador, y solo el --- */
     var asim = mios.filter(function (p) { var a = SF.asimetria(p); return a && a.aviso; });
@@ -8099,6 +8230,63 @@ window.SF = window.SF || {};
       lado.appendChild(cC);
     }
 
+    /* --- LA TEMPORADA ---
+       Lo que Jorge pidio: cuantos han pasado por aqui este curso, y que quede
+       guardado curso a curso. Un fisioterapeuta que empieza en septiembre no
+       sabe si veintitres chavales en una temporada es mucho o poco; con la
+       anterior al lado, ya lo sabe. Y para el club es lo que convierte una
+       intuicion —"este año se lesiona mas gente"— en un dato. */
+    var temps = SF.temporadasConFisio(mios);
+    var tSel = SF._fisioTemp;
+    if (temps.indexOf(tSel) < 0) tSel = temps[0] || SF.SEASON;
+    var est = SF.temporadaFisio(mios, tSel);
+    var cT = el('<div class="card"><h3>La temporada</h3><p class="hint">Quién ha pasado por aquí. Se guarda temporada a temporada.</p></div>');
+    if (temps.length > 1) {
+      var chips = el('<div class="row-c" style="margin-bottom:12px"></div>');
+      temps.slice(0, 5).forEach(function (t) {
+        var b = el('<button class="eq-chip eq-chip-sm' + (t === tSel ? ' on' : '') + '">' + esc(t) + '</button>');
+        b.onclick = function () { SF._fisioTemp = t; SF.router.render(); };
+        chips.appendChild(b);
+      });
+      cT.appendChild(chips);
+    }
+    /* Los numeros en UNA linea, no en tres tarjetas. Tres tarjetas grandes en
+       una columna estrecha se apilan de dos en una y ocupan media pantalla
+       para decir tres cifras. */
+    cT.appendChild(el('<div class="tempn">' +
+      '<span><b>' + est.jugadores + '</b> ' + (est.jugadores === 1 ? 'jugador' : 'jugadores') + '</span>' +
+      '<span><b>' + est.procesos + '</b> ' + (est.procesos === 1 ? 'proceso' : 'procesos') + '</span>' +
+      '<span><b>' + est.citas + '</b> ' + (est.citas === 1 ? 'cita' : 'citas') + '</span>' +
+      '<span><b>' + est.altas + '</b> ' + (est.altas === 1 ? 'alta' : 'altas') + '</span></div>'));
+    if (!est.atendidos.length) {
+      cT.appendChild(el('<p class="hint">Todavía no ha pasado nadie por aquí en la temporada ' + esc(tSel) + '.</p>'));
+    } else {
+      cT.appendChild(el('<p class="sec-label" style="margin-top:14px">Quién ha pasado</p>'));
+      var lT = el('<div class="mini-list"></div>');
+      est.atendidos.slice(0, 12).forEach(function (x) {
+        var det = [];
+        if (x.r.procesos) det.push(x.r.procesos + (x.r.procesos === 1 ? ' proceso' : ' procesos'));
+        if (x.r.citas) det.push(x.r.citas + (x.r.citas === 1 ? ' cita' : ' citas'));
+        if (x.r.altas) det.push(x.r.altas + (x.r.altas === 1 ? ' alta' : ' altas'));
+        if (!det.length) det.push('sin procesos cerrados');
+        var enCurso = SF.dispo(x.p).activa;
+        var row = el('<div class="mini-row"><span><b>' + esc(x.p.full_name) + '</b>' +
+          (enCurso ? ' <span class="tag tag-warn">en curso</span>' : '') +
+          '<br><span class="hint">' + esc(det.join(' · ')) +
+          (x.r.ultima ? ' · última anotación ' + fmtDate(x.r.ultima) : '') + '</span></span>' +
+          '<span class="row-actions"><button class="lnk" data-v>Ficha</button></span></div>');
+        row.querySelector('[data-v]').onclick = function () { SF._openTab = 'deportivo'; location.hash = '#/jugador/' + x.p.id; };
+        lT.appendChild(row);
+      });
+      cT.appendChild(lT);
+      if (est.atendidos.length > 12) cT.appendChild(el('<p class="hint">y ' + (est.atendidos.length - 12) + ' más.</p>'));
+    }
+    /* La temporada va DEBAJO de "Bajo tu cuidado", en la columna ancha: es la
+       lista larga y ahi hay sitio. En la estrecha dejaba media pantalla en
+       blanco al lado. */
+    principal.appendChild(cT);
+
+    cols.appendChild(principal);
     cols.appendChild(lado);
     view.appendChild(cols);
   }
@@ -8961,6 +9149,22 @@ window.SF = window.SF || {};
     if (bS) bS.onclick = function () { SF._insDatos = null; SF._insPaso = 1; location.hash = '#/inscripcion'; };
 
     var ps = scopedPlayers();
+
+    /* La escotilla del fisioterapeuta. Su lista son los que lleva, pero a veces
+       un chaval se le planta delante sin que nadie haya pedido cita, y tiene
+       que poder encontrarlo. Un boton, no un filtro escondido. */
+    var esFisio = r0.canSeeMedical && r0.canSetAvailability && !r0.canManageTeams;
+    if (esFisio) {
+      var todos = !!SF._fisioTodos;
+      var sub = el('<p class="hint" style="margin:-6px 0 12px">' + (todos
+        ? 'Estás viendo <b>todos</b> los jugadores de tus equipos.'
+        : 'Solo los que llevas: con cita pedida o con una consigna puesta. Cuando les das el alta, salen de aquí.') + ' </p>');
+      var bT = el('<button class="lnk">' + (todos ? 'Ver solo los que llevo' : 'Buscar en todos mis equipos') + '</button>');
+      bT.onclick = function () { SF._fisioTodos = !todos; SF.router.render(); };
+      sub.appendChild(bT);
+      view.appendChild(sub);
+    }
+
     var nats = Array.from(new Set([].concat.apply([], ps.map(function (p) { return p.nationality || []; }))));
     var poss = Array.from(new Set(ps.map(function (p) { return p.primary_position; }).filter(Boolean)));
 
@@ -9323,17 +9527,39 @@ window.SF = window.SF || {};
           }
           body.appendChild(banda);
 
-          var hist = (p.availability_log || []).slice().reverse().slice(0, 5);
-          if (hist.length > 1 && puede) {
-            body.appendChild(el('<p class="sec-label">Historial de disponibilidad</p>'));
-            var hl = el('<div class="mini-list"></div>');
-            hist.forEach(function (h) {
-              var def = SF.DISPO.filter(function (x) { return x.k === h.estado; })[0] || SF.DISPO[0];
-              hl.appendChild(el('<div class="mini-row"><span><b>' + esc(def.corto) + '</b>' +
-                (h.limitacion ? ' · ' + esc(h.limitacion) : '') + ' <span class="hint">' + esc(h.by || '') + '</span></span>' +
-                '<span class="hint">' + fmtDate((h.at || '').slice(0, 10)) + '</span></div>'));
-            });
-            body.appendChild(hl);
+          /* EL HISTORIAL CON EL FISIOTERAPEUTA.
+             Antes esto eran cinco lineas de "cambio de disponibilidad" sueltas.
+             Ahora es lo que de verdad cuenta la historia de un jugador: cuando
+             ha ido, por que le mandaron, que consigna se le puso y cuando se le
+             dio el alta. Se agrupa por temporada porque un chaval de catorce
+             años va a tener seis temporadas aqui, y "cuatro visitas" no dice
+             nada si no se sabe si fueron este año o repartidas en seis. */
+          if (puede) {
+            var hist = SF.historialFisio(p.id);
+            if (hist.length) {
+              var res = SF.resumenFisio(p.id, SF.SEASON);
+              body.appendChild(el('<p class="sec-label">Historial con el fisioterapeuta</p>'));
+              body.appendChild(el('<p class="hint" style="margin-top:-4px">' +
+                (res.procesos ? '<b>' + res.procesos + (res.procesos === 1 ? ' proceso' : ' procesos') + '</b> esta temporada' +
+                  (res.citas ? ', ' + res.citas + (res.citas === 1 ? ' cita atendida' : ' citas atendidas') : '') + '. ' : '') +
+                'En total, ' + hist.length + (hist.length === 1 ? ' anotación' : ' anotaciones') + '.</p>'));
+              var porTemp = {};
+              hist.forEach(function (x) { var t = SF.seasonOf(x.fecha); (porTemp[t] = porTemp[t] || []).push(x); });
+              Object.keys(porTemp).sort().reverse().forEach(function (t) {
+                body.appendChild(el('<p class="hint" style="font-weight:600;margin:12px 0 4px">Temporada ' + esc(t) + '</p>'));
+                var hl = el('<div class="mini-list"></div>');
+                porTemp[t].forEach(function (x) {
+                  var tg = x.tipo === 'visita' ? 'tag-purple' : x.tipo === 'alta' ? 'tag-green' : 'tag-gray';
+                  hl.appendChild(el('<div class="mini-row"><span><b>' + esc(x.titulo) + '</b> ' +
+                    '<span class="tag ' + tg + '">' + esc(x.tipo) + '</span>' +
+                    (x.detalle ? '<br><span class="hint">' + esc(x.detalle) + '</span>' : '') +
+                    (x.nota ? '<br><span class="hint">' + esc(x.nota) + '</span>' : '') +
+                    (x.quien ? '<br><span class="hint">' + esc(x.quien) + '</span>' : '') +
+                    '</span><span class="hint">' + fmtDate(x.fecha) + '</span></div>'));
+                });
+                body.appendChild(hl);
+              });
+            }
           }
         })();
 
