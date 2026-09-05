@@ -118,6 +118,13 @@ textarea{resize:vertical;min-height:90px}
    mas capacidad: antes pulsar "33 datos incompletos" te sacaba de la pantalla;
    ahora filtra ahi mismo y puedes resolverlo sin irte. */
 
+/* El parte del fisio: se tiene que ver antes de leerlo. */
+.parte{border:1px solid #F0C9C9;background:#FFF8F8;border-radius:var(--r-lg);padding:16px 18px;margin-bottom:16px}
+.parte-cab{display:flex;align-items:center;gap:9px;font-size:15px;color:var(--ink)}
+.parte-cab .ic{width:18px;height:18px;color:#D14343;flex:0 0 auto}
+.parte .hint{margin:6px 0 10px}
+.parte .mini-row{background:var(--surface)}
+.parte .fila-no{border-left:3px solid #D14343}
 .tempn{display:flex;flex-wrap:wrap;gap:6px 22px;padding:12px 0 4px;font-size:14px;color:var(--ink-3)}
 .tempn b{font-size:22px;font-weight:700;color:var(--ink);margin-right:4px}
 .dispo-nota{margin:8px 0 0;padding:9px 12px;background:var(--bg);border-radius:10px;
@@ -17269,11 +17276,38 @@ window.SF = window.SF || {};
       list.innerHTML = '';
       roster.forEach(function (p) {
         var on = !!sel[p.id];
-        var row = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span>' +
-          (on ? '☑ ' : '☐ ') + '<b>' + esc(p.full_name) + '</b> · ' + (p.birth_year || '') + '</span></button>');
+        /* La consigna, EN LA CONVOCATORIA. Aqui es donde un entrenador se
+           equivoca de verdad: marca a los doce del tiron para el partido del
+           sabado y convoca al que el fisio dijo que no compite. Que el aviso
+           esté en el buzon no sirve si no esta delante en el momento de
+           marcar la casilla. */
+        var cg = SF.consigna(p);
+        var aviso = '';
+        if (cg.activa) {
+          var noJuega = cg.estado.k === 'no' || (cg.compite && cg.compite.k === 'no');
+          aviso = ' <span class="tag ' + (noJuega ? 'tag-danger' : cg.estado.def.tag) + '">' +
+            esc(noJuega ? (cg.estado.k === 'no' ? 'No disponible' : 'No compite') : cg.estado.def.corto) + '</span>' +
+            (cg.linea ? '<br><span class="hint">' + esc(cg.linea) + '</span>' : '');
+        }
+        var row = el('<button class="mini-row' + (cg.activa && (cg.estado.k === 'no' || (cg.compite && cg.compite.k === 'no')) ? ' fila-no' : '') +
+          '" style="width:100%;text-align:left;cursor:pointer"><span>' +
+          (on ? '☑ ' : '☐ ') + '<b>' + esc(p.full_name) + '</b> · ' + (p.birth_year || '') + aviso + '</span></button>');
         row.onclick = function () { sel[p.id] = !sel[p.id]; paint(); };
         list.appendChild(row);
       });
+      /* No se le impide convocarlo: a lo mejor va al partido a estar con el
+         equipo aunque no juegue. Se le dice, y decide el. Bloquearlo seria
+         que la app tomara una decision de entrenador. */
+      var nj = roster.filter(function (p) {
+        if (!sel[p.id]) return false;
+        var c = SF.consigna(p);
+        return c.activa && (c.estado.k === 'no' || (c.compite && c.compite.k === 'no'));
+      });
+      if (nj.length) {
+        list.appendChild(el('<p class="aviso-lin">Has marcado a ' +
+          esc(nj.map(function (p) { return p.full_name; }).join(', ')) +
+          ', que el fisioterapeuta ha dado de baja para competir. Puedes convocarlos igual si van a estar con el equipo, pero no deberían jugar.</p>'));
+      }
       cnt.innerHTML = '<b>' + Object.keys(sel).filter(function (k) { return sel[k]; }).length + '</b> de ' + roster.length + ' destinatarios';
     }
     var cnt = el('<p class="hint"></p>');
@@ -17873,6 +17907,78 @@ window.SF = window.SF || {};
     U.modal('Comunicado al personal', w);
   }
 
+  /* ---------- EL PARTE MEDICO DEL EQUIPO ----------
+     Jorge: "no lo veo reflejado en ningun lado que avise a sus entrenadores y
+     preparador fisico".
+
+     Tenia razon y era el agujero grande de todo lo anterior. La consigna se
+     mandaba al buzon, pero el buzon se lee una vez y se olvida; el entrenador
+     abre "Mi equipo" antes de cada entrenamiento y ahi no habia NADA. Un
+     preparador fisico montaba la sesion del martes sin saber que Bruno no
+     puede saltar.
+
+     Ahora sale aqui, en la pantalla donde se prepara el entrenamiento, y con
+     la consigna entera: cuanta carga, cuantos minutos, que evita y si compite.
+
+     CUANDO SE QUITA, que es la parte delicada:
+       · con el ALTA, se quita del todo. Eso es lo correcto: alguien ha
+         decidido que ya esta bien.
+       · cuando pasa la fecha prevista y NADIE ha dado el alta, NO se quita
+         sola. Se queda, en gris y diciendo que esta pendiente de revision.
+         Quitarla sola seria decirle al entrenador "ya puede" sin que nadie lo
+         haya mirado, y quien se juega eso es el chaval, no la app. */
+  function parteDelEquipo(view, roster, opciones) {
+    var op = opciones || {};
+    var tocados = roster.map(function (p) { return { p: p, c: SF.consigna(p) }; })
+      .filter(function (x) { return x.c.activa; });
+    if (!tocados.length) return 0;
+
+    /* Primero los que no pueden, y dentro de esos los que estan pendientes de
+       revision: son los dos casos en los que el entrenador se puede equivocar. */
+    tocados.sort(function (a, b) {
+      var pa = (a.c.estado.k === 'no' ? 0 : 1), pb = (b.c.estado.k === 'no' ? 0 : 1);
+      if (pa !== pb) return pa - pb;
+      return (b.c.estado.caducada ? 1 : 0) - (a.c.estado.caducada ? 1 : 0);
+    });
+
+    var fuera = tocados.filter(function (x) { return x.c.estado.k === 'no'; }).length;
+    var caducados = tocados.filter(function (x) { return x.c.estado.caducada; }).length;
+
+    var caja = el('<div class="parte"></div>');
+    caja.appendChild(el('<div class="parte-cab">' + ico('alert') +
+      '<span><b>Parte del fisioterapeuta</b> · ' + tocados.length +
+      (tocados.length === 1 ? ' jugador' : ' jugadores') +
+      (fuera ? ', ' + fuera + ' sin entrenar' : '') + '</span></div>'));
+    caja.appendChild(el('<p class="hint">Esto lo firma el fisioterapeuta. Se quita solo cuando da el alta.</p>'));
+
+    var lista = el('<div class="mini-list"></div>');
+    tocados.forEach(function (x) {
+      var cad = x.c.estado.caducada;
+      var fila = el('<div class="mini-row mr-wrap' + (x.c.estado.k === 'no' ? ' fila-no' : '') + '">' +
+        '<span><b>' + esc(x.p.full_name) + '</b> ' +
+        '<span class="tag ' + x.c.estado.def.tag + '">' + esc(x.c.estado.def.corto) + '</span>' +
+        (cad ? ' <span class="tag tag-gray">pendiente de revisión</span>' : '') +
+        '<br><span class="hint">' + esc(x.c.linea || 'sin detalle') +
+        (x.c.estado.hasta ? ' · previsión de alta ' + fmtDate(x.c.estado.hasta) : '') +
+        (x.c.estado.by ? ' · ' + esc(x.c.estado.by) : '') + '</span>' +
+        (x.c.nota ? '<br><span class="hint">«' + esc(x.c.nota) + '»</span>' : '') +
+        (cad ? '<br><span class="hint">La fecha prevista ya pasó y nadie ha dado el alta. Sigue como está hasta que lo revise el fisioterapeuta.</span>' : '') +
+        '</span></div>');
+      if (op.verFicha !== false) {
+        var b = el('<button class="lnk">Ficha</button>');
+        b.onclick = function () { SF._openTab = 'deportivo'; location.hash = '#/jugador/' + x.p.id; };
+        fila.appendChild(b);
+      }
+      lista.appendChild(fila);
+    });
+    caja.appendChild(lista);
+    if (caducados) caja.appendChild(el('<p class="hint">' + caducados +
+      (caducados === 1 ? ' consigna ha pasado' : ' consignas han pasado') +
+      ' de su fecha prevista. Si necesitas al jugador, pregúntale al fisioterapeuta antes de contar con él.</p>'));
+    view.appendChild(caja);
+    return tocados.length;
+  }
+
   pages['mi-equipo'] = function (view) {
     var mine = myTeams();
     var u = SF.store.currentUser();
@@ -17889,6 +17995,11 @@ window.SF = window.SF || {};
       /* El entrenador entra por aquí, no por la ficha del equipo: su horario
          tiene que estar donde aterriza, no a dos clics. */
       horarioDeEquipo(view, t);
+
+      /* El parte va ARRIBA del todo, antes que los comunicados y que la
+         proxima cita: es lo unico de esta pantalla que puede hacer daño si no
+         se lee. */
+      parteDelEquipo(view, roster);
 
       /* --- Comunicados del club pendientes de reenviar --- */
       var meS = SF.store.staffMe();
@@ -17971,7 +18082,14 @@ window.SF = window.SF || {};
         var pct = st && st.pct != null ? st.pct : null;
         var tag = pct == null ? '<span class="hint">sin datos</span>'
           : '<span class="tag ' + (pct >= 80 ? 'tag-green' : (pct >= 60 ? 'tag-warn' : 'tag-danger')) + '">' + pct + '% asistencia</span>';
-        var row = el('<div class="mini-row"><span><b>' + esc(p.full_name) + '</b> · ' + (p.birth_year || '') + ' · ' + esc(p.primary_position || '') + '</span><span class="row-actions">' + tag + '<button class="lnk" data-o>Ficha</button></span></div>');
+        /* El semaforo tambien AQUI, no solo en el parte de arriba. Cuando el
+           entrenador baja a mirar la plantilla para hacer los equipos del
+           martes, no se acuerda de lo que leyo hace treinta lineas. */
+        var cg = SF.consigna(p);
+        var row = el('<div class="mini-row"><span><b>' + esc(p.full_name) + '</b> · ' + (p.birth_year || '') + ' · ' + esc(p.primary_position || '') +
+          (cg.activa ? ' <span class="tag ' + cg.estado.def.tag + '">' + esc(cg.estado.def.corto) + '</span>' +
+            (cg.linea ? '<br><span class="hint">' + esc(cg.linea) + '</span>' : '') : '') +
+          '</span><span class="row-actions">' + tag + '<button class="lnk" data-o>Ficha</button></span></div>');
         row.querySelector('[data-o]').onclick = function () { location.hash = '#/jugador/' + p.id; };
         rl.appendChild(row);
       });
@@ -18185,9 +18303,14 @@ window.SF = window.SF || {};
     var seg = SF.SEGMENTS[t.segment] || t.segment || '—';
     view.appendChild(el('<div class="ficha-head"><div class="fh-photo">' + ico('grid') + '</div><div class="fh-info"><h2>' + esc(t.name) + '</h2><p class="fh-sub">' + esc((SF.SPORTS[t.sport] || {}).label || '') + ' · ' + esc(seg) + ' · ' + esc(t.category || '') + '</p></div></div>'));
 
+    var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
+    /* El mismo parte que ve el entrenador en "Mi equipo". Aqui entran
+       direccion y el preparador fisico, que son justo quienes montan la carga
+       de la semana. */
+    parteDelEquipo(view, roster);
+
     // Plantilla
     view.appendChild(el('<p class="sec-label">Plantilla</p>'));
-    var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
     var rl = el('<div class="mini-list"></div>');
     if (!roster.length) rl.appendChild(el('<p class="hint">Sin jugadores asignados.</p>'));
     roster.forEach(function (p) {
