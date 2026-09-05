@@ -1262,6 +1262,44 @@ button.pf-ley:hover{filter:brightness(.96)}
 .cal-mu.st-movida{background:#FFF3E0;border-left-color:#C9C6DA}
 .cal-mu.st-extra{background:#E7F6EF;border-left-color:#C9C6DA}
 .cal-ley-n{flex-basis:100%;margin-top:6px;line-height:1.5}
+
+/* ---- Cuadrante de PF: editar en la propia fila y la semana por preparador ---- */
+.pf-fila:hover{background:var(--bg,#F7F7FC)}
+.pf-sel{font:inherit;font-size:12.5px;padding:3px 6px;border:1px solid transparent;border-radius:7px;
+  background:transparent;color:inherit;max-width:190px;cursor:pointer}
+.pf-sel:hover,.pf-sel:focus{border-color:var(--line,#DCD8EE);background:#fff}
+.lnk-ed{background:none;border:0;cursor:pointer;color:var(--ink-3);padding:2px;line-height:0}
+.lnk-ed:hover{color:var(--purple,#6F5AEF)}
+.pf-choque{display:block;margin-top:4px;min-height:1em}
+.pf-choque.is-mal{color:#D14343;font-weight:600}
+.pfp td{vertical-align:top}
+.pfp .pfp-nom{min-width:150px;font-size:13px;padding:10px}
+.pfp .pfp-d{padding:6px;min-width:135px}
+.pfp .pfp-hay{background:var(--bg,#F7F7FC)}
+.pfp .pfp-tot{text-align:right;white-space:nowrap;padding:10px}
+.pfp .pfp-tot b{display:block;font-size:17px}
+.pfp-sin td{background:#FFF7EC}
+.pfp-sin .pfp-nom{color:#B4761B}
+.pfp-ses{display:block;width:100%;text-align:left;font-family:inherit;color:var(--ink);cursor:pointer;
+  background:#fff;border:1px solid var(--line,#ECEAF5);border-left:3px solid var(--purple,#6F5AEF);
+  border-radius:8px;padding:5px 8px;margin-bottom:4px}
+.pfp-ses:last-child{margin-bottom:0}
+.pfp-ses:hover:not(:disabled){border-color:var(--purple,#6F5AEF)}
+.pfp-ses b{display:block;font-size:12.5px;font-weight:600}
+.pfp-ses span{display:block;font-size:10.5px;color:var(--ink-3);line-height:1.3}
+.pfp-ses.pfp-libre{border-left-color:#E0A030;background:#FFFBF4}
+.pfp-ses.pfp-choca{border-left-color:#D14343;background:#FBEAEA}
+.pfp-ses .pfp-et{color:#D14343;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.04em}
+.pfp-carga{margin-top:16px}
+.pfp-barra{display:flex;align-items:center;gap:10px;margin-bottom:6px;font-size:13px}
+.pfp-b-n{flex:0 0 150px}
+.pfp-b-t{flex:1;height:9px;background:var(--bg,#F1EFF9);border-radius:5px;overflow:hidden}
+.pfp-b-t i{display:block;height:100%;border-radius:5px;background:var(--purple,#6F5AEF)}
+.pfp-b-v{flex:0 0 52px;text-align:right;color:var(--ink-3)}
+.pfp-ses.pf-b-verde{border-left-color:#2E9E6B}
+.pfp-ses.pf-b-naranja{border-left-color:#E0871F}
+.pfp-ses.pf-b-azul{border-left-color:#2C7FB8}
+.pfp-ses.pf-b-morado{border-left-color:#6F5AEF}
 .reg-temp td,.rt-jug td{padding:9px 10px;font-size:13px;border-bottom:1px solid var(--line,#ECEAF5)}
 .reg-temp th,.rt-jug th{padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);text-align:left;font-weight:600;white-space:nowrap}
@@ -1321,8 +1359,13 @@ SF.norm = function (s) {
    despacho, es el que mas equipos lleva- asi que entra en la leyenda de
    colores y en el reparto de carga como uno mas. Vive aqui y no repetido en
    cada pantalla para que anadir manana un readaptador sea una linea. */
+/* Quien puede LLEVAR una sesion de preparacion fisica. Estaba incluida aqui
+   la fisioterapeuta, y no es lo mismo: trata lesiones, no dirige la sesion de
+   fisica del martes. Con la hoja en modo lectura casi no se notaba; desde que
+   el preparador se asigna con un desplegable en la propia fila, tenerla en esa
+   lista es ponerla a un clic de que le asignen un equipo por error. */
 SF.esPreparador = function (s) {
-  return !!s && (s.role === 'preparador_fisico' || s.role === 'coord_pf' || s.role === 'fisio');
+  return !!s && (s.role === 'preparador_fisico' || s.role === 'coord_pf');
 };
 
 /* Estados canónicos del jugador y orden del pipeline de captación */
@@ -3346,6 +3389,23 @@ SF.pfMin = function (x) {
   if (!x) return null;
   var m = String(x).match(/^(\d{1,2}):(\d{2})$/);
   return m ? (+m[1]) * 60 + (+m[2]) : null;
+};
+
+/* ¿Este preparador ya esta ocupado a esa hora? La pregunta que se hace el
+   coordinador CADA vez que asigna a alguien, y que hasta ahora tenia que
+   contestarse el solo leyendo la hoja entera. Devuelve la sesion que choca, o
+   null. Se excluye la propia sesion: cambiarle el preparador a una sesion no
+   puede chocar consigo misma. */
+SF.pfChoque = function (lista, prepId, x) {
+  if (!prepId) return null;
+  var a1 = SF.pfMin(x.hora_ini), a2 = SF.pfMin(x.hora_fin) || (a1 + 1);
+  if (a1 == null) return null;
+  return (lista || []).filter(function (y) {
+    if (y.id === x.id || y.prep_id !== prepId || y.dia !== x.dia) return false;
+    var b1 = SF.pfMin(y.hora_ini), b2 = SF.pfMin(y.hora_fin) || (b1 + 1);
+    if (b1 == null) return false;
+    return a1 < b2 && b1 < a2;
+  })[0] || null;
 };
 
 SF.pfAvisos = function (lista) {
@@ -12759,6 +12819,131 @@ window.SF = window.SF || {};
       return d > 0 ? d : 0;
     }
 
+    /* La celda de preparador, convertida en la decision que es. Guarda al
+       instante: un cuadrante se monta cambiando cincuenta asignaciones
+       seguidas, y pedir "guardar" en cada una es pedir que no se haga. */
+    function celdaPrep(x, preps) {
+      var lista = SF.store.pf();
+      var td = el('<td class="pf-prep pf-' + colorPrep(x.prep_id) + '"></td>');
+      var s2 = el('<select class="pf-sel" aria-label="Preparador de la sesión"></select>');
+      s2.appendChild(el('<option value=""' + (x.prep_id ? '' : ' selected') + '>— sin asignar —</option>'));
+      /* Si la sesion la lleva alguien que ya no es preparador -cambio de rol,
+         una carga vieja-, su nombre sigue en la lista y marcado. Dejarlo fuera
+         haria que el desplegable enseñara a OTRA persona sin que nadie haya
+         tocado nada, que es la peor forma de perder un dato. */
+      if (x.prep_id && !preps.some(function (sp) { return sp.id === x.prep_id; })) {
+        var ex = SF.store.staff().filter(function (sp) { return sp.id === x.prep_id; })[0];
+        s2.appendChild(el('<option value="' + esc(x.prep_id) + '" selected>' +
+          esc(ex ? ex.full_name : 'quien lo llevaba') + ' · ya no es preparador</option>'));
+      }
+      preps.forEach(function (sp) {
+        var ch = SF.pfChoque(lista, sp.id, x);
+        var eqc = ch ? SF.store.teamGet(ch.team_id) : null;
+        s2.appendChild(el('<option value="' + sp.id + '"' + (sp.id === x.prep_id ? ' selected' : '') + '>' +
+          esc(sp.full_name) + (ch ? ' · ocupado con ' + esc(eqc ? eqc.name : 'otro equipo') : '') + '</option>'));
+      });
+      s2.onchange = function () {
+        var nuevo = s2.value || null;
+        var ch = SF.pfChoque(lista, nuevo, x);
+        SF.store.pfUpdate(x.id, { prep_id: nuevo });
+        /* Se deja hacer, pero se dice. A veces el coordinador SABE que va a
+           partir la sesion o que llega tarde a proposito; lo que no puede
+           pasar es que nadie se lo diga. */
+        U.toast(ch ? 'Guardado, pero queda en dos sitios a la vez' : 'Preparador asignado');
+        SF.router.render();
+      };
+      td.appendChild(s2);
+      return td;
+    }
+
+    /* ---------- LA SEMANA POR PREPARADOR ----------
+       La hoja por dias contesta "¿que hay el martes?". Coordinar una temporada
+       es la otra pregunta: "¿quien lleva que, quien va sobrado y quien no llega
+       a tiempo de un sitio a otro?". Filas = preparadores, columnas = dias.
+       La primera fila es SIN ASIGNAR, porque el trabajo del coordinador es
+       literalmente vaciar esa fila. */
+    function pintaPFPreps(body, lista, preps, puede) {
+      var sinAsig = lista.filter(function (x) { return !x.prep_id; });
+
+      if (!preps.length) {
+        body.appendChild(el('<div class="empty-panel"><p>No hay preparadores físicos dados de alta.</p>' +
+          '<p class="hint">Se dan de alta en Staff. Sin ellos no hay a quién asignar las sesiones.</p></div>'));
+        return;
+      }
+
+      var filas = [{ id: null, nombre: 'Sin asignar', suyas: sinAsig }].concat(
+        preps.map(function (sp) {
+          return { id: sp.id, nombre: sp.full_name, sp: sp,
+            suyas: lista.filter(function (x) { return x.prep_id === sp.id; }) };
+        }));
+
+      var cab = '<th class="pfp-nom">Preparador</th>' +
+        SF.DIAS_SEM.map(function (d) { return '<th>' + esc(d) + '</th>'; }).join('') +
+        '<th class="pfp-tot">Semana</th>';
+      var tab = el('<div class="cal-scroll"><table class="cua-tab pfp"><thead><tr>' + cab +
+        '</tr></thead><tbody></tbody></table></div>');
+      var tb = tab.querySelector('tbody');
+
+      filas.forEach(function (f) {
+        if (!f.id && !f.suyas.length) return;          // sin huérfanas, no hay fila de huérfanas
+        var min = f.suyas.reduce(function (a, x) { return a + minutos(x.hora_ini, x.hora_fin); }, 0);
+        var tr = el('<tr' + (f.id ? '' : ' class="pfp-sin"') + '></tr>');
+        tr.appendChild(el('<td class="pfp-nom' + (f.id ? ' pf-' + colorPrep(f.id) : '') + '"><b>' +
+          esc(f.nombre) + '</b>' + (f.sp && f.sp.alias && f.sp.alias !== f.sp.full_name
+            ? '<span class="hint"> «' + esc(f.sp.alias) + '»</span>' : '') + '</td>'));
+
+        SF.DIAS_SEM.forEach(function (_d, di) {
+          var delDia = f.suyas.filter(function (x) { return x.dia === di; })
+            .sort(function (a, b) { return (a.hora_ini || '').localeCompare(b.hora_ini || ''); });
+          var td = el('<td class="pfp-d' + (delDia.length ? ' pfp-hay' : '') + '"></td>');
+          delDia.forEach(function (x) {
+            var eq = SF.store.teamGet(x.team_id);
+            var ch = f.id ? SF.pfChoque(lista, f.id, x) : null;
+            /* El chip lleva el color de SU preparador. La fila ya lo dice, pero
+               la vista se lee en diagonal buscando huecos y solapes, y en
+               diagonal lo que se ve es el chip, no la cabecera de la fila. */
+            var chip = el('<button class="pfp-ses ' + (f.id ? 'pf-b-' + colorPrep(f.id) : '') +
+              (ch ? ' pfp-choca' : '') + (f.id ? '' : ' pfp-libre') + '">' +
+              '<b>' + esc(x.hora_ini || '—') + (x.hora_fin ? ' – ' + esc(x.hora_fin) : '') + '</b>' +
+              '<span>' + esc(eq ? eq.name : '— equipo borrado —') + '</span>' +
+              (ch ? '<span class="pfp-et">se solapa</span>' : '') + '</button>');
+            if (puede) chip.onclick = function () { formPF(x); };
+            else chip.disabled = true;
+            td.appendChild(chip);
+          });
+          tr.appendChild(td);
+        });
+
+        tr.appendChild(el('<td class="pfp-tot"><b>' + f.suyas.length + '</b>' +
+          '<span class="hint">' + (f.suyas.length === 1 ? 'sesión' : 'sesiones') +
+          (min ? ' · ' + Math.round(min / 60 * 10) / 10 + ' h' : '') + '</span></td>'));
+        tb.appendChild(tr);
+      });
+      body.appendChild(tab);
+
+      body.appendChild(el('<p class="hint" style="margin-top:10px">' +
+        (puede ? 'Toca una sesión para cambiarle la hora, el equipo o el preparador. ' : '') +
+        (sinAsig.length
+          ? '<b>' + sinAsig.length + '</b> ' + (sinAsig.length === 1 ? 'sesión sigue' : 'sesiones siguen') +
+            ' sin preparador: son la fila de arriba y son el trabajo que queda.'
+          : 'Todas las sesiones tienen preparador.') + '</p>'));
+
+      /* El reparto, en una barra por persona. Un cuadrante puede estar
+         completo y mal repartido, y eso no se ve contando filas. */
+      var tope = Math.max.apply(null, filas.filter(function (f) { return f.id; })
+        .map(function (f) { return f.suyas.reduce(function (a, x) { return a + minutos(x.hora_ini, x.hora_fin); }, 0); }).concat([1]));
+      var caja = el('<div class="pfp-carga"><p class="sec-label">Reparto de la semana</p></div>');
+      filas.filter(function (f) { return f.id; }).forEach(function (f) {
+        var min = f.suyas.reduce(function (a, x) { return a + minutos(x.hora_ini, x.hora_fin); }, 0);
+        var fila = el('<div class="pfp-barra"><span class="pfp-b-n">' + esc(f.nombre) + '</span>' +
+          '<span class="pfp-b-t"><i class="pf-' + colorPrep(f.id) + '" style="width:' +
+          Math.round(min / tope * 100) + '%"></i></span>' +
+          '<span class="pfp-b-v">' + (min ? Math.round(min / 60 * 10) / 10 + ' h' : '—') + '</span></div>');
+        caja.appendChild(fila);
+      });
+      body.appendChild(caja);
+    }
+
     function pintaPF() {
       body.innerHTML = '';
       var puede = r.canEditPF;
@@ -12844,6 +13029,23 @@ window.SF = window.SF || {};
         return;
       }
 
+      /* Dos maneras de mirar lo mismo, porque son dos preguntas distintas:
+         "¿qué hay el martes?" (la hoja, como el papel del club) y "¿quién
+         lleva qué?" (por preparador, que es como se monta una temporada). */
+      var vista = SF._pfVista || 'hoja';
+      var vtabs = el('<div class="row-c eq-filtros" style="margin:2px 0 12px"></div>');
+      [['hoja', 'Por días'], ['preps', 'Por preparador']].forEach(function (o) {
+        var b = el('<button class="eq-chip eq-chip-sm' + (vista === o[0] ? ' on' : '') + '">' + o[1] + '</button>');
+        b.onclick = function () { SF._pfVista = o[0]; SF.router.render(); };
+        vtabs.appendChild(b);
+      });
+      body.appendChild(vtabs);
+
+      if (vista === 'preps') {
+        pintaPFPreps(body, lista, preps, puede);
+        return;
+      }
+
       /* --- UNA TABLA POR DÍA -------------------------------------------
          Como la hoja del club: el día a la izquierda abarcando su bloque, y
          encima de cada bloque su propia fila de columnas. Se copia el formato
@@ -12872,7 +13074,7 @@ window.SF = window.SF || {};
              hoja: son los que la coordinación mira primero cuando algo se
              mueve, porque son los que menos margen tienen. */
           var destacado = eq && (+eq.pf_objetivo || 0) >= 3;
-          var tr = el('<tr></tr>');
+          var tr = el('<tr' + (puede ? ' class="pf-fila"' : '') + '></tr>');
           if (k === 0) tr.appendChild(el('<td class="pf-diacol" rowspan="' + delDia.length + '"><b>' +
             esc(nombreDia) + '</b></td>'));
           tr.appendChild(el('<td class="pf-hora"><b>' + esc(x.hora_ini || '') +
@@ -12882,13 +13084,18 @@ window.SF = window.SF || {};
             esc(eq ? eq.name : '— equipo borrado —') + '</td>'));
           tr.appendChild(el('<td class="pf-inst">' + esc(nombreInst(x.inst) || '—') +
             (x.pista ? ' <span class="hint">· ' + esc(x.pista) + '</span>' : '') + '</td>'));
-          tr.appendChild(el('<td class="pf-prep pf-' + colorPrep(x.prep_id) + '">' +
-            esc(pr ? pr.full_name : '— sin asignar —') + '</td>'));
+          /* Asignar preparador es LO que se hace todo el rato al montar una
+             temporada, y estaba a tres clics y un formulario de distancia.
+             Aqui se hace en uno, en la propia fila, y el desplegable dice
+             quien esta ocupado a esa hora antes de elegirlo. */
+          tr.appendChild(puede ? celdaPrep(x, preps) :
+            el('<td class="pf-prep pf-' + colorPrep(x.prep_id) + '">' +
+              esc(pr ? pr.full_name : '— sin asignar —') + '</td>'));
           if (puede) {
             var td = el('<td class="pf-x"></td>');
-            var bx = el('<button class="lnk-del" aria-label="Quitar la sesión">' + ico('x') + '</button>');
-            bx.onclick = function () { SF.store.pfRemove(x.id); U.toast('Sesión quitada'); SF.router.render(); };
-            td.appendChild(bx); tr.appendChild(td);
+            var bEd = el('<button class="lnk-ed" aria-label="Editar la sesión" title="Editar">' + ico('edit') + '</button>');
+            bEd.onclick = function () { formPF(x); };
+            td.appendChild(bEd); tr.appendChild(td);
           }
           tb.appendChild(tr);
         });
@@ -13098,43 +13305,95 @@ window.SF = window.SF || {};
       U.modal('Textos de la hoja', box);
     }
 
-    function formPF() {
-      var preps = SF.store.staff().filter(function (s) {
-        return SF.esPreparador(s);
-      });
+    /* Una sesion de PF: crear, EDITAR y duplicar.
+       Hasta ahora solo se podia añadir y borrar. Para cambiar una hora habia
+       que quitar la fila y volver a escribirla entera —dia, equipo, dos horas,
+       pabellon, pista, salto a pista y preparador—, que es la razon por la que
+       un cuadrante deja de mantenerse: cuesta mas arreglarlo que dejarlo mal.
+       Coordinar una temporada es sobre todo EDITAR, no crear. */
+    function formPF(x) {
+      var editar = !!(x && x.id);
+      var preps = SF.store.staff().filter(function (s) { return SF.esPreparador(s); });
+      var lista = SF.store.pf();
+      x = x || {};
+      function sel(v, val) { return String(v) === String(val) ? ' selected' : ''; }
+
       var box = el('<div><div class="form-grid">' +
         '<div class="frow"><label>Día</label><select id="d">' + SF.DIAS_SEM.map(function (n, i) {
-          return '<option value="' + i + '">' + n + '</option>';
+          return '<option value="' + i + '"' + sel(i, x.dia) + '>' + n + '</option>';
         }).join('') + '</select></div>' +
         '<div class="frow"><label>Equipo</label><select id="eq">' + equipos.map(function (e) {
-          return '<option value="' + e.id + '">' + esc(e.name) + '</option>';
+          return '<option value="' + e.id + '"' + sel(e.id, x.team_id) + '>' + esc(e.name) + '</option>';
         }).join('') + '</select></div>' +
-        '<div class="frow"><label>Desde</label><input id="hi" type="time" value="19:00"></div>' +
-        '<div class="frow"><label>Hasta</label><input id="hf" type="time" value="20:30"></div>' +
-        '<div class="frow"><label>Pabellón</label><select id="in">' + insts.map(function (x) {
-          return '<option value="' + x.id + '">' + esc(x.nombre) + '</option>';
+        '<div class="frow"><label>Desde</label><input id="hi" type="time" value="' + esc(x.hora_ini || '19:00') + '"></div>' +
+        '<div class="frow"><label>Hasta</label><input id="hf" type="time" value="' + esc(x.hora_fin || '20:30') + '"></div>' +
+        '<div class="frow"><label>Pabellón</label><select id="in">' + insts.map(function (i2) {
+          return '<option value="' + i2.id + '"' + sel(i2.id, x.inst) + '>' + esc(i2.nombre) + '</option>';
         }).join('') + '</select></div>' +
-        '<div class="frow"><label>Pista</label><input id="pi" placeholder="Pista 1 o sala"></div>' +
-        '<div class="frow"><label>Salta a pista a las</label><input id="hp" type="time">' +
+        '<div class="frow"><label>Pista</label><input id="pi" placeholder="Pista 1 o sala" value="' + esc(x.pista || '') + '"></div>' +
+        '<div class="frow"><label>Salta a pista a las</label><input id="hp" type="time" value="' + esc(x.hora_pista || '') + '">' +
         '<span class="hint">La hora a la que empieza su entrenamiento en pista.</span></div>' +
         '<div class="frow" style="grid-column:1/-1"><label>Preparador</label><select id="pr">' +
-        (preps.length ? preps.map(function (s) { return '<option value="' + s.id + '">' + esc(s.full_name) + '</option>'; }).join('')
-                      : '<option value="">— no hay preparadores dados de alta —</option>') + '</select></div>' +
+        '<option value=""' + sel('', x.prep_id || '') + '>— sin asignar —</option>' +
+        preps.map(function (s2) {
+          return '<option value="' + s2.id + '"' + sel(s2.id, x.prep_id) + '>' + esc(s2.full_name) + '</option>';
+        }).join('') + '</select>' +
+        (preps.length ? '' : '<span class="hint">No hay preparadores dados de alta.</span>') +
+        '<span class="hint pf-choque" id="ch"></span></div>' +
         '</div></div>');
-      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Añadir</button></div>');
-      foot.children[0].onclick = U.closeModal;
-      foot.children[1].onclick = function () {
-        SF.store.pfAdd({
-          dia: +box.querySelector('#d').value, team_id: box.querySelector('#eq').value,
+
+      /* El aviso de solape se da MIENTRAS se elige, no despues de guardar.
+         Un aviso que llega cuando ya esta hecho obliga a deshacer; este deja
+         cambiar de idea sin haber roto nada. */
+      function datos() {
+        return { id: x.id, dia: +box.querySelector('#d').value, team_id: box.querySelector('#eq').value,
           hora_ini: box.querySelector('#hi').value, hora_fin: box.querySelector('#hf').value,
           inst: box.querySelector('#in').value, pista: box.querySelector('#pi').value.trim(),
-          hora_pista: box.querySelector('#hp').value,
-          prep_id: box.querySelector('#pr').value
-        });
-        U.closeModal(); U.toast('Sesión añadida'); SF.router.render();
+          hora_pista: box.querySelector('#hp').value, prep_id: box.querySelector('#pr').value || null };
+      }
+      function revisa() {
+        var d = datos();
+        var av = box.querySelector('#ch');
+        var ch = SF.pfChoque(lista, d.prep_id, d);
+        if (ch) {
+          var eqc = SF.store.teamGet(ch.team_id);
+          av.className = 'hint pf-choque is-mal';
+          av.innerHTML = 'Ya está con ' + esc(eqc ? eqc.name : 'otro equipo') + ' a las ' + esc(ch.hora_ini || '') + '.';
+        } else if (d.hora_pista && SF.pfMin(d.hora_fin) > SF.pfMin(d.hora_pista)) {
+          av.className = 'hint pf-choque is-mal';
+          av.innerHTML = 'La física termina después de saltar a pista.';
+        } else { av.className = 'hint pf-choque'; av.innerHTML = ''; }
+      }
+      ['#d', '#hi', '#hf', '#hp', '#pr'].forEach(function (q) {
+        var e2 = box.querySelector(q); if (e2) { e2.onchange = revisa; e2.oninput = revisa; }
+      });
+
+      var foot = el('<div class="modal-actions"></div>');
+      if (editar) {
+        var bDup = el('<button class="btn btn-light">Duplicar</button>');
+        bDup.onclick = function () {
+          var d = datos(); delete d.id;
+          SF.store.pfAdd(d);
+          U.closeModal(); U.toast('Sesión duplicada'); SF.router.render();
+        };
+        var bDel = el('<button class="btn btn-light">Quitar</button>');
+        bDel.onclick = function () {
+          SF.store.pfRemove(x.id); U.closeModal(); U.toast('Sesión quitada'); SF.router.render();
+        };
+        foot.appendChild(bDup); foot.appendChild(bDel);
+      }
+      var bC = el('<button class="btn">Cancelar</button>');
+      bC.onclick = U.closeModal;
+      var bG = el('<button class="btn btn-primary">' + (editar ? 'Guardar' : 'Añadir') + '</button>');
+      bG.onclick = function () {
+        var d = datos(); delete d.id;
+        if (editar) SF.store.pfUpdate(x.id, d); else SF.store.pfAdd(d);
+        U.closeModal(); U.toast(editar ? 'Sesión guardada' : 'Sesión añadida'); SF.router.render();
       };
+      foot.appendChild(bC); foot.appendChild(bG);
       box.appendChild(foot);
-      U.modal('Sesión de preparación física', box);
+      revisa();
+      U.modal(editar ? 'Editar la sesión de preparación física' : 'Sesión de preparación física', box);
     }
 
     /* ---------- Cargar el cuadrante desde una foto, un Excel o un PDF ------
