@@ -1300,6 +1300,45 @@ button.pf-ley:hover{filter:brightness(.96)}
 .pfp-ses.pf-b-naranja{border-left-color:#E0871F}
 .pfp-ses.pf-b-azul{border-left-color:#2C7FB8}
 .pfp-ses.pf-b-morado{border-left-color:#6F5AEF}
+
+/* ---- El tablero: turnos x días, y el hueco vacío como protagonista ---- */
+.tb th{vertical-align:bottom}
+.tb .tb-fr{width:112px;min-width:112px;padding:6px}
+.tb .tb-d{text-align:left;padding:8px 10px;white-space:nowrap}
+.tb .tb-d span{display:block;font-size:10px;font-weight:500;color:var(--ink-3);text-transform:none;letter-spacing:0}
+.tb .tb-d.tb-cerrado{opacity:.5}
+.tb .tb-abrir{width:56px;text-align:right;padding:8px}
+.tb td{vertical-align:top}
+.tb .tb-c{padding:5px;min-width:150px;border:1px solid var(--line,#ECEAF5)}
+.tb .tb-hay{background:var(--bg,#F7F7FC)}
+.tb .tb-off{background:repeating-linear-gradient(45deg,#FAFAFD,#FAFAFD 6px,#F2F1F8 6px,#F2F1F8 12px)}
+.tb .tb-diana{outline:2px dashed var(--purple,#6F5AEF);outline-offset:-3px;background:#F1EEFF}
+.tb-fr-b{display:block;width:100%;text-align:left;font-family:inherit;color:var(--ink);cursor:pointer;
+  background:var(--sidebar,#17132A);border:0;border-radius:9px;padding:8px 10px}
+.tb-fr-b:disabled{cursor:default}
+.tb-fr-b b{display:block;font-size:13px;font-weight:700;color:#fff}
+.tb-fr-b span{display:block;font-size:11px;color:#B9B3D6}
+.tb-fr-b i{display:block;font-style:normal;font-size:10px;color:#8C86AE;margin-top:3px}
+.tb-fr-b .tb-suelta{color:#E0A030}
+.tb-s{display:block;width:100%;text-align:left;font-family:inherit;color:var(--ink);cursor:grab;
+  background:#fff;border:1px solid var(--line,#ECEAF5);border-left:3px solid var(--purple,#6F5AEF);
+  border-radius:8px;padding:5px 8px;margin-bottom:4px}
+.tb-s:hover:not(:disabled){border-color:var(--purple,#6F5AEF)}
+.tb-s b{display:block;font-size:12px;font-weight:600;line-height:1.25}
+.tb-s span{display:block;font-size:10.5px;color:var(--ink-3);line-height:1.3}
+.tb-s.tb-libre{border-left-color:#E0A030;background:#FFFBF4}
+.tb-s.tb-choca{border-left-color:#D14343;background:#FBEAEA}
+.tb-s .tb-et{color:#D14343;font-weight:700;text-transform:uppercase;font-size:9px;letter-spacing:.04em}
+.tb-s.tb-arrastro{opacity:.4}
+.tb-s.pf-b-verde{border-left-color:#2E9E6B}
+.tb-s.pf-b-naranja{border-left-color:#E0871F}
+.tb-s.pf-b-azul{border-left-color:#2C7FB8}
+.tb-s.pf-b-morado{border-left-color:#6F5AEF}
+.tb-mas{display:block;width:100%;border:1px dashed var(--line,#DCD8EE);background:transparent;
+  color:var(--ink-3);border-radius:8px;padding:5px;font-size:15px;line-height:1;cursor:pointer}
+.tb-mas:hover{border-color:var(--purple,#6F5AEF);color:var(--purple,#6F5AEF);background:#F6F4FF}
+.tb-c .tb-s + .tb-mas{margin-top:2px;opacity:.45}
+.tb-c:hover .tb-mas{opacity:1}
 .reg-temp td,.rt-jug td{padding:9px 10px;font-size:13px;border-bottom:1px solid var(--line,#ECEAF5)}
 .reg-temp th,.rt-jug th{padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);text-align:left;font-weight:600;white-space:nowrap}
@@ -7012,6 +7051,108 @@ SF.store = (function () {
       save(d);
     },
     pf: function () { return db().pf || []; },
+
+    /* --- LAS FRANJAS DE PREPARACION FISICA ---
+       La hoja del club no es una lista de sesiones sueltas: es una REJILLA.
+       Cuatro turnos que se repiten todos los dias -17:30, 18:45, 20:00,
+       21:15- y en cada cruce de turno y dia, los equipos que entran. Eso es
+       lo que la coordinacion tiene en la cabeza y en el papel, y la app lo
+       guardaba como veinticuatro filas independientes.
+       Guardarlas explicitamente permite lo que faltaba: ABRIR un turno vacio
+       y colgarle equipos, en vez de tener que inventarse una sesion entera
+       para que aparezca la fila. La primera vez se deducen de lo que ya hay,
+       asi que ningun club pierde su cuadrante. */
+    pfFranjas: function () {
+      var d = db();
+      if (!d.pf_franjas) {
+        var vistas = {}, out = [];
+        (d.pf || []).forEach(function (x) {
+          if (!x.hora_ini) return;
+          var k = x.hora_ini + '|' + (x.hora_fin || '');
+          if (vistas[k]) return;
+          vistas[k] = 1; out.push({ ini: x.hora_ini, fin: x.hora_fin || '' });
+        });
+        out.sort(function (a, b) { return (SF.pfMin(a.ini) || 0) - (SF.pfMin(b.ini) || 0); });
+        d.pf_franjas = out; save(d);
+      }
+      return d.pf_franjas;
+    },
+    pfFranjaAdd: function (ini, fin) {
+      var d = db(); d.pf_franjas = this.pfFranjas().slice();
+      if (d.pf_franjas.some(function (f) { return f.ini === ini && f.fin === fin; })) return false;
+      d.pf_franjas.push({ ini: ini, fin: fin || '' });
+      d.pf_franjas.sort(function (a, b) { return (SF.pfMin(a.ini) || 0) - (SF.pfMin(b.ini) || 0); });
+      save(d); return true;
+    },
+    /* Cambiar la hora de un turno arrastra a TODAS sus sesiones. Es justo lo
+       que se quiere -"el turno de las 17:30 pasa a las 17:45" es una decision,
+       no seis- pero por eso mismo la pantalla lo dice antes de hacerlo. */
+    pfFranjaSet: function (ini, fin, nini, nfin) {
+      var d = db(); var n = 0;
+      d.pf_franjas = this.pfFranjas().map(function (f) {
+        if (f.ini !== ini || (f.fin || '') !== (fin || '')) return f;
+        return { ini: nini, fin: nfin || '' };
+      });
+      d.pf_franjas.sort(function (a, b) { return (SF.pfMin(a.ini) || 0) - (SF.pfMin(b.ini) || 0); });
+      (d.pf || []).forEach(function (x) {
+        if (x.hora_ini !== ini || (x.hora_fin || '') !== (fin || '')) return;
+        x.hora_ini = nini; x.hora_fin = nfin || ''; n++;
+      });
+      save(d); return n;
+    },
+    pfFranjaQuitar: function (ini, fin) {
+      var d = db();
+      var ocupada = (d.pf || []).some(function (x) {
+        return x.hora_ini === ini && (x.hora_fin || '') === (fin || '');
+      });
+      if (ocupada) return false;                 // un turno con sesiones no se borra de un clic
+      d.pf_franjas = this.pfFranjas().filter(function (f) {
+        return !(f.ini === ini && (f.fin || '') === (fin || ''));
+      });
+      save(d); return true;
+    },
+
+    /* --- LOS DIAS DE TRABAJO ---
+       No todos los clubes trabajan seis dias. Un sabado cerrado que sigue
+       ocupando una columna hace pensar que falta por rellenar; y sobre todo,
+       si el club decide abrir el sabado, tiene que poder decirlo aqui y no
+       llamar a nadie. */
+    pfDias: function () {
+      var d = db();
+      if (!d.pf_dias) {
+        var usados = {};
+        (d.pf || []).forEach(function (x) { usados[x.dia] = 1; });
+        var todos = (SF.DIAS_SEM || []).map(function (_x, i) { return i; });
+        var hay = todos.filter(function (i) { return usados[i]; });
+        /* Si no hay nada cargado todavia, de lunes a viernes: es lo normal, y
+           el sabado se abre con un clic. */
+        d.pf_dias = hay.length ? hay : todos.filter(function (i) { return i < 5; });
+        save(d);
+      }
+      return d.pf_dias;
+    },
+    pfDiaToggle: function (i) {
+      var d = db(); var lista = this.pfDias().slice();
+      var k = lista.indexOf(i);
+      if (k >= 0) {
+        var hay = (d.pf || []).some(function (x) { return x.dia === i; });
+        if (hay) return false;                   // no se cierra un dia con sesiones dentro
+        lista.splice(k, 1);
+      } else lista.push(i);
+      lista.sort(function (a, b) { return a - b; });
+      d.pf_dias = lista; save(d); return true;
+    },
+    /* Mover una sesion de sitio en el tablero: otro dia, otro turno, o los
+       dos. Devuelve lo que habia antes, para poder deshacer. */
+    pfMover: function (id, dia, ini, fin) {
+      var d = db(); var antes = null;
+      (d.pf || []).forEach(function (x) {
+        if (x.id !== id) return;
+        antes = { dia: x.dia, hora_ini: x.hora_ini, hora_fin: x.hora_fin };
+        x.dia = dia; x.hora_ini = ini; x.hora_fin = fin || '';
+      });
+      save(d); return antes;
+    },
     /* --- Lo que el club ha cambiado de sus roles --- */
     rolesOverride: function () { return (db().academy || {}).roles || {}; },
     rolSet: function (k, patch, quien) {
@@ -12856,6 +12997,212 @@ window.SF = window.SF || {};
       return td;
     }
 
+    /* ---------- EL TABLERO ----------
+       Como trabaja de verdad una coordinacion de preparacion fisica: la hoja
+       del club NO es una lista de sesiones sueltas, es una REJILLA. Cuatro
+       turnos que se repiten todos los dias y, en cada cruce de turno y dia,
+       los equipos que entran. Eso es lo que tienen en el papel y en la cabeza,
+       y la app lo enseñaba como veinticuatro filas independientes: por eso
+       "no se podia agregar ni cambiar horarios". Para meter una sesion habia
+       que inventarse una hora; para moverla, reescribirla.
+
+       Aqui el hueco vacio es el protagonista. Cada cruce sin nada tiene su
+       «+», que es literalmente donde falta trabajo. Se arrastra una sesion de
+       un cruce a otro y cambia de dia y de hora sola. Se abre un turno nuevo
+       sin tener que inventarse una sesion, y se abre o se cierra un dia de
+       trabajo. */
+    function pintaPFTablero(body, lista, preps, puede) {
+      var franjas = SF.store.pfFranjas();
+      var dias = SF.store.pfDias();
+
+      /* Un turno con sesiones SIEMPRE sale, aunque no este en la lista de
+         turnos: perder de vista una sesion porque su hora no cuadra con la
+         rejilla seria esconder trabajo real. */
+      var extra = {};
+      lista.forEach(function (x) {
+        var k = (x.hora_ini || '') + '|' + (x.hora_fin || '');
+        if (!franjas.some(function (f) { return f.ini === x.hora_ini && (f.fin || '') === (x.hora_fin || ''); })) extra[k] = x;
+      });
+      var todas = franjas.concat(Object.keys(extra).map(function (k) {
+        return { ini: extra[k].hora_ini, fin: extra[k].hora_fin || '', suelta: true };
+      })).sort(function (a, b) { return (SF.pfMin(a.ini) || 0) - (SF.pfMin(b.ini) || 0); });
+
+      /* Un dia con sesiones tambien sale siempre, este abierto o no. */
+      var diasVer = dias.slice();
+      lista.forEach(function (x) { if (diasVer.indexOf(x.dia) < 0) diasVer.push(x.dia); });
+      diasVer.sort(function (a, b) { return a - b; });
+
+      if (!todas.length) {
+        body.appendChild(el('<div class="empty-panel"><p>Todavía no hay turnos.</p>' +
+          '<p class="hint">Un turno es una franja horaria que se repite todos los días: 17:30 – 18:20, por ejemplo. ' +
+          'Se abre uno y ya se le pueden colgar equipos día a día.</p></div>'));
+      }
+
+      var cab = '<th class="tb-fr">Turno</th>' + diasVer.map(function (di) {
+        var n = lista.filter(function (x) { return x.dia === di; }).length;
+        var abierto = dias.indexOf(di) >= 0;
+        return '<th class="tb-d' + (abierto ? '' : ' tb-cerrado') + '" data-dia="' + di + '">' +
+          esc(SF.DIAS_SEM[di]) + '<span>' + (abierto ? (n || 'libre') : 'cerrado') + '</span></th>';
+      }).join('') + (puede ? '<th class="tb-abrir"></th>' : '');
+
+      var tabla = el('<div class="cal-scroll"><table class="cua-tab tb"><thead><tr>' + cab +
+        '</tr></thead><tbody></tbody></table></div>');
+      var tb = tabla.querySelector('tbody');
+
+      /* Abrir y cerrar dias, desde la propia cabecera. */
+      if (puede) {
+        [].forEach.call(tabla.querySelectorAll('th.tb-d'), function (th) {
+          var di = +th.getAttribute('data-dia');
+          th.style.cursor = 'pointer';
+          th.title = dias.indexOf(di) >= 0 ? 'Cerrar este día' : 'Abrir este día';
+          th.onclick = function () {
+            if (!SF.store.pfDiaToggle(di)) { U.toast('Ese día tiene sesiones: quítalas antes de cerrarlo'); return; }
+            SF.router.render();
+          };
+        });
+        var thA = tabla.querySelector('th.tb-abrir');
+        var cerrados = (SF.DIAS_SEM || []).map(function (_x, i) { return i; })
+          .filter(function (i) { return diasVer.indexOf(i) < 0; });
+        if (cerrados.length) {
+          var bA = el('<button class="lnk" title="Abrir otro día de trabajo">+ día</button>');
+          bA.onclick = function () { SF.store.pfDiaToggle(cerrados[0]); SF.router.render(); };
+          thA.appendChild(bA);
+        }
+      }
+
+      todas.forEach(function (f) {
+        var enFranja = lista.filter(function (x) {
+          return x.hora_ini === f.ini && (x.hora_fin || '') === (f.fin || '');
+        });
+        var tr = el('<tr></tr>');
+
+        var tdF = el('<td class="tb-fr"></td>');
+        var etq = el('<button class="tb-fr-b"><b>' + esc(f.ini || '—') + '</b>' +
+          (f.fin ? '<span>' + esc(f.fin) + '</span>' : '') +
+          '<i>' + enFranja.length + (enFranja.length === 1 ? ' sesión' : ' sesiones') + '</i>' +
+          (f.suelta ? '<i class="tb-suelta">fuera de rejilla</i>' : '') + '</button>');
+        if (puede) etq.onclick = function () { modalFranja(f, enFranja.length); };
+        else etq.disabled = true;
+        tdF.appendChild(etq);
+        tr.appendChild(tdF);
+
+        diasVer.forEach(function (di) {
+          var dentro = enFranja.filter(function (x) { return x.dia === di; })
+            .sort(function (a, b) { return (SF.store.teamGet(a.team_id) || {}).name >
+              (SF.store.teamGet(b.team_id) || {}).name ? 1 : -1; });
+          var abierto = dias.indexOf(di) >= 0;
+          var td = el('<td class="tb-c' + (dentro.length ? ' tb-hay' : '') + (abierto ? '' : ' tb-off') + '"></td>');
+
+          dentro.forEach(function (x) {
+            var eq = SF.store.teamGet(x.team_id);
+            var pr = preps.filter(function (sp) { return sp.id === x.prep_id; })[0];
+            var ch = SF.pfChoque(lista, x.prep_id, x);
+            var chip = el('<button class="tb-s ' + (x.prep_id ? 'pf-b-' + colorPrep(x.prep_id) : 'tb-libre') +
+              (ch ? ' tb-choca' : '') + '"' + (puede ? ' draggable="true"' : '') + '>' +
+              '<b>' + esc(eq ? eq.name : '— equipo borrado —') + '</b>' +
+              '<span>' + esc(pr ? pr.full_name : 'sin preparador') + '</span>' +
+              (ch ? '<span class="tb-et">se solapa</span>' : '') + '</button>');
+            if (puede) {
+              chip.onclick = function () { formPF(x); };
+              chip.ondragstart = function (e) {
+                e.dataTransfer.setData('text/plain', x.id);
+                e.dataTransfer.effectAllowed = 'move';
+                chip.classList.add('tb-arrastro');
+              };
+              chip.ondragend = function () { chip.classList.remove('tb-arrastro'); };
+            } else chip.disabled = true;
+            td.appendChild(chip);
+          });
+
+          if (puede && abierto) {
+            /* El hueco vacio es el que dice donde falta trabajo, asi que tiene
+               su boton. Sin esto, "añadir" era un formulario en blanco en el
+               que habia que acordarse del dia y de la hora. */
+            var mas = el('<button class="tb-mas" title="Poner un equipo aquí">+</button>');
+            mas.onclick = function () {
+              formPF({ dia: di, hora_ini: f.ini, hora_fin: f.fin, _nuevo: true });
+            };
+            td.appendChild(mas);
+
+            /* Soltar aqui. Arrastrar es el gesto natural de un tablero; quien
+               no pueda o no quiera arrastrar tiene el mismo cambio en el
+               formulario, que sigue teniendo dia y horas. */
+            td.ondragover = function (e) { e.preventDefault(); td.classList.add('tb-diana'); };
+            td.ondragleave = function () { td.classList.remove('tb-diana'); };
+            td.ondrop = function (e) {
+              e.preventDefault(); td.classList.remove('tb-diana');
+              var id = e.dataTransfer.getData('text/plain');
+              if (!id) return;
+              var antes = SF.store.pfMover(id, di, f.ini, f.fin);
+              if (!antes) return;
+              var movida = SF.store.pf().filter(function (y) { return y.id === id; })[0];
+              var ch2 = movida ? SF.pfChoque(SF.store.pf(), movida.prep_id, movida) : null;
+              U.toast(ch2 ? 'Movida, pero el preparador queda en dos sitios a la vez' : 'Sesión movida');
+              SF.router.render();
+            };
+          }
+          tr.appendChild(td);
+        });
+        if (puede) tr.appendChild(el('<td class="tb-abrir"></td>'));
+        tb.appendChild(tr);
+      });
+      body.appendChild(tabla);
+
+      if (puede) {
+        var pie = el('<div class="row-c" style="margin-top:12px"></div>');
+        var bF = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Abrir un turno</button>');
+        bF.onclick = function () { modalFranja(null, 0); };
+        pie.appendChild(bF);
+        body.appendChild(pie);
+        body.appendChild(el('<p class="hint" style="margin-top:8px">' +
+          'Cada hueco vacío es un equipo que todavía no tiene preparación física a esa hora: el <b>+</b> lo pone ahí. ' +
+          'Las sesiones se <b>arrastran</b> de un hueco a otro para cambiarlas de día o de turno, y tocándolas se editan. ' +
+          'El nombre del día abre o cierra ese día de trabajo.</p>'));
+      }
+    }
+
+    /* Abrir, cambiar o quitar un turno. Cambiarle la hora arrastra a todas sus
+       sesiones, que es lo que se quiere -"el turno de las 17:30 pasa a las
+       17:45" es UNA decision, no seis- pero se dice antes de hacerlo. */
+    function modalFranja(f, cuantas) {
+      var nuevo = !f;
+      var box = el('<div><div class="form-grid">' +
+        '<div class="frow"><label>Empieza</label><input id="fi" type="time" value="' + esc(f ? f.ini : '') + '"></div>' +
+        '<div class="frow"><label>Termina</label><input id="ff" type="time" value="' + esc(f ? (f.fin || '') : '') + '"></div>' +
+        '</div></div>');
+      if (!nuevo && cuantas) box.appendChild(el('<p class="hint">Este turno tiene <b>' + cuantas + '</b> ' +
+        (cuantas === 1 ? 'sesión' : 'sesiones') + '. Si le cambias la hora, se mueven todas.</p>'));
+      if (nuevo) box.appendChild(el('<p class="hint">Un turno es una franja que se repite todos los días. ' +
+        'Se abre vacío y luego se le van colgando equipos día a día.</p>'));
+
+      var foot = el('<div class="modal-actions"></div>');
+      if (!nuevo && !cuantas) {
+        var bQ = el('<button class="btn btn-light">Quitar el turno</button>');
+        bQ.onclick = function () {
+          SF.store.pfFranjaQuitar(f.ini, f.fin); U.closeModal(); U.toast('Turno quitado'); SF.router.render();
+        };
+        foot.appendChild(bQ);
+      }
+      var bC = el('<button class="btn">Cancelar</button>'); bC.onclick = U.closeModal;
+      var bG = el('<button class="btn btn-primary">' + (nuevo ? 'Abrir el turno' : 'Guardar') + '</button>');
+      bG.onclick = function () {
+        var ini = box.querySelector('#fi').value, fin = box.querySelector('#ff').value;
+        if (!ini) { U.toast('Falta la hora de empezar'); return; }
+        if (fin && SF.pfMin(fin) <= SF.pfMin(ini)) { U.toast('La hora de terminar va después de la de empezar'); return; }
+        if (nuevo) {
+          if (!SF.store.pfFranjaAdd(ini, fin)) { U.toast('Ese turno ya existe'); U.closeModal(); return; }
+          U.closeModal(); U.toast('Turno abierto');
+        } else {
+          var n = SF.store.pfFranjaSet(f.ini, f.fin, ini, fin);
+          U.closeModal(); U.toast(n ? 'Turno y sus ' + n + ' sesiones actualizados' : 'Turno actualizado');
+        }
+        SF.router.render();
+      };
+      foot.appendChild(bC); foot.appendChild(bG);
+      box.appendChild(foot);
+      U.modal(nuevo ? 'Abrir un turno' : 'El turno de las ' + (f.ini || ''), box);
+    }
+
     /* ---------- LA SEMANA POR PREPARADOR ----------
        La hoja por dias contesta "¿que hay el martes?". Coordinar una temporada
        es la otra pregunta: "¿quien lleva que, quien va sobrado y quien no llega
@@ -13023,28 +13370,29 @@ window.SF = window.SF || {};
         body.appendChild(barra);
       }
 
-      if (!lista.length) {
+      /* Con el tablero, un cuadrante vacio ya NO es una pantalla muerta: es
+         justo donde se empieza a montar la temporada, con los turnos y los
+         dias. Solo las otras dos vistas necesitan que haya algo que enseñar. */
+      if (!lista.length && (SF._pfVista || 'tablero') !== 'tablero') {
         body.appendChild(el('<div class="empty-panel"><p>Todavía no hay sesiones de preparación física en el cuadrante.</p>' +
-          '<p class="hint">Se pueden añadir una a una, o cargar la hoja entera desde una foto, un Excel o un PDF.</p></div>'));
+          '<p class="hint">Se montan en el <b>Tablero</b>, se añaden una a una, o se carga la hoja entera desde una foto, un Excel o un PDF.</p></div>'));
         return;
       }
 
       /* Dos maneras de mirar lo mismo, porque son dos preguntas distintas:
          "¿qué hay el martes?" (la hoja, como el papel del club) y "¿quién
          lleva qué?" (por preparador, que es como se monta una temporada). */
-      var vista = SF._pfVista || 'hoja';
+      var vista = SF._pfVista || 'tablero';
       var vtabs = el('<div class="row-c eq-filtros" style="margin:2px 0 12px"></div>');
-      [['hoja', 'Por días'], ['preps', 'Por preparador']].forEach(function (o) {
+      [['tablero', 'Tablero'], ['hoja', 'Por días'], ['preps', 'Por preparador']].forEach(function (o) {
         var b = el('<button class="eq-chip eq-chip-sm' + (vista === o[0] ? ' on' : '') + '">' + o[1] + '</button>');
         b.onclick = function () { SF._pfVista = o[0]; SF.router.render(); };
         vtabs.appendChild(b);
       });
       body.appendChild(vtabs);
 
-      if (vista === 'preps') {
-        pintaPFPreps(body, lista, preps, puede);
-        return;
-      }
+      if (vista === 'tablero') { pintaPFTablero(body, lista, preps, puede); return; }
+      if (vista === 'preps') { pintaPFPreps(body, lista, preps, puede); return; }
 
       /* --- UNA TABLA POR DÍA -------------------------------------------
          Como la hoja del club: el día a la izquierda abarcando su bloque, y
@@ -13312,7 +13660,9 @@ window.SF = window.SF || {};
        un cuadrante deja de mantenerse: cuesta mas arreglarlo que dejarlo mal.
        Coordinar una temporada es sobre todo EDITAR, no crear. */
     function formPF(x) {
-      var editar = !!(x && x.id);
+      /* Puede llegar con el dia y el turno ya puestos -desde el «+» de un
+         hueco del tablero-, y entonces sigue siendo una sesion NUEVA. */
+      var editar = !!(x && x.id && !x._nuevo);
       var preps = SF.store.staff().filter(function (s) { return SF.esPreparador(s); });
       var lista = SF.store.pf();
       x = x || {};
