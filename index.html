@@ -126,7 +126,9 @@ textarea{resize:vertical;min-height:90px}
 .parte .mini-row{background:var(--surface)}
 .parte .fila-no{border-left:3px solid #D14343}
 .tempn{display:flex;flex-wrap:wrap;gap:6px 22px;padding:12px 0 4px;font-size:14px;color:var(--ink-3)}
-.tempn b{font-size:22px;font-weight:700;color:var(--ink);margin-right:4px}
+.tempn b{font-size:22px;font-weight:700;color:var(--ink);margin-right:6px}
+.tempn>div{display:flex;align-items:baseline;gap:2px}
+.tempn>div>span{font-size:13.5px}
 .dispo-nota{margin:8px 0 0;padding:9px 12px;background:var(--bg);border-radius:10px;
   font-size:13.5px;line-height:1.5;color:var(--ink-2)}
 
@@ -1233,6 +1235,16 @@ button.pf-ley:hover{filter:brightness(.96)}
 .cal-ses.extra{background:#E7F6EF}
 .cal-ses.extra .cal-et{color:#1F7A55}
 .cal-ses .cal-mot{font-size:10px;color:var(--ink-3);font-style:italic;text-decoration:none;margin-top:2px}
+.reg-temp td,.rt-jug td{padding:9px 10px;font-size:13px;border-bottom:1px solid var(--line,#ECEAF5)}
+.reg-temp th,.rt-jug th{padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--ink-3);text-align:left;font-weight:600;white-space:nowrap}
+.reg-temp .rt-eq,.rt-jug .rt-eq{font-weight:600;color:var(--ink)}
+.reg-temp .rt-mas{text-align:right}
+.rt-cae{color:#D14343;font-weight:600}
+.rt-lim{background:#FFF3E0;color:#B4761B;font-weight:600;border-radius:6px;padding:1px 7px}
+.rt-detalle>td{background:#FBFAFF;padding:12px 14px}
+.rt-jug{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden}
+.rt-jug tr:last-child td{border-bottom:0}
 @media(max-width:680px){.inst-row{flex-wrap:wrap}.inst-row input{flex:1 1 100%}}
 .sf-cuenta button{background:none;border:0;color:inherit;font-family:inherit;font-size:11.5px;cursor:pointer;text-decoration:underline;padding:0;opacity:.8}
 @media(max-width:980px){.sf-cuenta{display:none}}
@@ -3207,6 +3219,92 @@ SF.sesionesEntre = function (team, desde, hasta) {
   return out.sort(function (a, b) {
     return (a.fecha).localeCompare(b.fecha) || String(a.hora).localeCompare(String(b.hora));
   });
+};
+
+/* ===================== EL TRABAJO DE LA TEMPORADA =====================
+   Un cuadrante dice lo que ESTABA previsto. Al final de una temporada la
+   pregunta es otra: que se hizo de verdad, cuanto se entreno y cuanta carga
+   ha llevado cada jugador. Eso no estaba en ningun sitio, y es justo lo que
+   se mira en enero cuando un equipo se cae o un chaval se rompe.
+
+   Todo esto se CALCULA, no se guarda: sale del cuadrante (lo previsto), de
+   las excepciones (lo que se cayo) y de las listas pasadas (quien vino).
+   Guardar una ficha por sesion serian decenas de miles de registros muertos
+   para decir lo mismo. */
+
+/* Minutos de una sesion a partir de su hora. "19:45 – 21:00" son 75; "19:00"
+   a secas no se sabe, y decir 90 por decir falsearia las horas del año. */
+SF.minutosSesion = function (hora) {
+  if (!hora) return null;
+  var m = String(hora).replace(/\s/g, '').match(/^(\d{1,2}):(\d{2})[–\-](\d{1,2}):(\d{2})$/);
+  if (!m) return null;
+  var a = (+m[1]) * 60 + (+m[2]), b = (+m[3]) * 60 + (+m[4]);
+  if (b <= a) b += 24 * 60;
+  var d = b - a;
+  return (d > 0 && d < 8 * 60) ? d : null;
+};
+
+/* El trabajo de UN equipo en un periodo. */
+SF.trabajoDeEquipo = function (t, desde, hasta) {
+  var todas = SF.sesionesEntre(t, desde, hasta).filter(function (x) { return x.tipo !== 'partido'; });
+  var partidos = SF.sesionesEntre(t, desde, hasta).filter(function (x) { return x.tipo === 'partido'; });
+  var canceladas = todas.filter(function (x) { return x.cancelada; });
+  var hechas = todas.filter(function (x) { return !x.cancelada; });
+  var min = 0, sinHora = 0, conLista = 0, pf = 0, pista = 0;
+  hechas.forEach(function (x) {
+    var mm = SF.minutosSesion(x.hora);
+    if (mm) min += mm; else sinHora++;
+    if (x.tipo === 'pf') pf++; else pista++;
+    var g = x.evento ? (x.evento.attendance ? { marcas: x.evento.attendance } : null)
+                     : (x.clave ? SF.store.asistenciaDe(x.clave) : null);
+    if (g) conLista++;
+  });
+  return { equipo: t, previstas: todas.length, canceladas: canceladas.length,
+    hechas: hechas.length, conLista: conLista, sinHora: sinHora,
+    minutos: min, pf: pf, pista: pista, partidos: partidos.length,
+    sesiones: hechas };
+};
+
+/* La carga de cada jugador de ese equipo. Carga es lo que ha hecho, no lo que
+   estaba convocado: por eso solo cuentan las sesiones con lista pasada, y las
+   que nadie paso se dicen aparte en vez de repartirse como si fueran faltas. */
+SF.cargaDeEquipo = function (t, desde, hasta) {
+  var tr = SF.trabajoDeEquipo(t, desde, hasta);
+  var conLista = [];
+  tr.sesiones.forEach(function (x) {
+    var g = x.evento ? (x.evento.attendance ? { marcas: x.evento.attendance } : null)
+                     : (x.clave ? SF.store.asistenciaDe(x.clave) : null);
+    if (g) conLista.push({ s: x, marcas: g.marcas || {} });
+  });
+  var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
+  var filas = roster.map(function (p) {
+    var pres = 0, aus = 0, just = 0, min = 0, pf = 0;
+    conLista.forEach(function (r) {
+      /* Las marcas se guardan cortas ('p','a','j'), pero hay listas antiguas
+         con la palabra entera. Se aceptan las dos: perder media temporada de
+         asistencia por una letra seria el peor tipo de error, el silencioso. */
+      var v = String(r.marcas[p.id] || '').charAt(0);
+      if (v === 'p') { pres++; var mm = SF.minutosSesion(r.s.hora); if (mm) min += mm; if (r.s.tipo === 'pf') pf++; }
+      else if (v === 'a') aus++;
+      else if (v === 'j') just++;
+    });
+    var tot = pres + aus + just;
+    /* Dias con consigna del fisioterapeuta dentro del periodo. Es carga: un
+       jugador que ha entrenado veinte sesiones de las cuales ocho a media
+       carga no ha entrenado veinte. Aqui va el DATO de que hubo consigna y su
+       limitacion de entrenamiento, que es lo que el cuerpo tecnico necesita
+       para repartir trabajo; nada clinico, que ni siquiera existe en la app. */
+    var lim = 0;
+    ((p.availability_log) || []).forEach(function (a) {
+      var f = (a.at || '').slice(0, 10);
+      if (!f || f < desde || f > hasta) return;
+      if (a.estado && a.estado !== 'disponible') lim++;
+    });
+    return { p: p, pres: pres, aus: aus, just: just, tot: tot, minutos: min,
+      pf: pf, consignas: lim,
+      pct: tot ? Math.round(pres / tot * 100) : null };
+  });
+  return { trabajo: tr, conLista: conLista.length, filas: filas };
 };
 
 /* ===================== REVISION DEL CUADRANTE DE PF =====================
@@ -12217,6 +12315,178 @@ window.SF = window.SF || {};
        · el horario de entrenamientos (día × franja × pista),
        · el cuadrante de preparación física (con su preparador).
      Son el horario FIJO de la temporada, no las citas con fecha. */
+  /* ---------- REGISTRO DE LA TEMPORADA ----------
+     "Llevar un registro de las sesiones para que a lo largo del año podamos
+     ver todo el trabajo que se realizó y las cargas que han tenido los
+     jugadores." Eso es esta pantalla, y son dos preguntas distintas:
+
+       - EL CLUB: cuantas sesiones se plantaron, cuantas se cayeron y cuantas
+         horas de pista y de preparacion fisica se han hecho de verdad.
+       - EL JUGADOR: cuanto ha entrenado el, que no es lo mismo que lo que
+         entreno su equipo -falta, se lesiona, entra en enero-.
+
+     Se abre un equipo y se ven sus jugadores debajo. Sin abrir nada, la tabla
+     de arriba ya responde a la primera pregunta de un vistazo. */
+  function pintaRegistroTemporada(body, equipos) {
+    body.innerHTML = '';
+    var hoy = SF.hoyISO();
+    /* Ningun periodo se sale de la temporada. En septiembre, "ultimos 3
+       meses" incluiria junio, o sea la temporada pasada: sumar el trabajo de
+       dos temporadas en una misma cifra es contar dos equipos distintos como
+       si fueran uno, y ademas dejaba a "toda la temporada" con MENOS sesiones
+       que "tres meses", que es la clase de numero que hace desconfiar de la
+       pantalla entera y con razon. */
+    var inicioTemp = SF.seasonStartISO(hoy);
+    function desdeSeguro(f) { return f < inicioTemp ? inicioTemp : f; }
+    var PER = [
+      ['mes', 'Último mes', desdeSeguro(SF.sumaDias(hoy, -30))],
+      ['tri', 'Últimos 3 meses', desdeSeguro(SF.sumaDias(hoy, -92))],
+      ['temp', 'Toda la temporada', inicioTemp]
+    ];
+    var perId = SF._regTempPer || 'temp';
+    var per = PER.filter(function (x) { return x[0] === perId; })[0] || PER[2];
+    var desde = per[2];
+    var recortado = per[0] !== 'temp' && desde === inicioTemp;
+
+    var filtros = el('<div class="row-c eq-filtros" style="margin-bottom:10px"></div>');
+    PER.forEach(function (o) {
+      var b = el('<button class="eq-chip eq-chip-sm' + (perId === o[0] ? ' on' : '') + '">' + o[1] + '</button>');
+      b.onclick = function () { SF._regTempPer = o[0]; SF.router.render(); };
+      filtros.appendChild(b);
+    });
+    body.appendChild(filtros);
+
+    if (!equipos.length) {
+      body.appendChild(el('<div class="empty-panel"><p>No hay equipos en tu ámbito.</p></div>'));
+      return;
+    }
+
+    var datos = equipos.map(function (t) { return SF.trabajoDeEquipo(t, desde, hoy); })
+      .filter(function (x) { return x.previstas || x.partidos; });
+
+    if (!datos.length) {
+      body.appendChild(el('<div class="empty-panel"><p>Todavía no hay nada que registrar en este periodo.</p>' +
+        '<p class="hint">En cuanto el cuadrante tenga sesiones y se empiece a pasar lista, aquí se acumula el trabajo de la temporada.</p></div>'));
+      return;
+    }
+
+    /* El total del club, arriba. Es el numero que se dice en una junta. */
+    var tot = datos.reduce(function (a, x) {
+      a.hechas += x.hechas; a.canceladas += x.canceladas; a.minutos += x.minutos;
+      a.conLista += x.conLista; a.partidos += x.partidos; a.pf += x.pf; return a;
+    }, { hechas: 0, canceladas: 0, minutos: 0, conLista: 0, partidos: 0, pf: 0 });
+
+    body.appendChild(el('<div class="tempn">' +
+      '<div><b>' + tot.hechas + '</b><span>sesiones celebradas</span></div>' +
+      '<div><b>' + horasDe(tot.minutos) + '</b><span>de trabajo</span></div>' +
+      '<div><b>' + tot.pf + '</b><span>de preparación física</span></div>' +
+      '<div><b>' + tot.partidos + '</b><span>partidos</span></div>' +
+      '<div><b>' + tot.canceladas + '</b><span>' + (tot.canceladas === 1 ? 'sesión caída' : 'sesiones caídas') + '</span></div>' +
+      '</div>'));
+    body.appendChild(el('<p class="hint">Desde el ' + fmtDate(desde) + '. Las horas salen de las franjas del cuadrante: ' +
+      'una sesión sin hora de fin no suma horas, pero sí cuenta como sesión.' +
+      (recortado ? ' La temporada empezó hace menos: no se cuenta nada de la anterior.' : '') + '</p>'));
+
+    var tabla = el('<div class="cal-scroll"><table class="cua-tab reg-temp"><thead><tr>' +
+      '<th>Equipo</th><th>Celebradas</th><th>Caídas</th><th>Horas</th>' +
+      '<th>PF</th><th>Partidos</th><th>Con lista</th><th></th></tr></thead><tbody></tbody></table></div>');
+    var tb = tabla.querySelector('tbody');
+
+    datos.sort(function (a, b) { return b.hechas - a.hechas; });
+    datos.forEach(function (x) {
+      var pctL = x.hechas ? Math.round(x.conLista / x.hechas * 100) : null;
+      var tr = el('<tr class="rt-fila">' +
+        '<td class="rt-eq">' + esc(x.equipo.name) + '</td>' +
+        '<td><b>' + x.hechas + '</b></td>' +
+        '<td>' + (x.canceladas ? '<span class="rt-cae">' + x.canceladas + '</span>' : '<span class="hint">—</span>') + '</td>' +
+        '<td>' + horasDe(x.minutos) + (x.sinHora ? '<span class="hint"> +' + x.sinHora + ' sin hora</span>' : '') + '</td>' +
+        '<td>' + (x.pf || '<span class="hint">—</span>') + '</td>' +
+        '<td>' + (x.partidos || '<span class="hint">—</span>') + '</td>' +
+        '<td>' + (pctL == null ? '<span class="hint">—</span>'
+          : '<b class="' + (pctL >= 80 ? 'reg-alta' : pctL >= 50 ? 'reg-media' : 'reg-baja') + '">' + pctL + '%</b>') + '</td>' +
+        '<td class="rt-mas"><button class="lnk">Ver jugadores</button></td></tr>');
+      var abierta = null;
+      tr.querySelector('button').onclick = function () {
+        if (abierta) { abierta.remove(); abierta = null; this.innerText = 'Ver jugadores'; return; }
+        abierta = filaCargas(x.equipo, desde, hoy);
+        tr.parentNode.insertBefore(abierta, tr.nextSibling);
+        this.innerText = 'Ocultar';
+      };
+      tb.appendChild(tr);
+    });
+    body.appendChild(tabla);
+
+    /* Los equipos que NO salen. Una tabla que solo enseña a quien tiene datos
+       da la impresion de que el club esta al dia; lo que de verdad hace falta
+       saber es cuantos equipos no tienen cuadrante, porque de esos no se
+       sabra nunca cuanto han entrenado. */
+    var sin = equipos.length - datos.length;
+    if (sin) {
+      var av = el('<p class="hint" style="margin-top:10px"><b>' + sin + '</b> ' +
+        (sin === 1 ? 'equipo no aparece' : 'equipos no aparecen') +
+        ': no tienen nada en el cuadrante en este periodo, así que no hay trabajo que contar. ' +
+        '<button class="lnk">Ver el cuadrante</button></p>');
+      av.querySelector('button').onclick = function () { SF._cuadrante = 'entrenos'; SF.router.render(); };
+      body.appendChild(av);
+    }
+
+    body.appendChild(el('<p class="hint" style="margin-top:10px">' +
+      '<b>Con lista</b> es el porcentaje de sesiones celebradas de las que alguien pasó lista. ' +
+      'Si va bajo, lo que falta no son entrenamientos: es el registro de quién vino, y sin él ' +
+      'las cargas de abajo se quedan cortas.</p>'));
+  }
+
+  function horasDe(min) {
+    if (!min) return '—';
+    var h = Math.floor(min / 60), m = min % 60;
+    return h + ' h' + (m ? ' ' + m + '′' : '');
+  }
+
+  /* La fila que se despliega: la carga de cada jugador de ese equipo. */
+  function filaCargas(t, desde, hasta) {
+    var c = SF.cargaDeEquipo(t, desde, hasta);
+    var tr = el('<tr class="rt-detalle"><td colspan="8"></td></tr>');
+    var td = tr.querySelector('td');
+
+    if (!c.conLista) {
+      td.appendChild(el('<p class="hint">De este equipo no se ha pasado ninguna lista en el periodo, ' +
+        'así que no hay carga que contar. El cuadrante dice lo previsto; la carga sale de las listas.</p>'));
+      return tr;
+    }
+
+    td.appendChild(el('<p class="hint"><b>' + c.conLista + '</b> ' +
+      (c.conLista === 1 ? 'sesión con lista pasada' : 'sesiones con lista pasada') +
+      ' de las ' + c.trabajo.hechas + ' celebradas. Ordenados por quien más ha entrenado.</p>'));
+
+    var filas = c.filas.slice().sort(function (a, b) { return b.pres - a.pres || b.minutos - a.minutos; });
+    var tab = el('<table class="cua-tab rt-jug"><thead><tr>' +
+      '<th>Jugador</th><th>Entrenó</th><th>Horas</th><th>PF</th><th>Faltas</th>' +
+      '<th>Asist.</th><th>Con limitación</th></tr></thead><tbody></tbody></table>');
+    var tb = tab.querySelector('tbody');
+    filas.forEach(function (f) {
+      var fila = el('<tr>' +
+        '<td class="rt-eq"><button class="lnk">' + esc(f.p.full_name) + '</button></td>' +
+        '<td><b>' + f.pres + '</b><span class="hint"> de ' + c.conLista + '</span></td>' +
+        '<td>' + horasDe(f.minutos) + '</td>' +
+        '<td>' + (f.pf || '<span class="hint">—</span>') + '</td>' +
+        '<td>' + (f.aus ? f.aus : '<span class="hint">—</span>') +
+          (f.just ? '<span class="hint"> +' + f.just + ' just.</span>' : '') + '</td>' +
+        '<td>' + (f.pct == null ? '<span class="hint">—</span>'
+          : '<b class="' + (f.pct >= 80 ? 'reg-alta' : f.pct >= 60 ? 'reg-media' : 'reg-baja') + '">' + f.pct + '%</b>') + '</td>' +
+        /* No es un dato clinico: es cuantas veces el fisioterapeuta ha puesto
+           una consigna de entrenamiento. Sirve para leer las horas: veinte
+           sesiones con seis a carga reducida no son veinte sesiones. */
+        '<td>' + (f.consignas ? '<span class="rt-lim">' + f.consignas + '</span>' : '<span class="hint">—</span>') + '</td>' +
+        '</tr>');
+      fila.querySelector('button').onclick = function () { location.hash = '#/jugador/' + f.p.id; };
+      tb.appendChild(fila);
+    });
+    var env = el('<div class="cal-scroll"></div>');
+    env.appendChild(tab);
+    td.appendChild(env);
+    return tr;
+  }
+
   pages.horarios = function (view, _p, _ruta, embed) {
     var r = role();
     /* La coordinacion de preparacion fisica entra por su cuadrante, no por el
@@ -12228,7 +12498,8 @@ window.SF = window.SF || {};
        filas de pestañas, una encima de otra, es una pantalla que no se lee. */
     if (!embed) {
       var tabs = el('<div class="tabbar"></div>');
-      [['entrenos', 'Entrenamientos'], ['pf', 'Preparación física']].forEach(function (t) {
+      [['entrenos', 'Entrenamientos'], ['pf', 'Preparación física'],
+       ['registro', 'Registro de la temporada']].forEach(function (t) {
         var b = el('<button class="tab' + (tab === t[0] ? ' on' : '') + '">' + t[1] + '</button>');
         b.onclick = function () { SF._cuadrante = t[0]; SF.router.render(); };
         tabs.appendChild(b);
@@ -12237,14 +12508,13 @@ window.SF = window.SF || {};
     }
 
     var insts = SF.store.instalaciones();
-    var equipos = SF.store.teams().filter(function (t) {
-      if (!r.segments || r.segments === 'all') return true;
-      return r.segments.indexOf(t.segment) >= 0;
-    });
+    var equipos = misEquipos(SF.store.staffMe());
     var body = el('<div></div>');
     view.appendChild(body);
 
-    if (tab === 'entrenos') pintaEntrenos(); else pintaPF();
+    if (tab === 'registro') pintaRegistroTemporada(body, equipos);
+    else if (tab === 'entrenos') pintaEntrenos();
+    else pintaPF();
 
     /* ---------- Cuadrante de entrenamientos ----------
        Filas = franjas, columnas = días. Dentro de cada celda, una línea por
