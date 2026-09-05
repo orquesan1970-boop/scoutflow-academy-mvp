@@ -1197,8 +1197,21 @@ button.pf-ley:hover{filter:brightness(.96)}
 .cua-pab td.cua-x .cua-nota{display:block;font-size:10.5px;color:var(--ink-3);margin-top:2px}
 .cua-pab td.cua-x.lleno{background:var(--purple-soft,#F1EEFF)}
 .cua-pab td.cua-x.entera{background:#E9E4FF}
-.cua-pab td.cua-x.editable{cursor:pointer}
-.cua-pab td.cua-x.editable:hover{outline:2px solid var(--purple);outline-offset:-2px}
+/* Una celda editable tiene que PARECER editable antes de tocarla. El hover no
+   basta: en un movil no hay hover, y en el escritorio hay que descubrirlo por
+   accidente. La pista libre y editable enseña un "+" flojito; con el raton
+   encima se marca entera. */
+.cua-pab td.cua-x.editable{cursor:pointer;position:relative}
+.cua-pab td.cua-x.editable:hover{outline:2px solid var(--purple);outline-offset:-2px;background:var(--purple-soft,#F1EEFF)}
+.cua-pab td.cua-x.editable:not(.lleno) i::after{content:' +';color:var(--purple);font-weight:700;opacity:.75}
+.cua-pab td.cua-x.editable:not(.lleno):hover i{color:var(--purple);opacity:1}
+
+/* La barra de "estás editando": la instruccion iba en un `hint` DESPUES de
+   210 celdas, o sea donde no la lee nadie. */
+.cua-edit{display:flex;align-items:center;gap:10px;background:#F1EEFF;border:1px solid var(--purple-2);
+  border-radius:var(--r-lg);padding:11px 15px;margin-bottom:14px;font-size:14px}
+.cua-edit .ic{width:17px;height:17px;color:var(--purple);flex:0 0 auto}
+.cua-edit b{font-weight:600}
 @media(max-width:680px){.inst-row{flex-wrap:wrap}.inst-row input{flex:1 1 100%}}
 .sf-cuenta button{background:none;border:0;color:inherit;font-family:inherit;font-size:11.5px;cursor:pointer;text-decoration:underline;padding:0;opacity:.8}
 @media(max-width:980px){.sf-cuenta{display:none}}
@@ -11948,6 +11961,10 @@ window.SF = window.SF || {};
     function pintaEntrenos() {
       body.innerHTML = '';
       var puede = r.canEditHorario;
+      body.appendChild(el(puede
+        ? '<div class="cua-edit">' + ico('edit') + '<span><b>Puedes editar este cuadrante.</b> ' +
+          'Toca cualquier pista para asignarle un equipo o dejarla libre. Se guarda al momento.</span></div>'
+        : '<p class="hint">Este cuadrante lo reparte la dirección técnica. Aquí puedes consultarlo.</p>'));
       if (!insts.length) {
         body.appendChild(el('<div class="empty-panel"><p>No hay pabellones dados de alta. Se configuran en Configuración.</p></div>'));
         return;
@@ -12021,9 +12038,7 @@ window.SF = window.SF || {};
         body.appendChild(t);
       });
 
-      body.appendChild(el('<p class="hint">' + (puede
-        ? 'Toca cualquier pista para asignarle un equipo o dejarla libre. Una pista solo puede tener un equipo en cada franja.'
-        : 'Solo la dirección técnica reparte las pistas. Aquí puedes consultar el cuadrante.') + '</p>'));
+      if (puede) body.appendChild(el('<p class="hint">Una pista solo puede tener un equipo en cada franja.</p>'));
 
       /* Resumen: cuántas sesiones tiene cada equipo. Un equipo con una sola
          sesión a la semana es un problema y conviene que salte a la vista. */
@@ -20559,6 +20574,7 @@ SF.router = (function () {
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'],
     ['sueldos', 'Sueldos', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
+    ['horarios', 'Cuadrantes', 'grid'], ['calendario', 'Calendario', 'cal'],
     ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'],
     ['adjuntos', 'Personal adjunto', 'users'],
     ['mis-avisos', 'Avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
@@ -20569,8 +20585,14 @@ SF.router = (function () {
      responden, se busca por bloque y no por lista.
      El primer grupo no tiene título ni se pliega: es el trabajo de cada día y
      tiene que estar siempre a la vista. */
+  /* `horarios` y `calendario` NO estaban en ningun grupo, y por eso no salian
+     en el menu de nadie. La pantalla existia, el permiso existia y el editor
+     funcionaba —una direccion tecnica tiene 210 celdas editables— pero la
+     unica puerta era un desplegable al final del Inicio. Una funcion a la que
+     no se llega desde el menu es, para quien la usa, una funcion que no
+     existe: Jorge dio por hecho que no se podia editar el cuadrante. */
   var NAV_GRUPOS = [
-    { id: 'dia',      label: '',                keys: ['inicio', 'agenda', 'mi-equipo', 'jugadores', 'equipos'] },
+    { id: 'dia',      label: '',                keys: ['inicio', 'agenda', 'mi-equipo', 'jugadores', 'equipos', 'horarios', 'calendario'] },
     { id: 'captacion',label: 'Captación',       keys: ['captacion', 'importar'] },
     { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos'] },
     { id: 'personas', label: 'Personas',        keys: ['staff', 'adjuntos', 'family', 'comunicados'] },
