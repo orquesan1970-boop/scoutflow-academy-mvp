@@ -1235,6 +1235,33 @@ button.pf-ley:hover{filter:brightness(.96)}
 .cal-ses.extra{background:#E7F6EF}
 .cal-ses.extra .cal-et{color:#1F7A55}
 .cal-ses .cal-mot{font-size:10px;color:var(--ink-3);font-style:italic;text-decoration:none;margin-top:2px}
+
+/* DOS cuadrantes en una misma parrilla. El TIPO se lee en la banda izquierda y
+   en la palabra de arriba; el ESTADO, en el fondo. Asi una sesion de
+   preparacion fisica cancelada sigue diciendo las dos cosas: que es de PF y
+   que se ha caido. Si el color llevara las dos, una de las dos se pierde. */
+.cal-ses{border-left:3px solid var(--purple,#6F5AEF)}
+.cal-ses.es-pf{background:#E6F2F7;border-left-color:#1B7E9E}
+/* El estado pisa al tipo en el FONDO -una sesion caida tiene que gritar-, pero
+   la banda de la izquierda sigue diciendo de que cuadrante es. Sin esto, una
+   sesion de PF cancelada se quedaba azul y la leyenda mentia. */
+.cal-ses.cancel{background:#FBEAEA}
+.cal-ses.movida{background:#FFF3E0}
+.cal-ses.extra{background:#E7F6EF}
+.cal-ses .cal-tp{font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
+  color:var(--purple-dark,#4B35C9);margin-bottom:1px}
+.cal-ses.es-pf .cal-tp{color:#146077}
+.cal-ses.cancel .cal-tp,.cal-ses.movida .cal-tp,.cal-ses.extra .cal-tp{opacity:.7}
+.cal-ses.cancel .cal-tp{display:inline-block;text-decoration:none}
+/* Leyenda: sin ella, dos colores nuevos son dos colores sin explicar. */
+.cal-ley{margin:10px 0 0;font-size:12px;color:var(--ink-3);display:flex;flex-wrap:wrap;align-items:center;gap:2px 4px}
+.cal-mu{display:inline-block;width:11px;height:11px;border-radius:3px;vertical-align:-1px;margin-right:3px;
+  background:var(--purple-soft,#F1EEFF);border-left:3px solid var(--purple,#6F5AEF)}
+.cal-mu.es-pf{background:#E6F2F7;border-left-color:#1B7E9E}
+.cal-mu.st-cancel{background:#FBEAEA;border-left-color:#C9C6DA}
+.cal-mu.st-movida{background:#FFF3E0;border-left-color:#C9C6DA}
+.cal-mu.st-extra{background:#E7F6EF;border-left-color:#C9C6DA}
+.cal-ley-n{flex-basis:100%;margin-top:6px;line-height:1.5}
 .reg-temp td,.rt-jug td{padding:9px 10px;font-size:13px;border-bottom:1px solid var(--line,#ECEAF5)}
 .reg-temp th,.rt-jug th{padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);text-align:left;font-weight:600;white-space:nowrap}
@@ -12149,7 +12176,7 @@ window.SF = window.SF || {};
        pantallas. */
     var equipos = misEquipos(SF.store.staffMe());
 
-    view.innerHTML = embed ? '' : head('Calendario', 'Los entrenamientos y los partidos de todo el club, semana a semana.');
+    view.innerHTML = embed ? '' : head('Calendario', 'Los entrenamientos, la preparación física y los partidos de tu ámbito, semana a semana.');
 
     /* --- Navegación de semanas --- */
     var nav = el('<div class="cal-nav"></div>');
@@ -12214,11 +12241,28 @@ window.SF = window.SF || {};
     });
     var activas = sesiones.filter(function (x) { return !x.s.cancelada; });
     var canceladas = sesiones.filter(function (x) { return x.s.cancelada; });
+    /* En esta parrilla conviven DOS cuadrantes: el de pista y el de
+       preparacion fisica. Llamarlo todo "Entrenamientos" y pintarlo del mismo
+       color hacia imposible entender por que unas sesiones se dejaban tocar y
+       otras no: son de cuadrantes distintos, con permisos distintos. */
+    var nPF = activas.filter(function (x) { return x.s.tipo === 'pf'; }).length;
+    var nEnt = activas.length - nPF;
 
-    view.appendChild(el('<p class="sec-label">Entrenamientos · ' + activas.length +
-      (activas.length === 1 ? ' sesión' : ' sesiones') +
+    view.appendChild(el('<p class="sec-label">Sesiones · ' + nEnt +
+      (nEnt === 1 ? ' entrenamiento' : ' entrenamientos') +
+      ' · ' + nPF + ' de preparación física' +
       (canceladas.length ? ' · ' + canceladas.length + (canceladas.length === 1 ? ' cancelada' : ' canceladas') : '') + '</p>'));
-    if (puedeCua) view.appendChild(el('<p class="hint" style="margin-top:-4px">Toca una sesión para cambiarla <b>solo ese día</b>: cancelarla, moverla de hora o dejar una nota. El cuadrante de la temporada no se toca, y el equipo y las familias reciben el aviso.</p>'));
+    if (puedeCua) {
+      /* Y se dice, con nombre y apellidos, cual de los dos puede tocar QUIEN
+         esta mirando. Un boton que a veces responde y a veces no parece una
+         pantalla rota; lo que pasa es que son dos cuadrantes. */
+      var mio = r.canEditHorario && r.canEditPF ? 'los dos cuadrantes'
+              : r.canEditPF ? 'las sesiones de <b>preparación física</b>'
+              : 'los <b>entrenamientos de pista</b>';
+      view.appendChild(el('<p class="hint" style="margin-top:-4px">Toca una sesión para cambiarla <b>solo ese día</b>: ' +
+        'cancelarla, moverla de hora o dejar una nota. El cuadrante de la temporada no se toca, y el equipo y ' +
+        'las familias reciben el aviso. Tú puedes cambiar ' + mio + '.</p>'));
+    }
 
     if (!sesiones.length) {
       view.appendChild(el('<p class="hint">Ningún entrenamiento esta semana. Si debería haberlos, revisa el cuadrante.</p>'));
@@ -12239,8 +12283,15 @@ window.SF = window.SF || {};
           var td = el('<td class="cal-d' + (hay.length ? ' cal-hay' : '') + (d.fecha === hoy ? ' hoy' : '') + '"></td>');
           hay.forEach(function (x) {
             var s = x.s;
-            var chip = el('<button class="cal-ses' + (s.cancelada ? ' cancel' : '') + (s.movida ? ' movida' : '') +
+            /* El TIPO va en la banda de la izquierda y en una palabra escrita;
+               el ESTADO (caida, movida, extra) va en el fondo. Son dos cosas
+               distintas y mezclarlas en el color obliga a elegir cual se
+               pierde. Y la palabra no sobra: distinguir solo por color deja
+               fuera a quien no distingue esos dos colores. */
+            var chip = el('<button class="cal-ses ' + (s.tipo === 'pf' ? 'es-pf' : 'es-ent') +
+              (s.cancelada ? ' cancel' : '') + (s.movida ? ' movida' : '') +
               (s.extra ? ' extra' : '') + '">' +
+              '<span class="cal-tp">' + (s.tipo === 'pf' ? 'Prep. física' : 'Entrenamiento') + '</span>' +
               '<b>' + esc(s.hora || '—') + '</b>' +
               (s.donde ? '<span>' + esc(s.donde) + '</span>' : '') +
               (s.cancelada ? '<span class="cal-et">cancelado</span>' : '') +
@@ -12268,6 +12319,14 @@ window.SF = window.SF || {};
         tb.appendChild(tr);
       });
       view.appendChild(tabla);
+      view.appendChild(el('<p class="cal-ley">' +
+        '<span class="cal-mu es-ent"></span> entrenamiento de pista &nbsp; ' +
+        '<span class="cal-mu es-pf"></span> preparación física &nbsp; ' +
+        '<span class="cal-mu st-cancel"></span> cancelada &nbsp; ' +
+        '<span class="cal-mu st-movida"></span> cambiada &nbsp; ' +
+        '<span class="cal-mu st-extra"></span> extra' +
+        '<span class="cal-ley-n">El cuadrante de pista lo reparte la dirección técnica; ' +
+        'el de preparación física, su coordinación. Por eso puedes cambiar unas sesiones y otras no.</span></p>'));
     }
 
     /* ---------- Partidos: el fin de semana entero ---------- */
