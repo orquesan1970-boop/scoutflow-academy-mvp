@@ -118,6 +118,9 @@ textarea{resize:vertical;min-height:90px}
    mas capacidad: antes pulsar "33 datos incompletos" te sacaba de la pantalla;
    ahora filtra ahi mismo y puedes resolverlo sin irte. */
 
+.dispo-nota{margin:8px 0 0;padding:9px 12px;background:var(--bg);border-radius:10px;
+  font-size:13.5px;line-height:1.5;color:var(--ink-2)}
+
 /* Buscar dentro de Avisos: una caja de texto y un rango de fechas. */
 .av-buscar{background:var(--surface);border:1px solid var(--line);border-radius:var(--r-lg);
   padding:12px 14px;margin-bottom:18px}
@@ -1599,8 +1602,75 @@ SF.DISPO = [
 /* En términos de lo que puede o no puede HACER, nunca de lo que tiene. */
 SF.LIMITACIONES = [
   'Sin saltos', 'Sin contacto', 'Sin cambios de dirección', 'Sin carrera',
-  'Carga reducida', 'Solo trabajo específico', 'Solo gimnasio', 'Vuelta progresiva'
+  'Sin sprint', 'Sin tiro en suspensión', 'Carga reducida',
+  'Solo trabajo específico', 'Solo gimnasio', 'Vuelta progresiva'
 ];
+
+/* ===================== LA CONSIGNA =====================
+   El parte del fisioterapeuta para el cuerpo técnico, y la pieza que le
+   faltaba a este rol.
+
+   Un fisioterapeuta no le dice a un entrenador "tendinopatía rotuliana". Le
+   dice: "entrena, sin saltos, cuarenta minutos, el sábado no compite, y lo
+   veo el jueves". Eso —y solo eso— es lo que el club necesita, y es lo que
+   aquí se estructura: cinco campos que un entrenador y un preparador fisico
+   pueden aplicar en la pista sin interpretarlos.
+
+   Se mantiene a rajatabla la regla que ya tenia la app: NUNCA que tiene, solo
+   que puede hacer. El diagnostico es dato de salud del articulo 9 del RGPD y
+   ademas un fisioterapeuta colegiado tiene secreto profesional; su historia
+   clinica no es del club y no vive aqui. */
+SF.CARGAS = [
+  { k: 'ninguna',  label: 'No entrena',      corto: 'sin carga',       tag: 'tag-danger' },
+  { k: 'suave',    label: 'Carga suave',     corto: 'carga suave',     tag: 'tag-warn' },
+  { k: 'media',    label: 'Carga media',     corto: 'carga media',     tag: 'tag-warn' },
+  { k: 'completa', label: 'Carga completa',  corto: 'carga completa',  tag: 'tag-green' }
+];
+SF.COMPITE = [
+  { k: 'no',        label: 'No compite',        tag: 'tag-danger' },
+  { k: 'a_valorar', label: 'A valorar el día',  tag: 'tag-warn' },
+  { k: 'si',        label: 'Puede competir',    tag: 'tag-green' }
+];
+
+/* La consigna vigente de un jugador, ya leida y con lo que hay que saber
+   calculado: si la revision se ha pasado, y como se resume en una linea. */
+SF.consigna = function (p) {
+  var a = (p && p.availability) || {};
+  var dz = SF.dispo(p);
+  var lims = a.limitaciones && a.limitaciones.length ? a.limitaciones
+           : (a.limitacion ? [a.limitacion] : []);          // compatibilidad
+  var carga = SF.CARGAS.filter(function (x) { return x.k === a.carga; })[0] || null;
+  var comp = SF.COMPITE.filter(function (x) { return x.k === a.compite; })[0] || null;
+  /* Una revision con fecha pasada es lo mismo que un semaforo caducado: dice
+     algo que ya no se sabe si es verdad. Por eso se avisa, no se esconde. */
+  var vencida = false;
+  if (a.revision && dz.activa) {
+    var r = new Date(a.revision + 'T23:59:59');
+    if (!isNaN(r) && r.getTime() < Date.now()) vencida = true;
+  }
+  var linea = [];
+  if (carga) linea.push(carga.corto);
+  if (a.minutos) linea.push('máx. ' + a.minutos + ' min');
+  if (lims.length) linea.push(lims.join(', ').toLowerCase());
+  if (comp && comp.k !== 'si') linea.push(comp.label.toLowerCase());
+  return {
+    estado: dz, limitaciones: lims, carga: carga, compite: comp,
+    minutos: a.minutos || '', revision: a.revision || '', nota: a.nota || '',
+    vencida: vencida, activa: dz.activa,
+    linea: linea.join(' · ')
+  };
+};
+
+/* Los dias que lleva un jugador sin estar disponible del todo. Un fisio
+   necesita esto para saber a quien se le esta alargando el proceso, que es
+   distinto de a quien le toca revision. */
+SF.diasDeProceso = function (p) {
+  var a = (p && p.availability) || {};
+  if (!a.desde) return null;
+  var d = new Date(a.desde + 'T00:00:00');
+  if (isNaN(d)) return null;
+  return Math.max(0, Math.round((Date.now() - d.getTime()) / 86400000));
+};
 
 SF.dispo = function (p) {
   var a = (p && p.availability) || {};
@@ -2671,8 +2741,17 @@ SF.ROLES = {
   },
   fisio: {
     label: 'Fisioterapeuta',
-    nav: ['inicio', 'jugadores', 'equipos', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'seguimiento'],
+    /* Sin 'equipos': un fisioterapeuta no reparte pistas ni programa
+       entrenamientos. Le llega un jugador, lo ve, y da una consigna. Los
+       equipos le salian en el menu con veintiocho fichas y tres cuadrantes que
+       no puede tocar, y cada seccion que no usas hace mas dificil encontrar la
+       que si.
+       Sin 'seguimiento' en la ficha: esa pestaña es la del embudo de captacion
+       —entrevista, oferta, inscripcion—, y no es asunto suyo. El seguimiento
+       del jugador que a el le importa es el de su proceso, y ese vive en
+       Deportivo, junto a la consigna y al historial de disponibilidad. */
+    nav: ['inicio', 'jugadores', 'mis-avisos', 'mi-ficha'],
+    tabs: ['perfil', 'deportivo'],
     canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: false,
     /* Es el único sanitario del club: es quien firma si un jugador puede
        jugar y el único, con dirección, que ve los antecedentes médicos. */
@@ -2711,18 +2790,22 @@ SF.ROLES = {
    Se inyecta aquí, después de definir los roles, para no repetir la palabra
    en ocho listas y arriesgarse a olvidar una. */
 ['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis',
-  'preparador_fisico', 'coord_pf', 'fisio', 'psicologo'].forEach(function (k) {
+  'preparador_fisico', 'coord_pf', 'psicologo'].forEach(function (k) {
   var r = SF.ROLES[k]; if (!r) return;
   var i = r.nav.indexOf('equipos');
   if (r.nav.indexOf('calendario') < 0) r.nav.splice(i >= 0 ? i + 1 : r.nav.length, 0, 'calendario');
 });
+/* El fisioterapeuta se queda FUERA de estas dos listas a proposito. El
+   calendario del club y los cuadrantes de pista no le dicen nada: el no
+   programa entrenamientos ni reparte pistas, y a el le llegan jugadores, no
+   semanas. Cada seccion que no usa hace mas dificil encontrar la que si. */
 
 /* Los cuadrantes de horarios los VE todo el cuerpo técnico —un entrenador
    necesita saber cuándo tiene pista— pero solo los EDITA quien reparte las
    pistas: dirección técnica y dirección. El preparador edita además el suyo
    de preparación física, que es su trabajo. */
 ['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis',
-  'preparador_fisico', 'coord_pf', 'fisio', 'psicologo', 'entrenador', 'administrativo',
+  'preparador_fisico', 'coord_pf', 'psicologo', 'entrenador', 'administrativo',
   'delegado_equipo'].forEach(function (k) {
   var r = SF.ROLES[k]; if (!r) return;
   if (r.nav.indexOf('horarios') < 0) {
@@ -7861,6 +7944,197 @@ window.SF = window.SF || {};
      nadie lo arregle dentro de dos meses sin darse cuenta de que no se llama
      desde ningun sitio. */
 
+  /* ---------- EL MURO DEL FISIOTERAPEUTA ----------
+     Antes compartia pantalla con dirección: cuatro tarjetas de recuento, la
+     lista general, los CUADRANTES de los veintiocho equipos del club y los
+     ultimos jugadores fichados. Nada de eso es su trabajo. Un fisioterapeuta
+     no reparte pistas ni ficha jugadores.
+
+     Su pantalla tiene que contestar cuatro preguntas, y en este orden:
+       1. ¿A quien tengo que ver?              -> las citas que le han pedido
+       2. ¿A quien llevo entre manos?          -> quien esta en proceso
+       3. ¿Que puede hacer hoy cada uno?       -> la consigna vigente
+       4. ¿A quien se me esta pasando?         -> revisiones y altas vencidas
+
+     La cuarta es la que evita el fallo tipico de este puesto: un chaval que se
+     queda marcado "no disponible" tres semanas porque nadie volvio a mirarlo.
+     Por eso lo vencido va arriba del todo y en rojo. */
+  function inicioSalud(view) {
+    var u = SF.store.currentUser();
+    var yo = SF.store.staffMe();
+    var mios = scopedPlayers();
+    var hoyISO = SF.hoyISO();
+
+    var enProceso = mios.filter(function (p) { return SF.dispo(p).activa; })
+      .map(function (p) { return { p: p, c: SF.consigna(p) }; });
+    var vencidas = enProceso.filter(function (x) { return x.c.vencida; });
+    var altasPasadas = enProceso.filter(function (x) { return x.c.estado.caducada; });
+    var citas = yo ? SF.store.citasDeStaff(yo.id).filter(function (c) {
+      return c.estado === 'solicitada' || c.estado === 'confirmada';
+    }) : [];
+    var pedidas = citas.filter(function (c) { return c.estado === 'solicitada'; });
+    var sinFecha = citas.filter(function (c) { return !c.fecha; });
+
+    view.innerHTML = '<div class="dash-hero"><div class="dash-hi">' + saludo() + ', ' + esc(u.name.split(' ')[0]) + '</div>' +
+      '<p class="dash-date">' + fechaLarga() + ' · ' + esc(u.label) +
+      ' · ' + enProceso.length + (enProceso.length === 1 ? ' jugador en proceso' : ' jugadores en proceso') + '</p></div>';
+
+    if (!yo) {
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('alert') + '</div>' +
+        '<h3>Todavía no tienes ficha de personal</h3>' +
+        '<p>Las citas se piden a una persona concreta, así que hace falta saber quién eres. ' +
+        'Pídele a dirección que te dé de alta en Staff.</p></div>'));
+      return;
+    }
+
+    /* --- HOY: solo lo que se esta pasando --- */
+    var lineas = [];
+    if (vencidas.length) lineas.push({ p: 'rojo',
+      t: '<b>' + vencidas.length + (vencidas.length === 1 ? ' revisión pasada de fecha' : ' revisiones pasadas de fecha') + '.</b> ' +
+         '<span>' + esc(vencidas.slice(0, 3).map(function (x) { return x.p.full_name; }).join(', ')) +
+         (vencidas.length > 3 ? ' y ' + (vencidas.length - 3) + ' más' : '') + '.</span>',
+      btn: 'Revisar', go: function () { modalConsigna(vencidas[0].p, function () { SF.router.render(); }); } });
+    if (altasPasadas.length) lineas.push({ p: 'ambar',
+      t: '<b>' + altasPasadas.length + (altasPasadas.length === 1 ? ' alta prevista ya pasada' : ' altas previstas ya pasadas') + '.</b> ' +
+         '<span>Siguen marcados como no disponibles. Un semáforo caducado engaña más que no tener semáforo.</span>',
+      btn: 'Ver', go: function () { modalConsigna(altasPasadas[0].p, function () { SF.router.render(); }); } });
+    if (pedidas.length) lineas.push({ p: 'morado',
+      t: '<b>' + pedidas.length + (pedidas.length === 1 ? ' cita pedida' : ' citas pedidas') + '.</b> ' +
+         '<span>Alguien del cuerpo técnico está esperando respuesta.</span>', btn: null });
+    if (!lineas.length) lineas.push({ p: 'verde',
+      t: '<b>Nada se te está pasando.</b> <span>Ni revisiones vencidas ni citas sin contestar.</span>', btn: null });
+
+    var hoy = el('<div class="hoy"></div>');
+    lineas.forEach(function (x) {
+      var ln = el('<div class="hoy-l"><span class="hoy-p ' + x.p + '"></span><span class="hoy-t">' + x.t + '</span></div>');
+      if (x.btn) { var b = el('<button class="btn btn-sm btn-primary">' + esc(x.btn) + '</button>'); b.onclick = x.go; ln.appendChild(b); }
+      hoy.appendChild(ln);
+    });
+    view.appendChild(hoy);
+
+    var cols = el('<div class="cols"></div>');
+
+    /* --- 1. A QUIEN TENGO QUE VER --- */
+    var cA = el('<div class="card"><h3>Tu agenda</h3><p class="hint">Lo que te ha pedido el cuerpo técnico. Lo de arriba es lo que aún no tiene fecha.</p><div class="mini-list"></div></div>');
+    var lA = cA.querySelector('.mini-list');
+    if (!citas.length) {
+      lA.appendChild(el('<div class="at-empty">' + ico('check') + '<span>No hay ninguna cita pendiente. El cuerpo técnico te las pide desde la ficha del jugador.</span></div>'));
+    } else {
+      /* Sin fecha primero: una cita sin fecha es una que todavia no existe
+         para nadie mas que para quien la pidio. */
+      citas.slice().sort(function (a, b) {
+        if (!a.fecha && b.fecha) return -1;
+        if (a.fecha && !b.fecha) return 1;
+        return (a.fecha || '').localeCompare(b.fecha || '');
+      }).slice(0, 8).forEach(function (c) {
+        var pj = SF.store.get(c.player_id); if (!pj) return;
+        var est = SF.CITA_ESTADOS[c.estado] || SF.CITA_ESTADOS.solicitada;
+        var eq = pj.team_id ? (SF.store.teamGet(pj.team_id) || {}).name : '';
+        var fila = el('<div class="mini-row mr-wrap"><span><b>' + esc(pj.full_name) + '</b> ' +
+          '<span class="tag ' + est.tag + '">' + esc(est.label) + '</span>' +
+          (!c.fecha ? ' <span class="tag tag-warn">sin fecha</span>' : '') +
+          '<br><span class="hint">' + esc(c.motivo || 'Sin motivo') +
+          (c.fecha ? ' · ' + fmtDate(c.fecha) + (c.hora ? ' ' + esc(c.hora) : '') : '') +
+          ' · lo pide ' + esc((c.pedida_por || {}).name || 'el club') +
+          (eq ? ' · ' + esc(eq) : '') + '</span></span></div>');
+        var bV = el('<button class="btn btn-sm">Atender</button>');
+        bV.onclick = function () { modalAtenderCita(c, pj); };
+        fila.appendChild(bV);
+        lA.appendChild(fila);
+      });
+    }
+    /* La agenda va en la columna estrecha y "Bajo tu cuidado" en la ancha, y
+       no al reves: cada fila de la agenda es una linea, y cada fila de
+       cuidados lleva la consigna entera —carga, minutos, que evita, si
+       compite, dias en proceso—. Ponerla en la columna estrecha la partia en
+       cuatro renglones y dejaba media pantalla vacia al lado. */
+    var lado = el('<div></div>');
+    lado.appendChild(cA);
+    var cB = el('<div class="card"><h3>Bajo tu cuidado</h3><p class="hint">Quién está en proceso y qué puede hacer hoy. Toca para actualizar la consigna.</p><div class="mini-list"></div></div>');
+    var lB = cB.querySelector('.mini-list');
+    if (!enProceso.length) {
+      lB.appendChild(el('<div class="at-empty">' + ico('check') + '<span>Nadie con la disponibilidad tocada ahora mismo.</span></div>'));
+    } else {
+      /* Ordenados por lo que reclama antes: primero lo vencido, luego quien
+         lleva mas dias en proceso. Por nombre seria una guia de telefonos. */
+      enProceso.slice().sort(function (a, b) {
+        var pa = (a.c.vencida ? 0 : a.c.estado.caducada ? 1 : 2);
+        var pb = (b.c.vencida ? 0 : b.c.estado.caducada ? 1 : 2);
+        if (pa !== pb) return pa - pb;
+        return (SF.diasDeProceso(b.p) || 0) - (SF.diasDeProceso(a.p) || 0);
+      }).forEach(function (x) {
+        var dias = SF.diasDeProceso(x.p);
+        var eq = x.p.team_id ? (SF.store.teamGet(x.p.team_id) || {}).name : 'sin equipo';
+        var fila = el('<div class="mini-row mr-wrap"><span><b>' + esc(x.p.full_name) + '</b> ' +
+          '<span class="tag ' + x.c.estado.def.tag + '">' + esc(x.c.estado.def.corto) + '</span>' +
+          (x.c.vencida ? ' <span class="tag tag-danger">revisión pasada</span>' : '') +
+          '<br><span class="hint">' + esc(x.c.linea || 'sin consigna todavía') +
+          ' · ' + esc(eq) + (dias != null ? ' · ' + dias + (dias === 1 ? ' día' : ' días') + ' en proceso' : '') +
+          (x.c.revision && !x.c.vencida ? ' · revisión ' + fmtDate(x.c.revision) : '') +
+          '</span></span></div>');
+        var bC = el('<button class="btn btn-sm' + (x.c.vencida ? ' btn-primary' : '') + '">Consigna</button>');
+        bC.onclick = function () { modalConsigna(x.p, function () { SF.router.render(); }); };
+        var bF = el('<button class="lnk" style="margin-left:12px">Ficha</button>');
+        bF.onclick = function () { SF._openTab = 'deportivo'; location.hash = '#/jugador/' + x.p.id; };
+        fila.appendChild(bC); fila.appendChild(bF);
+        lB.appendChild(fila);
+      });
+    }
+    cols.appendChild(cB);
+
+    /* --- Lo que mira un preparador, y solo el --- */
+    var asim = mios.filter(function (p) { var a = SF.asimetria(p); return a && a.aviso; });
+    if (asim.length) {
+      var cC = el('<div class="card"><h3>Asimetrías altas</h3><p class="hint">Más del ' + SF.ASIMETRIA_AVISO +
+        ' % de diferencia entre piernas en el salto a una pierna. No es una lesión: es a quién conviene mirar antes de que lo sea.</p><div class="mini-list"></div></div>');
+      var lC = cC.querySelector('.mini-list');
+      asim.slice(0, 6).forEach(function (p) {
+        var a = SF.asimetria(p);
+        var row = el('<div class="mini-row"><span><b>' + esc(p.full_name) + '</b><br><span class="hint">' +
+          a.pct + ' % · salta menos con la ' + esc(a.debil) + '</span></span>' +
+          '<span class="row-actions"><button class="lnk" data-v>Ficha</button></span></div>');
+        row.querySelector('[data-v]').onclick = function () { SF._openTab = 'deportivo'; location.hash = '#/jugador/' + p.id; };
+        lC.appendChild(row);
+      });
+      lado.appendChild(cC);
+    }
+
+    cols.appendChild(lado);
+    view.appendChild(cols);
+  }
+
+  /* Atender una cita: se marca como atendida y se pasa directo a poner la
+     consigna, que es lo que de verdad hace falta despues de ver a un chaval.
+     Antes habia que acordarse de ir a la ficha por separado. */
+  function modalAtenderCita(c, pj) {
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint">Lo pide <b>' + esc((c.pedida_por || {}).name || 'el club') + '</b>' +
+      (c.motivo ? ' · ' + esc(c.motivo) : '') + '</p>'));
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>Fecha</label><input id="af" type="date" value="' + esc(c.fecha || '') + '"></div>' +
+      '<div class="frow"><label>Hora</label><input id="ah" type="time" value="' + esc(c.hora || '') + '"></div>' +
+      '<div class="frow full"><label>Nota de vuelta para quien la pidió <span class="hint">corta, sin diagnóstico</span></label>' +
+      '<textarea id="an" rows="2">' + esc(c.nota || '') + '</textarea></div></div>');
+    box.appendChild(f);
+    var acc = el('<div class="row-c" style="margin-top:14px"></div>');
+    var b1 = el('<button class="btn btn-light btn-sm">Guardar la fecha</button>');
+    b1.onclick = function () {
+      SF.store.citaUpdate(c.id, { fecha: box.querySelector('#af').value, hora: box.querySelector('#ah').value,
+        nota: box.querySelector('#an').value.trim(), estado: 'confirmada' });
+      U.closeModal(); U.toast('Cita confirmada'); SF.router.render();
+    };
+    var b2 = el('<button class="btn btn-primary btn-sm">Ya lo he visto · poner consigna</button>');
+    b2.onclick = function () {
+      SF.store.citaUpdate(c.id, { fecha: box.querySelector('#af').value || SF.hoyISO(), hora: box.querySelector('#ah').value,
+        nota: box.querySelector('#an').value.trim(), estado: 'realizada' });
+      U.closeModal();
+      modalConsigna(pj, function () { SF.router.render(); });
+    };
+    acc.appendChild(b2); acc.appendChild(b1);
+    box.appendChild(acc);
+    U.modal('Cita · ' + pj.full_name, box);
+  }
+
   /* El Inicio del scout. El panel general del club no le sirve: le contaba
      277 jugadores de los que 270 no son asunto suyo. Aquí solo hay dos
      preguntas, que son las suyas: qué tengo hoy, y a quién de los míos hay
@@ -8027,6 +8301,12 @@ window.SF = window.SF || {};
     if (rk === 'scout') return inicioScout(view);
     if (rk === 'entrenador') return inicioEntrenador(view);
     if (rk === 'administrativo') return inicioAdministrativo(view);
+    /* SOLO el sanitario, no todo "salud". El preparador fisico tambien puede
+       tocar la disponibilidad, pero su dia es otro: pasa lista de sus sesiones
+       y necesita su cuadrante, asi que se queda en el Inicio general —que ya
+       le da su foco de lesionados— y no aterriza aqui. Lo que distingue al
+       fisioterapeuta es `canSeeMedical`: es el unico sanitario del club. */
+    if (role().canSetAvailability && role().canSeeMedical && !role().canSeeFinance) return inicioSalud(view);
     /* Las direcciones tecnicas usaban su propio muro: tres tarjetas que no se
        podian pulsar y una lista de equipos. Ademas contaba "sin evaluar" mirando
        el registro de evaluaciones mientras el resto de la app mira el Scout
@@ -9012,36 +9292,29 @@ window.SF = window.SF || {};
              se salta la BANDA. Las citas van en su propio bloque más abajo,
              porque un jugador sano puede tener una cita pedida. */
           if (!dz.activa && !puede) return;
+          /* La consigna entera, no solo el semaforo. Un entrenador que abre
+             esto el viernes tiene que salir sabiendo cuatro cosas: si juega,
+             cuanto entrena, que evita y cuando se le vuelve a mirar. */
+          var cg = SF.consigna(p);
           var banda = el('<div class="dispo' + (dz.activa ? ' act' : '') + '"></div>');
-          var txt = '<b>' + esc(dz.def.label) + '</b>';
-          if (dz.limitacion) txt += ' · ' + esc(dz.limitacion);
           var pie = [];
           if (dz.desde) pie.push('desde ' + fmtDate(dz.desde));
           if (dz.hasta) pie.push('previsión de alta ' + fmtDate(dz.hasta));
           if (dz.by) pie.push('lo firma ' + dz.by + (dz.role ? ' · ' + dz.role : ''));
           banda.appendChild(el('<div class="dispo-t"><span class="tag ' + dz.def.tag + '">' + esc(dz.def.corto) + '</span>' +
-            '<span>' + txt + '</span></div>' + (pie.length ? '<p class="hint">' + esc(pie.join(' · ')) + '</p>' : '')));
+            '<span><b>' + esc(dz.def.label) + '</b>' + (cg.linea ? ' · ' + esc(cg.linea) : '') + '</span></div>' +
+            (pie.length ? '<p class="hint">' + esc(pie.join(' · ')) + '</p>' : '')));
+          if (cg.nota) banda.appendChild(el('<p class="dispo-nota">' + esc(cg.nota) + '</p>'));
+          if (cg.revision) banda.appendChild(el('<p class="' + (cg.vencida ? 'aviso-lin' : 'hint') + '">' +
+            (cg.vencida ? 'La revisión estaba prevista para el ' + fmtDate(cg.revision) + ' y ya ha pasado.'
+                        : 'Próxima revisión: ' + fmtDate(cg.revision) + '.') + '</p>'));
           if (dz.caducada) banda.appendChild(el('<p class="aviso-lin">La fecha de alta prevista ya ha pasado y sigue marcado como no disponible. Conviene revisarlo.</p>'));
 
           if (puede) {
-            var bd = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Actualizar disponibilidad</button>');
+            var bd = el('<button class="btn btn-light btn-sm">' + ico('edit') +
+              (dz.activa ? 'Actualizar la consigna' : 'Poner una consigna') + '</button>');
             bd.onclick = function () {
-              U.modal('¿Puede jugar? — ' + esc(p.full_name), smallForm([
-                { name: 'estado', label: '¿Puede jugar?', type: 'select', options: SF.DISPO.map(function (x) { return x.label; }) },
-                { name: 'limitacion', label: 'Qué NO puede hacer', type: 'select', options: SF.LIMITACIONES,
-                  hint: 'En términos deportivos, nunca clínicos' },
-                { name: 'desde', label: 'Desde', type: 'date' },
-                { name: 'hasta', label: 'Previsión de alta', type: 'date' }
-              ], {
-                estado: dz.def.label, limitacion: dz.limitacion, desde: dz.desde, hasta: dz.hasta
-              }, function (d2) {
-                var k = (SF.DISPO.filter(function (x) { return x.label === d2.estado; })[0] || SF.DISPO[0]).k;
-                SF.store.setDispo(p.id, {
-                  estado: k, limitacion: k === 'disponible' ? '' : d2.limitacion,
-                  desde: d2.desde, hasta: k === 'disponible' ? '' : d2.hasta
-                }, SF.store.currentUser());
-                p = SF.store.get(p.id); U.toast('Disponibilidad actualizada'); paint();
-              }));
+              modalConsigna(p, function () { p = SF.store.get(p.id); paint(); });
             };
             banda.appendChild(bd);
             banda.appendChild(el('<p class="hint">Aquí no se anota ninguna lesión ni diagnóstico. ' +
@@ -19359,6 +19632,199 @@ window.SF = window.SF || {};
       view.appendChild(el('<p class="hint">Se muestran las ' + TOPE + ' más recientes de ' + lista.length +
         '. Acota con el buscador o con las fechas para ver el resto.</p>'));
     }
+  }
+
+  /* ---------- LA CONSIGNA, EL PARTE DEL FISIOTERAPEUTA ----------
+     Sustituye al viejo "Actualizar disponibilidad", que solo tenia estado, una
+     limitacion y dos fechas. Con eso un entrenador sabia que el chaval "no
+     puede saltar", pero no si entrena media hora o una, ni si el sabado juega,
+     ni cuando se le vuelve a mirar. Tenia que preguntarlo por WhatsApp, y esa
+     pregunta se pierde.
+
+     Lo que se pide aqui son las cinco cosas que un entrenador aplica sin
+     interpretar: cuanta carga, cuanto rato, que evita, si compite y cuando se
+     revisa. Nada de esto es clinico. */
+  function modalConsigna(p, alGuardar) {
+    var c = SF.consigna(p);
+    var yo = SF.store.currentUser();
+    var box = el('<div></div>');
+
+    var estado = c.estado.k;
+    var carga = (c.carga && c.carga.k) || (estado === 'no' ? 'ninguna' : 'completa');
+    var compite = (c.compite && c.compite.k) || (estado === 'no' ? 'no' : 'si');
+    var lims = c.limitaciones.slice();
+
+    box.appendChild(el('<p class="hint">Esto lo van a leer el entrenador y el preparador físico. ' +
+      'Solo lo que puede hacer, nunca lo que tiene: el diagnóstico es tuyo y no se guarda en la app.</p>'));
+
+    /* --- ¿Puede jugar? --- */
+    box.appendChild(el('<p class="sec-label">¿Puede jugar?</p>'));
+    var fE = el('<div class="row-c"></div>');
+    function pintaEstado() {
+      fE.innerHTML = '';
+      SF.DISPO.forEach(function (x) {
+        var b = el('<button class="eq-chip' + (estado === x.k ? ' on' : '') + '">' + esc(x.corto) + '</button>');
+        b.onclick = function () {
+          estado = x.k;
+          /* Coherencia sola: si no esta disponible no compite ni entrena a
+             tope, y si vuelve a estar disponible se limpia lo demas. Dejar que
+             convivan "no disponible" y "carga completa" es dejar que el parte
+             se contradiga a si mismo. */
+          if (x.k === 'no') { carga = 'ninguna'; compite = 'no'; }
+          if (x.k === 'disponible') { carga = 'completa'; compite = 'si'; lims = []; }
+          if (x.k === 'limitada' && carga === 'ninguna') carga = 'suave';
+          pintaEstado(); pintaCarga(); pintaComp(); pintaLims();
+        };
+        fE.appendChild(b);
+      });
+    }
+    box.appendChild(fE);
+
+    /* --- Carga --- */
+    var lbCarga = el('<p class="sec-label">Cuánta carga</p>');
+    var fC = el('<div class="row-c"></div>');
+    function pintaCarga() {
+      fC.innerHTML = '';
+      SF.CARGAS.forEach(function (x) {
+        var b = el('<button class="eq-chip' + (carga === x.k ? ' on' : '') + '">' + esc(x.label) + '</button>');
+        b.onclick = function () { carga = x.k; pintaCarga(); };
+        fC.appendChild(b);
+      });
+    }
+    box.appendChild(lbCarga); box.appendChild(fC);
+
+    /* --- Que evita --- */
+    var lbL = el('<p class="sec-label">Qué evita</p>');
+    var fL = el('<div class="row-c"></div>');
+    function pintaLims() {
+      fL.innerHTML = '';
+      SF.LIMITACIONES.forEach(function (x) {
+        var on = lims.indexOf(x) >= 0;
+        var b = el('<button class="eq-chip eq-chip-sm' + (on ? ' on' : '') + '">' + esc(x) + '</button>');
+        b.onclick = function () {
+          if (on) lims = lims.filter(function (y) { return y !== x; }); else lims = lims.concat([x]);
+          pintaLims();
+        };
+        fL.appendChild(b);
+      });
+    }
+    box.appendChild(lbL); box.appendChild(fL);
+
+    /* --- Minutos, competir, fechas --- */
+    var g = el('<div class="form-grid" style="margin-top:14px">' +
+      '<div class="frow"><label>Minutos máximos de sesión <span class="hint">en blanco = sin tope</span></label>' +
+        '<input id="cmin" type="number" min="0" max="180" value="' + esc(c.minutos) + '"></div>' +
+      '<div class="frow"><label>Desde</label><input id="cdes" type="date" value="' + esc(c.estado.desde) + '"></div>' +
+      '<div class="frow"><label>Previsión de alta</label><input id="chas" type="date" value="' + esc(c.estado.hasta) + '"></div>' +
+      '<div class="frow"><label>Próxima revisión <span class="hint">cuándo lo vuelves a ver</span></label>' +
+        '<input id="crev" type="date" value="' + esc(c.revision) + '"></div>' +
+      '</div>');
+    box.appendChild(g);
+
+    box.appendChild(el('<p class="sec-label">El fin de semana</p>'));
+    var fP = el('<div class="row-c"></div>');
+    function pintaComp() {
+      fP.innerHTML = '';
+      SF.COMPITE.forEach(function (x) {
+        var b = el('<button class="eq-chip' + (compite === x.k ? ' on' : '') + '">' + esc(x.label) + '</button>');
+        b.onclick = function () { compite = x.k; pintaComp(); };
+        fP.appendChild(b);
+      });
+    }
+    box.appendChild(fP);
+
+    var nota = el('<div class="frow" style="margin-top:14px"><label>Nota para el cuerpo técnico ' +
+      '<span class="hint">corta y en lenguaje de pista</span></label>' +
+      '<textarea id="cnota" rows="2" placeholder="Ej.: puede hacer todo el trabajo con balón, que no salte a rebote.">' + esc(c.nota) + '</textarea></div>');
+    box.appendChild(nota);
+
+    /* --- A quien se avisa --- */
+    var eq = p.team_id ? SF.store.teamGet(p.team_id) : null;
+    var aAvisar = destinatariosConsigna(p);
+    var avisar = aAvisar.length > 0;
+    if (aAvisar.length) {
+      var lab = el('<label class="chk" style="margin-top:14px"><input type="checkbox" id="cav" checked> ' +
+        '<span>Avisar a ' + esc(aAvisar.map(function (s) { return s.full_name; }).join(' y ')) + '</span></label>');
+      box.appendChild(lab);
+      box.appendChild(el('<p class="hint">Les llega el parte a su buzón. Una consigna que se guarda y no se manda no la aplica nadie: el entrenador no entra en la ficha antes de cada entrenamiento.</p>'));
+    } else {
+      box.appendChild(el('<p class="hint" style="margin-top:14px">Este jugador no tiene equipo con entrenador asignado, así que no hay a quién avisar. La consigna se guarda igual en su ficha.</p>'));
+    }
+
+    var acc = el('<div class="row-c" style="margin-top:16px"></div>');
+    var bG = el('<button class="btn btn-primary">' + ico('check') + 'Guardar y avisar</button>');
+    bG.onclick = function () {
+      var mins = (box.querySelector('#cmin').value || '').trim();
+      var rev = box.querySelector('#crev').value;
+      var datos = {
+        estado: estado,
+        limitaciones: estado === 'disponible' ? [] : lims,
+        limitacion: (estado === 'disponible' ? '' : (lims[0] || '')),   // compatibilidad
+        carga: carga, compite: compite, minutos: mins,
+        desde: box.querySelector('#cdes').value,
+        hasta: estado === 'disponible' ? '' : box.querySelector('#chas').value,
+        revision: estado === 'disponible' ? '' : rev,
+        nota: (box.querySelector('#cnota').value || '').trim()
+      };
+      SF.store.setDispo(p.id, datos, SF.store.currentUser());
+      var cb = box.querySelector('#cav');
+      var n = 0;
+      if (cb && cb.checked) n = mandaConsigna(SF.store.get(p.id), aAvisar);
+      U.closeModal();
+      U.toast(n ? 'Consigna guardada y enviada a ' + n + (n === 1 ? ' persona' : ' personas') : 'Consigna guardada');
+      if (alGuardar) alGuardar();
+    };
+    acc.appendChild(bG);
+    box.appendChild(acc);
+
+    pintaEstado(); pintaCarga(); pintaComp(); pintaLims();
+    U.modal('Consigna — ' + p.full_name, box);
+  }
+
+  /* A quien le sirve la consigna: quien dirige a ese jugador en la pista y
+     quien le pone la carga. No a todo el club: un parte de un jugador no es
+     un comunicado. */
+  function destinatariosConsigna(p) {
+    if (!p.team_id) return [];
+    var t = SF.store.teamGet(p.team_id);
+    if (!t) return [];
+    var nombres = t.coaches || [];
+    return SF.store.staff().filter(function (s) {
+      if ((s.team_ids || []).indexOf(t.id) >= 0 &&
+          (s.role === 'preparador_fisico' || s.role === 'entrenador')) return true;
+      return nombres.indexOf(s.full_name) >= 0;
+    });
+  }
+
+  /* El parte, escrito para quien lo va a leer en el pabellon. */
+  function textoConsigna(p) {
+    var c = SF.consigna(p);
+    var L = [];
+    L.push(c.estado.def.label + '.');
+    if (c.carga) L.push('Carga: ' + c.carga.label.toLowerCase() + '.');
+    if (c.minutos) L.push('Máximo ' + c.minutos + ' minutos por sesión.');
+    if (c.limitaciones.length) L.push('Evita: ' + c.limitaciones.join(', ').toLowerCase() + '.');
+    if (c.compite) L.push('Fin de semana: ' + c.compite.label.toLowerCase() + '.');
+    if (c.revision) L.push('Próxima revisión: ' + fmtDate(c.revision) + '.');
+    if (c.estado.hasta) L.push('Previsión de alta: ' + fmtDate(c.estado.hasta) + '.');
+    if (c.nota) L.push('\n' + c.nota);
+    return L.join(' ');
+  }
+
+  function mandaConsigna(p, destinos) {
+    if (!destinos || !destinos.length) return 0;
+    var me = SF.store.staffMe();
+    var yo = SF.store.currentUser();
+    var c = SF.consigna(p);
+    SF.store.convCreate({
+      subject: 'Consigna · ' + p.full_name + ' · ' + c.estado.def.corto,
+      from: { kind: 'staff', id: me ? me.id : 'fisio', name: yo.name, role: yo.label },
+      to_staff_ids: destinos.map(function (s) { return s.id; }),
+      player_id: p.id, team_id: p.team_id || null,
+      motivo: 'consigna',
+      text: textoConsigna(p)
+    });
+    return destinos.length;
   }
 
   /* ---------- ESCRIBIR ----------
