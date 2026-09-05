@@ -1212,6 +1212,27 @@ button.pf-ley:hover{filter:brightness(.96)}
   border-radius:var(--r-lg);padding:11px 15px;margin-bottom:14px;font-size:14px}
 .cua-edit .ic{width:17px;height:17px;color:var(--purple);flex:0 0 auto}
 .cua-edit b{font-weight:600}
+
+/* Las sesiones dentro de una celda del calendario. */
+.cal-ses{display:block;width:100%;text-align:left;font-family:inherit;background:var(--purple-soft,#F1EEFF);
+  border:1px solid transparent;border-radius:9px;padding:5px 8px;margin-bottom:4px;cursor:pointer;color:var(--ink)}
+.cal-ses:last-child{margin-bottom:0}
+.cal-ses:hover:not(:disabled){border-color:var(--purple)}
+.cal-ses:disabled{cursor:default}
+.cal-ses b{display:block;font-size:12.5px;font-weight:600}
+.cal-ses span{display:block;font-size:10.5px;color:var(--ink-3);line-height:1.3}
+.cal-ses .cal-et{font-weight:600;text-transform:uppercase;letter-spacing:.03em;font-size:9.5px}
+.cal-ses.cancel{background:#FBEAEA;text-decoration:line-through;opacity:.75}
+.cal-ses.cancel .cal-et{color:#D14343}
+/* `text-decoration:none` no basta: el tachado lo pinta el padre y se propaga a
+   los hijos de bloque. `inline-block` corta esa propagacion, que es lo unico
+   que de verdad deja legible la etiqueta y el motivo de una sesion anulada. */
+.cal-ses.cancel .cal-et,.cal-ses.cancel .cal-mot{display:inline-block;text-decoration:none}
+.cal-ses.movida{background:#FFF3E0}
+.cal-ses.movida .cal-et{color:#B4761B}
+.cal-ses.extra{background:#E7F6EF}
+.cal-ses.extra .cal-et{color:#1F7A55}
+.cal-ses .cal-mot{font-size:10px;color:var(--ink-3);font-style:italic;text-decoration:none;margin-top:2px}
 @media(max-width:680px){.inst-row{flex-wrap:wrap}.inst-row input{flex:1 1 100%}}
 .sf-cuenta button{background:none;border:0;color:inherit;font-family:inherit;font-size:11.5px;cursor:pointer;text-decoration:underline;padding:0;opacity:.8}
 @media(max-width:980px){.sf-cuenta{display:none}}
@@ -1787,6 +1808,12 @@ SF.temporadasConFisio = function (jugadores) {
   });
   set[SF.SEASON] = 1;
   return Object.keys(set).sort().reverse();
+};
+
+/* Las sesiones que de verdad se hacen: sin las canceladas. Para pasar lista,
+   para el registro y para todo lo que cuente trabajo hecho. */
+SF.sesionesActivas = function (team, desde, hasta) {
+  return SF.sesionesEntre(team, desde, hasta).filter(function (x) { return !x.cancelada; });
 };
 
 /* Los dias que lleva un jugador sin estar disponible del todo. Un fisio
@@ -3113,27 +3140,68 @@ SF.sesionesEntre = function (team, desde, hasta) {
      alguna vez vuelve a fallar, que devuelva de menos y se vea, y no que
      cuelgue el navegador de un entrenador en el pabellón. Dos años de días es
      mucho más de lo que se pide nunca. */
+  /* Las excepciones de este equipo en el periodo, indexadas por la clave de la
+     sesion a la que afectan. */
+  var exc = {}, extras = [];
+  SF.store.excepciones(team.id, desde, hasta).forEach(function (x) {
+    if (x.tipo === 'extra' || !x.clave) extras.push(x); else exc[x.clave] = x;
+  });
+
   var vueltas = 0;
   for (var f = desde; f <= hasta && vueltas < 800; f = SF.sumaDias(f, 1)) {
     vueltas++;
     var ds = SF.diaSemanaDe(f);
     slots.forEach(function (sl) {
       if (sl.dia !== ds) return;
-      out.push({ fecha: f, tipo: sl.tipo, franja: sl.franja, hora: sl.hora, donde: sl.donde,
+      var cl = SF.claveSesion(team.id, f, sl.tipo, sl.franja);
+      var ex = exc[cl];
+      /* Una sesion CANCELADA no se borra del listado: se marca. Que un dia no
+         hubo entrenamiento es informacion —para la asistencia, para el
+         registro del año y para quien pregunte por que— y hacerla desaparecer
+         seria decir que nunca estuvo prevista. Quien la consume decide si la
+         cuenta (`SF.sesionesActivas` la quita). */
+      out.push({ fecha: f, tipo: sl.tipo, franja: sl.franja,
+        hora: (ex && ex.hora) || sl.hora, donde: (ex && ex.donde) || sl.donde,
         prep_id: sl.prep_id || null,
         titulo: sl.tipo === 'pf' ? 'Preparación física' : 'Entrenamiento',
-        clave: SF.claveSesion(team.id, f, sl.tipo, sl.franja) });
+        cancelada: !!(ex && ex.tipo === 'cancelada'),
+        movida: !!(ex && ex.tipo === 'movida'),
+        motivo: (ex && ex.motivo) || '',
+        excepcion: ex || null,
+        clave: cl });
     });
   }
+  /* Sesiones EXTRA: las que no salen de la plantilla —una sesion de refuerzo,
+     un dia suelto antes de un torneo—. */
+  extras.forEach(function (x) {
+    if (x.fecha < desde || x.fecha > hasta) return;
+    out.push({ fecha: x.fecha, tipo: x.subtipo || 'entreno', franja: null,
+      hora: x.hora || '', donde: x.donde || '', prep_id: null,
+      titulo: (x.subtipo === 'pf' ? 'Preparación física' : 'Entrenamiento') + ' (extra)',
+      cancelada: false, movida: false, extra: true, motivo: x.motivo || '',
+      excepcion: x, clave: 'ex|' + x.id });
+  });
 
   /* Partidos y citas sueltas. Son eventos de verdad y llevan su propia lista
      dentro (`ev.attendance`): no se tocan, se muestran al lado. */
   (team.events || []).forEach(function (ev) {
     if (!ev.date || ev.date < desde || ev.date > hasta) return;
+    /* Una cita suelta tambien puede caerse o moverse un dia concreto, y sin
+       clave no habia forma de tocarla: el chip salia muerto en el calendario.
+       Se le da la suya —'ev' mas el id del evento— y pasa por el mismo
+       sistema de excepciones que las sesiones del cuadrante. El partido se
+       queda fuera a proposito: se gestiona como evento en la ficha del
+       equipo, no aqui. */
+    var evCl = ev.type === 'partido' ? null : SF.claveSesion(team.id, ev.date, 'ev', ev.id);
+    var evEx = evCl ? exc[evCl] : null;
     out.push({ fecha: ev.date, tipo: ev.type === 'partido' ? 'partido' : 'entreno', evento: ev,
-      franja: null, hora: ev.time || '', donde: ev.place || '',
+      franja: null, hora: (evEx && evEx.hora) || ev.time || '', donde: (evEx && evEx.donde) || ev.place || '',
       titulo: ev.type === 'partido' ? ('Partido' + (ev.opponent ? ' · ' + ev.opponent : '')) : 'Entrenamiento',
-      clave: null });
+      cancelada: !!(evEx && evEx.tipo === 'cancelada'),
+      movida: !!(evEx && evEx.tipo === 'movida'),
+      motivo: (evEx && evEx.motivo) || '',
+      excepcion: evEx || null,
+      clave: evCl });
   });
 
   return out.sort(function (a, b) {
@@ -6953,6 +7021,45 @@ SF.store = (function () {
       save(d);
     },
 
+    /* ---- EXCEPCIONES DEL CUADRANTE ----
+       El cuadrante es la PLANTILLA de la temporada: "el cadete entrena lunes,
+       miercoles y viernes". Una excepcion es lo que le pasa a UN dia concreto:
+       el 14 de octubre no hay porque el pabellon esta cogido, o esa semana se
+       entrena a las 18:00 en la otra pista.
+
+       Se guarda como una capa ENCIMA, no tocando la plantilla, por tres
+       razones: cambiar la plantilla para arreglar un martes cambiaria TODOS
+       los martes de la temporada; el registro del año necesita saber que ese
+       dia se movio y por que; y en pretemporada la plantilla se ajusta entera
+       sin que eso borre las excepciones ya puestas.
+
+       clave = la de la sesion base (SF.claveSesion). Una excepcion 'extra' no
+       tiene sesion base, asi que va sin clave. */
+    excepciones: function (teamId, desde, hasta) {
+      return (db().excepciones || []).filter(function (x) {
+        if (teamId && x.team_id !== teamId) return false;
+        if (desde && x.fecha < desde) return false;
+        if (hasta && x.fecha > hasta) return false;
+        return true;
+      }).sort(function (a, b) { return (a.fecha || '').localeCompare(b.fecha || ''); });
+    },
+    excepcionDe: function (clave) {
+      return (db().excepciones || []).filter(function (x) { return x.clave === clave; })[0] || null;
+    },
+    excepcionSet: function (datos, quien) {
+      var d = db(); d.excepciones = d.excepciones || [];
+      var x = datos.clave ? d.excepciones.filter(function (y) { return y.clave === datos.clave; })[0] : null;
+      if (!x) { x = { id: 'ex' + Date.now() + Math.floor(Math.random() * 100) }; d.excepciones.push(x); }
+      Object.assign(x, datos, { por: quien.name, role: quien.label, at: new Date().toISOString() });
+      save(d);
+      return x;
+    },
+    excepcionQuitar: function (id) {
+      var d = db();
+      d.excepciones = (d.excepciones || []).filter(function (x) { return x.id !== id; });
+      save(d);
+    },
+
     setDispo: function (playerId, datos, quien) {
       var d = db();
       (d.players || []).forEach(function (p) {
@@ -6978,6 +7085,10 @@ SF.store = (function () {
         opened_by: data.from,                  // {kind, id, name, role}
         to_staff_ids: ids,
         to_staff: ids[0] || null,              // se conserva por compatibilidad
+        /* El motivo se guarda. Sin esto los hilos que abre la app —la consigna
+           del fisio, un cambio de cuadrante— llegaban al buzon sin etiqueta y
+           no habia forma de buscarlos ni de contarlos despues. */
+        motivo: data.motivo || null,
         supervisores: (SF.supervisoresDe(data.team_id) || []).map(function (s) { return s.id; }),
         created_at: ahora,
         closed_at: null,
@@ -11774,6 +11885,136 @@ window.SF = window.SF || {};
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
 
+  /* ---------- CAMBIAR UN DIA SUELTO ----------
+     Lo que le faltaba al cuadrante para servir durante la temporada. La
+     plantilla dice "los miercoles a las 19:45"; esto dice "el miercoles 14 no,
+     que el pabellon esta cogido por la federacion".
+
+     No toca la plantilla. Cambiar la plantilla para arreglar un miercoles
+     cambiaria TODOS los miercoles del año, que es el error clasico de las
+     hojas de calculo del club: alguien mueve una casilla en octubre y en marzo
+     nadie entiende por que el horario no es el que se acordo. */
+  function modalSesionDia(t, s) {
+    var ex = s.excepcion;
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint"><b>' + esc(t.name) + '</b> · ' + fmtDate(s.fecha) +
+      ' · ' + esc(s.hora || 'sin hora') + (s.donde ? ' · ' + esc(s.donde) : '') + '</p>'));
+    box.appendChild(el('<p class="hint">Esto cambia <b>solo este día</b>. El cuadrante de la temporada se queda como está.</p>'));
+
+    var modo = ex ? ex.tipo : null;
+    var zona = el('<div></div>');
+    var fila = el('<div class="row-c" style="margin:12px 0"></div>');
+
+    function pinta() {
+      fila.innerHTML = '';
+      [['cancelada', 'No hay sesión'], ['movida', 'Cambiar hora o pista'], [null, 'Dejarlo como estaba']].forEach(function (o) {
+        if (o[0] === null && !ex) return;
+        var b = el('<button class="eq-chip' + (modo === o[0] ? ' on' : '') + '">' + esc(o[1]) + '</button>');
+        b.onclick = function () { modo = o[0]; pinta(); };
+        fila.appendChild(b);
+      });
+      zona.innerHTML = '';
+      if (modo === 'movida') {
+        zona.appendChild(el('<div class="form-grid">' +
+          '<div class="frow"><label>Nueva hora</label><input id="sh" value="' + esc((ex && ex.hora) || s.hora || '') + '" placeholder="18:00 – 19:30"></div>' +
+          '<div class="frow"><label>Dónde <span class="hint">si cambia</span></label><input id="sd" value="' + esc((ex && ex.donde) || s.donde || '') + '"></div></div>'));
+      }
+      if (modo) {
+        zona.appendChild(el('<div class="frow" style="margin-top:10px"><label>Motivo ' +
+          '<span class="hint">lo van a leer las familias</span></label>' +
+          '<input id="sm" value="' + esc((ex && ex.motivo) || '') + '" placeholder="' +
+          (modo === 'cancelada' ? 'El pabellón está cogido por la federación' : 'Entramos más tarde, hay partido antes') + '"></div>'));
+      }
+    }
+    box.appendChild(fila); box.appendChild(zona);
+
+    /* A quien se avisa. Un cambio de horario que no llega a las familias
+       termina en un chaval esperando en la puerta del pabellon. */
+    var dest = destinatariosSesion(t);
+    var lab = el('<label class="chk" style="margin-top:14px"><input type="checkbox" id="sav" checked> ' +
+      '<span>Avisar al equipo y a las familias</span></label>');
+    box.appendChild(lab);
+    box.appendChild(el('<p class="hint">Les llega el cambio con la fecha y el motivo' +
+      (dest.length ? ', y al buzón de ' + esc(dest.map(function (x) { return x.full_name; }).join(' y ')) : '') + '.</p>'));
+
+    var acc = el('<div class="row-c" style="margin-top:16px"></div>');
+    var bG = el('<button class="btn btn-primary">' + ico('check') + 'Guardar</button>');
+    bG.onclick = function () {
+      var quien = SF.store.currentUser();
+      var motivo = (box.querySelector('#sm') || {}).value || '';
+      if (!modo) {
+        if (ex) SF.store.excepcionQuitar(ex.id);
+        U.closeModal(); U.toast('Vuelve a ser como el cuadrante'); SF.router.render(); return;
+      }
+      var datos = { team_id: t.id, fecha: s.fecha, clave: s.clave, tipo: modo, motivo: motivo.trim() };
+      if (modo === 'movida') {
+        datos.hora = ((box.querySelector('#sh') || {}).value || '').trim();
+        datos.donde = ((box.querySelector('#sd') || {}).value || '').trim();
+      }
+      SF.store.excepcionSet(datos, quien);
+      var n = 0;
+      var cb = box.querySelector('#sav');
+      if (cb && cb.checked) n = avisaCambioSesion(t, s, datos, dest);
+      U.closeModal();
+      U.toast(n ? 'Guardado y avisado' : 'Guardado');
+      SF.router.render();
+    };
+    acc.appendChild(bG);
+    box.appendChild(acc);
+    pinta();
+    U.modal('Este día · ' + t.name, box);
+  }
+
+  /* El entrenador del equipo y el preparador que le toca. */
+  function destinatariosSesion(t) {
+    var nombres = t.coaches || [];
+    return SF.store.staff().filter(function (sf) {
+      if ((sf.team_ids || []).indexOf(t.id) >= 0 &&
+          (sf.role === 'entrenador' || sf.role === 'preparador_fisico')) return true;
+      return nombres.indexOf(sf.full_name) >= 0;
+    });
+  }
+
+  /* El aviso. Va por los dos caminos que ya existen: al buzon del staff y al
+     portal de familias y jugadores, que es donde se mira antes de salir de
+     casa. */
+  function avisaCambioSesion(t, s, datos, dest) {
+    var me = SF.store.staffMe();
+    var yo = SF.store.currentUser();
+    var cuando = fmtDate(s.fecha);
+    var titulo, cuerpo;
+    if (datos.tipo === 'cancelada') {
+      titulo = 'No hay entrenamiento el ' + cuando;
+      cuerpo = 'El entrenamiento del ' + cuando + (s.hora ? ' (' + s.hora + ')' : '') + ' queda anulado.' +
+        (datos.motivo ? ' Motivo: ' + datos.motivo + '.' : '');
+    } else {
+      titulo = 'Cambio de horario el ' + cuando;
+      cuerpo = 'El ' + cuando + ' el entrenamiento pasa a ' + (datos.hora || 'otro horario') +
+        (datos.donde ? ' en ' + datos.donde : '') + '.' +
+        (datos.motivo ? ' Motivo: ' + datos.motivo + '.' : '');
+    }
+    var n = 0;
+    /* 1. Al staff que dirige a ese equipo. */
+    if (dest && dest.length) {
+      SF.store.convCreate({
+        subject: titulo + ' · ' + t.name,
+        from: { kind: 'staff', id: me ? me.id : 'dt', name: yo.name, role: yo.label },
+        to_staff_ids: dest.map(function (x) { return x.id; }),
+        team_id: t.id, motivo: 'cuadrante', text: cuerpo
+      });
+      n += dest.length;
+    }
+    /* 2. A las familias y a los jugadores, por el canal de avisos del equipo:
+       el mismo que usa el entrenador, asi que llega al portal y deja acuse. */
+    var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
+    if (roster.length) {
+      SF.store.annCreate(t.id, { title: titulo, body: cuerpo, kind: 'cita', audience: 'ambos' },
+        roster.map(function (p) { return p.id; }));
+      n += roster.length;
+    }
+    return n;
+  }
+
   pages.calendario = function (view, _p, _ruta, embed) {
     var r = role();
     /* La semana que se está mirando se guarda para que al volver de una ficha
@@ -11801,11 +12042,14 @@ window.SF = window.SF || {};
     var hoy = iso(new Date());
 
     /* Solo los equipos de su ámbito: una DT de femenino no dirige el
-       calendario del masculino. */
-    var equipos = SF.store.teams().filter(function (t) {
-      if (!r.segments || r.segments === 'all') return true;
-      return r.segments.indexOf(t.segment) >= 0;
-    });
+       calendario del masculino.
+       Y el ámbito no es solo la rama: un entrenador ve SUS equipos. Antes
+       este filtro miraba únicamente `segments`, y como un entrenador no tiene
+       rama asignada le salían cero equipos: abría el calendario y veía la
+       pantalla vacía, justo la persona que más lo necesita antes de salir
+       hacia el pabellón. La regla vive en un sitio y la usan las dos
+       pantallas. */
+    var equipos = misEquipos(SF.store.staffMe());
 
     view.innerHTML = embed ? '' : head('Calendario', 'Los entrenamientos y los partidos de todo el club, semana a semana.');
 
@@ -11846,13 +12090,40 @@ window.SF = window.SF || {};
     var partidos = eventosDe('partido');
 
     /* ---------- Entrenamientos: la parrilla ----------
-       Filas = equipos, columnas = días. Es la hoja de cálculo que un director
-       tiene hoy en papel pegada en el despacho. */
-    view.appendChild(el('<p class="sec-label">Entrenamientos · ' + entrenos.length +
-      (entrenos.length === 1 ? ' sesión' : ' sesiones') + '</p>'));
+       Filas = equipos, columnas = días.
 
-    if (!entrenos.length) {
-      view.appendChild(el('<p class="hint">Ningún entrenamiento programado esta semana.</p>'));
+       IMPORTANTE, y esto era un fallo: antes esta parrilla solo pintaba
+       `t.events`, o sea las citas SUELTAS. Un club que tiene su cuadrante
+       montado —cinco sesiones a la semana— veia "Ningun entrenamiento
+       programado esta semana", que es exactamente lo contrario de la verdad.
+
+       Ahora se pinta lo que de verdad hay: la plantilla del cuadrante
+       expandida a fechas, mas las excepciones de esos dias, mas las citas
+       sueltas. Y desde aqui se toca UN dia: cancelarlo, moverlo o dejar una
+       nota, sin romper el cuadrante de la temporada. */
+    /* Quien puede tocar QUÉ. El cuadrante de pista lo escribe la dirección
+       técnica; el de preparación física, quien lo coordina. Son dos permisos
+       distintos y aquí se respetan sesión a sesión: el coordinador de PF
+       podía ver la parrilla pero no cambiar ni una de sus propias sesiones. */
+    function puedeTocar(s) { return s.tipo === 'pf' ? !!r.canEditPF : !!r.canEditHorario; }
+    var puedeCua = !!(r.canEditHorario || r.canEditPF);
+    var sesiones = [];
+    equipos.forEach(function (t) {
+      SF.sesionesEntre(t, dias[0].fecha, domingo).forEach(function (x) {
+        if (x.tipo === 'partido') return;
+        sesiones.push({ t: t, s: x });
+      });
+    });
+    var activas = sesiones.filter(function (x) { return !x.s.cancelada; });
+    var canceladas = sesiones.filter(function (x) { return x.s.cancelada; });
+
+    view.appendChild(el('<p class="sec-label">Entrenamientos · ' + activas.length +
+      (activas.length === 1 ? ' sesión' : ' sesiones') +
+      (canceladas.length ? ' · ' + canceladas.length + (canceladas.length === 1 ? ' cancelada' : ' canceladas') : '') + '</p>'));
+    if (puedeCua) view.appendChild(el('<p class="hint" style="margin-top:-4px">Toca una sesión para cambiarla <b>solo ese día</b>: cancelarla, moverla de hora o dejar una nota. El cuadrante de la temporada no se toca, y el equipo y las familias reciben el aviso.</p>'));
+
+    if (!sesiones.length) {
+      view.appendChild(el('<p class="hint">Ningún entrenamiento esta semana. Si debería haberlos, revisa el cuadrante.</p>'));
     } else {
       var cab = '<th>Equipo</th>' + dias.map(function (d) {
         return '<th class="cal-d' + (d.fecha === hoy ? ' hoy' : '') + '">' + d.nombre.slice(0, 3) +
@@ -11861,18 +12132,41 @@ window.SF = window.SF || {};
       var tabla = el('<div class="cal-scroll"><table class="cal-tab"><thead><tr>' + cab + '</tr></thead><tbody></tbody></table></div>');
       var tb = tabla.querySelector('tbody');
       equipos.forEach(function (t) {
-        var mios = entrenos.filter(function (x) { return x.t.id === t.id; });
-        if (!mios.length) return;                    // equipos sin entrenos no ocupan fila
-        var celdas = dias.map(function (d) {
-          var hay = mios.filter(function (x) { return x.e.date === d.fecha; });
-          if (!hay.length) return '<td class="cal-d' + (d.fecha === hoy ? ' hoy' : '') + '"></td>';
-          return '<td class="cal-d cal-hay' + (d.fecha === hoy ? ' hoy' : '') + '">' +
-            hay.map(function (x) {
-              return '<b>' + esc(x.e.time || '—') + '</b>' + (x.e.place ? '<span>' + esc(x.e.place) + '</span>' : '');
-            }).join('') + '</td>';
-        }).join('');
-        var tr = el('<tr><td class="cal-eq"><button class="lnk">' + esc(t.name) + '</button></td>' + celdas + '</tr>');
+        var mios = sesiones.filter(function (x) { return x.t.id === t.id; });
+        if (!mios.length) return;
+        var tr = el('<tr><td class="cal-eq"><button class="lnk">' + esc(t.name) + '</button></td></tr>');
         tr.querySelector('button').onclick = function () { location.hash = '#/equipo/' + t.id; };
+        dias.forEach(function (d) {
+          var hay = mios.filter(function (x) { return x.s.fecha === d.fecha; });
+          var td = el('<td class="cal-d' + (hay.length ? ' cal-hay' : '') + (d.fecha === hoy ? ' hoy' : '') + '"></td>');
+          hay.forEach(function (x) {
+            var s = x.s;
+            var chip = el('<button class="cal-ses' + (s.cancelada ? ' cancel' : '') + (s.movida ? ' movida' : '') +
+              (s.extra ? ' extra' : '') + '">' +
+              '<b>' + esc(s.hora || '—') + '</b>' +
+              (s.donde ? '<span>' + esc(s.donde) + '</span>' : '') +
+              (s.cancelada ? '<span class="cal-et">cancelado</span>' : '') +
+              (s.movida ? '<span class="cal-et">cambiado</span>' : '') +
+              (s.extra ? '<span class="cal-et">extra</span>' : '') +
+              /* El motivo va en el chip. "Cancelado" a secas obliga a abrir la
+                 sesion para saber por que, y quien mira el calendario a las
+                 ocho de la tarde no va a abrir doce. */
+              (s.motivo ? '<span class="cal-mot">' + esc(s.motivo) + '</span>' : '') + '</button>');
+            if (puedeTocar(s) && s.clave) {
+              chip.onclick = function () { modalSesionDia(t, s); };
+              chip.title = 'Cambiar solo este día';
+            } else {
+              chip.disabled = true;
+              /* Un botón apagado sin explicación parece una pantalla rota. Se
+                 dice por qué: o es un partido, o es de otro cuadrante. */
+              chip.title = !s.clave ? 'Los partidos se cambian en la ficha del equipo'
+                : s.tipo === 'pf' ? 'El cuadrante de preparación física lo lleva su coordinador'
+                : 'No tienes permiso para cambiar el cuadrante';
+            }
+            td.appendChild(chip);
+          });
+          tr.appendChild(td);
+        });
         tb.appendChild(tr);
       });
       view.appendChild(tabla);
@@ -16971,7 +17265,9 @@ window.SF = window.SF || {};
   /* Las sesiones pendientes de este equipo, para quien las pueda pasar. */
   function sesionesPendientes(t) {
     var hoy = SF.hoyISO();
-    var ses = sesionesQuePuedePasar(t, SF.sesionesEntre(t, SF.sumaDias(hoy, -DIAS_LISTA), hoy));
+    /* `sesionesActivas` y no `sesionesEntre`: una sesion que se cancelo no
+       esta pendiente de pasar lista, no hubo nadie a quien pasarsela. */
+    var ses = sesionesQuePuedePasar(t, SF.sesionesActivas(t, SF.sumaDias(hoy, -DIAS_LISTA), hoy));
     return ses.filter(function (x) {
       return !(x.evento ? (x.evento.attendance ? 1 : 0) : SF.store.asistenciaDe(x.clave));
     });
@@ -16989,7 +17285,7 @@ window.SF = window.SF || {};
      filas y no ocupa la pantalla. */
   function modalPasarLista(t) {
     var hoy = SF.hoyISO();
-    var todas = sesionesQuePuedePasar(t, SF.sesionesEntre(t, SF.sumaDias(hoy, -DIAS_LISTA), hoy));
+    var todas = sesionesQuePuedePasar(t, SF.sesionesActivas(t, SF.sumaDias(hoy, -DIAS_LISTA), hoy));
     var roster = SF.store.players().filter(function (p) { return p.team_id === t.id; });
     var box = el('<div></div>');
 
@@ -17054,7 +17350,7 @@ window.SF = window.SF || {};
        capacidad teorica, porque un preparador asignado a un equipo que no
        tiene preparacion fisica en el cuadrante tampoco tiene nada que pasar. */
     var hoyB = SF.hoyISO();
-    var puede = sesionesQuePuedePasar(t, SF.sesionesEntre(t, SF.sumaDias(hoyB, -DIAS_LISTA), hoyB));
+    var puede = sesionesQuePuedePasar(t, SF.sesionesActivas(t, SF.sumaDias(hoyB, -DIAS_LISTA), hoyB));
     var hayReg = SF.store.asistenciasDe(t.id).length || (t.events || []).some(function (e) { return e.attendance; });
     if (!puede.length && !hayReg) return;
     var pend = sesionesPendientes(t).length;
@@ -17101,7 +17397,7 @@ window.SF = window.SF || {};
     /* Solo las sesiones con lista pasada: una columna vacia no dice "faltó",
        dice "nadie la pasó", y mezclar las dos cosas convierte el porcentaje en
        una cifra que no significa nada. */
-    var ses = SF.sesionesEntre(t, SF.sumaDias(hoy, -dias), hoy).map(function (x) {
+    var ses = SF.sesionesActivas(t, SF.sumaDias(hoy, -dias), hoy).map(function (x) {
       var g = x.evento ? (x.evento.attendance ? { marcas: x.evento.attendance } : null)
                        : SF.store.asistenciaDe(x.clave);
       return g ? { s: x, marcas: g.marcas || {} } : null;
@@ -19388,7 +19684,7 @@ window.SF = window.SF || {};
        en Escribir y con ese equipo elegido. */
     if (SF._avisoEquipo) { SF._avisosZona = 'escribir'; }
 
-    var misEq = equiposDeAvisos(me);
+    var misEq = misEquipos(me);
     /* El Registro es solo para quien supervisa: direccion y direcciones
        tecnicas. Un entrenador ya tiene en Enviados lo suyo, y darle un archivo
        del club entero seria enseñarle conversaciones de equipos que no lleva. */
@@ -19431,7 +19727,10 @@ window.SF = window.SF || {};
   /* Los equipos a los que este usuario puede escribir. Quien lleva el club
      entero los tiene todos; un entrenador, los suyos. Si escribes a un equipo
      que no llevas, el aviso sale con tu nombre y nadie sabe por que. */
-  function equiposDeAvisos(me) {
+  /* Los equipos de una persona. Vale para los avisos, para el calendario y
+     para cualquier pantalla que tenga que decidir que equipos le tocan: la
+     regla es la misma y tenerla escrita dos veces es tenerla mal en una. */
+  function misEquipos(me) {
     var r = role();
     var todos = SF.store.teams();
     /* EL AMBITO MANDA, tambien para quien dirige. Esto devolvia TODOS los
