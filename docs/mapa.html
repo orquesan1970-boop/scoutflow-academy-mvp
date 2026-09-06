@@ -1,0 +1,870 @@
+<title>Mapa de ScoutFlow Academy</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --morado:#6F5AEF; --morado-osc:#4B35C9; --morado-suave:#EFECFF;
+  --tinta:#1F2430; --tinta-2:#4A4F60; --tinta-3:#767C90;
+  --fondo:#F7F7FC; --papel:#FFFFFF; --linea:#E4E1F0; --linea-2:#F0EEF8;
+  --noche:#17132A; --noche-2:#221C3C;
+  --si:#2E9E6B; --ojo:#B4761B; --no:#D14343;
+  --sombra:0 1px 2px rgba(31,36,48,.05), 0 8px 24px -16px rgba(31,36,48,.18);
+  --display:'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --cuerpo:'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+  --mono:'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --morado:#9C8CFF; --morado-osc:#B7ACFF; --morado-suave:#2A2352;
+    --tinta:#EDEBF7; --tinta-2:#B9B4D0; --tinta-3:#8E88A8;
+    --fondo:#131022; --papel:#1B1730; --linea:#2E2850; --linea-2:#241F42;
+    --noche:#0D0A18; --noche-2:#1B1730;
+    --si:#4FC38C; --ojo:#DFA43F; --no:#F07070;
+    --sombra:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  --morado:#9C8CFF; --morado-osc:#B7ACFF; --morado-suave:#2A2352;
+  --tinta:#EDEBF7; --tinta-2:#B9B4D0; --tinta-3:#8E88A8;
+  --fondo:#131022; --papel:#1B1730; --linea:#2E2850; --linea-2:#241F42;
+  --noche:#0D0A18; --noche-2:#1B1730;
+  --si:#4FC38C; --ojo:#DFA43F; --no:#F07070;
+  --sombra:0 1px 2px rgba(0,0,0,.3), 0 8px 24px -16px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--fondo);color:var(--tinta);font-family:var(--cuerpo);
+  font-size:16.5px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.env{max-width:1180px;margin:0 auto;padding:0 28px 96px}
+h1,h2,h3,h4{font-family:var(--display);text-wrap:balance;margin:0}
+code{font-family:var(--mono);font-size:.82em;color:var(--tinta-3)}
+a{color:var(--morado)}
+.nil{color:var(--tinta-3);font-style:italic}
+
+/* ---- portada ---- */
+.cab{padding:56px 0 30px;border-bottom:1px solid var(--linea)}
+.marca{display:flex;align-items:center;gap:11px;margin-bottom:26px}
+.sfa{width:32px;height:32px;border-radius:50%;background:var(--morado);color:#fff;
+  font-family:var(--display);font-weight:700;font-size:12.5px;letter-spacing:.02em;
+  display:grid;place-items:center;flex:0 0 auto}
+.marca b{font-family:var(--display);font-weight:600;font-size:15px;letter-spacing:-.01em}
+.marca span{color:var(--tinta-3);font-size:13px}
+h1{font-size:clamp(34px,5vw,52px);font-weight:700;letter-spacing:-.025em;line-height:1.05;max-width:15ch}
+.sub{max-width:60ch;margin:18px 0 0;font-size:19px;color:var(--tinta-2)}
+.cifras{display:flex;flex-wrap:wrap;gap:0;margin-top:34px;border-top:1px solid var(--linea)}
+.cifra{padding:16px 30px 4px 0;margin-right:30px;border-right:1px solid var(--linea)}
+.cifra:last-child{border-right:0}
+.cifra b{display:block;font-family:var(--display);font-size:27px;font-weight:700;
+  letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1}
+.cifra span{font-size:12.5px;color:var(--tinta-3);text-transform:uppercase;letter-spacing:.06em}
+
+/* ---- navegación ---- */
+.indice{position:sticky;top:0;z-index:20;background:var(--fondo);
+  border-bottom:1px solid var(--linea);margin-bottom:8px}
+.indice ol{display:flex;flex-wrap:wrap;gap:2px 24px;list-style:none;margin:0;padding:12px 0;
+  max-width:1180px;margin:0 auto}
+.indice a{font-size:13.5px;color:var(--tinta-2);text-decoration:none;padding:3px 0;
+  border-bottom:2px solid transparent;font-weight:600}
+.indice a:hover,.indice a:focus-visible{color:var(--morado);border-bottom-color:var(--morado)}
+
+section.bloque{padding-top:56px;scroll-margin-top:60px}
+.bloque > h2{font-size:30px;font-weight:700;letter-spacing:-.02em}
+.bloque > .intro{max-width:66ch;color:var(--tinta-2);margin:10px 0 0}
+
+/* ---- estado ---- */
+.estado{display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:16px;margin-top:26px}
+.est{background:var(--papel);border:1px solid var(--linea);border-radius:12px;padding:20px 22px}
+.est h4{font-size:14px;text-transform:uppercase;letter-spacing:.07em;margin-bottom:12px;color:var(--tinta-3)}
+.est.ok h4{color:var(--si)} .est.pdte h4{color:var(--ojo)}
+.est dl{margin:0}
+.est dt{font-weight:600;font-size:15px;margin-top:14px}
+.est dt:first-child{margin-top:0}
+.est dd{margin:1px 0 0;font-size:14.5px;color:var(--tinta-2);line-height:1.5}
+
+/* ---- roles ---- */
+.gh{font-size:12.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--morado);
+  font-weight:700;margin:34px 0 14px;padding-bottom:8px;border-bottom:1px solid var(--linea)}
+.rejilla{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:16px}
+.rol{background:var(--papel);border:1px solid var(--linea);border-radius:12px;padding:20px 22px 18px;
+  box-shadow:var(--sombra)}
+.rol-h{display:flex;align-items:baseline;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.rol-h h4{font-size:17.5px;font-weight:600;letter-spacing:-.01em}
+.tag-fijo{font-family:var(--cuerpo);font-size:10.5px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.06em;background:var(--morado-suave);color:var(--morado-osc);
+  border-radius:4px;padding:1px 6px;vertical-align:2px}
+.rol-t{margin:9px 0 0;font-weight:600;font-size:15.5px}
+.rol-d{margin:6px 0 0;font-size:14.5px;color:var(--tinta-2);line-height:1.55}
+.ficha{display:grid;grid-template-columns:auto 1fr;gap:5px 14px;margin:16px 0 0;
+  padding-top:14px;border-top:1px solid var(--linea-2);font-size:13.5px}
+.ficha dt{color:var(--tinta-3);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em;
+  padding-top:3px;white-space:nowrap}
+.ficha dd{margin:0}
+.ficha .wrap{display:flex;flex-wrap:wrap;gap:4px}
+.ficha .tabs{font-family:var(--mono);font-size:11.5px;color:var(--tinta-2);line-height:1.5}
+.chip{display:inline-block;background:var(--linea-2);border-radius:5px;padding:1px 7px;
+  font-size:12px;color:var(--tinta-2);white-space:nowrap}
+.chip-p{background:var(--morado-suave);color:var(--morado-osc)}
+
+/* ---- matriz ---- */
+.scroll{overflow-x:auto;margin-top:24px;border:1px solid var(--linea);border-radius:12px;background:var(--papel)}
+table{border-collapse:collapse;width:100%;font-size:14px}
+.matriz thead th{background:var(--noche);color:#F1EFFA;font-family:var(--cuerpo);font-weight:600;
+  font-size:11.5px;vertical-align:bottom;padding:14px 4px;text-align:center;
+  position:sticky;top:0;z-index:3}
+.matriz thead th span{display:block;width:15ch;margin:0 auto;line-height:1.25;
+  text-transform:none;letter-spacing:0}
+.matriz thead .esq{text-align:left;padding-left:18px;width:230px;min-width:230px;
+  position:sticky;left:0;top:0;z-index:5;background:var(--noche)}
+.matriz .rn{text-align:left;font-weight:600;padding:9px 18px;font-size:14px;white-space:nowrap;
+  position:sticky;left:0;background:var(--papel);z-index:2;border-right:1px solid var(--linea)}
+.matriz tbody td{text-align:center;border-top:1px solid var(--linea-2);padding:9px 4px}
+.matriz tbody tr:hover td,.matriz tbody tr:hover .rn{background:var(--morado-suave)}
+.matriz .si i{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--morado)}
+.matriz .no{color:transparent}
+.matriz .sep td{background:var(--linea-2);font-family:var(--display);font-weight:700;font-size:10.5px;
+  text-transform:uppercase;letter-spacing:.11em;color:var(--tinta-3);padding:6px 18px;text-align:left}
+
+/* ---- listas de definición ---- */
+.ch{font-size:12.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--morado);
+  font-weight:700;margin:30px 0 4px}
+.lista{margin:0;border-top:1px solid var(--linea)}
+.lista dt{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;
+  margin-top:16px;font-family:var(--display);font-weight:600;font-size:15.5px}
+.lista dd{margin:2px 0 0;color:var(--tinta-2);font-size:15px;max-width:74ch}
+.quien{display:block;margin-top:3px;font-size:12.5px;color:var(--tinta-3)}
+
+/* ---- secciones ---- */
+.secs th,.secs td{text-align:left;vertical-align:top;padding:11px 16px;border-top:1px solid var(--linea-2)}
+.secs thead th{background:var(--noche);color:#F1EFFA;font-size:11.5px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.07em;border:0}
+.secs tbody th{white-space:nowrap;font-weight:600}
+.secs tbody th span{display:block}
+.secs tbody th code{display:block;margin-top:1px}
+.secs td{font-size:14.5px;color:var(--tinta-2)}
+.secs .q{font-size:12.5px;color:var(--tinta-3);min-width:210px}
+.secs tbody tr:hover th,.secs tbody tr:hover td{background:var(--morado-suave)}
+
+/* ---- módulos ---- */
+.mods{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:8px 40px}
+.mod h4{font-size:12.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--morado);
+  font-weight:700;margin:30px 0 4px}
+
+/* ---- pie ---- */
+.pie{margin-top:70px;padding-top:22px;border-top:1px solid var(--linea);
+  font-size:13.5px;color:var(--tinta-3);display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media (max-width:640px){
+  .env{padding:0 18px 64px}
+  .cifra{padding-right:20px;margin-right:20px}
+  .ficha{grid-template-columns:1fr;gap:2px}
+  .ficha dt{margin-top:9px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+</style>
+
+<div class="indice"><ol>
+  <li><a href="#estado">Qué es y qué es de verdad</a></li>
+  <li><a href="#roles">Los 17 roles</a></li>
+  <li><a href="#matriz">La matriz de permisos</a></li>
+  <li><a href="#permisos">Qué significa cada permiso</a></li>
+  <li><a href="#secciones">Las 27 secciones</a></li>
+  <li><a href="#modulos">Cómo funciona por dentro</a></li>
+  <li><a href="#falta">Lo que aún no existe</a></li>
+</ol></div>
+
+<div class="env">
+
+<header class="cab">
+  <div class="marca"><div class="sfa">SFA</div>
+    <div><b>ScoutFlow Academy</b> <span>· From Prospect to Player</span></div></div>
+  <h1>El mapa de la plataforma</h1>
+  <p class="sub">Todo lo que ScoutFlow Academy ya hace hoy: quién es cada rol, qué puede tocar,
+     para qué sirve cada pantalla y qué hay debajo. Escrito desde el código, no de memoria.</p>
+  <div class="cifras">
+    <div class="cifra"><b>17</b><span>roles</span></div>
+    <div class="cifra"><b>27</b><span>secciones</span></div>
+    <div class="cifra"><b>16</b><span>permisos</span></div>
+    <div class="cifra"><b>277</b><span>jugadores</span></div>
+    <div class="cifra"><b>28</b><span>equipos</span></div>
+    <div class="cifra"><b>28</b><span>personas del club</span></div>
+  </div>
+</header>
+
+<section class="bloque" id="estado">
+  <h2>Qué es, y qué funciona de verdad</h2>
+  <p class="intro">ScoutFlow Academy es un CRM deportivo: centraliza la captación, la admisión, el
+    seguimiento y la gestión de jugadores. La academia piloto es el CBJA, con 277 jugadores,
+    28 equipos, 4 instalaciones y 24 sesiones de preparación física a la semana.
+    Todo lo que sale en este mapa está construido; lo que no, está en la última sección.</p>
+  <div class="estado">
+    <div class="est ok"><h4>Real</h4><dl>
+      <dt>Login</dt><dd>Correo y contraseña contra Supabase, con su pantalla de acceso y registro.</dd>
+      <dt>Guardado en la nube</dt><dd>Se sube solo al dejar de escribir, y al cerrar la pestaña. Con respaldo local por si se cae la red.</dd>
+      <dt>Toda la lógica de club</dt><dd>Roles, permisos, cuadrantes, asistencia, salud, avisos, dinero y portales funcionan de verdad sobre datos reales.</dd>
+    </dl></div>
+    <div class="est pdte"><h4>Simulado</h4><dl>
+      <dt>La IA</dt><dd>Importar un mensaje y analizar un jugador devuelven resultados construidos en el navegador. No hay modelo detrás.</dd>
+      <dt>Los pagos</dt><dd>No hay pasarela: los cobros se marcan a mano.</dd>
+    </dl></div>
+    <div class="est"><h4>Cómo está montado</h4><dl>
+      <dt>Un solo archivo</dt><dd>HTML, CSS y JavaScript sin paso de compilación. Se publica en Vercel desde GitHub.</dd>
+      <dt>Un JSON por club</dt><dd>Todo el club es un objeto guardado en el navegador y sincronizado con Supabase.</dd>
+      <dt>La app y la web son cosas distintas</dt><dd>La web comercial va aparte; esto es solo la aplicación.</dd>
+    </dl></div>
+  </div>
+</section>
+
+<section class="bloque" id="roles">
+  <h2>Los 17 roles</h2>
+  <p class="intro">El acceso se decide con tres cosas a la vez: el <b>rol</b>, los <b>jugadores o
+    equipos asignados</b> y los <b>permisos por pestaña</b>. Los roles van agrupados por lo que hace
+    cada uno, de dentro hacia fuera del club — el mismo orden que verás en el selector y en Permisos.</p>
+  <section class="grupo"><h3 class="gh">Dirección</h3><div class="rejilla">
+<article class="rol" id="rol-director">
+<header class="rol-h"><h4>Director <span class="tag tag-fijo">fijo</span></h4><code>director</code></header>
+<p class="rol-t">Manda en todo el club.</p>
+<p class="rol-d">El único rol sin techo: ve y edita todas las secciones, todas las pestañas de la ficha, el dinero, los sueldos, las notas internas y el Scout Score. Es quien reparte permisos a los demás y quien configura la academia. Es un rol <b>fijo</b>: no se le pueden quitar capacidades desde Permisos.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Todo el club</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Calendario</span><span class="chip ">Cuadrantes</span><span class="chip ">Staff</span><span class="chip ">Personal adjunto</span><span class="chip ">Comunicados</span><span class="chip ">Importar</span><span class="chip ">Datos de partido</span><span class="chip ">Captación</span><span class="chip ">Documentos</span><span class="chip ">Licencias</span><span class="chip ">Informes</span><span class="chip ">Family</span><span class="chip ">Finanzas</span><span class="chip ">Economía</span><span class="chip ">Sueldos</span><span class="chip ">Presupuesto</span><span class="chip ">Permisos</span><span class="chip ">Mis avisos</span><span class="chip ">Configuración</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver el Scout Score</span><span class="chip chip-p">Ver las finanzas de sus jugadores</span><span class="chip chip-p">Ver antecedentes médicos</span><span class="chip chip-p">Evaluar jugadores</span><span class="chip chip-p">Tomar y editar medidas físicas</span><span class="chip chip-p">Firmar si un jugador puede jugar</span><span class="chip chip-p">Dar de alta jugadores</span><span class="chip chip-p">Crear y gestionar equipos</span><span class="chip chip-p">Editar el cuadrante de pistas</span><span class="chip chip-p">Editar el cuadrante de preparación física</span><span class="chip chip-p">Pedir cita con salud</span><span class="chip chip-p">Gestionar cobros y planes de pago</span><span class="chip chip-p">Ver y gestionar los sueldos</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">todas</dd>
+</dl></article>
+<article class="rol" id="rol-dt_general">
+<header class="rol-h"><h4>Dirección Técnica General</h4><code>dt_general</code></header>
+<p class="rol-t">Dirige el deporte de todo el club.</p>
+<p class="rol-d">Ámbito completo, pero sin las notas internas ni la gestión de cobros. Monta el cuadrante de pista y el de preparación física, da de alta jugadores, evalúa y ve los sueldos.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Todo el club</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Calendario</span><span class="chip ">Cuadrantes</span><span class="chip ">Staff</span><span class="chip ">Comunicados</span><span class="chip ">Datos de partido</span><span class="chip ">Captación</span><span class="chip ">Documentos</span><span class="chip ">Informes</span><span class="chip ">Economía</span><span class="chip ">Sueldos</span><span class="chip ">Family</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver el Scout Score</span><span class="chip chip-p">Evaluar jugadores</span><span class="chip chip-p">Tomar y editar medidas físicas</span><span class="chip chip-p">Dar de alta jugadores</span><span class="chip chip-p">Crear y gestionar equipos</span><span class="chip chip-p">Editar el cuadrante de pistas</span><span class="chip chip-p">Editar el cuadrante de preparación física</span><span class="chip chip-p">Pedir cita con salud</span><span class="chip chip-p">Ver y gestionar los sueldos</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, deportivo, trayectoria, academico, documentos, videos, captacion, seguimiento, informes</dd>
+</dl></article>
+<article class="rol" id="rol-dt_femenino">
+<header class="rol-h"><h4>Dirección Técnica Femenino</h4><code>dt_femenino</code></header>
+<p class="rol-t">Dirige su rama.</p>
+<p class="rol-d">Igual que la Dirección Técnica General pero <b>solo ve los equipos de su sección</b>. La de femenino no entra en el masculino ni al revés: el ámbito filtra jugadores, equipos, calendario y avisos.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Su sección: femenino</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Calendario</span><span class="chip ">Cuadrantes</span><span class="chip ">Comunicados</span><span class="chip ">Captación</span><span class="chip ">Documentos</span><span class="chip ">Informes</span><span class="chip ">Economía</span><span class="chip ">Family</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver el Scout Score</span><span class="chip chip-p">Evaluar jugadores</span><span class="chip chip-p">Dar de alta jugadores</span><span class="chip chip-p">Crear y gestionar equipos</span><span class="chip chip-p">Editar el cuadrante de pistas</span><span class="chip chip-p">Pedir cita con salud</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, deportivo, trayectoria, academico, documentos, videos, captacion, seguimiento, informes</dd>
+</dl></article>
+<article class="rol" id="rol-dt_masculino">
+<header class="rol-h"><h4>Dirección Técnica Masculino</h4><code>dt_masculino</code></header>
+<p class="rol-t">Dirige su rama.</p>
+<p class="rol-d">Mismos permisos que las demás direcciones de sección, limitado a los equipos masculinos.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Su sección: masculino</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Calendario</span><span class="chip ">Cuadrantes</span><span class="chip ">Comunicados</span><span class="chip ">Captación</span><span class="chip ">Documentos</span><span class="chip ">Informes</span><span class="chip ">Economía</span><span class="chip ">Family</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver el Scout Score</span><span class="chip chip-p">Evaluar jugadores</span><span class="chip chip-p">Dar de alta jugadores</span><span class="chip chip-p">Crear y gestionar equipos</span><span class="chip chip-p">Editar el cuadrante de pistas</span><span class="chip chip-p">Pedir cita con salud</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, deportivo, trayectoria, academico, documentos, videos, captacion, seguimiento, informes</dd>
+</dl></article>
+<article class="rol" id="rol-dt_escuelas">
+<header class="rol-h"><h4>Dirección Técnica Escuelas</h4><code>dt_escuelas</code></header>
+<p class="rol-t">Dirige su rama.</p>
+<p class="rol-d">Mismos permisos, limitado a las escuelas.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Su sección: escuelas</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Calendario</span><span class="chip ">Cuadrantes</span><span class="chip ">Comunicados</span><span class="chip ">Captación</span><span class="chip ">Documentos</span><span class="chip ">Informes</span><span class="chip ">Economía</span><span class="chip ">Family</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver el Scout Score</span><span class="chip chip-p">Evaluar jugadores</span><span class="chip chip-p">Dar de alta jugadores</span><span class="chip chip-p">Crear y gestionar equipos</span><span class="chip chip-p">Editar el cuadrante de pistas</span><span class="chip chip-p">Pedir cita con salud</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, deportivo, trayectoria, academico, documentos, videos, captacion, seguimiento, informes</dd>
+</dl></article>
+<article class="rol" id="rol-dt_minis">
+<header class="rol-h"><h4>Dirección Técnica Minis</h4><code>dt_minis</code></header>
+<p class="rol-t">Dirige su rama.</p>
+<p class="rol-d">Mismos permisos, limitado a los minis.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Su sección: minis</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Calendario</span><span class="chip ">Cuadrantes</span><span class="chip ">Comunicados</span><span class="chip ">Captación</span><span class="chip ">Documentos</span><span class="chip ">Informes</span><span class="chip ">Economía</span><span class="chip ">Family</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver el Scout Score</span><span class="chip chip-p">Evaluar jugadores</span><span class="chip chip-p">Dar de alta jugadores</span><span class="chip chip-p">Crear y gestionar equipos</span><span class="chip chip-p">Editar el cuadrante de pistas</span><span class="chip chip-p">Pedir cita con salud</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, deportivo, trayectoria, academico, documentos, videos, captacion, seguimiento, informes</dd>
+</dl></article>
+</div></section>
+<section class="grupo"><h3 class="gh">Cuerpo técnico</h3><div class="rejilla">
+<article class="rol" id="rol-coord_pf">
+<header class="rol-h"><h4>Coordinación de Preparación Física</h4><code>coord_pf</code></header>
+<p class="rol-t">Reparte la preparación física del club.</p>
+<p class="rol-d">Es quien <b>escribe</b> el cuadrante de PF: turnos, días de trabajo y qué preparador lleva cada sesión. Ve a todos los equipos para poder repartir, toma medidas físicas y puede firmar disponibilidad. No toca el cuadrante de pista, que es de la dirección técnica.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Todo el club</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Calendario</span><span class="chip ">Cuadrantes</span><span class="chip ">Staff</span><span class="chip ">Informes</span><span class="chip ">Economía</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver el Scout Score</span><span class="chip chip-p">Ver el listado de personal</span><span class="chip chip-p">Evaluar jugadores</span><span class="chip chip-p">Tomar y editar medidas físicas</span><span class="chip chip-p">Firmar si un jugador puede jugar</span><span class="chip chip-p">Editar el cuadrante de preparación física</span><span class="chip chip-p">Pedir cita con salud</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, deportivo, videos, seguimiento, informes</dd>
+</dl></article>
+<article class="rol" id="rol-entrenador">
+<header class="rol-h"><h4>Entrenador</h4><code>entrenador</code></header>
+<p class="rol-t">Lleva sus equipos, día a día.</p>
+<p class="rol-d">Solo ve los jugadores de los equipos que tiene asignados. Su pantalla es <b>Mi equipo</b>: pasar lista, convocar, mandar avisos a las familias y evaluar. No ve el dinero ni las notas internas.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Solo sus jugadores asignados</dd>
+<dt>Personas hoy</dt><dd>13</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Mi equipo</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Cuadrantes</span><span class="chip ">Informes</span><span class="chip ">Economía</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Evaluar jugadores</span><span class="chip chip-p">Pedir cita con salud</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, deportivo, videos, seguimiento, informes</dd>
+</dl></article>
+<article class="rol" id="rol-preparador_fisico">
+<header class="rol-h"><h4>Preparador Físico</h4><code>preparador_fisico</code></header>
+<p class="rol-t">Ejecuta la preparación física de sus equipos.</p>
+<p class="rol-d">Ve el cuadrante de PF pero <b>no lo edita</b> — eso es del coordinador. Toma medidas físicas, evalúa y puede firmar si un jugador está disponible.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Solo sus jugadores asignados</dd>
+<dt>Personas hoy</dt><dd>3</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Mi equipo</span><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Calendario</span><span class="chip ">Cuadrantes</span><span class="chip ">Informes</span><span class="chip ">Economía</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver el Scout Score</span><span class="chip chip-p">Evaluar jugadores</span><span class="chip chip-p">Tomar y editar medidas físicas</span><span class="chip chip-p">Firmar si un jugador puede jugar</span><span class="chip chip-p">Pedir cita con salud</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, deportivo, videos, seguimiento, informes</dd>
+</dl></article>
+</div></section>
+<section class="grupo"><h3 class="gh">Apoyo al equipo</h3><div class="rejilla">
+<article class="rol" id="rol-delegado_equipo">
+<header class="rol-h"><h4>Delegado/a de equipo</h4><code>delegado_equipo</code></header>
+<p class="rol-t">Acompaña a un equipo.</p>
+<p class="rol-d">El rol más acotado que trabaja: sus equipos, los cuadrantes y sus avisos. De la ficha del jugador solo ve el Perfil. Sirve para que quien está en el banquillo tenga el horario y las comunicaciones sin acceder a nada más.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Solo sus jugadores asignados</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Equipos</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span><span class="chip ">Cuadrantes</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="nil">ninguno</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil</dd>
+</dl></article>
+<article class="rol" id="rol-delegado_campo">
+<header class="rol-h"><h4>Delegado/a de campo</h4><code>delegado_campo</code></header>
+<p class="rol-t">Atiende los partidos en casa.</p>
+<p class="rol-d">Equipos y avisos, y nada de la ficha del jugador. Es acceso de logística, no de datos.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Todo el club</dd>
+<dt>Personas hoy</dt><dd><span class="nil">nadie</span></dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Equipos</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="nil">ninguno</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">—</dd>
+</dl></article>
+</div></section>
+<section class="grupo"><h3 class="gh">Salud y rendimiento</h3><div class="rejilla">
+<article class="rol" id="rol-fisio">
+<header class="rol-h"><h4>Fisioterapeuta</h4><code>fisio</code></header>
+<p class="rol-t">Cuida las lesiones.</p>
+<p class="rol-d">El único rol —además del director— que ve <b>antecedentes médicos</b>. Trabaja sobre los jugadores que están bajo su supervisión: cuando da el alta, el jugador desaparece de su muro. Firma la disponibilidad y manda consignas de entrenamiento al entrenador y al preparador. No dirige sesiones de preparación física.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Solo sus jugadores asignados</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver antecedentes médicos</span><span class="chip chip-p">Tomar y editar medidas físicas</span><span class="chip chip-p">Firmar si un jugador puede jugar</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, deportivo</dd>
+</dl></article>
+<article class="rol" id="rol-psicologo">
+<header class="rol-h"><h4>Bienestar y rendimiento mental</h4><code>psicologo</code></header>
+<p class="rol-t">Bienestar y rendimiento mental.</p>
+<p class="rol-d">Ve perfil, seguimiento e informes de los jugadores que lleva. No ve ni el dinero, ni lo médico, ni las evaluaciones deportivas privadas. El nombre en pantalla es neutro a propósito.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Solo sus jugadores asignados</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Calendario</span><span class="chip ">Cuadrantes</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Evaluar jugadores</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, seguimiento, informes</dd>
+</dl></article>
+</div></section>
+<section class="grupo"><h3 class="gh">Captación y gestión</h3><div class="rejilla">
+<article class="rol" id="rol-scout">
+<header class="rol-h"><h4>Scout</h4><code>scout</code></header>
+<p class="rol-t">Capta jugadores de fuera.</p>
+<p class="rol-d">Su tablero es <b>Captación</b>: prospectos que todavía no tienen equipo. Importa desde un mensaje, da de alta fichas, evalúa y ve el Scout Score. Al asignarle equipo a un jugador, ese jugador sale de su tablero.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Todo el club</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Agenda</span><span class="chip ">Jugadores</span><span class="chip ">Importar</span><span class="chip ">Captación</span><span class="chip ">Documentos</span><span class="chip ">Economía</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver el Scout Score</span><span class="chip chip-p">Evaluar jugadores</span><span class="chip chip-p">Dar de alta jugadores</span><span class="chip chip-p">Pedir cita con salud</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, deportivo, trayectoria, academico, documentos, videos, captacion, seguimiento</dd>
+</dl></article>
+<article class="rol" id="rol-administrativo">
+<header class="rol-h"><h4>Administrativo</h4><code>administrativo</code></header>
+<p class="rol-t">Lleva el papeleo y el dinero.</p>
+<p class="rol-d">Documentos, licencias federativas, cuotas, planes de pago, presupuesto y sueldos. De la ficha ve perfil, familia, documentos y finanzas — nada deportivo.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Todo el club</dd>
+<dt>Personas hoy</dt><dd>1</dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Inicio</span><span class="chip ">Jugadores</span><span class="chip ">Equipos</span><span class="chip ">Cuadrantes</span><span class="chip ">Staff</span><span class="chip ">Personal adjunto</span><span class="chip ">Comunicados</span><span class="chip ">Documentos</span><span class="chip ">Licencias</span><span class="chip ">Finanzas</span><span class="chip ">Economía</span><span class="chip ">Sueldos</span><span class="chip ">Presupuesto</span><span class="chip ">Mis avisos</span><span class="chip ">Mi ficha</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver las finanzas de sus jugadores</span><span class="chip chip-p">Dar de alta jugadores</span><span class="chip chip-p">Gestionar cobros y planes de pago</span><span class="chip chip-p">Ver y gestionar los sueldos</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, familia, documentos, finanzas</dd>
+</dl></article>
+</div></section>
+<section class="grupo"><h3 class="gh">Familias y jugadores</h3><div class="rejilla">
+<article class="rol" id="rol-padre">
+<header class="rol-h"><h4>Padre / Tutor <span class="tag tag-fijo">fijo</span></h4><code>padre</code></header>
+<p class="rol-t">El portal de la familia.</p>
+<p class="rol-d">Solo su hijo o hija. Ve perfil, documentos, informes publicados y sus cuotas; sube documentos y foto. Es un rol <b>fijo</b>: sus permisos no se pueden ampliar desde Permisos, para que nadie le abra por error una puerta al resto del club.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Todo el club</dd>
+<dt>Personas hoy</dt><dd><span class="nil">nadie</span></dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Portal Family</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="chip chip-p">Ver las finanzas de sus jugadores</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil, documentos, informes, finanzas</dd>
+</dl></article>
+<article class="rol" id="rol-jugador">
+<header class="rol-h"><h4>Jugador <span class="tag tag-fijo">fijo</span></h4><code>jugador</code></header>
+<p class="rol-t">El portal del jugador.</p>
+<p class="rol-d">Solo su propia información. Rol <b>fijo</b>, igual que el de la familia. Se activa a partir de una edad mínima.</p>
+<dl class="ficha">
+<dt>Alcance</dt><dd>Todo el club</dd>
+<dt>Personas hoy</dt><dd><span class="nil">nadie</span></dd>
+<dt>Secciones</dt><dd class="wrap"><span class="chip ">Mi ScoutFlow</span></dd>
+<dt>Permisos</dt><dd class="wrap"><span class="nil">ninguno</span></dd>
+<dt>Ficha del jugador</dt><dd class="tabs">perfil</dd>
+</dl></article>
+</div></section>
+</section>
+
+<section class="bloque" id="matriz">
+  <h2>La matriz de permisos</h2>
+  <p class="intro">Los 16 permisos que existen, contra los 17 roles. Esto es lo que trae
+    cada rol de fábrica: un club puede ajustarlo desde <b>Permisos</b> —salvo en los roles fijos— y
+    también dar un permiso suelto a una persona concreta, con motivo y fecha de caducidad.</p>
+  <div class="scroll"><table class="matriz"><thead><tr><th class="esq">Rol</th>
+<th><span>Ver el Scout Score</span></th>
+<th><span>Ver las finanzas de sus jugadores</span></th>
+<th><span>Ver antecedentes médicos</span></th>
+<th><span>Ver el listado de personal</span></th>
+<th><span>Evaluar jugadores</span></th>
+<th><span>Tomar y editar medidas físicas</span></th>
+<th><span>Firmar si un jugador puede jugar</span></th>
+<th><span>Dar de alta jugadores</span></th>
+<th><span>Crear y gestionar equipos</span></th>
+<th><span>Editar el cuadrante de pistas</span></th>
+<th><span>Editar el cuadrante de preparación física</span></th>
+<th><span>Gestionar documentación y reclamarla</span></th>
+<th><span>Enviar comunicados del club</span></th>
+<th><span>Pedir cita con salud</span></th>
+<th><span>Gestionar cobros y planes de pago</span></th>
+<th><span>Ver y gestionar los sueldos</span></th>
+</tr></thead><tbody>
+<tr class="sep"><td colspan="17">Dirección</td></tr>
+<tr><th class="rn">Director</th>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+</tr>
+<tr><th class="rn">Dirección Técnica General</th>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+</tr>
+<tr><th class="rn">Dirección Técnica Femenino</th>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr><th class="rn">Dirección Técnica Masculino</th>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr><th class="rn">Dirección Técnica Escuelas</th>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr><th class="rn">Dirección Técnica Minis</th>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr class="sep"><td colspan="17">Cuerpo técnico</td></tr>
+<tr><th class="rn">Coordinación de Preparación Física</th>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr><th class="rn">Entrenador</th>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr><th class="rn">Preparador Físico</th>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr class="sep"><td colspan="17">Apoyo al equipo</td></tr>
+<tr><th class="rn">Delegado/a de equipo</th>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr><th class="rn">Delegado/a de campo</th>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr class="sep"><td colspan="17">Salud y rendimiento</td></tr>
+<tr><th class="rn">Fisioterapeuta</th>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr><th class="rn">Bienestar y rendimiento mental</th>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr class="sep"><td colspan="17">Captación y gestión</td></tr>
+<tr><th class="rn">Scout</th>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr><th class="rn">Administrativo</th>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="si"><i></i></td>
+</tr>
+<tr class="sep"><td colspan="17">Familias y jugadores</td></tr>
+<tr><th class="rn">Padre / Tutor</th>
+<td class="no"></td>
+<td class="si"><i></i></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+<tr><th class="rn">Jugador</th>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+<td class="no"></td>
+</tr>
+</tbody></table></div>
+</section>
+
+<section class="bloque" id="permisos">
+  <h2>Qué significa cada permiso</h2>
+  <p class="intro">Dos de ellos nunca se reparten a mano: <b>ver notas internas</b> y <b>configurar
+    permisos</b>. El presupuesto, la situación económica de la familia, el Scout Score interno y las
+    notas internas no llegan nunca a un rol externo.</p>
+  <h4 class="ch">Lo que ve</h4><dl class="lista">
+<dt><span>Ver el Scout Score</span><code>canSeeScore</code></dt><dd>La nota interna de valoración de un jugador. Nunca la ve una familia.<span class="quien">9 roles: Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Preparador Físico · Scout</span></dd>
+<dt><span>Ver las finanzas de sus jugadores</span><code>canSeeFinance</code></dt><dd>Ver lo que debe cada jugador. No incluye poder cobrarlo.<span class="quien">3 roles: Director · Administrativo · Padre / Tutor</span></dd>
+<dt><span>Ver antecedentes médicos</span><code>canSeeMedical</code></dt><dd>Antecedentes médicos. Solo lo tienen el director y la fisioterapeuta.<span class="quien">2 roles: Director · Fisioterapeuta</span></dd>
+<dt><span>Ver el listado de personal</span><code>canSeeStaff</code></dt><dd>Ver el listado del personal del club.<span class="quien">1 roles: Coordinación de Preparación Física</span></dd>
+</dl>
+<h4 class="ch">Lo que puede hacer</h4><dl class="lista">
+<dt><span>Evaluar jugadores</span><code>canEvaluate</code></dt><dd>Poner notas técnicas, físicas y mentales a un jugador.<span class="quien">11 roles: Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Bienestar y rendimiento mental · Scout</span></dd>
+<dt><span>Tomar y editar medidas físicas</span><code>canEditPhysical</code></dt><dd>Tomar y corregir medidas: altura, peso, envergadura, saltos.<span class="quien">5 roles: Director · Dirección Técnica General · Coordinación de Preparación Física · Preparador Físico · Fisioterapeuta</span></dd>
+<dt><span>Firmar si un jugador puede jugar</span><code>canSetAvailability</code></dt><dd>Firmar si un jugador puede entrenar o competir, y con qué carga.<span class="quien">4 roles: Director · Coordinación de Preparación Física · Preparador Físico · Fisioterapeuta</span></dd>
+<dt><span>Dar de alta jugadores</span><code>canCreatePlayers</code></dt><dd>Dar de alta jugadores nuevos.<span class="quien">8 roles: Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Scout · Administrativo</span></dd>
+<dt><span>Crear y gestionar equipos</span><code>canManageTeams</code></dt><dd>Crear equipos, asignarles jugadores y entrenadores.<span class="quien">6 roles: Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis</span></dd>
+<dt><span>Editar el cuadrante de pistas</span><code>canEditHorario</code></dt><dd>Escribir el cuadrante de pista.<span class="quien">6 roles: Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis</span></dd>
+<dt><span>Editar el cuadrante de preparación física</span><code>canEditPF</code></dt><dd>Escribir el cuadrante de preparación física.<span class="quien">3 roles: Director · Dirección Técnica General · Coordinación de Preparación Física</span></dd>
+<dt><span>Gestionar documentación y reclamarla</span><code>canDocs</code></dt><dd>Gestionar la documentación y reclamarla a las familias.<span class="quien">ningún rol</span></dd>
+<dt><span>Enviar comunicados del club</span><code>canAnnounce</code></dt><dd>Mandar comunicados del club.<span class="quien">ningún rol</span></dd>
+<dt><span>Pedir cita con salud</span><code>canAskCita</code></dt><dd>Pedir cita con la fisioterapeuta o con bienestar.<span class="quien">10 roles: Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Scout</span></dd>
+</dl>
+<h4 class="ch">Dinero</h4><dl class="lista">
+<dt><span>Gestionar cobros y planes de pago</span><code>canManageFinance</code></dt><dd>Cobrar, marcar pagos y montar planes de pago.<span class="quien">2 roles: Director · Administrativo</span></dd>
+<dt><span>Ver y gestionar los sueldos</span><code>canSeeSalaries</code></dt><dd>Ver y gestionar los sueldos del personal.<span class="quien">3 roles: Director · Dirección Técnica General · Administrativo</span></dd>
+</dl>
+</section>
+
+<section class="bloque" id="secciones">
+  <h2>Las 27 secciones</h2>
+  <p class="intro">Cada rol ve solo las suyas en el menú lateral. Si llega a una que no le toca,
+    la app no dice «no tienes acceso» y ya: dice quién sí entra, para que sepa a quién preguntar.</p>
+  <div class="scroll"><table class="secs"><thead><tr><th>Sección</th><th>Para qué sirve</th><th>Quién entra</th></tr></thead><tbody>
+<tr><th><span>Inicio</span><code>inicio</code></th><td>El muro del rol. Cada uno tiene el suyo: lo que le toca hoy y lo que está pendiente.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Preparador Físico · Fisioterapeuta · Bienestar y rendimiento mental · Scout · Administrativo</td></tr>
+<tr><th><span>Mi equipo</span><code>mi-equipo</code></th><td>La versión del entrenador: lo del día. Citas, asistencia, parte del fisio y avisos.</td><td class="q">Entrenador · Preparador Físico</td></tr>
+<tr><th><span>Jugadores</span><code>jugadores</code></th><td>El listado del club, en tarjetas con foto. Filtros por cualquier dato y buscador.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Fisioterapeuta · Bienestar y rendimiento mental · Scout · Administrativo</td></tr>
+<tr><th><span>Equipos</span><code>equipos</code></th><td>Los equipos, su plantilla, su horario y su asistencia. Desde aquí se pasa lista y se convoca.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Delegado/a de equipo · Delegado/a de campo · Bienestar y rendimiento mental · Administrativo</td></tr>
+<tr><th><span>Calendario</span><code>calendario</code></th><td>La semana del club: entrenamientos de pista, preparación física y partidos. Aquí se cancela o se mueve un día suelto.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Preparador Físico · Bienestar y rendimiento mental</td></tr>
+<tr><th><span>Cuadrantes</span><code>horarios</code></th><td>Los <b>cuadrantes</b>: la plantilla fija de la temporada. Tres pestañas — Entrenamientos, Preparación física y Registro de la temporada.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Delegado/a de equipo · Bienestar y rendimiento mental · Administrativo</td></tr>
+<tr><th><span>Agenda</span><code>agenda</code></th><td>Las citas del scout: ojeos, entrevistas y visitas.</td><td class="q">Scout</td></tr>
+<tr><th><span>Captación</span><code>captacion</code></th><td>El pipeline del scout: de prospecto a jugador. Solo quien todavía no tiene equipo.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Scout</td></tr>
+<tr><th><span>Importar</span><code>importar</code></th><td>Pegar un mensaje de WhatsApp o un correo y sacar una ficha. Hoy la IA está simulada.</td><td class="q">Director · Scout</td></tr>
+<tr><th><span>Datos de partido</span><code>importar-datos</code></th><td>Datos de partido desde Excel o desde la app de anotación.</td><td class="q">Director · Dirección Técnica General</td></tr>
+<tr><th><span>Documentos</span><code>documentos</code></th><td>Qué le falta a cada jugador para estar en regla. Desde aquí se reclama.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Scout · Administrativo</td></tr>
+<tr><th><span>Licencias</span><code>licencias</code></th><td>Licencias federativas y sus requisitos.</td><td class="q">Director · Administrativo</td></tr>
+<tr><th><span>Informes</span><code>informes</code></th><td>Resumen automático de cada jugador: en qué destaca, qué le falta y qué tocaría hacer.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico</td></tr>
+<tr><th><span>Staff</span><code>staff</code></th><td>El cuerpo técnico y el personal del club: titulación, licencia y habilitación.</td><td class="q">Director · Dirección Técnica General · Coordinación de Preparación Física · Administrativo</td></tr>
+<tr><th><span>Personal adjunto</span><code>adjuntos</code></th><td>Personal adjunto que no es staff federado.</td><td class="q">Director · Administrativo</td></tr>
+<tr><th><span>Comunicados</span><code>comunicados</code></th><td>Del club a las familias, y de dirección al personal.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Administrativo</td></tr>
+<tr><th><span>Family</span><code>family</code></th><td>Quién tiene acceso al portal familiar y qué ve cada familia.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis</td></tr>
+<tr><th><span>Finanzas</span><code>finanzas</code></th><td>Quién debe, cuánto y de qué equipo. Cuotas y planes de pago.</td><td class="q">Director · Administrativo</td></tr>
+<tr><th><span>Presupuesto</span><code>presupuesto</code></th><td>Lo previsto para la temporada, frente a lo que va entrando.</td><td class="q">Director · Administrativo</td></tr>
+<tr><th><span>Economía</span><code>economia</code></th><td>La caja del mes: cobros, impagos y gastos por aprobar.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Scout · Administrativo</td></tr>
+<tr><th><span>Sueldos</span><code>sueldos</code></th><td>Lo que cuesta el personal, concepto a concepto. Nunca aparece en la ficha del staff.</td><td class="q">Director · Dirección Técnica General · Administrativo</td></tr>
+<tr><th><span>Permisos</span><code>permisos</code></th><td>Quién ve qué. Solicitudes, permisos por rol, por persona y el mapa de quién puede qué.</td><td class="q">Director</td></tr>
+<tr><th><span>Configuración</span><code>config</code></th><td>Academia, deporte principal, instalaciones, copias de seguridad y datos.</td><td class="q">Director</td></tr>
+<tr><th><span>Mis avisos</span><code>mis-avisos</code></th><td>El buzón: lo que te llega, lo que has mandado, lo supervisado y el registro de todas las comunicaciones.</td><td class="q">Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Delegado/a de equipo · Delegado/a de campo · Fisioterapeuta · Bienestar y rendimiento mental · Scout · Administrativo</td></tr>
+<tr><th><span>Mi ficha</span><code>mi-ficha</code></th><td>Tu propia ficha de staff.</td><td class="q">Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Delegado/a de equipo · Delegado/a de campo · Fisioterapeuta · Bienestar y rendimiento mental · Scout · Administrativo</td></tr>
+<tr><th><span>Portal Family</span><code>portal-family</code></th><td>El portal de la familia, pensado para el móvil.</td><td class="q">Padre / Tutor</td></tr>
+<tr><th><span>Mi ScoutFlow</span><code>portal-jugador</code></th><td>El portal del jugador.</td><td class="q">Jugador</td></tr>
+</tbody></table></div>
+</section>
+
+<section class="bloque" id="modulos">
+  <h2>Cómo funciona por dentro</h2>
+  <p class="intro">Los mecanismos que sostienen el día a día del club, y las decisiones de fondo
+    que hay detrás de cada uno.</p>
+  <div class="mods"><section class="mod"><h4>Cuadrantes y calendario</h4><dl class="lista">
+<dt><span>El cuadrante es una plantilla</span></dt><dd>Dos cuadrantes distintos: el de <b>pista</b>, que escribe la dirección técnica, y el de <b>preparación física</b>, que escribe su coordinación. Los dos son la semana fija de la temporada.</dd>
+<dt><span>El tablero de PF</span></dt><dd>Turnos × días. Cada cruce vacío tiene su «+», las sesiones se arrastran de un hueco a otro, se abren turnos y se abren o cierran días de trabajo.</dd>
+<dt><span>Excepciones por fecha</span></dt><dd>Un día suelto se cancela, se mueve de hora o de pista sin tocar la plantilla. El aviso llega al entrenador, al preparador y al portal de las familias.</dd>
+<dt><span>Registro de la temporada</span></dt><dd>Lo que se hizo de verdad: sesiones celebradas, horas, cuántas caídas, y la carga de cada jugador. Se calcula, no se guarda.</dd>
+</dl></section>
+<section class="mod"><h4>El día a día del equipo</h4><dl class="lista">
+<dt><span>Pasar lista</span></dt><dd>Presente, ausente o justificado, sesión a sesión. Una sesión cancelada deja de pedirla; una sin lista pasada no cuenta como falta de nadie.</dd>
+<dt><span>Convocar</span></dt><dd>Para un partido, con aviso de quién no debería jugar según el fisio.</dd>
+<dt><span>Avisos y buzón</span></dt><dd>Hilos con el staff y comunicados a familias y jugadores, con acuse de lectura. La campana solo cuenta lo tuyo; lo supervisado está pero no suena.</dd>
+<dt><span>Registro de comunicaciones</span></dt><dd>Todo lo que se ha mandado en la temporada, buscable por texto y por fecha, por si algún día hay un conflicto. Los hilos de dinero nunca entran aquí para quien no ve finanzas.</dd>
+</dl></section>
+<section class="mod"><h4>Salud y disponibilidad</h4><dl class="lista">
+<dt><span>Citas con el fisio</span></dt><dd>Las pide el entrenador o quien tenga el permiso; la fisioterapeuta las atiende y las cierra.</dd>
+<dt><span>Consignas de entrenamiento</span></dt><dd>Disponible · Con limitaciones · No disponible, con carga (sin carga, suave, media, completa) y si compite. Sale en el parte del equipo y se quita solo con el alta.</dd>
+<dt><span>Historial por temporada</span></dt><dd>Quién ha pasado por la sala, cuántas veces y con qué procesos. Sin diagnósticos: la app no los guarda.</dd>
+</dl></section>
+<section class="mod"><h4>Captación</h4><dl class="lista">
+<dt><span>Pipeline</span></dt><dd>Nuevo → Datos incompletos → En evaluación → Entrevista → Oferta enviada → Inscrito.</dd>
+<dt><span>Importar con IA</span></dt><dd>Pegar un mensaje y sacar una ficha, detectando lo que falta. <b>Hoy está simulado.</b></dd>
+<dt><span>Ojeos, entrevistas y viajes</span></dt><dd>La agenda del scout, con su coste asociado.</dd>
+</dl></section>
+<section class="mod"><h4>Dinero</h4><dl class="lista">
+<dt><span>Cuotas y planes de pago</span></dt><dd>Quién debe, cuánto, y planes a plazos. Los avisos de cobro son hilos aparte que no ve quien no tiene permiso de finanzas.</dd>
+<dt><span>Presupuesto y caja del mes</span></dt><dd>Lo previsto contra lo que entra, y los gastos por aprobar.</dd>
+<dt><span>Sueldos</span></dt><dd>Coste del personal, concepto a concepto. <b>Nunca</b> aparece en la ficha del staff, por decisión explícita.</dd>
+</dl></section>
+<section class="mod"><h4>Familias y jugadores</h4><dl class="lista">
+<dt><span>Portal Family</span></dt><dd>Móvil primero. Datos, documentos con cámara, informes publicados, avisos y cuotas.</dd>
+<dt><span>Portal del jugador</span></dt><dd>Su propia información, a partir de una edad mínima.</dd>
+<dt><span>Mayoría de edad</span></dt><dd>Al cumplir 18, el acceso cambia de manos y la app avisa con antelación.</dd>
+</dl></section></div>
+</section>
+
+<section class="bloque" id="falta">
+  <h2>Lo que aún no existe</h2>
+  <p class="intro">Igual de importante que el inventario. Nada de esto está a medias: no está.</p>
+  <dl class="lista"><dt><span>IA real</span></dt><dd>Importar, analizar y resumir están <b>simulados</b>. No hay llamada a ningún modelo.</dd><dt><span>Pagos reales</span></dt><dd>No hay Stripe ni pasarela: los cobros se marcan a mano.</dd><dt><span>Permisos en servidor</span></dt><dd>Todo el control de acceso vive en el navegador. Vale para trabajar, no para defenderse de alguien que quiera saltárselo.</dd><dt><span>Multiusuario</span></dt><dd>Una cuenta = un club. Que varias personas compartan el mismo club está pendiente.</dd><dt><span>Historial de versiones</span></dt><dd>La nube guarda una sola fila por club y cada guardado pisa el anterior. El plan actual de Supabase no hace copias.</dd><dt><span>Subida real de archivos</span></dt><dd>Las fotos y documentos se guardan como datos en el propio JSON, no en un almacén de archivos.</dd></dl>
+</section>
+
+<div class="pie">
+  <span>ScoutFlow Academy · CBJA Academy · Baloncesto</span>
+  <span>Inventario generado desde el código publicado</span>
+</div>
+</div>
