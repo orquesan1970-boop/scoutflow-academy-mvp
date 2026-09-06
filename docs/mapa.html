@@ -103,6 +103,28 @@ section.bloque{padding-top:56px;scroll-margin-top:60px}
   font-size:12px;color:var(--tinta-2);white-space:nowrap}
 .chip-p{background:var(--morado-suave);color:var(--morado-osc)}
 
+/* ---- la ficha ---- */
+.ficha-cab{max-width:74ch;margin:24px 0 0;padding:16px 20px;background:var(--morado-suave);
+  border-radius:10px;font-size:15px;color:var(--tinta-2);line-height:1.55}
+.tabs-lista{margin-top:22px;border-top:1px solid var(--linea)}
+.tabc{display:grid;grid-template-columns:auto 1fr;gap:0 20px;padding:22px 0;
+  border-bottom:1px solid var(--linea)}
+.tabc-n{font-family:var(--display);font-weight:700;font-size:15px;color:var(--morado);
+  font-variant-numeric:tabular-nums;padding-top:3px;letter-spacing:.02em}
+.tabc-b h4{font-size:20px;font-weight:600;letter-spacing:-.015em}
+.tabc-q{margin:4px 0 0;color:var(--tinta-2);max-width:70ch;font-size:15.5px}
+.campos{list-style:none;margin:14px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:5px}
+.campos li{background:var(--papel);border:1px solid var(--linea);border-radius:6px;
+  padding:3px 9px;font-size:12.5px;color:var(--tinta-2)}
+.tabc-nota{margin:14px 0 0;padding:14px 18px;background:var(--papel);border:1px solid var(--linea);
+  border-left:3px solid var(--morado);border-radius:0 10px 10px 0;font-size:14.5px;
+  color:var(--tinta-2);line-height:1.6;max-width:82ch}
+.tabc-nota i{font-style:italic;color:var(--tinta)}
+.tabc-quien{margin:12px 0 0;font-size:12.5px;color:var(--tinta-3)}
+.tabc-quien span{font-weight:700;text-transform:uppercase;letter-spacing:.07em;
+  color:var(--tinta-3);margin-right:6px;font-size:11px}
+@media (max-width:640px){.tabc{grid-template-columns:1fr;gap:6px}}
+
 /* ---- matriz ---- */
 .scroll{overflow-x:auto;margin-top:24px;border:1px solid var(--linea);border-radius:12px;background:var(--papel)}
 table{border-collapse:collapse;width:100%;font-size:14px}
@@ -161,6 +183,7 @@ table{border-collapse:collapse;width:100%;font-size:14px}
 
 <div class="indice"><ol>
   <li><a href="#estado">Qué es y qué es de verdad</a></li>
+  <li><a href="#ficha">La ficha del jugador</a></li>
   <li><a href="#roles">Los 17 roles</a></li>
   <li><a href="#matriz">La matriz de permisos</a></li>
   <li><a href="#permisos">Qué significa cada permiso</a></li>
@@ -209,6 +232,100 @@ table{border-collapse:collapse;width:100%;font-size:14px}
       <dt>La app y la web son cosas distintas</dt><dd>La web comercial va aparte; esto es solo la aplicación.</dd>
     </dl></div>
   </div>
+</section>
+
+<section class="bloque" id="ficha">
+  <h2>La ficha del jugador</h2>
+  <p class="intro">El corazón de la plataforma. Todo lo demás —equipos, cuadrantes, avisos, dinero—
+    existe alrededor de ella. Trece pestañas, y cada rol ve solo las que le tocan: el fisioterapeuta
+    ve dos, el administrativo cuatro, la familia cuatro distintas y el director las trece.</p>
+  <p class="ficha-cab"><b>La cabecera va siempre visible</b>, en todas las pestañas: foto · nombre · ID ScoutFlow · nacionalidad · año de nacimiento y edad · deporte · posición · altura · estado · Scout Score · responsable. Debajo, las trece pestañas en este orden — <b>Perfil siempre primero</b>.</p>
+<div class="tabs-lista">
+<article class="tabc">
+<div class="tabc-n">01</div>
+<div class="tabc-b"><h4>Perfil</h4><p class="tabc-q">Quién es. Es la primera pestaña por decisión de producto: se entra por la persona, no por el expediente.</p>
+<ul class="campos"><li>Nombre completo</li><li>Fecha de nacimiento</li><li>Edad (automática)</li><li>Nacionalidad y segunda</li><li>País de residencia</li><li>Ciudad</li><li>Sexo</li><li>Teléfono</li><li>Email</li><li>Instagram</li><li>Facebook</li><li>DNI o pasaporte</li><li>Dirección</li><li>Teléfono de emergencia</li><li>Deporte</li><li>Posición principal</li><li>Posición secundaria</li></ul>
+<p class="tabc-nota"><b>Ficha de urgencia.</b> Si hay datos, sale un bloque aparte con a quién llamar, el teléfono de emergencia, alergias, grupo sanguíneo y correctores. Eso <b>sí</b> lo ve el entrenador y el delegado, porque son quienes están en el pabellón. El historial médico completo no: ese vive en Documentos y solo lo ven el fisio y la dirección.</p>
+<p class="tabc-quien"><span>Lo ven</span> Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Delegado/a de equipo · Fisioterapeuta · Bienestar y rendimiento mental · Scout · Administrativo · Padre / Tutor · Jugador</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">02</div>
+<div class="tabc-b"><h4>Deportivo</h4><p class="tabc-q">Lo que hace en la pista. Es la pestaña más grande de la ficha y la que cambia según el deporte.</p>
+<ul class="campos"><li>Club · Liga · Categoría · Equipo · Dorsal · Edad de inicio</li><li>Quién lo lleva</li><li>Estadísticas de partido</li><li>Próximas citas del equipo</li><li>Disponibilidad firmada</li><li>Historial con el fisioterapeuta</li><li>Físico — medidas</li><li>Tests de rendimiento</li><li>Historial de medidas y crecimiento</li><li>Scout Score</li><li>Evaluaciones por grupo</li><li>Historial de evaluaciones</li></ul>
+<p class="tabc-nota"><b>Aquí vive el módulo por deporte.</b> En baloncesto son 22 destrezas en tres grupos: <i>Técnica</i> — Tiro · Bote · Pase · Finalización · Ataque 1x1 · Juego sin balón · Rebote · Defensa · Robo de balón · Lectura de juego; <i>Física</i> — Fuerza explosiva · Velocidad · Velocidad de reacción · Potencia · Flexibilidad · Coordinación · Resistencia aeróbica · Resistencia anaeróbica; <i>Mental</i> — Liderazgo · Competitividad · Disciplina · Adaptación. Fútbol y vóley tienen las suyas. Se puntúa sobre 10 y el <b>Scout Score</b> sale de ahí con pesos fijos: Técnica 40&thinsp;% · Física 25&thinsp;% · Mental 35&thinsp;%.<br><br><b>Medidas y tests.</b> 21 campos. Antropometría: Altura · Peso · Envergadura · Alcance vertical sin impulso · Alcance vertical con impulso · Salto de longitud sin carrera · Salto de longitud con carrera · Altura de torso · Longitud de pie · Longitud de manos · Mano dominante · Usa las dos manos. Rendimiento: Salto vertical (CMJ) · Salto a una pierna izquierda · Salto a una pierna derecha · Drop jump RSI · Sprint 20 m · Cambio de dirección · Test de deceleración · Isquiotibiales nórdicos · Movilidad de tobillo. Cada medida guarda con qué se tomó (My Jump Lab · Otra app de móvil · Plataforma de contacto · Fotocélulas…) y queda en el historial, para ver el crecimiento y avisar de asimetrías entre pierna izquierda y derecha.</p>
+<p class="tabc-quien"><span>Lo ven</span> Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Fisioterapeuta · Scout</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">03</div>
+<div class="tabc-b"><h4>Trayectoria</h4><p class="tabc-q">De dónde viene. Su carrera antes y fuera del club.</p>
+<ul class="campos"><li>Trayectoria deportiva (clubes y temporadas)</li><li>Selecciones: local/colegio · provincial · regional · nacional</li><li>Competencias disputadas</li></ul>
+<p class="tabc-quien"><span>Lo ven</span> Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Scout</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">04</div>
+<div class="tabc-b"><h4>Académico</h4><p class="tabc-q">Los estudios, que en un jugador de formación pesan tanto como lo deportivo.</p>
+<ul class="campos"><li>Centro</li><li>Curso</li><li>Promedio de notas</li><li>Nivel de inglés</li><li>Otros idiomas</li><li>Fecha de graduación</li><li>Intereses universitarios</li></ul>
+<p class="tabc-quien"><span>Lo ven</span> Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Scout</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">05</div>
+<div class="tabc-b"><h4>Familia</h4><p class="tabc-q">Con quién se habla, y de dónde viene su talla.</p>
+<ul class="campos"><li>Contacto principal</li><li>Relación</li><li>Teléfono</li><li>Email</li><li>Estatura del padre</li><li>Estatura de la madre</li></ul>
+<p class="tabc-nota">Con la estatura de los padres y su talla actual, la app <b>estima la altura adulta</b>. En formación esa estimación cambia decisiones: no es lo mismo un chico de 1,85 que ya ha terminado de crecer que uno que va a llegar a 2,00.</p>
+<p class="tabc-quien"><span>Lo ven</span> Director · Administrativo</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">06</div>
+<div class="tabc-b"><h4>Documentos</h4><p class="tabc-q">Qué le falta para estar en regla. El catálogo se compone por jugador: un internacional en seguimiento no necesita el mismo papeleo que uno local.</p>
+<ul class="campos"><li>Documentos por grupo, con fecha límite y quién lo aporta</li><li>Consentimientos: Tratamiento de datos · Uso de imagen · Desplazamientos y salidas · Atención sanitaria urgente</li><li>Requisitos de licencia federativa: 8 datos obligatorios</li><li>Antecedentes médicos</li></ul>
+<p class="tabc-nota"><b>Antecedentes médicos:</b> enfermedad congénita, respiratorias o cardíacas, intervenciones quirúrgicas, lesiones músculo-esqueléticas, grupo sanguíneo, alergias, correctores y vacunación. Son datos sensibles: <b>no</b> se ven en el Portal Family salvo lo que la propia familia rellene, y del staff solo llegan a quien tiene el permiso médico.</p>
+<p class="tabc-quien"><span>Lo ven</span> Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Scout · Administrativo · Padre / Tutor</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">07</div>
+<div class="tabc-b"><h4>Vídeos</h4><p class="tabc-q">El material audiovisual del jugador.</p>
+<ul class="campos"><li>Highlights</li><li>Partido completo</li><li>Entrenamiento</li><li>Prueba física</li><li>Otro</li></ul>
+<p class="tabc-quien"><span>Lo ven</span> Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Scout</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">08</div>
+<div class="tabc-b"><h4>Captación</h4><p class="tabc-q">Cómo llegó al club. Es la memoria de por dónde entró y quién lo trajo.</p>
+<ul class="campos"><li>Canal de origen</li><li>Fecha de captación</li><li>Quién lo captó</li><li>Quién lo lleva ahora</li><li>Objetivo del jugador</li><li>Entrevistas: Con la familia · Con el jugador · Familia y jugador · Videollamada · Visita al club · Prueba deportiva</li></ul>
+<p class="tabc-quien"><span>Lo ven</span> Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Scout</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">09</div>
+<div class="tabc-b"><h4>Seguimiento</h4><p class="tabc-q">Qué toca hacer ahora, y qué se ha hecho ya.</p>
+<ul class="campos"><li>Próxima acción, con fecha y responsable</li><li>Línea temporal de hitos, que se marcan completados con una anotación</li><li>Registro de anotaciones</li></ul>
+<p class="tabc-quien"><span>Lo ven</span> Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Bienestar y rendimiento mental · Scout</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">10</div>
+<div class="tabc-b"><h4>Informes</h4><p class="tabc-q">El botón «Analizar con IA»: resumen, puntos fuertes, áreas de mejora y siguiente paso.</p>
+<p class="tabc-nota"><b>Hoy está simulado.</b> El informe se compone en el navegador a partir de lo que hay en la ficha; no hay ningún modelo detrás. Las familias solo ven los informes que el staff publica.</p>
+<p class="tabc-quien"><span>Lo ven</span> Director · Dirección Técnica General · Dirección Técnica Femenino · Dirección Técnica Masculino · Dirección Técnica Escuelas · Dirección Técnica Minis · Coordinación de Preparación Física · Entrenador · Preparador Físico · Bienestar y rendimiento mental · Padre / Tutor</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">11</div>
+<div class="tabc-b"><h4>Finanzas</h4><p class="tabc-q">Su cuota, lo que debe y su plan de pago, si lo tiene.</p>
+<p class="tabc-nota">Un rol sin permiso de finanzas no ve la pestaña vacía: no ve la pestaña.</p>
+<p class="tabc-quien"><span>Lo ven</span> Director · Administrativo · Padre / Tutor</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">12</div>
+<div class="tabc-b"><h4>Portales</h4><p class="tabc-q">Quién de fuera entra a esta ficha y qué ve.</p>
+<ul class="campos"><li>Edad</li><li>Acceso Family activado o no</li><li>Contacto familiar asociado</li><li>Áreas visibles: Pagos y recibos · Horarios y convocatorias · Informes deportivos · Documentos y papeleo · Comunicaciones del club · Disponibilidad y salud</li></ul>
+<p class="tabc-nota">Al cumplir <b>18</b>, el acceso cambia de manos de la familia al jugador, y la app avisa con antelación.</p>
+<p class="tabc-quien"><span>Lo ven</span> Director</p>
+</div></article>
+<article class="tabc">
+<div class="tabc-n">13</div>
+<div class="tabc-b"><h4>Notas internas</h4><p class="tabc-q">Lo que no sale de dirección.</p>
+<ul class="campos"><li>Situación económica de la familia</li><li>Presupuesto del jugador</li><li>Beca posible</li><li>Observaciones de scout y entrenador</li><li>Historial interno</li></ul>
+<p class="tabc-nota">Es la pestaña más protegida de la app: <b>ningún rol externo la ve nunca</b>, y el permiso que la abre es uno de los dos que no se pueden repartir a mano.</p>
+<p class="tabc-quien"><span>Lo ven</span> Director</p>
+</div></article>
+</div>
 </section>
 
 <section class="bloque" id="roles">
