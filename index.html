@@ -2890,6 +2890,51 @@ SF.COACHES = ['Carlos Gorosito', 'Laura Méndez', 'Diego Pérez'];
    técnica —general y las cuatro de sección—, que es quien decide. Nadie más:
    ni entrenadores, ni administración, ni familias. Un prospecto es alguien de
    otro club al que se está mirando, y eso no se enseña por el pasillo. */
+/* EL ORDEN EN QUE SE ENSEÑAN LOS ROLES.
+   La lista salia en el orden en que se fueron escribiendo, y eso mezclaba las
+   categorias: el preparador fisico entre la direccion tecnica, las cuatro
+   direcciones de seccion separadas de la general, el entrenador entre el
+   scout y administracion. Diecisiete nombres seguidos sin agrupar se leen uno
+   a uno hasta dar con el que buscas.
+
+   Aqui van por lo que hace cada uno, de dentro hacia fuera del club: quien
+   dirige, quien esta en la pista, quien acompaña al equipo, quien cuida al
+   jugador, quien capta y administra, y las familias. El orden lo usan todas
+   las pantallas que listan roles, asi que no hay dos sitios donde busques lo
+   mismo en distinto sitio. */
+SF.ROLES_GRUPOS = [
+  { label: 'Dirección',            keys: ['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis'] },
+  { label: 'Cuerpo técnico',       keys: ['coord_pf', 'entrenador', 'preparador_fisico'] },
+  { label: 'Apoyo al equipo',      keys: ['delegado_equipo', 'delegado_campo'] },
+  { label: 'Salud y rendimiento',  keys: ['fisio', 'psicologo'] },
+  { label: 'Captación y gestión',  keys: ['scout', 'administrativo'] },
+  { label: 'Familias y jugadores', keys: ['padre', 'jugador'] }
+];
+
+/* Los grupos, ya filtrados a los roles que existen de verdad, y con un grupo
+   final para los que no esten en ninguno. Un rol nuevo que alguien añada sin
+   acordarse de meterlo aqui tiene que SEGUIR SALIENDO: desaparecer de la lista
+   de roles es la clase de fallo que no se ve hasta que alguien no puede entrar.
+   Por eso se compone asi y no con una lista escrita a mano. */
+SF.rolesPorGrupo = function () {
+  var todos = Object.keys(SF.ROLES), puestos = {}, out = [];
+  (SF.ROLES_GRUPOS || []).forEach(function (g) {
+    var keys = g.keys.filter(function (k) {
+      if (!SF.ROLES[k] || puestos[k]) return false;
+      puestos[k] = 1; return true;
+    });
+    if (keys.length) out.push({ label: g.label, keys: keys });
+  });
+  var sueltos = todos.filter(function (k) { return !puestos[k]; });
+  if (sueltos.length) out.push({ label: 'Otros', keys: sueltos });
+  return out;
+};
+
+/* La lista plana, en ese mismo orden. */
+SF.rolesOrdenados = function () {
+  return SF.rolesPorGrupo().reduce(function (a, g) { return a.concat(g.keys); }, []);
+};
+
 SF.ROLES = {
   director: {
     label: 'Director',
@@ -15943,22 +15988,27 @@ window.SF = window.SF || {};
     function pintaRoles() {
       view.appendChild(el('<p class="hint">Lo que trae cada rol de fábrica y lo que este club haya cambiado. ' +
         'Un cambio aquí vale para <b>todas</b> las personas con ese rol, ahora y las que entren después.</p>'));
-      var grid = el('<div class="rol-grid"></div>');
-      Object.keys(SF.ROLES).forEach(function (k) {
-        var r = SF.rolDe(k);
-        var tocado = !!SF.store.rolesOverride()[k];
-        var bloq = SF.ROLES_BLOQUEADOS.indexOf(k) >= 0;
-        var n = SF.store.staff().filter(function (s) { return s.role === k; }).length;
-        var card = el('<button class="rol-card"><div class="rol-top"><b>' + esc(r.label) + '</b>' +
-          (tocado ? '<span class="tag tag-purple">ajustado</span>' : '') +
-          (bloq ? '<span class="tag tag-gray">fijo</span>' : '') + '</div>' +
-          '<span class="hint">' + (r.nav || []).length + ' secciones · ' +
-          SF.CAPACIDADES.filter(function (c) { return r[c.k]; }).length + ' permisos · ' +
-          (n ? n + (n === 1 ? ' persona' : ' personas') : 'sin nadie') + '</span></button>');
-        card.onclick = function () { abrirRol(k); };
-        grid.appendChild(card);
+      /* Por grupos y en el mismo orden que el selector de rol: buscar un rol
+         no puede depender de en qué pantalla estés. */
+      SF.rolesPorGrupo().forEach(function (g) {
+        view.appendChild(el('<p class="sec-label">' + esc(g.label) + '</p>'));
+        var grid = el('<div class="rol-grid"></div>');
+        g.keys.forEach(function (k) {
+          var r = SF.rolDe(k);
+          var tocado = !!SF.store.rolesOverride()[k];
+          var bloq = SF.ROLES_BLOQUEADOS.indexOf(k) >= 0;
+          var n = SF.store.staff().filter(function (s) { return s.role === k; }).length;
+          var card = el('<button class="rol-card"><div class="rol-top"><b>' + esc(r.label) + '</b>' +
+            (tocado ? '<span class="tag tag-purple">ajustado</span>' : '') +
+            (bloq ? '<span class="tag tag-gray">fijo</span>' : '') + '</div>' +
+            '<span class="hint">' + (r.nav || []).length + ' secciones · ' +
+            SF.CAPACIDADES.filter(function (c) { return r[c.k]; }).length + ' permisos · ' +
+            (n ? n + (n === 1 ? ' persona' : ' personas') : 'sin nadie') + '</span></button>');
+          card.onclick = function () { abrirRol(k); };
+          grid.appendChild(card);
+        });
+        view.appendChild(grid);
       });
-      view.appendChild(grid);
 
       var log = SF.store.rolesLog();
       if (log.length) {
@@ -16168,7 +16218,7 @@ window.SF = window.SF || {};
       view.appendChild(el('<p class="sec-label">Secciones</p>'));
       var s1 = el('<div class="mini-list"></div>');
       SF.SECCIONES_REPARTIBLES.forEach(function (sec) {
-        var roles = Object.keys(SF.ROLES).filter(function (k) {
+        var roles = SF.rolesOrdenados().filter(function (k) {
           return ((SF.rolDe(k) || {}).nav || []).indexOf(sec) >= 0;
         }).map(function (k) { return SF.rolDe(k).label; });
         var exc = todos.filter(function (x) { return x.perm === 'nav:' + sec && x.until >= hoy; })
@@ -16183,7 +16233,7 @@ window.SF = window.SF || {};
       view.appendChild(el('<p class="sec-label">Permisos</p>'));
       var s2 = el('<div class="mini-list"></div>');
       SF.CAPACIDADES.forEach(function (c) {
-        var roles = Object.keys(SF.ROLES).filter(function (k) { return !!(SF.rolDe(k) || {})[c.k]; })
+        var roles = SF.rolesOrdenados().filter(function (k) { return !!(SF.rolDe(k) || {})[c.k]; })
           .map(function (k) { return SF.rolDe(k).label; });
         var exc = todos.filter(function (x) { return x.perm === c.k && x.until >= hoy; })
           .map(function (x) { var q = SF.store.staffGet(x.staff_id); return q ? q.full_name : ''; }).filter(Boolean);
@@ -22052,7 +22102,16 @@ SF.router = (function () {
 
     // selector de rol
     var sel = document.getElementById('role');
-    Object.keys(SF.ROLES).forEach(function (k) { sel.appendChild(el('<option value="' + k + '"' + (k === SF.store.role() ? ' selected' : '') + '>' + SF.rolDe(k).label + '</option>')); });
+    /* Con encabezados de grupo. Un desplegable de diecisiete nombres seguidos
+       obliga a leerlos todos; agrupado, se va al bloque y ya. */
+    SF.rolesPorGrupo().forEach(function (g) {
+      var og = el('<optgroup label="' + esc(g.label) + '"></optgroup>');
+      g.keys.forEach(function (k) {
+        og.appendChild(el('<option value="' + k + '"' + (k === SF.store.role() ? ' selected' : '') +
+          '>' + esc(SF.rolDe(k).label) + '</option>'));
+      });
+      sel.appendChild(og);
+    });
     /* Cambiar de rol es entrar como otra persona: pasa por recepción otra vez,
        y así se ve la entrada de cada rol al enseñar la plataforma. */
     sel.onchange = function () {
@@ -22108,7 +22167,7 @@ SF.router = (function () {
      deja a la persona sin saber a quien preguntar, y acaba preguntandolo por
      WhatsApp al primero que pilla. */
   function quienEntra(ruta) {
-    return Object.keys(SF.ROLES).filter(function (k) {
+    return SF.rolesOrdenados().filter(function (k) {
       var r = SF.rolDe(k);
       return r && canAccess(ruta, r);
     }).map(function (k) { return SF.rolDe(k).label; });
