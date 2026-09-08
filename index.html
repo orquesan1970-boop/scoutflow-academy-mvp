@@ -1339,6 +1339,36 @@ button.pf-ley:hover{filter:brightness(.96)}
 .tb-mas:hover{border-color:var(--purple,#6F5AEF);color:var(--purple,#6F5AEF);background:#F6F4FF}
 .tb-c .tb-s + .tb-mas{margin-top:2px;opacity:.45}
 .tb-c:hover .tb-mas{opacity:1}
+
+/* ---- Sesiones de entrenamiento ---- */
+.ses-fila.ses-cancel{opacity:.6}
+.ses-tit{font-weight:600;color:var(--ink)}
+.ses-tit-g{font-family:inherit;font-size:17px;font-weight:600;margin:10px 0 0}
+.ej-rej{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.ej-card{display:block;text-align:left;font-family:inherit;color:var(--ink);cursor:pointer;
+  background:var(--surface,#fff);border:1px solid var(--line,#ECEAF5);border-radius:12px;padding:14px 16px}
+.ej-card:hover{border-color:var(--purple)}
+.ej-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.ej-top b{font-size:15px;font-weight:600;line-height:1.3}
+.ej-meta{display:block;font-size:12px;color:var(--ink-3);margin-top:6px}
+.ej-desc{display:block;font-size:13px;color:var(--ink-2);margin-top:8px;line-height:1.45;
+  display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.plan-b{margin-top:6px}
+.plan-fila{display:flex;align-items:flex-start;gap:12px;padding:9px 0;border-bottom:1px solid var(--line-2,#F2F0FA)}
+.plan-fila:last-child{border-bottom:0}
+.plan-min{flex:0 0 46px;font-weight:700;font-size:14px;color:var(--purple);
+  font-variant-numeric:tabular-nums;padding-top:1px}
+.plan-txt{flex:1;font-size:14px;line-height:1.4}
+.plan-txt b{display:block;font-weight:600}
+.plan-txt .hint{display:block;font-size:12.5px}
+.plan-acc{flex:0 0 auto;display:flex;gap:4px}
+.plan-tot{margin:10px 0 0;padding:9px 12px;background:var(--bg);border-radius:9px;
+  font-size:13.5px;color:var(--ink-2)}
+.plan-tot.es-mal{background:#FBEAEA;color:#8E2F2F}
+.plan-tot.es-corto{background:#FFF3E0;color:#8A5A12}
+.ej-pick{margin-top:10px;padding:12px;background:var(--bg);border-radius:10px}
+.ej-pick input{margin-bottom:8px}
+.ej-pick-res{max-height:38vh;overflow:auto}
 .reg-temp td,.rt-jug td{padding:9px 10px;font-size:13px;border-bottom:1px solid var(--line,#ECEAF5)}
 .reg-temp th,.rt-jug th{padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);text-align:left;font-weight:600;white-space:nowrap}
@@ -2054,6 +2084,97 @@ SF.licenciaTexto = function (p) {
 
    Cuando llegue Supabase se podrán subir archivos también, pero los enlaces
    seguirán siendo lo más usado. */
+/* ===================== SESIONES DE ENTRENAMIENTO =====================
+   La biblioteca de ejercicios y el plan de cada sesion.
+
+   La idea de fondo, y es lo que nos distingue: el plan NO cuelga de un evento
+   inventado, cuelga de la SESION REAL del cuadrante. El cuadrante ya sabe que
+   el Cadete Masculino A entrena el miercoles de 19:45 a 21:00; planificar es
+   colgarle un plan a ESA sesion, con su clave. Por eso la pantalla no empieza
+   con una biblioteca vacia: empieza con la semana que viene.
+
+   Lo que de verdad vale de esto no es tener ejercicios -eso se consigue en
+   cualquier sitio-, es la CASCADA: que la direccion tecnica publique el metodo
+   del club y se vea que equipos lo usan. Un cuadrante de ejercicios que nadie
+   mira es una carpeta compartida. */
+
+/* Para que sirve un ejercicio. Sin esto la biblioteca es una lista de nombres
+   y encontrar "algo para trabajar el bote a presion" es imposible. */
+SF.EJ_OBJETIVOS = [
+  { k: 'calentamiento', label: 'Calentamiento y activación' },
+  { k: 'tecnica',       label: 'Técnica individual' },
+  { k: 'tiro',          label: 'Tiro' },
+  { k: 'ataque',        label: 'Ataque colectivo' },
+  { k: 'defensa',       label: 'Defensa' },
+  { k: 'transicion',    label: 'Transiciones' },
+  { k: 'fisico',        label: 'Preparación física' },
+  { k: 'juego',         label: 'Situaciones de juego' },
+  { k: 'vuelta',        label: 'Vuelta a la calma' }
+];
+
+/* Quien puede usar cada ejercicio. Tres niveles y no mas: el del club es el
+   metodo, el del equipo es lo que se comparte el cuerpo tecnico de un equipo,
+   y el personal es el cuaderno de cada entrenador. */
+SF.EJ_NIVELES = [
+  { k: 'club',     label: 'Del club',   desc: 'Metodología: la ve y la usa todo el club.' },
+  { k: 'equipo',   label: 'Del equipo', desc: 'Solo el cuerpo técnico de ese equipo.' },
+  { k: 'personal', label: 'Mío',        desc: 'Tu cuaderno. No lo ve nadie más.' }
+];
+
+/* Las partes de una sesion. Sirven para que un plan se lea de un vistazo y
+   para poder decir "este equipo dedica el 40 % del tiempo a defensa". */
+SF.EJ_MOMENTOS = ['Calentamiento', 'Parte principal', 'Competición', 'Vuelta a la calma'];
+
+/* Con lo que arranca la biblioteca. Son ejercicios de toda la vida, redactados
+   aqui: nadie es dueño de un rondo ni de una rueda de tiro. No se copia ninguna
+   biblioteca ajena -el texto, los dibujos y la SELECCION de una coleccion si
+   estan protegidos-, y ademas la gracia no esta en tener cien ejercicios, sino
+   en que el club ponga los suyos y se vea quien los usa.
+   Diez para empezar: los justos para que la pantalla no nazca vacia y para que
+   un entrenador entienda en diez segundos que tiene que escribir el. */
+SF.EJERCICIOS_BASE = [
+  { id: 'ejb1', nivel: 'club', deporte: 'baloncesto', objetivo: 'calentamiento', momento: 'Calentamiento',
+    nombre: 'Movilidad y activación en dos filas', minutos: 10, jugadores: '8-16', material: 'Conos',
+    descripcion: 'Dos filas en la línea de fondo. Ida con desplazamientos (talones, rodillas, lateral, carioca) y vuelta trotando. Se añade balón en las tres últimas series.',
+    claves: 'Ritmo bajo, rango alto. No es carrera, es preparar la articulación.', autor: 'CBJA' },
+  { id: 'ejb2', nivel: 'club', deporte: 'baloncesto', objetivo: 'tecnica', momento: 'Parte principal',
+    nombre: 'Bote con dos balones', minutos: 8, jugadores: '4-12', material: 'Dos balones por jugador',
+    descripcion: 'Bote simultáneo y alterno, parado y en desplazamiento. Series de 30 segundos con descanso de 15.',
+    claves: 'La vista arriba. Si mira el balón, se corta la serie y se repite.', autor: 'CBJA' },
+  { id: 'ejb3', nivel: 'club', deporte: 'baloncesto', objetivo: 'tiro', momento: 'Parte principal',
+    nombre: 'Rueda de tiro con pase y reemplazo', minutos: 12, jugadores: '6-12', material: 'Dos balones',
+    descripcion: 'Dos filas, una tira y otra pasa. Se tira desde cinco posiciones y se rota al puesto del pase. Se cuenta por equipos hasta llegar a un número de aciertos.',
+    claves: 'Pies antes que el balón. Recibir ya orientado al aro.', autor: 'CBJA' },
+  { id: 'ejb4', nivel: 'club', deporte: 'baloncesto', objetivo: 'ataque', momento: 'Parte principal',
+    nombre: 'Rondo 4x2 en medio campo', minutos: 8, jugadores: '6-8', material: 'Un balón',
+    descripcion: 'Cuatro atacantes mantienen la posesión frente a dos defensores dentro de un cuadrado de conos. Cambio de defensores cada vez que roban o a los 45 segundos.',
+    claves: 'Pasar y moverse. El que pasa y se queda quieto, entra a defender.', autor: 'CBJA' },
+  { id: 'ejb5', nivel: 'club', deporte: 'baloncesto', objetivo: 'defensa', momento: 'Parte principal',
+    nombre: 'Defensa del bloqueo directo, 2x2', minutos: 15, jugadores: '4-12', material: 'Un balón',
+    descripcion: 'Bloqueo directo en la banda. Se trabaja la lectura del defensor del balón y la ayuda del grande, alternando las dos respuestas que use el club.',
+    claves: 'Hablar antes del bloqueo, no después. El que no habla, pierde la posesión.', autor: 'CBJA' },
+  { id: 'ejb6', nivel: 'club', deporte: 'baloncesto', objetivo: 'transicion', momento: 'Parte principal',
+    nombre: 'Contraataque 3x2 continuo', minutos: 12, jugadores: '10-15', material: 'Un balón',
+    descripcion: 'Tres atacan contra dos. Al terminar la jugada, dos de los atacantes defienden en la canasta contraria contra tres nuevos. Sin parar.',
+    claves: 'Correr los carriles. Decidir antes de llegar al tiro libre.', autor: 'CBJA' },
+  { id: 'ejb7', nivel: 'club', deporte: 'baloncesto', objetivo: 'juego', momento: 'Competición',
+    nombre: '5x5 con condición', minutos: 15, jugadores: '10-12', material: 'Un balón, petos',
+    descripcion: 'Partido con una regla añadida que dependa del objetivo del día: mínimo de pases antes de tirar, obligación de jugar por dentro, o que cada canasta tras robo valga doble.',
+    claves: 'La condición se explica una vez y no se negocia durante el juego.', autor: 'CBJA' },
+  { id: 'ejb8', nivel: 'club', deporte: 'baloncesto', objetivo: 'tecnica', momento: 'Parte principal',
+    nombre: 'Finalizaciones tras bote, ambas manos', minutos: 10, jugadores: '6-14', material: 'Dos balones',
+    descripcion: 'Entradas desde las dos alas alternando mano de finalización, con y sin oposición pasiva. Cinco de cada lado antes de rotar.',
+    claves: 'Salir del bote con dos apoyos. La mano de fuera protege.', autor: 'CBJA' },
+  { id: 'ejb9', nivel: 'club', deporte: 'baloncesto', objetivo: 'fisico', momento: 'Parte principal',
+    nombre: 'Circuito de fuerza con autocarga', minutos: 20, jugadores: '6-16', material: 'Colchonetas, gomas',
+    descripcion: 'Seis estaciones de 40 segundos con 20 de transición: sentadilla, plancha, zancada, puente de glúteo, apertura con goma y salto a cajón bajo. Dos vueltas.',
+    claves: 'Técnica antes que repeticiones. Se para al jugador que pierde la postura.', autor: 'CBJA' },
+  { id: 'ejb10', nivel: 'club', deporte: 'baloncesto', objetivo: 'vuelta', momento: 'Vuelta a la calma',
+    nombre: 'Tiros libres y estiramiento guiado', minutos: 8, jugadores: '8-16', material: 'Balones',
+    descripcion: 'Series de dos tiros libres por jugador con la respiración ya baja, y estiramiento de cadena posterior, psoas y aductores.',
+    claves: 'Es el momento de hablar del entrenamiento. Se cierra con una idea, no con un discurso.', autor: 'CBJA' }
+];
+
 SF.VIDEO_TYPES = ['Highlights', 'Partido completo', 'Entrenamiento', 'Prueba física', 'Otro'];
 
 /* Reconoce YouTube y Vimeo para poder enseñar la miniatura y reproducir
@@ -3147,6 +3268,29 @@ SF.ROLES = {
 ['director', 'dt_general', 'coord_pf'].forEach(function (k) {
   if (SF.ROLES[k]) SF.ROLES[k].canEditPF = true;
 });
+
+/* --- SESIONES DE ENTRENAMIENTO ---
+   Quien entra: los que preparan entrenamientos. La direccion tecnica porque
+   define el metodo, el entrenador porque lo ejecuta, y el preparador fisico y
+   su coordinacion porque su sesion tambien es un entrenamiento. Nadie mas:
+   administracion no prepara entrenamientos y el scout tampoco. */
+['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis',
+  'coord_pf', 'entrenador', 'preparador_fisico'].forEach(function (k) {
+  var r = SF.ROLES[k]; if (!r) return;
+  if (r.nav.indexOf('sesiones') < 0) {
+    var i = r.nav.indexOf('calendario');
+    if (i < 0) i = r.nav.indexOf('horarios');
+    r.nav.splice(i >= 0 ? i + 1 : r.nav.length, 0, 'sesiones');
+  }
+  r.canPlanTraining = true;
+});
+
+/* Publicar el METODO del club es otra cosa que planificar un entrenamiento.
+   Un entrenador escribe sus ejercicios y planifica su semana; decir "esto es
+   la metodologia del club" lo dice quien dirige. Si lo pudiera hacer
+   cualquiera, la metodologia seria un tablon de anuncios. */
+['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis', 'coord_pf']
+  .forEach(function (k) { if (SF.ROLES[k]) SF.ROLES[k].canPublishMethod = true; });
 
 /* ===================== GRUPOS DE PERSONAL =====================
    Para mandar algo "a los entrenadores" hay que poder decirlo en una palabra.
@@ -4245,7 +4389,7 @@ SF.docVencido = function (d) { return !!(d.due && !SF.docListo(d) && d.due < SF.
    "no tienes acceso a finanzas". */
 SF.SECCION_LABEL = {
   inicio: 'Inicio', agenda: 'Agenda', jugadores: 'Jugadores', equipos: 'Equipos',
-  calendario: 'Calendario', horarios: 'Cuadrantes', importar: 'Importar',
+  calendario: 'Calendario', horarios: 'Cuadrantes', sesiones: 'Sesiones', importar: 'Importar',
   'importar-datos': 'Datos de partido', captacion: 'Captación', documentos: 'Documentos',
   licencias: 'Licencias', informes: 'Informes', family: 'Family', finanzas: 'Finanzas',
   presupuesto: 'Presupuesto', economia: 'Economía', sueldos: 'Sueldos', permisos: 'Permisos',
@@ -4259,7 +4403,7 @@ SF.seccionLabel = function (k) { return SF.SECCION_LABEL[k] || k; };
 
 /* Que se puede repartir seccion a seccion. No estan todas: las de "lo mio" y
    los portales no se conceden, se tienen por ser quien eres. */
-SF.SECCIONES_REPARTIBLES = ['inicio', 'agenda', 'jugadores', 'equipos', 'calendario', 'horarios',
+SF.SECCIONES_REPARTIBLES = ['inicio', 'agenda', 'jugadores', 'equipos', 'calendario', 'horarios', 'sesiones',
   'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family',
   'finanzas', 'presupuesto', 'economia', 'sueldos', 'comunicados', 'staff', 'adjuntos', 'mi-equipo'];
 
@@ -4279,6 +4423,8 @@ SF.CAPACIDADES = [
   { k: 'canManageTeams',    label: 'Crear y gestionar equipos',         grupo: 'Lo que puede hacer' },
   { k: 'canEditHorario',    label: 'Editar el cuadrante de pistas',     grupo: 'Lo que puede hacer' },
   { k: 'canEditPF',         label: 'Editar el cuadrante de preparación física', grupo: 'Lo que puede hacer' },
+  { k: 'canPlanTraining',   label: 'Planificar sesiones de entrenamiento', grupo: 'Lo que puede hacer' },
+  { k: 'canPublishMethod',  label: 'Publicar la metodología del club',     grupo: 'Lo que puede hacer' },
   { k: 'canDocs',           label: 'Gestionar documentación y reclamarla', grupo: 'Lo que puede hacer' },
   { k: 'canAnnounce',       label: 'Enviar comunicados del club',       grupo: 'Lo que puede hacer' },
   { k: 'canAskCita',        label: 'Pedir cita con salud',              grupo: 'Lo que puede hacer' },
@@ -7096,6 +7242,77 @@ SF.store = (function () {
       save(d);
     },
     pf: function () { return db().pf || []; },
+
+    /* --- EJERCICIOS Y PLANES DE SESION --- */
+    ejercicios: function () {
+      var d = db();
+      if (!d.ejercicios) { d.ejercicios = (SF.EJERCICIOS_BASE || []).slice(); save(d); }
+      return d.ejercicios;
+    },
+    /* Los que PUEDE ver esta persona. El nivel no es decoracion: un ejercicio
+       personal es el cuaderno de alguien y no tiene por que verlo su director. */
+    ejerciciosVisibles: function (staffId, teamIds) {
+      teamIds = teamIds || [];
+      return this.ejercicios().filter(function (x) {
+        if (x.nivel === 'club' || !x.nivel) return true;
+        if (x.nivel === 'equipo') return !x.team_id || teamIds.indexOf(x.team_id) >= 0;
+        return x.autor_id === staffId;
+      });
+    },
+    ejercicioGet: function (id) {
+      return this.ejercicios().filter(function (x) { return x.id === id; })[0] || null;
+    },
+    ejercicioSet: function (datos, quien) {
+      var d = db(); d.ejercicios = this.ejercicios();
+      var x = datos.id ? d.ejercicios.filter(function (y) { return y.id === datos.id; })[0] : null;
+      if (!x) {
+        x = { id: 'ej' + Date.now(), creado: new Date().toISOString(),
+          autor: (quien || {}).name || '', autor_id: (quien || {}).staff_id || null };
+        d.ejercicios.push(x);
+      }
+      ['nombre', 'objetivo', 'momento', 'minutos', 'jugadores', 'material',
+       'descripcion', 'claves', 'nivel', 'team_id', 'deporte'].forEach(function (k) {
+        if (datos[k] !== undefined) x[k] = datos[k];
+      });
+      save(d); return x;
+    },
+    ejercicioQuitar: function (id) {
+      var d = db();
+      d.ejercicios = this.ejercicios().filter(function (x) { return x.id !== id; });
+      save(d);
+    },
+
+    /* El PLAN de una sesion, indexado por la clave de la sesion del cuadrante.
+       Una sesion tiene como mucho un plan: dos planes para el mismo martes es
+       la forma mas rapida de que el equipo no sepa cual vale. */
+    planes: function (teamId) {
+      var lista = db().planes || [];
+      return teamId ? lista.filter(function (x) { return x.team_id === teamId; }) : lista;
+    },
+    planDe: function (clave) {
+      if (!clave) return null;
+      return (db().planes || []).filter(function (x) { return x.clave === clave; })[0] || null;
+    },
+    planSet: function (datos, quien) {
+      var d = db(); d.planes = d.planes || [];
+      var x = d.planes.filter(function (y) { return y.clave === datos.clave; })[0];
+      if (!x) {
+        x = { id: 'pl' + Date.now(), clave: datos.clave, creado: new Date().toISOString() };
+        d.planes.push(x);
+      }
+      x.team_id = datos.team_id; x.fecha = datos.fecha;
+      x.titulo = datos.titulo || ''; x.objetivo = datos.objetivo || '';
+      x.bloques = datos.bloques || [];
+      x.para_jugadores = !!datos.para_jugadores;
+      x.por = (quien || {}).name || x.por || '';
+      x.at = new Date().toISOString();
+      save(d); return x;
+    },
+    planQuitar: function (clave) {
+      var d = db();
+      d.planes = (d.planes || []).filter(function (x) { return x.clave !== clave; });
+      save(d);
+    },
 
     /* --- LAS FRANJAS DE PREPARACION FISICA ---
        La hoja del club no es una lista de sesiones sueltas: es una REJILLA.
@@ -12384,6 +12601,543 @@ window.SF = window.SF || {};
       n += roster.length;
     }
     return n;
+  }
+
+  /* ===================== SESIONES DE ENTRENAMIENTO =====================
+     Tres pestañas porque son tres preguntas distintas, y cada rol entra por la
+     suya:
+
+       · Un ENTRENADOR pregunta "¿qué hago el miércoles?". Por eso la pantalla
+         abre en LA SEMANA, con sus sesiones reales del cuadrante y el estado de
+         cada una. No abre en una biblioteca: una biblioteca no es una tarea.
+       · Un DIRECTOR TÉCNICO pregunta "¿se está siguiendo el método?". Esa es la
+         pestaña de Metodología, y es lo único de este módulo que no se compra
+         hecho: medir el uso real.
+       · Los dos preguntan "¿qué ejercicio pongo aquí?", y esa es la Biblioteca.
+
+     El plan cuelga de la SESIÓN DEL CUADRANTE, por su clave. No inventamos un
+     evento nuevo: el cuadrante ya sabe que ese equipo entrena el miércoles a
+     las 19:45, y planificar es colgarle un plan a esa sesión. Si la sesión se
+     cancela o se mueve, el plan la sigue. */
+  pages.sesiones = function (view, _p, _ruta, embed) {
+    var r = role();
+    var me = SF.store.staffMe();
+    var yo = SF.store.currentUser();
+    var quien = { name: yo.name, staff_id: me ? me.id : null };
+    var misEq = misEquipos(me);
+    var teamIds = misEq.map(function (t) { return t.id; });
+    var puede = !!r.canPlanTraining;
+    var mando = !!r.canPublishMethod;
+
+    view.innerHTML = embed ? '' : head('Sesiones',
+      'Qué se entrena y con qué. El plan de cada sesión y los ejercicios del club.');
+
+    var tab = SF._sesTab || 'semana';
+    if (tab === 'metodo' && !mando) tab = 'semana';
+    if (!embed) {
+      var tabs = el('<div class="tabbar"></div>');
+      var lista = [['semana', 'La semana'], ['biblio', 'Ejercicios']];
+      if (mando) lista.push(['metodo', 'Metodología']);
+      lista.forEach(function (t) {
+        var b = el('<button class="tab' + (tab === t[0] ? ' on' : '') + '">' + t[1] + '</button>');
+        b.onclick = function () { SF._sesTab = t[0]; SF.router.render(); };
+        tabs.appendChild(b);
+      });
+      view.appendChild(tabs);
+    }
+    var body = el('<div></div>');
+    view.appendChild(body);
+
+    if (tab === 'biblio') pintaBiblio(body, quien, teamIds, misEq, puede, mando);
+    else if (tab === 'metodo') pintaMetodo(body, misEq);
+    else pintaSemana(body, misEq, quien, puede);
+  };
+
+  /* ---------- 1. LA SEMANA ----------
+     Las sesiones REALES de sus equipos, con lo único que importa mirar aquí:
+     cuáles tienen plan y cuáles no. Se ven catorce días, no siete: el domingo
+     por la tarde, que es cuando de verdad se planifica, una semana natural ya
+     está medio agotada. */
+  function pintaSemana(body, misEq, quien, puede) {
+    var hoy = SF.hoyISO(), hasta = SF.sumaDias(hoy, 13);
+
+    var todas = [];
+    misEq.forEach(function (t) {
+      SF.sesionesEntre(t, hoy, hasta).forEach(function (x) {
+        if (x.tipo === 'partido' || !x.clave) return;
+        todas.push({ t: t, s: x, plan: SF.store.planDe(x.clave) });
+      });
+    });
+    todas.sort(function (a, b) {
+      return (a.s.fecha + (a.s.hora || '')).localeCompare(b.s.fecha + (b.s.hora || ''));
+    });
+
+    if (!misEq.length) {
+      body.appendChild(el('<div class="empty-panel"><p>No tienes equipos asignados.</p></div>'));
+      return;
+    }
+    if (!todas.length) {
+      body.appendChild(el('<div class="empty-panel"><p>No hay sesiones en las próximas dos semanas.</p>' +
+        '<p class="hint">Las sesiones salen del cuadrante. Si tu equipo entrena y aquí no aparece nada, ' +
+        'es que su horario todavía no está puesto en <b>Cuadrantes</b>.</p></div>'));
+      return;
+    }
+
+    var conPlan = todas.filter(function (x) { return x.plan; }).length;
+    var activas = todas.filter(function (x) { return !x.s.cancelada; });
+    body.appendChild(el('<div class="tempn">' +
+      '<div><b>' + activas.length + '</b><span>' + (activas.length === 1 ? 'sesión' : 'sesiones') + ' en 14 días</span></div>' +
+      '<div><b>' + conPlan + '</b><span>con plan</span></div>' +
+      '<div><b>' + (activas.length - conPlan) + '</b><span>sin preparar</span></div>' +
+      '</div>'));
+    body.appendChild(el('<p class="hint">Las sesiones salen del cuadrante, así que la lista es la de verdad. ' +
+      'Un plan se queda pegado a su sesión: si el día se mueve o se cae, el plan va con ella.</p>'));
+
+    var porDia = {};
+    todas.forEach(function (x) { (porDia[x.s.fecha] = porDia[x.s.fecha] || []).push(x); });
+
+    Object.keys(porDia).sort().forEach(function (f) {
+      var esHoy = f === hoy;
+      body.appendChild(el('<p class="cal-dia">' + esc(fmtDate(f)) +
+        (esHoy ? ' <span class="tag tag-purple">hoy</span>' : '') + '</p>'));
+      var lista = el('<div class="mini-list"></div>');
+      porDia[f].forEach(function (x) {
+        var s = x.s, plan = x.plan;
+        var mins = plan ? (plan.bloques || []).reduce(function (a, b) { return a + (+b.minutos || 0); }, 0) : 0;
+        var fila = el('<div class="mini-row ses-fila' + (s.cancelada ? ' ses-cancel' : '') + '"><span>' +
+          '<b>' + esc(x.t.name) + '</b> <span class="hint">· ' + esc(s.hora || 'sin hora') +
+          ' · ' + (s.tipo === 'pf' ? 'preparación física' : 'pista') + '</span>' +
+          (s.cancelada ? '<br><span class="tag tag-danger">cancelada</span> <span class="hint">' + esc(s.motivo || '') + '</span>'
+            : (plan
+              ? '<br><span class="ses-tit">' + esc(plan.titulo || 'Sesión preparada') + '</span>' +
+                '<span class="hint"> · ' + (plan.bloques || []).length + ' bloques · ' + mins + '\u2032</span>' +
+                (plan.objetivo ? '<br><span class="hint">' + esc(plan.objetivo) + '</span>' : '')
+              : '<br><span class="hint">Sin preparar</span>')) +
+          '</span><span class="row-actions"></span></div>');
+        var acc = fila.querySelector('.row-actions');
+        if (puede && !s.cancelada) {
+          var b = el('<button class="btn btn-sm ' + (plan ? 'btn-light' : 'btn-primary') + '">' +
+            (plan ? 'Ver el plan' : ico('plus') + 'Preparar') + '</button>');
+          b.onclick = function () { modalPlan(x.t, s, quien); };
+          acc.appendChild(b);
+        } else if (plan) {
+          var b2 = el('<button class="btn btn-light btn-sm">Ver el plan</button>');
+          b2.onclick = function () { modalPlan(x.t, s, quien, true); };
+          acc.appendChild(b2);
+        }
+        lista.appendChild(fila);
+      });
+      body.appendChild(lista);
+    });
+  }
+
+  /* ---------- EL PLANIFICADOR ----------
+     Bloques con minutos, y el total contra la duración real de la sesión. Ese
+     contador es la mitad del valor de esta pantalla: casi todo el mundo
+     planifica noventa minutos para una sesión de setenta y cinco, y lo
+     descubre en la pista. */
+  function modalPlan(t, s, quien, soloLeer) {
+    var plan = SF.store.planDe(s.clave) || { bloques: [] };
+    var dura = SF.minutosSesion(s.hora);
+    var me = SF.store.staffMe();
+    var visibles = SF.store.ejerciciosVisibles(me ? me.id : null, [t.id]);
+    var bloques = (plan.bloques || []).map(function (b) { return Object.assign({}, b); });
+
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint"><b>' + esc(t.name) + '</b> · ' + esc(fmtDate(s.fecha)) +
+      ' · ' + esc(s.hora || 'sin hora') + (dura ? ' · ' + dura + ' minutos de pista' : '') + '</p>'));
+
+    if (!soloLeer) {
+      box.appendChild(el('<div class="form-grid">' +
+        '<div class="frow" style="grid-column:1/-1"><label>Título de la sesión</label>' +
+        '<input id="pt" value="' + esc(plan.titulo || '') + '" placeholder="Bloqueo directo y transición"></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Objetivo del día ' +
+        '<span class="hint">una frase; es lo que se le dice al equipo al empezar</span></label>' +
+        '<input id="po" value="' + esc(plan.objetivo || '') + '" placeholder="Que salgan del bloqueo sin perder el balón"></div>' +
+        '</div>'));
+    } else {
+      if (plan.titulo) box.appendChild(el('<p class="ses-tit-g">' + esc(plan.titulo) + '</p>'));
+      if (plan.objetivo) box.appendChild(el('<p class="dispo-nota">' + esc(plan.objetivo) + '</p>'));
+    }
+
+    var zona = el('<div class="plan-b"></div>');
+    var pie = el('<p class="plan-tot"></p>');
+
+    function total() { return bloques.reduce(function (a, b) { return a + (+b.minutos || 0); }, 0); }
+
+    function pinta() {
+      zona.innerHTML = '';
+      if (!bloques.length) {
+        zona.appendChild(el('<p class="hint">Todavía no hay bloques. Añade uno de la biblioteca o escríbelo a mano.</p>'));
+      }
+      bloques.forEach(function (b, i) {
+        var ej = b.ejercicio_id ? SF.store.ejercicioGet(b.ejercicio_id) : null;
+        var fila = el('<div class="plan-fila">' +
+          '<span class="plan-min">' + (b.minutos || 0) + '′</span>' +
+          '<span class="plan-txt"><b>' + esc(b.titulo || (ej ? ej.nombre : 'Bloque')) + '</b>' +
+          (ej && ej.claves ? '<span class="hint">' + esc(ej.claves) + '</span>' : '') +
+          (b.nota ? '<span class="hint">' + esc(b.nota) + '</span>' : '') +
+          '</span><span class="plan-acc"></span></div>');
+        var acc = fila.querySelector('.plan-acc');
+        if (!soloLeer) {
+          if (i > 0) {
+            var bu = el('<button class="lnk-ed" title="Subir" aria-label="Subir">↑</button>');
+            bu.onclick = function () { var x = bloques[i - 1]; bloques[i - 1] = bloques[i]; bloques[i] = x; pinta(); };
+            acc.appendChild(bu);
+          }
+          var bx = el('<button class="lnk-del" title="Quitar" aria-label="Quitar">' + ico('x') + '</button>');
+          bx.onclick = function () { bloques.splice(i, 1); pinta(); };
+          acc.appendChild(bx);
+        }
+        zona.appendChild(fila);
+      });
+      var tot = total();
+      /* El aviso, no el número a secas. Un total de 90 no dice nada; "te pasas
+         quince minutos de lo que dura la pista" sí. */
+      var dif = dura ? tot - dura : 0;
+      pie.className = 'plan-tot' + (dura && Math.abs(dif) > 5 ? (dif > 0 ? ' es-mal' : ' es-corto') : '');
+      pie.innerHTML = '<b>' + tot + ' minutos</b> planificados' +
+        (dura ? ' de <b>' + dura + '</b> que dura la sesión' +
+          (dif > 5 ? ' · <b>te pasas ' + dif + '</b>' : (dif < -5 ? ' · quedan ' + (-dif) + ' por llenar' : ' · cuadra')) : '');
+    }
+
+    box.appendChild(el('<p class="sec-label">El plan</p>'));
+    box.appendChild(zona);
+    box.appendChild(pie);
+
+    if (!soloLeer) {
+      var acc2 = el('<div class="row-c" style="margin-top:12px"></div>');
+      /* El buscador de ejercicios va DENTRO de esta misma ventana, desplegable.
+         Abrir una ventana encima de otra aquí no era una opción: el modal de la
+         app es uno solo, y el segundo se comía el plan a medio escribir. Y
+         aunque se pudieran apilar, tampoco: quien está montando una sesión
+         quiere ver el plan que lleva mientras elige el bloque siguiente. */
+      var bEj = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Ejercicio de la biblioteca</button>');
+      var picker = el('<div class="ej-pick" style="display:none"></div>');
+      var pInp = el('<input type="search" placeholder="Buscar por nombre, objetivo o material…">');
+      var pRes = el('<div class="mini-list ej-pick-res"></div>');
+      picker.appendChild(pInp); picker.appendChild(pRes);
+
+      function pintaPicker() {
+        pRes.innerHTML = '';
+        var q = SF.norm(pInp.value.trim());
+        var f = visibles.filter(function (x) {
+          if (!q) return true;
+          var t = SF.norm([x.nombre, x.material, x.descripcion, objetivoLabel(x.objetivo)].join(' '));
+          return q.split(/\s+/).every(function (w) { return t.indexOf(w) >= 0; });
+        });
+        if (!f.length) { pRes.appendChild(el('<div class="mini-row"><span class="hint">Nada con eso.</span></div>')); return; }
+        f.slice(0, 40).forEach(function (x) {
+          var fila = el('<div class="mini-row"><span><b>' + esc(x.nombre) + '</b>' +
+            '<br><span class="hint">' + esc(objetivoLabel(x.objetivo)) + ' · ' + (x.minutos || '—') + '\u2032' +
+            (x.material ? ' · ' + esc(x.material) : '') + '</span></span>' +
+            '<span class="row-actions"></span></div>');
+          var b = el('<button class="btn btn-light btn-sm">Añadir</button>');
+          b.onclick = function () {
+            bloques.push({ ejercicio_id: x.id, titulo: x.nombre, minutos: +x.minutos || 10 });
+            picker.style.display = 'none'; bEj.classList.remove('on');
+            pinta();
+          };
+          fila.querySelector('.row-actions').appendChild(b);
+          pRes.appendChild(fila);
+        });
+      }
+      pInp.oninput = pintaPicker;
+      bEj.onclick = function () {
+        var abierto = picker.style.display !== 'none';
+        picker.style.display = abierto ? 'none' : '';
+        bEj.classList.toggle('on', !abierto);
+        if (!abierto) { pintaPicker(); pInp.focus(); }
+      };
+
+      var bLib = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Bloque a mano</button>');
+      bLib.onclick = function () {
+        bloques.push({ titulo: 'Bloque nuevo', minutos: 10 });
+        picker.style.display = 'none'; bEj.classList.remove('on');
+        pinta();
+      };
+      acc2.appendChild(bEj); acc2.appendChild(bLib);
+      box.appendChild(acc2);
+      box.appendChild(picker);
+
+      box.appendChild(el('<label class="chk" style="margin-top:14px"><input type="checkbox" id="pj"' +
+        (plan.para_jugadores ? ' checked' : '') + '> <span>Que los jugadores puedan verlo</span></label>'));
+      box.appendChild(el('<p class="hint">Si lo marcas, el equipo ve el título y el objetivo antes de entrenar. ' +
+        'Los bloques y las claves se quedan para el cuerpo técnico.</p>'));
+    }
+
+    var foot = el('<div class="modal-actions"></div>');
+    if (!soloLeer) {
+      if (plan.id) {
+        var bDel = el('<button class="btn btn-light">Quitar el plan</button>');
+        bDel.onclick = function () { SF.store.planQuitar(s.clave); U.closeModal(); U.toast('Plan quitado'); SF.router.render(); };
+        foot.appendChild(bDel);
+      }
+      var bC = el('<button class="btn">Cancelar</button>'); bC.onclick = U.closeModal;
+      var bG = el('<button class="btn btn-primary">' + ico('check') + 'Guardar</button>');
+      bG.onclick = function () {
+        SF.store.planSet({
+          clave: s.clave, team_id: t.id, fecha: s.fecha,
+          titulo: (box.querySelector('#pt') || {}).value || '',
+          objetivo: (box.querySelector('#po') || {}).value || '',
+          bloques: bloques,
+          para_jugadores: !!(box.querySelector('#pj') || {}).checked
+        }, quien);
+        U.closeModal(); U.toast('Sesión preparada'); SF.router.render();
+      };
+      foot.appendChild(bC); foot.appendChild(bG);
+    } else {
+      var bX = el('<button class="btn">Cerrar</button>'); bX.onclick = U.closeModal;
+      foot.appendChild(bX);
+    }
+    box.appendChild(foot);
+    pinta();
+    U.modal(soloLeer ? 'El plan del ' + fmtDate(s.fecha) : 'Preparar la sesión', box);
+  }
+
+  function objetivoLabel(k) {
+    var o = (SF.EJ_OBJETIVOS || []).filter(function (x) { return x.k === k; })[0];
+    return o ? o.label : (k || 'Sin objetivo');
+  }
+
+  /* ---------- 2. LA BIBLIOTECA ---------- */
+  function pintaBiblio(body, quien, teamIds, misEq, puede, mando) {
+    var me = SF.store.staffMe();
+    var lista = SF.store.ejerciciosVisibles(me ? me.id : null, teamIds);
+
+    if (puede) {
+      var barra = el('<div class="row-c" style="margin-bottom:12px"></div>');
+      var bN = el('<button class="btn btn-primary btn-sm">' + ico('plus') + 'Nuevo ejercicio</button>');
+      bN.onclick = function () { modalEjercicio(null, quien, misEq, mando); };
+      barra.appendChild(bN);
+      body.appendChild(barra);
+    }
+
+    var f = SF._ejFiltro = SF._ejFiltro || { obj: '', q: '' };
+    var chips = el('<div class="row-c eq-filtros" style="margin-bottom:10px"></div>');
+    [['', 'Todos']].concat((SF.EJ_OBJETIVOS || []).map(function (o) { return [o.k, o.label]; }))
+      .forEach(function (o) {
+        var n = o[0] ? lista.filter(function (x) { return x.objetivo === o[0]; }).length : lista.length;
+        if (o[0] && !n) return;                 // un filtro que no filtra nada, sobra
+        var b = el('<button class="eq-chip eq-chip-sm' + (f.obj === o[0] ? ' on' : '') + '">' +
+          esc(o[1]) + ' <span class="hint">' + n + '</span></button>');
+        b.onclick = function () { f.obj = o[0]; SF.router.render(); };
+        chips.appendChild(b);
+      });
+    body.appendChild(chips);
+
+    var vis = lista.filter(function (x) { return !f.obj || x.objetivo === f.obj; })
+      .sort(function (a, b) { return (a.nombre || '').localeCompare(b.nombre || ''); });
+
+    if (!vis.length) {
+      body.appendChild(el('<div class="empty-panel"><p>No hay ejercicios con ese objetivo.</p></div>'));
+      return;
+    }
+
+    var rej = el('<div class="ej-rej"></div>');
+    vis.forEach(function (x) {
+      var niv = (SF.EJ_NIVELES || []).filter(function (n) { return n.k === (x.nivel || 'club'); })[0];
+      var card = el('<button class="ej-card"><div class="ej-top">' +
+        '<b>' + esc(x.nombre) + '</b>' +
+        '<span class="tag ' + (x.nivel === 'personal' ? 'tag-gray' : (x.nivel === 'equipo' ? 'tag-warn' : 'tag-purple')) + '">' +
+        esc(niv ? niv.label : 'Del club') + '</span></div>' +
+        '<span class="ej-meta">' + esc(objetivoLabel(x.objetivo)) + ' · ' + (x.minutos || '—') + '′' +
+        (x.jugadores ? ' · ' + esc(x.jugadores) + ' jugadores' : '') + '</span>' +
+        (x.descripcion ? '<span class="ej-desc">' + esc(x.descripcion) + '</span>' : '') +
+        '</button>');
+      card.onclick = function () { modalEjercicio(x, quien, misEq, mando, !puede); };
+      rej.appendChild(card);
+    });
+    body.appendChild(rej);
+    body.appendChild(el('<p class="hint" style="margin-top:12px">Los ejercicios <b>del club</b> son la metodología: ' +
+      'los ve todo el mundo y los publica la dirección técnica. Los <b>del equipo</b> se quedan en su cuerpo técnico, ' +
+      'y los <b>míos</b> son tu cuaderno: no los ve nadie más, tampoco tu director.</p>'));
+  }
+
+  function modalEjercicio(x, quien, misEq, mando, soloLeer) {
+    var nuevo = !x;
+    x = x || { nivel: mando ? 'club' : 'personal', minutos: 10, momento: 'Parte principal' };
+    var box = el('<div></div>');
+
+    if (soloLeer) {
+      box.appendChild(el('<p class="hint">' + esc(objetivoLabel(x.objetivo)) + ' · ' + (x.minutos || '—') + '′' +
+        (x.jugadores ? ' · ' + esc(x.jugadores) + ' jugadores' : '') +
+        (x.material ? ' · ' + esc(x.material) : '') + '</p>'));
+      if (x.descripcion) box.appendChild(el('<p class="bz-body">' + esc(x.descripcion) + '</p>'));
+      if (x.claves) box.appendChild(el('<div class="dispo-nota"><b>Claves:</b> ' + esc(x.claves) + '</div>'));
+      var f0 = el('<div class="modal-actions"><button class="btn">Cerrar</button></div>');
+      f0.children[0].onclick = U.closeModal;
+      box.appendChild(f0);
+      U.modal(x.nombre, box);
+      return;
+    }
+
+    function sel(v, val) { return String(v) === String(val) ? ' selected' : ''; }
+    box.appendChild(el('<div class="form-grid">' +
+      '<div class="frow" style="grid-column:1/-1"><label>Nombre</label>' +
+      '<input id="en" value="' + esc(x.nombre || '') + '" placeholder="Rueda de tiro con pase y reemplazo"></div>' +
+      '<div class="frow"><label>Para qué sirve</label><select id="eo">' +
+      (SF.EJ_OBJETIVOS || []).map(function (o) {
+        return '<option value="' + o.k + '"' + sel(o.k, x.objetivo) + '>' + esc(o.label) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="frow"><label>Momento de la sesión</label><select id="em">' +
+      (SF.EJ_MOMENTOS || []).map(function (o) {
+        return '<option value="' + esc(o) + '"' + sel(o, x.momento) + '>' + esc(o) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="frow"><label>Minutos</label><input id="ed" type="number" min="1" max="120" value="' + (x.minutos || 10) + '"></div>' +
+      '<div class="frow"><label>Jugadores</label><input id="ej" value="' + esc(x.jugadores || '') + '" placeholder="8-16"></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Material</label>' +
+      '<input id="em2" value="' + esc(x.material || '') + '" placeholder="Conos, dos balones, petos"></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Cómo se hace</label>' +
+      '<textarea id="ex" rows="4">' + esc(x.descripcion || '') + '</textarea></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Claves ' +
+      '<span class="hint">lo que hay que corregir; es lo que de verdad distingue un ejercicio de otro</span></label>' +
+      '<textarea id="ec" rows="2">' + esc(x.claves || '') + '</textarea></div>' +
+      '</div>'));
+
+    /* Quién lo va a ver. Publicar como "del club" es decir que eso es la
+       metodología, y eso no lo puede decir cualquiera. */
+    var zonaN = el('<div class="frow" style="margin-top:12px"><label>Quién lo ve</label></div>');
+    var selN = el('<select id="el"></select>');
+    (SF.EJ_NIVELES || []).forEach(function (n) {
+      if (n.k === 'club' && !mando) return;
+      selN.appendChild(el('<option value="' + n.k + '"' + sel(n.k, x.nivel || 'personal') + '>' +
+        esc(n.label) + ' — ' + esc(n.desc) + '</option>'));
+    });
+    zonaN.appendChild(selN);
+    if (!mando) zonaN.appendChild(el('<span class="hint">Publicar un ejercicio como metodología del club lo hace la dirección técnica.</span>'));
+    box.appendChild(zonaN);
+
+    var zonaE = el('<div class="frow" style="margin-top:10px;display:none"><label>De qué equipo</label></div>');
+    var selE = el('<select id="et">' + misEq.map(function (t) {
+      return '<option value="' + t.id + '"' + sel(t.id, x.team_id) + '>' + esc(t.name) + '</option>';
+    }).join('') + '</select>');
+    zonaE.appendChild(selE);
+    box.appendChild(zonaE);
+    function revisaNivel() { zonaE.style.display = selN.value === 'equipo' ? '' : 'none'; }
+    selN.onchange = revisaNivel; revisaNivel();
+
+    var foot = el('<div class="modal-actions"></div>');
+    if (!nuevo) {
+      var bD = el('<button class="btn btn-light">Quitar</button>');
+      bD.onclick = function () { SF.store.ejercicioQuitar(x.id); U.closeModal(); U.toast('Ejercicio quitado'); SF.router.render(); };
+      foot.appendChild(bD);
+    }
+    var bC = el('<button class="btn">Cancelar</button>'); bC.onclick = U.closeModal;
+    var bG = el('<button class="btn btn-primary">' + (nuevo ? 'Añadir' : 'Guardar') + '</button>');
+    bG.onclick = function () {
+      var nom = box.querySelector('#en').value.trim();
+      if (!nom) { U.toast('Ponle un nombre'); return; }
+      SF.store.ejercicioSet({
+        id: x.id, nombre: nom, objetivo: box.querySelector('#eo').value,
+        momento: box.querySelector('#em').value, minutos: +box.querySelector('#ed').value || 10,
+        jugadores: box.querySelector('#ej').value.trim(), material: box.querySelector('#em2').value.trim(),
+        descripcion: box.querySelector('#ex').value.trim(), claves: box.querySelector('#ec').value.trim(),
+        nivel: selN.value, team_id: selN.value === 'equipo' ? selE.value : null,
+        deporte: x.deporte || (SF.store.academy ? (SF.store.academy().sport || 'baloncesto') : 'baloncesto')
+      }, quien);
+      U.closeModal(); U.toast(nuevo ? 'Ejercicio añadido' : 'Guardado'); SF.router.render();
+    };
+    foot.appendChild(bC); foot.appendChild(bG);
+    box.appendChild(foot);
+    U.modal(nuevo ? 'Nuevo ejercicio' : x.nombre, box);
+  }
+
+  /* ---------- 3. LA METODOLOGÍA ----------
+     La pregunta de una dirección técnica no es "¿hay ejercicios?", es "¿los
+     usa alguien?". Un método publicado que nadie aplica es una carpeta
+     compartida, y hasta que no se mide, nadie sabe cuál de las dos cosas
+     tiene. Esto es lo único de este módulo que no se compra hecho. */
+  function pintaMetodo(body, misEq) {
+    var hoy = SF.hoyISO(), desde = SF.seasonStartISO(hoy);
+    var delClub = SF.store.ejercicios().filter(function (x) { return (x.nivel || 'club') === 'club'; });
+    var planes = SF.store.planes().filter(function (p) { return (p.fecha || '') >= desde; });
+
+    body.appendChild(el('<p class="hint">Lo que el club ha publicado como metodología, y con qué frecuencia ' +
+      'aparece de verdad en los entrenamientos. Desde el ' + esc(fmtDate(desde)) + '.</p>'));
+
+    var usos = {}, totalBloques = 0;
+    planes.forEach(function (p) {
+      (p.bloques || []).forEach(function (b) {
+        totalBloques++;
+        if (b.ejercicio_id) usos[b.ejercicio_id] = (usos[b.ejercicio_id] || 0) + 1;
+      });
+    });
+
+    body.appendChild(el('<div class="tempn">' +
+      '<div><b>' + delClub.length + '</b><span>ejercicios del club</span></div>' +
+      '<div><b>' + planes.length + '</b><span>' + (planes.length === 1 ? 'sesión preparada' : 'sesiones preparadas') + '</span></div>' +
+      '<div><b>' + totalBloques + '</b><span>bloques puestos</span></div>' +
+      '</div>'));
+
+    if (!planes.length) {
+      body.appendChild(el('<div class="empty-panel"><p>Todavía no se ha preparado ninguna sesión esta temporada.</p>' +
+        '<p class="hint">En cuanto los entrenadores empiecen a planificar, aquí se ve qué parte del método se usa ' +
+        'y qué parte se queda en la carpeta.</p></div>'));
+      return;
+    }
+
+    /* Por equipo: quién planifica y quién no. */
+    body.appendChild(el('<p class="sec-label">Por equipo</p>'));
+    var hasta = SF.sumaDias(hoy, 13);
+    var tabla = el('<div class="cal-scroll"><table class="cua-tab reg-temp"><thead><tr>' +
+      '<th>Equipo</th><th>Sesiones preparadas</th><th>Bloques</th><th>Del método del club</th>' +
+      '<th>Próximas 2 semanas</th></tr></thead><tbody></tbody></table></div>');
+    var tb = tabla.querySelector('tbody');
+    misEq.forEach(function (t) {
+      var mios = planes.filter(function (p) { return p.team_id === t.id; });
+      var bl = 0, deClub = 0;
+      mios.forEach(function (p) {
+        (p.bloques || []).forEach(function (b) {
+          bl++;
+          if (b.ejercicio_id && delClub.some(function (e) { return e.id === b.ejercicio_id; })) deClub++;
+        });
+      });
+      var prox = SF.sesionesActivas(t, hoy, hasta).filter(function (x) { return x.clave && x.tipo !== 'partido'; });
+      var conPlan = prox.filter(function (x) { return SF.store.planDe(x.clave); }).length;
+      if (!mios.length && !prox.length) return;
+      var pct = bl ? Math.round(deClub / bl * 100) : null;
+      tb.appendChild(el('<tr>' +
+        '<td class="rt-eq">' + esc(t.name) + '</td>' +
+        '<td><b>' + mios.length + '</b></td>' +
+        '<td>' + (bl || '<span class="hint">—</span>') + '</td>' +
+        '<td>' + (pct == null ? '<span class="hint">—</span>'
+          : '<b class="' + (pct >= 50 ? 'reg-alta' : pct >= 20 ? 'reg-media' : 'reg-baja') + '">' + pct + '%</b>') + '</td>' +
+        '<td>' + conPlan + ' <span class="hint">de ' + prox.length + '</span></td>' +
+        '</tr>'));
+    });
+    body.appendChild(tabla);
+    body.appendChild(el('<p class="hint" style="margin-top:10px"><b>Del método del club</b> es qué parte de lo que ' +
+      'pone ese equipo sale de la metodología publicada, y no de su propio cuaderno. Ni el 0 % ni el 100 % son la ' +
+      'meta: el 0 % dice que el método no ha llegado, y el 100 % que el entrenador no está aportando nada suyo.</p>'));
+
+    /* Qué se usa y qué no. Lo segundo es lo interesante. */
+    var conUso = delClub.map(function (e) { return { e: e, n: usos[e.id] || 0 }; })
+      .sort(function (a, b) { return b.n - a.n; });
+    var sinUsar = conUso.filter(function (x) { return !x.n; });
+
+    body.appendChild(el('<p class="sec-label">Los más usados</p>'));
+    var l1 = el('<div class="mini-list"></div>');
+    conUso.filter(function (x) { return x.n; }).slice(0, 8).forEach(function (x) {
+      l1.appendChild(el('<div class="mini-row"><span><b>' + esc(x.e.nombre) + '</b><br>' +
+        '<span class="hint">' + esc(objetivoLabel(x.e.objetivo)) + '</span></span>' +
+        '<span class="row-actions"><b>' + x.n + '</b> <span class="hint">' +
+        (x.n === 1 ? 'vez' : 'veces') + '</span></span></div>'));
+    });
+    if (!l1.children.length) l1.appendChild(el('<div class="mini-row"><span class="hint">Todavía nadie ha puesto un ejercicio del club en una sesión.</span></div>'));
+    body.appendChild(l1);
+
+    if (sinUsar.length) {
+      body.appendChild(el('<p class="sec-label">Publicados y sin usar · ' + sinUsar.length + '</p>'));
+      body.appendChild(el('<p class="hint" style="margin-top:-4px">O no hacen falta, o no se conocen. Las dos cosas ' +
+        'se arreglan hablando, pero primero hay que verlas.</p>'));
+      var l2 = el('<div class="mini-list"></div>');
+      sinUsar.slice(0, 10).forEach(function (x) {
+        l2.appendChild(el('<div class="mini-row"><span><b>' + esc(x.e.nombre) + '</b><br>' +
+          '<span class="hint">' + esc(objetivoLabel(x.e.objetivo)) + '</span></span></div>'));
+      });
+      body.appendChild(l2);
+    }
   }
 
   pages.calendario = function (view, _p, _ruta, embed) {
@@ -21862,6 +22616,7 @@ SF.router = (function () {
     ['sueldos', 'Sueldos', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
     ['horarios', 'Cuadrantes', 'grid'], ['calendario', 'Calendario', 'cal'],
+    ['sesiones', 'Sesiones', 'list'],
     ['mi-equipo', 'Mi equipo', 'grid'], ['comunicados', 'Comunicados', 'ai'], ['staff', 'Staff', 'shield'],
     ['adjuntos', 'Personal adjunto', 'users'],
     ['mis-avisos', 'Avisos', 'bell'], ['mi-ficha', 'Mi ficha', 'file'],
@@ -21879,7 +22634,7 @@ SF.router = (function () {
      no se llega desde el menu es, para quien la usa, una funcion que no
      existe: Jorge dio por hecho que no se podia editar el cuadrante. */
   var NAV_GRUPOS = [
-    { id: 'dia',      label: '',                keys: ['inicio', 'agenda', 'mi-equipo', 'jugadores', 'equipos', 'horarios', 'calendario'] },
+    { id: 'dia',      label: '',                keys: ['inicio', 'agenda', 'mi-equipo', 'jugadores', 'equipos', 'horarios', 'calendario', 'sesiones'] },
     { id: 'captacion',label: 'Captación',       keys: ['captacion', 'importar'] },
     { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos'] },
     { id: 'personas', label: 'Personas',        keys: ['staff', 'adjuntos', 'family', 'comunicados'] },
@@ -21901,7 +22656,7 @@ SF.router = (function () {
 
   var ROUTE_PAGE = {
     inicio: 'inicio', agenda: 'agenda', jugadores: 'jugadores', jugador: 'jugador', equipos: 'equipos', equipo: 'equipo',
-    calendario: 'calendario', horarios: 'horarios',
+    calendario: 'calendario', horarios: 'horarios', sesiones: 'sesiones',
     importar: 'sec-importar', captacion: 'captacion', documentos: 'sec-documentos', informes: 'informes',
     family: 'family', finanzas: 'sec-finanzas', economia: 'economia', sueldos: 'sueldos', permisos: 'permisos', config: 'config',
     'portal-family': 'portal-family', 'portal-jugador': 'portal-jugador',
