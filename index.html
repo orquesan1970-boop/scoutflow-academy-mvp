@@ -91,6 +91,9 @@ textarea{resize:vertical;min-height:90px}
 .priority b{font-weight:600}
 .c-danger{color:var(--danger)} .c-warn{color:var(--warn)}
 .sec-label{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-3);margin:18px 0 10px}
+/* Una etiqueta dentro de un rotulo no se grita: el rotulo va en mayusculas,
+   la etiqueta no. */
+.sec-label .tag{text-transform:none;letter-spacing:0;margin-left:6px;vertical-align:middle}
 .hint{font-size:12.5px;color:var(--ink-3);margin:6px 0}
 /* Aviso en línea: llama la atención sin gritar. Se usa, por ejemplo, cuando la
    asimetría entre piernas pasa del umbral. */
@@ -1369,6 +1372,33 @@ button.pf-ley:hover{filter:brightness(.96)}
 .ej-pick{margin-top:10px;padding:12px;background:var(--bg);border-radius:10px}
 .ej-pick input{margin-bottom:8px}
 .ej-pick-res{max-height:38vh;overflow:auto}
+
+/* ---- Trámites del club ---- */
+.tram-caja{margin-top:16px}
+.tram-top{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.tram-top b{font-size:15px;font-weight:600}
+.tram-list{display:flex;flex-direction:column;gap:2px}
+.tram-f{display:flex;align-items:flex-start;gap:12px;padding:11px 0;
+  border-top:1px solid var(--line-2,#F2F0FA)}
+.tram-f:first-child{border-top:0}
+.tram-f.es-hecho{opacity:.62}
+.tram-fam{flex:0 0 84px;font-size:10.5px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--purple);padding-top:3px}
+.tram-b{flex:1;min-width:0;font-size:14px;line-height:1.4}
+.tram-b b{display:block;font-weight:600}
+.tram-b .hint{display:block;font-size:12.5px}
+.tram-nota{display:block;font-size:12.5px;color:var(--ojo,#B4761B);font-weight:600;margin-top:1px}
+.tram-sec{display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px}
+.tram-sec code{background:var(--bg);border-radius:5px;padding:1px 6px;font-size:12px}
+.tram-acc{flex:0 0 auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+/* El enlace es un boton: no lleva subrayado de enlace. */
+.tram-acc a,.tram-acc a:hover{text-decoration:none}
+.tram-url{word-break:break-all;font-size:11.5px}
+@media (max-width:640px){
+  .tram-f{flex-wrap:wrap}
+  .tram-fam{flex-basis:100%}
+  .tram-acc{flex-basis:100%;justify-content:flex-start;margin-top:6px}
+}
 .reg-temp td,.rt-jug td{padding:9px 10px;font-size:13px;border-bottom:1px solid var(--line,#ECEAF5)}
 .reg-temp th,.rt-jug th{padding:8px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.04em;
   color:var(--ink-3);text-align:left;font-weight:600;white-space:nowrap}
@@ -2084,6 +2114,207 @@ SF.licenciaTexto = function (p) {
 
    Cuando llegue Supabase se podrán subir archivos también, pero los enlaces
    seguirán siendo lo más usado. */
+/* ===================== TRAMITES DEL CLUB =====================
+   El club reparte cada pretemporada una lista de "enlaces importantes":
+   inscripciones, pedidos de equipacion, la firma de la licencia federativa...
+   Diez enlaces difundidos a todo el mundo, y cada uno tiene que averiguar
+   cuales tres le tocan. El problema no es que falten enlaces: es que la lista
+   esta ordenada por el club y no por la persona.
+
+   LA DECISION DE FONDO: aqui se modela el TRAMITE, no el enlace.
+
+   El enlace es el COMO; el tramite es el QUE. Si guardaramos "un enlace del
+   club", el dia que la inscripcion se haga dentro de ScoutFlow habria que
+   tirar la pantalla y volver a enseñar al club. Modelando "algo que hay que
+   hacer", cuya resolucion HOY es una url externa, ese dia solo cambia el
+   destino -de `url` a `ruta`- y no se entera nadie. Ese es el camino de
+   migracion: a Cognito Forms y a la web de la federacion no se les quita el
+   club de golpe, se les quita tramite a tramite.
+
+   Y el segundo motivo, que vale mas: un enlace no sabe quien lo ha hecho. El
+   club manda la inscripcion a 277 familias y luego lo averigua mirando la
+   bandeja de Cognito. Un tramite con ACUSE da el grueso del valor de un
+   modulo de inscripciones sin construirlo: se sabe quien falta y se le
+   reclama por el canal de avisos que ya existe. */
+
+SF.TRAMITE_FAMILIAS = [
+  { k: 'inscripcion', label: 'Inscripción' },
+  { k: 'equipacion',  label: 'Equipación' },
+  { k: 'licencia',    label: 'Licencia federativa' },
+  { k: 'documento',   label: 'Documentación' },
+  { k: 'otro',        label: 'Otros' }
+];
+
+/* Los segmentos que NO son federados. El corte del club es "FBM" contra
+   "escuelas", y casi todos los tramites caen de un lado o del otro. */
+SF.SEG_ESCUELA = ['escuelas'];
+
+/* `roles: ['staff']` significa cualquier rol del cuerpo tecnico o de gestion:
+   escribirlos uno a uno en cada tramite es garantizar que el dia que se cree
+   un rol nuevo alguien se quede sin ver su ficha de cobro. */
+SF.ROLES_STAFF = function () {
+  return Object.keys(SF.ROLES).filter(function (k) {
+    return ['padre', 'jugador'].indexOf(k) < 0;
+  });
+};
+
+/* Los diez que reparte hoy el CBJA, tal cual, como ejemplo cargado. Un club
+   nuevo los borra y pone los suyos: por eso viven en los datos y no en el
+   codigo de la pantalla. */
+SF.TRAMITES_BASE = [
+  { id: 'tr1', orden: 1, familia: 'inscripcion', titulo: 'Inscripción de jugador/a FBM',
+    destino: { kind: 'url', url: 'https://www.cbjaalcala.com/inscripciones' },
+    secreto: '2026CBJA2027', secreto_label: 'Contraseña',
+    para: { roles: ['padre', 'jugador'], excluye_segments: ['escuelas'] },
+    temporada: '2026-27', acuse: true },
+  { id: 'tr2', orden: 2, familia: 'inscripcion', titulo: 'Inscripción de jugadores de escuelas',
+    destino: { kind: 'url', url: 'https://www.cbjaalcala.com/escuelascbja' },
+    para: { roles: ['padre', 'jugador'], segments: ['escuelas'] },
+    temporada: '2026-27', acuse: true },
+  { id: 'tr3', orden: 3, familia: 'inscripcion', titulo: 'Ficha de entrenador, delegado o personal del club',
+    nota: 'Obligatorio para poder cobrar.',
+    destino: { kind: 'url', url: 'https://www.cognitoforms.com/CBJAA/FichaDeT%C3%A9cnicos202627' },
+    /* El delegado de campo tiene su propia ficha (tr10), asi que se excluye
+       aqui: mandarle las dos es mandarle una que no le toca. */
+    para: { roles: ['staff'], excluye_roles: ['delegado_campo'] }, temporada: '2026-27', acuse: true },
+  { id: 'tr4', orden: 4, familia: 'equipacion', titulo: 'Pedido del pack de ropa deportiva · jugador/a FBM',
+    destino: { kind: 'url', url: 'https://www.cbjasport.com/product-page/pack-jugador-fbm-temporada-26-27' },
+    para: { roles: ['padre', 'jugador'], excluye_segments: ['escuelas'] },
+    temporada: '2026-27', acuse: false },
+  { id: 'tr5', orden: 5, familia: 'equipacion', titulo: 'Pedido de equipación · escuelas',
+    destino: { kind: 'url', url: 'https://www.cbjasport.com/product-page/equipaci%C3%B3n-escuelas-2026-2027' },
+    para: { roles: ['padre', 'jugador'], segments: ['escuelas'] },
+    temporada: '2026-27', acuse: false },
+  { id: 'tr6', orden: 6, familia: 'equipacion', titulo: 'Cambio de ropa deportiva',
+    nota: 'Solo jugadores de federación (FBM).',
+    destino: { kind: 'url', url: 'https://www.cognitoforms.com/CBJAA/CambioRopa' },
+    para: { roles: ['padre', 'jugador'], excluye_segments: ['escuelas'] },
+    temporada: '2026-27', acuse: false },
+  { id: 'tr7', orden: 7, familia: 'equipacion', titulo: 'Ropa deportiva de entrenador/a',
+    destino: { kind: 'url', url: 'https://www.cognitoforms.com/CBJAA/RopaEntrenador20262027' },
+    para: { roles: ['entrenador', 'preparador_fisico', 'coord_pf', 'delegado_equipo', 'delegado_campo'] },
+    temporada: '2026-27', acuse: false },
+  { id: 'tr8', orden: 8, familia: 'licencia', titulo: 'Firmar la licencia deportiva FBM',
+    destino: { kind: 'url', url: 'https://gesdeportiva.fbm.es/federado/' },
+    para: { roles: ['padre', 'jugador'], excluye_segments: ['escuelas'] },
+    temporada: '2026-27', acuse: true },
+  { id: 'tr10', orden: 8, familia: 'inscripcion', titulo: 'Ficha de delegado/a de campo',
+    nota: 'Obligatorio para poder cobrar.',
+    destino: { kind: 'url', url: 'https://www.cognitoforms.com/CBJAA/FichaDelegadoDeCampo' },
+    para: { roles: ['delegado_campo'] }, temporada: '2026-27', acuse: true },
+  { id: 'tr9', orden: 9, familia: 'licencia', titulo: 'Manual para firmar la licencia FBM',
+    nota: 'Guía paso a paso. No hay que devolver nada.',
+    destino: { kind: 'url', url: 'https://clubbaloncestojuandeaustria-my.sharepoint.com/:b:/g/personal/antonio_rubio_cbjaalcala_com/IQBZKuXhZT1kRakIh7uwfGH1AYJHFNY000j6jeAeCHYTz_8?e=LJl8oP' },
+    para: { roles: ['padre', 'jugador', 'staff'], excluye_segments: ['escuelas'] },
+    temporada: '2026-27', acuse: false }
+];
+
+/* ¿Le toca a esta persona? El contexto es siempre el mismo objeto, venga de un
+   rol de staff o del portal de una familia: asi la regla se escribe una vez.
+     ctx = { rol, segment, esStaff } */
+SF.tramiteAplica = function (t, ctx) {
+  var pa = t.para || {};
+  var roles = pa.roles || [];
+  if ((pa.excluye_roles || []).indexOf(ctx.rol) >= 0) return false;
+  if (roles.length) {
+    var ok = roles.indexOf(ctx.rol) >= 0 || (roles.indexOf('staff') >= 0 && ctx.esStaff);
+    if (!ok) return false;
+  }
+  /* El segmento solo filtra a quien TIENE segmento: una familia es de
+     escuelas o de federacion, pero un administrativo no es de ninguno y no
+     puede quedarse fuera de su propia ficha de cobro por eso. */
+  if (ctx.segment) {
+    if ((pa.segments || []).length && pa.segments.indexOf(ctx.segment) < 0) return false;
+    if ((pa.excluye_segments || []).length && pa.excluye_segments.indexOf(ctx.segment) >= 0) return false;
+  }
+  return true;
+};
+
+/* Dos temporadas escritas de distinta manera pueden ser la misma: "2026-27",
+   "2026/2027" y "202627" son el mismo curso. Se comparan por los años, no por
+   el texto, porque cada sitio del club lo escribe a su gusto. */
+SF.mismaTemporada = function (a, b) {
+  var A = SF.anyosTemporada(a), B = SF.anyosTemporada(b);
+  if (!A || !B) return String(a || '') === String(b || '');
+  return A.a1 === B.a1 && A.a2 === B.a2;
+};
+
+SF.tramitesPara = function (ctx) {
+  var hoy = SF.hoyISO();
+  return SF.store.tramites().filter(function (t) {
+    /* Solo la temporada en curso. Al preparar el año siguiente conviven las
+       dos listas en Configuración, y sin este filtro la familia veria la
+       inscripción por duplicado sin saber cuál de las dos es la buena. */
+    if (t.temporada && !SF.mismaTemporada(t.temporada, SF.SEASON)) return false;
+    if (t.desde && hoy < t.desde) return false;
+    if (t.hasta && hoy > t.hasta) return false;
+    return SF.tramiteAplica(t, ctx);
+  }).sort(function (a, b) { return (a.orden || 99) - (b.orden || 99); });
+};
+
+/* El contexto de quien esta mirando ahora mismo. */
+SF.ctxTramite = function (p, rolForzado) {
+  /* `rolForzado` sirve para mirar los tramites CON LOS OJOS DE OTRO: en la
+     pestaña Documentos del jugador, el administrativo necesita ver lo que le
+     toca a la familia, no lo que le toca a el. */
+  var rk = rolForzado || SF.store.role();
+  var esStaff = ['padre', 'jugador'].indexOf(rk) < 0;
+  var seg = null;
+  if (p) {
+    var t = p.team_id ? SF.store.teamGet(p.team_id) : null;
+    seg = t ? t.segment : null;
+  }
+  return { rol: rk, segment: seg, esStaff: esStaff, player_id: p ? p.id : null };
+};
+
+SF.tramiteFamiliaLabel = function (k) {
+  var f = (SF.TRAMITE_FAMILIAS || []).filter(function (x) { return x.k === k; })[0];
+  return f ? f.label : 'Otros';
+};
+
+/* Cambiar el año de temporada en un texto.
+
+   El club escribe el año de muchas maneras y todas conviven en la misma lista:
+   "2026-27" en el titulo, "temporada-26-27" en una url de la tienda,
+   "FichaDeTecnicos202627" y "RopaEntrenador20262027" en dos formularios del
+   mismo proveedor, y "2026CBJA2027" en la contraseña. Si al duplicar la
+   temporada solo se cambia una de esas formas, el resto de enlaces siguen
+   apuntando al año pasado y nadie se entera hasta que una familia llama.
+
+   Se sustituyen todas las formas de una sola pasada -de la mas larga a la mas
+   corta- para que lo ya cambiado no se vuelva a cambiar: si primero se pusiera
+   2027 donde habia 2026 y luego se repasara el texto, ese 2027 acabaria siendo
+   2028. Aun asi el tramite copiado queda marcado "para revisar": esto acierta
+   casi siempre, pero el enlace nuevo puede no existir todavia. */
+SF.anyosTemporada = function (temp) {
+  var m = String(temp || '').match(/^(\d{4})\s*[-\/_]?\s*(\d{2,4})$/);
+  if (!m) return null;
+  var a1 = parseInt(m[1], 10);
+  var a2 = m[2].length === 4 ? parseInt(m[2], 10) : (Math.floor(a1 / 100) * 100 + parseInt(m[2], 10));
+  if (a2 < a1) a2 += 100;
+  return { a1: a1, a2: a2 };
+};
+SF.reemplazaTemporada = function (txt, deTemp, aTemp) {
+  if (!txt) return txt;
+  var A = SF.anyosTemporada(deTemp), B = SF.anyosTemporada(aTemp);
+  if (!A || !B) return txt;
+  var dd = function (n) { return String(n % 100 < 10 ? '0' + (n % 100) : n % 100); };
+  var pares = [], seps = ['-', '/', '_', ''];
+  seps.forEach(function (s) {
+    pares.push([A.a1 + s + A.a2, B.a1 + s + B.a2]);          /* 2026-2027 */
+    pares.push([A.a1 + s + dd(A.a2), B.a1 + s + dd(B.a2)]);  /* 2026-27   */
+    pares.push([dd(A.a1) + s + dd(A.a2), dd(B.a1) + s + dd(B.a2)]); /* 26-27 */
+  });
+  pares.push(['' + A.a1, '' + B.a1]);
+  pares.push(['' + A.a2, '' + B.a2]);
+  /* Sin duplicados y de mas larga a mas corta. */
+  var vistos = {}, lista = [];
+  pares.forEach(function (p) { if (!vistos[p[0]]) { vistos[p[0]] = p[1]; lista.push(p[0]); } });
+  lista.sort(function (a, b) { return b.length - a.length; });
+  var re = new RegExp(lista.map(function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|'), 'g');
+  return String(txt).replace(re, function (m) { return vistos[m]; });
+};
+
 /* ===================== SESIONES DE ENTRENAMIENTO =====================
    La biblioteca de ejercicios y el plan de cada sesion.
 
@@ -7243,6 +7474,81 @@ SF.store = (function () {
     },
     pf: function () { return db().pf || []; },
 
+    /* --- TRAMITES DEL CLUB --- */
+    tramites: function () {
+      var d = db();
+      if (!d.tramites) { d.tramites = JSON.parse(JSON.stringify(SF.TRAMITES_BASE || [])); save(d); }
+      return d.tramites;
+    },
+    tramiteGet: function (id) {
+      return this.tramites().filter(function (x) { return x.id === id; })[0] || null;
+    },
+    tramiteSet: function (datos) {
+      var d = db(); d.tramites = this.tramites();
+      var x = datos.id ? d.tramites.filter(function (y) { return y.id === datos.id; })[0] : null;
+      if (!x) {
+        x = { id: 'tr' + Date.now(), orden: d.tramites.length + 1 };
+        d.tramites.push(x);
+      }
+      ['titulo', 'nota', 'familia', 'destino', 'para', 'temporada', 'desde', 'hasta',
+       'acuse', 'orden', 'secreto', 'secreto_label', 'revisar'].forEach(function (k) {
+        if (datos[k] !== undefined) x[k] = datos[k];
+      });
+      save(d); return x;
+    },
+    tramiteQuitar: function (id) {
+      var d = db();
+      d.tramites = this.tramites().filter(function (x) { return x.id !== id; });
+      d.tramites_hechos = (d.tramites_hechos || []).filter(function (x) { return x.tramite_id !== id; });
+      save(d);
+    },
+    /* Duplicar la temporada. Es el trabajo anual que hoy se hace reescribiendo
+       la lista entera a mano: se copian los tramites cambiando el año en el
+       titulo y en la url, y se limpian los acuses -lo que hizo una familia el
+       año pasado no vale para este-. */
+    tramitesDuplicar: function (deTemp, aTemp) {
+      var d = db(); d.tramites = this.tramites();
+      var origen = d.tramites.filter(function (x) { return (x.temporada || '') === deTemp; });
+      if (!origen.length) return 0;
+      var t = Date.now(), n = 0;
+      origen.forEach(function (x, i) {
+        var c = JSON.parse(JSON.stringify(x));
+        c.id = 'tr' + (t + i);
+        c.temporada = aTemp;
+        c.orden = (x.orden || 99);
+        /* El año vive en el titulo, dentro de la url, en la nota y hasta en la
+           contraseña, y cada sitio lo escribe a su manera. SF.reemplazaTemporada
+           se encarga de todas las formas; el tramite queda marcado para revisar
+           porque el enlace nuevo puede no existir todavia. */
+        var R = function (v) { return SF.reemplazaTemporada(v, deTemp, aTemp); };
+        c.titulo = R(c.titulo);
+        if (c.nota) c.nota = R(c.nota);
+        if (c.secreto) c.secreto = R(c.secreto);
+        if (c.destino && c.destino.url) c.destino.url = R(c.destino.url);
+        c.revisar = true;
+        d.tramites.push(c); n++;
+      });
+      save(d); return n;
+    },
+
+    tramitesHechos: function () { return db().tramites_hechos || []; },
+    tramiteHecho: function (tramiteId, quienKind, quienId) {
+      return (db().tramites_hechos || []).filter(function (x) {
+        return x.tramite_id === tramiteId && x.quien_kind === quienKind && x.quien_id === quienId;
+      })[0] || null;
+    },
+    tramiteMarcar: function (tramiteId, quienKind, quienId, hecho, quien) {
+      var d = db(); d.tramites_hechos = d.tramites_hechos || [];
+      d.tramites_hechos = d.tramites_hechos.filter(function (x) {
+        return !(x.tramite_id === tramiteId && x.quien_kind === quienKind && x.quien_id === quienId);
+      });
+      if (hecho) {
+        d.tramites_hechos.push({ tramite_id: tramiteId, quien_kind: quienKind, quien_id: quienId,
+          at: new Date().toISOString(), por: (quien || {}).name || '' });
+      }
+      save(d);
+    },
+
     /* --- EJERCICIOS Y PLANES DE SESION --- */
     ejercicios: function () {
       var d = db();
@@ -9203,17 +9509,41 @@ window.SF = window.SF || {};
     view.appendChild(cols);
   }
 
+  /* Los tramites van al final de CUALQUIER muro, sea el de quien sea. Se
+     engancha aqui y no dentro de cada variante porque son cinco muros
+     distintos y el dia que se cree el sexto nadie se acordaria. */
+  function conTramites(view, fn) {
+    var r = fn ? fn(view) : null;
+    var caja = bloqueTramites(SF.ctxTramite(null));
+    if (caja) view.appendChild(caja);
+    return r;
+  }
+
+  /* Dónde sale el bloque: en EL MURO de cada rol, que no es el mismo para
+     todos. Un entrenador no tiene Inicio -su pantalla es Mi equipo- y un
+     delegado no tiene ninguna de las dos, así que su sitio es Mi ficha. Sin
+     esta regla, el delegado de campo nunca vería la ficha que le pide el club
+     para poder cobrar, que es justo el caso que hay que resolver. */
+  function tramitesAqui(view, ruta) {
+    var nav = (role().nav || []);
+    var suyo = nav.indexOf('inicio') >= 0 ? 'inicio'
+             : (nav.indexOf('mi-equipo') >= 0 ? 'mi-equipo' : 'mi-ficha');
+    if (ruta !== suyo) return;
+    var caja = bloqueTramites(SF.ctxTramite(null));
+    if (caja) view.appendChild(caja);
+  }
+
   pages.inicio = function (view) {
     var rk = SF.store.role();
-    if (rk === 'scout') return inicioScout(view);
-    if (rk === 'entrenador') return inicioEntrenador(view);
-    if (rk === 'administrativo') return inicioAdministrativo(view);
+    if (rk === 'scout') { inicioScout(view); return tramitesAqui(view, 'inicio'); }
+    if (rk === 'entrenador') { inicioEntrenador(view); return tramitesAqui(view, 'inicio'); }
+    if (rk === 'administrativo') { inicioAdministrativo(view); return tramitesAqui(view, 'inicio'); }
     /* SOLO el sanitario, no todo "salud". El preparador fisico tambien puede
        tocar la disponibilidad, pero su dia es otro: pasa lista de sus sesiones
        y necesita su cuadrante, asi que se queda en el Inicio general —que ya
        le da su foco de lesionados— y no aterriza aqui. Lo que distingue al
        fisioterapeuta es `canSeeMedical`: es el unico sanitario del club. */
-    if (role().canSetAvailability && role().canSeeMedical && !role().canSeeFinance) return inicioSalud(view);
+    if (role().canSetAvailability && role().canSeeMedical && !role().canSeeFinance) { inicioSalud(view); return tramitesAqui(view, 'inicio'); }
     /* Las direcciones tecnicas usaban su propio muro: tres tarjetas que no se
        podian pulsar y una lista de equipos. Ademas contaba "sin evaluar" mirando
        el registro de evaluaciones mientras el resto de la app mira el Scout
@@ -9825,6 +10155,8 @@ window.SF = window.SF || {};
 
     cols.appendChild(lado);
     view.appendChild(cols);
+
+    tramitesAqui(view, 'inicio');
   };
 
   /* Saludo según la hora real, no uno fijo: a las nueve de la noche
@@ -10894,6 +11226,55 @@ window.SF = window.SF || {};
         resumen.appendChild(el('<p><b>' + (docs.length - pend.length) + ' de ' + docs.length + '</b> entregados' +
           (venc.length ? ' · <span class="tag tag-danger">' + venc.length + ' fuera de plazo</span>' : '') + '</p>'));
         body.appendChild(resumen);
+
+        /* --- LICENCIA FEDERATIVA ---
+           La pantalla de Licencias contesta "¿cuántos me quedan?" para todo el
+           club. Aquí la pregunta es la otra, la que se hace con la familia
+           delante: "¿a ESTE jugador qué le falta y dónde se firma?". Son los
+           mismos 8 requisitos, pero al lado del enlace real de la federación y
+           del acuse de esta familia, no del recuento general. */
+        (function () {
+          var pendLic = SF.licenciaPend(p);
+          var caja = el('<div class="card tram-caja"></div>');
+          caja.appendChild(el('<div class="tram-top"><b>Licencia federativa ' + esc(SF.SEASON) + '</b>' +
+            (pendLic.length ? '<span class="tag tag-warn">' + pendLic.length + ' dato' +
+              (pendLic.length === 1 ? '' : 's') + ' por completar</span>'
+              : '<span class="tag tag-green">datos listos</span>') + '</div>'));
+          if (pendLic.length) {
+            var ml = el('<div class="mini-list"></div>');
+            pendLic.forEach(function (r2) {
+              ml.appendChild(el('<div class="mini-row"><span><b>' + esc(r2.label) + '</b>' +
+                (r2.nota ? '<br><span class="hint">' + esc(r2.nota) + '</span>' : '') + '</span></div>'));
+            });
+            caja.appendChild(ml);
+            caja.appendChild(el('<p class="hint">Sin estos datos la federación no deja terminar la ficha. ' +
+              'Se completan en <b>Perfil</b>.</p>'));
+          } else {
+            caja.appendChild(el('<p class="hint">Están los 8 datos que pide la federación. ' +
+              'En <b>Licencias</b> se pueden copiar en bloque para pegarlos en la intranet.</p>'));
+          }
+          body.appendChild(caja);
+
+          /* El trámite de firma, siempre con los ojos de la familia: el enlace
+             que se le manda y si ya lo ha hecho. Lo marca quien lo hace -la
+             familia- o quien lo comprueba -administración-; el director técnico
+             lo consulta y no lo toca, porque el acuse dice quién lo hizo y
+             mentirlo lo deja sin valor. */
+          var esFamilia = ['padre', 'jugador'].indexOf(SF.store.role()) >= 0;
+          var ctxL = SF.ctxTramite(p, 'padre');
+          var cajaT = bloqueTramites(ctxL, {
+            familias: ['licencia'], quienKind: 'familia', quienId: p.id,
+            titulo: 'Dónde se firma',
+            acuseLabel: esFamilia ? 'Ya está' : 'La familia ya lo hizo',
+            sinAcuse: !(puedeGestionar || esFamilia),
+            nota: esFamilia
+              ? 'Se firma en la web de la federación. Marcarlo aquí le ahorra al club la llamada de comprobación.'
+              : (puedeGestionar
+                ? 'Es el mismo enlace que recibe la familia. Marcarlo aquí evita la ronda de llamadas de septiembre.'
+                : 'Lo firma la familia. Aquí solo se consulta.')
+          });
+          if (cajaT) body.appendChild(cajaT);
+        })();
 
         Object.keys(grupos).forEach(function (g) {
           body.appendChild(el('<p class="sec-label">' + esc(g) + '</p>'));
@@ -12601,6 +12982,324 @@ window.SF = window.SF || {};
       n += roster.length;
     }
     return n;
+  }
+
+  /* ===================== TRAMITES: EL BLOQUE QUE SE VE =====================
+     Un solo componente para los tres sitios donde asoma —el muro del staff, el
+     Portal Family y el del jugador—, porque la pregunta es la misma en los
+     tres: "¿qué me toca hacer a mí?". Escribirlo tres veces seria garantizar
+     que un dia digan tres cosas distintas. */
+  function bloqueTramites(ctx, opts) {
+    opts = opts || {};
+    var lista = SF.tramitesPara(ctx);
+    if (opts.familias) lista = lista.filter(function (t) { return opts.familias.indexOf(t.familia) >= 0; });
+    if (!lista.length) return null;
+
+    var quienKind = opts.quienKind ||
+      (ctx.rol === 'padre' ? 'familia' : (ctx.rol === 'jugador' ? 'jugador' : 'staff'));
+    var me = SF.store.staffMe();
+    var quienId = opts.quienId ||
+      (quienKind === 'staff' ? (me ? me.id : 'staff') : (ctx.player_id || '—'));
+    var yo = SF.store.currentUser();
+
+    function hecho(t) { return SF.store.tramiteHecho(t.id, quienKind, quienId); }
+    var conAcuse = lista.filter(function (t) { return t.acuse; });
+    var pend = conAcuse.filter(function (t) { return !hecho(t); });
+
+    var caja = el('<div class="' + (opts.compacto ? 'ph-card' : 'card') + ' tram-caja"></div>');
+    caja.appendChild(el('<div class="tram-top"><b>' + (opts.titulo || 'Lo que te toca hacer') + '</b>' +
+      (pend.length ? '<span class="tag tag-warn">' + pend.length + ' sin hacer</span>'
+        : (conAcuse.length ? '<span class="tag tag-green">al día</span>' : '')) + '</div>'));
+
+    var l = el('<div class="tram-list"></div>');
+    lista.forEach(function (t) {
+      var h = hecho(t);
+      var fila = el('<div class="tram-f' + (h ? ' es-hecho' : '') + '">' +
+        '<span class="tram-fam">' + esc(SF.tramiteFamiliaLabel(t.familia)) + '</span>' +
+        '<span class="tram-b"><b>' + esc(t.titulo) + '</b>' +
+        (t.nota ? '<span class="tram-nota">' + esc(t.nota) + '</span>' : '') +
+        (t.secreto ? '<span class="tram-sec">' + esc(t.secreto_label || 'Clave') + ': <code>' +
+          esc(t.secreto) + '</code></span>' : '') +
+        (h ? '<span class="hint">Hecho el ' + esc(fmtDate((h.at || '').slice(0, 10))) + '</span>' : '') +
+        '</span><span class="tram-acc"></span></div>');
+      var acc = fila.querySelector('.tram-acc');
+
+      var d = t.destino || {};
+      if (d.kind === 'url' && d.url) {
+        /* Se abre fuera y se dice que se abre fuera. `noopener` no es un detalle:
+           sin el, la pagina de destino puede manipular la nuestra. */
+        var a = el('<a class="btn btn-sm ' + (h ? 'btn-light' : 'btn-primary') + '" target="_blank" rel="noopener noreferrer" href="' +
+          esc(d.url) + '">Abrir ' + ico('arrow') + '</a>');
+        acc.appendChild(a);
+      } else if (d.kind === 'ruta' && d.ruta) {
+        var b2 = el('<button class="btn btn-sm btn-primary">Abrir</button>');
+        b2.onclick = function () { location.hash = d.ruta; };
+        acc.appendChild(b2);
+      }
+
+      if (t.acuse && !opts.sinAcuse) {
+        var bh = el('<button class="btn btn-light btn-sm">' +
+          (h ? 'Deshacer' : (opts.acuseLabel || 'Ya está')) + '</button>');
+        bh.onclick = function () {
+          SF.store.tramiteMarcar(t.id, quienKind, quienId, !h, yo);
+          U.toast(h ? 'Marcado como pendiente' : 'Marcado como hecho');
+          SF.router.render();
+        };
+        acc.appendChild(bh);
+      }
+      l.appendChild(fila);
+    });
+    caja.appendChild(l);
+    if (opts.nota) caja.appendChild(el('<p class="hint">' + opts.nota + '</p>'));
+    else if (conAcuse.length && !opts.sinAcuse) {
+      caja.appendChild(el('<p class="hint">«Ya está» es para ti y para el club: así sabemos quién lo ha ' +
+        'hecho sin tener que preguntar uno a uno. El formulario sigue siendo el de siempre.</p>'));
+    }
+    return caja;
+  }
+
+  /* ---------- ADMINISTRAR LOS TRAMITES ----------
+     Vive en Configuración, con el mismo patrón que pabellones y franjas. */
+  function modalTramites() {
+    var box = el('<div></div>');
+    var res = el('<div></div>');
+
+    function pinta() {
+      res.innerHTML = '';
+      var lista = SF.store.tramites().slice().sort(function (a, b) { return (a.orden || 99) - (b.orden || 99); });
+      var temps = [];
+      lista.forEach(function (t) { if (temps.indexOf(t.temporada || '—') < 0) temps.push(t.temporada || '—'); });
+
+      if (!lista.length) {
+        res.appendChild(el('<div class="empty-panel"><p>No hay trámites.</p></div>'));
+        return;
+      }
+      temps.sort().reverse().forEach(function (tp) {
+        /* Decir cuál es la que se está publicando ahora evita el error clásico
+           de preparar el año que viene y creer que ya se ve. */
+        var activa = SF.mismaTemporada(tp, SF.SEASON);
+        res.appendChild(el('<p class="sec-label">Temporada ' + esc(tp) +
+          (activa ? ' <span class="tag tag-green">en curso</span>'
+                  : ' <span class="tag tag-gray">preparada, aún no se ve</span>') + '</p>'));
+        var l = el('<div class="mini-list"></div>');
+        lista.filter(function (t) { return (t.temporada || '—') === tp; }).forEach(function (t) {
+          var d = t.destino || {};
+          var quien = (t.para || {}).roles || [];
+          var fila = el('<div class="mini-row"><span><b>' + esc(t.titulo) + '</b>' +
+            (t.revisar ? ' <span class="tag tag-warn">revisar</span>' : '') +
+            (t.acuse ? ' <span class="tag tag-purple">con acuse</span>' : '') +
+            '<br><span class="hint">' + esc(SF.tramiteFamiliaLabel(t.familia)) + ' · ' +
+            (quien.length ? esc(quien.join(', ')) : 'todos') +
+            ((t.para || {}).segments && t.para.segments.length ? ' · solo ' + esc(t.para.segments.join(', ')) : '') +
+            ((t.para || {}).excluye_segments && t.para.excluye_segments.length ? ' · salvo ' + esc(t.para.excluye_segments.join(', ')) : '') +
+            '</span>' +
+            (d.url ? '<br><span class="hint tram-url">' + esc(d.url) + '</span>' : '') +
+            '</span><span class="row-actions"></span></div>');
+          var acc = fila.querySelector('.row-actions');
+          if (t.acuse) {
+            var bq = el('<button class="lnk">Quién falta</button>');
+            bq.onclick = function () { modalQuienFalta(t); };
+            acc.appendChild(bq);
+          }
+          var be = el('<button class="lnk">Editar</button>');
+          be.onclick = function () { formTramite(t, pinta); };
+          acc.appendChild(be);
+          l.appendChild(fila);
+        });
+        res.appendChild(l);
+      });
+    }
+
+    var barra = el('<div class="row-c" style="margin-bottom:12px"></div>');
+    var bN = el('<button class="btn btn-primary btn-sm">' + ico('plus') + 'Nuevo trámite</button>');
+    bN.onclick = function () { formTramite(null, pinta); };
+    var bD = el('<button class="btn btn-light btn-sm">Duplicar a otra temporada</button>');
+    bD.onclick = function () { formDuplicar(pinta); };
+    barra.appendChild(bN); barra.appendChild(bD);
+
+    box.appendChild(el('<p class="hint">Lo que cada persona tiene que hacer: inscripciones, pedidos de ' +
+      'equipación, la licencia federativa. Hoy la mayoría son enlaces a webs de fuera, y está bien: ' +
+      'lo que hace la app es <b>enseñarle a cada uno solo los suyos</b> y saber quién los ha hecho.</p>'));
+    box.appendChild(barra);
+    box.appendChild(res);
+    pinta();
+    U.modal('Trámites del club', box);
+  }
+
+  function formTramite(t, alTerminar) {
+    var nuevo = !t;
+    t = t || { familia: 'otro', destino: { kind: 'url' }, para: { roles: [] }, acuse: true,
+      temporada: SF.store.tramites()[0] ? SF.store.tramites()[0].temporada : '' };
+    var pa = t.para || {};
+    var box = el('<div></div>');
+    function sel(v, val) { return String(v) === String(val) ? ' selected' : ''; }
+
+    box.appendChild(el('<div class="form-grid">' +
+      '<div class="frow" style="grid-column:1/-1"><label>Qué hay que hacer</label>' +
+      '<input id="tt" value="' + esc(t.titulo || '') + '" placeholder="Inscripción de jugador/a FBM"></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Nota <span class="hint">una línea; se lee debajo del título</span></label>' +
+      '<input id="tn" value="' + esc(t.nota || '') + '" placeholder="Obligatorio para poder cobrar."></div>' +
+      '<div class="frow"><label>Familia</label><select id="tf">' +
+      (SF.TRAMITE_FAMILIAS || []).map(function (f) {
+        return '<option value="' + f.k + '"' + sel(f.k, t.familia) + '>' + esc(f.label) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="frow"><label>Temporada</label><input id="tp" value="' + esc(t.temporada || '') + '" placeholder="2026-27"></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Enlace</label>' +
+      '<input id="tu" value="' + esc((t.destino || {}).url || '') + '" placeholder="https://…"></div>' +
+      '<div class="frow"><label>Visible desde</label><input id="td" type="date" value="' + esc(t.desde || '') + '"></div>' +
+      '<div class="frow"><label>Hasta</label><input id="th" type="date" value="' + esc(t.hasta || '') + '"></div>' +
+      '</div>'));
+
+    box.appendChild(el('<p class="sec-label">A quién le toca</p>'));
+    var zr = el('<div class="row-c eq-filtros" style="margin-bottom:8px"></div>');
+    var roles = (pa.roles || []).slice();
+    var OPC = [['padre', 'Familias'], ['jugador', 'Jugadores'], ['staff', 'Todo el personal']]
+      .concat(SF.rolesOrdenados().filter(function (k) { return ['padre', 'jugador'].indexOf(k) < 0; })
+        .map(function (k) { return [k, SF.rolDe(k).label]; }));
+    OPC.forEach(function (o) {
+      var b = el('<button class="eq-chip eq-chip-sm' + (roles.indexOf(o[0]) >= 0 ? ' on' : '') + '">' + esc(o[1]) + '</button>');
+      b.onclick = function () {
+        var i = roles.indexOf(o[0]);
+        if (i >= 0) roles.splice(i, 1); else roles.push(o[0]);
+        b.classList.toggle('on');
+      };
+      zr.appendChild(b);
+    });
+    box.appendChild(zr);
+    box.appendChild(el('<p class="hint" style="margin-top:-4px">Sin marcar nada, le toca a todo el mundo.</p>'));
+
+    /* El corte de federación contra escuelas es el que de verdad usa el club. */
+    box.appendChild(el('<p class="sec-label">Solo para</p>'));
+    var seg = el('<select id="ts" style="max-width:320px">' +
+      '<option value=""' + (!(pa.segments || []).length && !(pa.excluye_segments || []).length ? ' selected' : '') + '>Todos los segmentos</option>' +
+      '<option value="fbm"' + ((pa.excluye_segments || []).indexOf('escuelas') >= 0 ? ' selected' : '') + '>Solo federación (FBM) — no escuelas</option>' +
+      '<option value="escuelas"' + ((pa.segments || []).indexOf('escuelas') >= 0 ? ' selected' : '') + '>Solo escuelas</option>' +
+      '</select>');
+    box.appendChild(seg);
+
+    box.appendChild(el('<label class="chk" style="margin-top:14px"><input type="checkbox" id="ta"' +
+      (t.acuse ? ' checked' : '') + '> <span>Quiero saber quién lo ha hecho</span></label>'));
+    box.appendChild(el('<p class="hint">Añade el botón «Ya está» y la lista de quién falta. Para un pedido de ' +
+      'ropa no hace falta; para una inscripción, sí.</p>'));
+
+    /* La contraseña. Se guarda porque hoy el club la reparte igualmente, pero
+       se dice lo que es: un dato que viaja en una lista reenviada no es un
+       secreto, y esto mejora el reparto, no la seguridad. */
+    box.appendChild(el('<div class="frow" style="margin-top:14px"><label>Clave de acceso ' +
+      '<span class="hint">si la web de destino la pide</span></label>' +
+      '<input id="tk" value="' + esc(t.secreto || '') + '"></div>'));
+    box.appendChild(el('<p class="hint">Solo se le enseña a quien le toca el trámite. Aun así: una clave ' +
+      'compartida que se reenvía no es un secreto — lo que de verdad lo arregla es que esa web pida ' +
+      'identificación por persona.</p>'));
+
+    var foot = el('<div class="modal-actions"></div>');
+    if (!nuevo) {
+      var bD = el('<button class="btn btn-light">Quitar</button>');
+      bD.onclick = function () {
+        SF.store.tramiteQuitar(t.id); U.closeModal(); U.toast('Trámite quitado'); SF.router.render();
+      };
+      foot.appendChild(bD);
+    }
+    var bC = el('<button class="btn">Cancelar</button>'); bC.onclick = function () { modalTramites(); };
+    var bG = el('<button class="btn btn-primary">' + (nuevo ? 'Añadir' : 'Guardar') + '</button>');
+    bG.onclick = function () {
+      var tit = box.querySelector('#tt').value.trim();
+      if (!tit) { U.toast('Ponle un título'); return; }
+      var sv = seg.value;
+      SF.store.tramiteSet({
+        id: t.id, titulo: tit, nota: box.querySelector('#tn').value.trim(),
+        familia: box.querySelector('#tf').value, temporada: box.querySelector('#tp').value.trim(),
+        destino: { kind: 'url', url: box.querySelector('#tu').value.trim() },
+        desde: box.querySelector('#td').value, hasta: box.querySelector('#th').value,
+        para: { roles: roles,
+          segments: sv === 'escuelas' ? ['escuelas'] : [],
+          excluye_segments: sv === 'fbm' ? ['escuelas'] : [] },
+        acuse: !!box.querySelector('#ta').checked,
+        secreto: box.querySelector('#tk').value.trim(),
+        secreto_label: t.secreto_label || 'Contraseña',
+        revisar: false
+      });
+      U.toast(nuevo ? 'Trámite añadido' : 'Guardado');
+      modalTramites();
+    };
+    foot.appendChild(bC); foot.appendChild(bG);
+    box.appendChild(foot);
+    U.modal(nuevo ? 'Nuevo trámite' : 'Editar trámite', box);
+  }
+
+  function formDuplicar() {
+    var temps = [];
+    SF.store.tramites().forEach(function (t) {
+      if (t.temporada && temps.indexOf(t.temporada) < 0) temps.push(t.temporada);
+    });
+    temps.sort().reverse();
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint">Copia los trámites de una temporada a la siguiente y cambia el año ' +
+      'donde lo encuentre, también dentro de los enlaces. Los copiados quedan marcados como ' +
+      '<b>revisar</b>: los formularios de fuera cambian de dirección todos los años y conviene abrirlos ' +
+      'una vez antes de mandárselos a nadie. Los acuses no se copian — lo que hizo una familia el año ' +
+      'pasado no vale para este.</p>'));
+    box.appendChild(el('<div class="form-grid">' +
+      '<div class="frow"><label>Copiar de</label><select id="da">' +
+      temps.map(function (t) { return '<option>' + esc(t) + '</option>'; }).join('') + '</select></div>' +
+      '<div class="frow"><label>A la temporada</label><input id="db" placeholder="2027-28"></div>' +
+      '</div>'));
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+      '<button class="btn btn-primary">Duplicar</button></div>');
+    foot.children[0].onclick = function () { modalTramites(); };
+    foot.children[1].onclick = function () {
+      var a = box.querySelector('#da').value, b2 = box.querySelector('#db').value.trim();
+      if (!b2) { U.toast('Escribe la temporada nueva'); return; }
+      if (a === b2) { U.toast('Son la misma temporada'); return; }
+      var n = SF.store.tramitesDuplicar(a, b2);
+      U.toast(n ? n + ' trámites copiados a ' + b2 : 'No había nada que copiar');
+      modalTramites();
+    };
+    box.appendChild(foot);
+    U.modal('Duplicar a otra temporada', box);
+  }
+
+  /* Quién falta. Es lo que un enlace suelto nunca podrá decir. */
+  function modalQuienFalta(t) {
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint">' + esc(t.titulo) + (t.nota ? ' · ' + esc(t.nota) : '') + '</p>'));
+
+    var filas = [];
+    if (((t.para || {}).roles || []).some(function (r) { return r === 'padre' || r === 'jugador'; })) {
+      SF.store.players().forEach(function (p) {
+        var eq = p.team_id ? SF.store.teamGet(p.team_id) : null;
+        var ctx = { rol: 'padre', segment: eq ? eq.segment : null, esStaff: false, player_id: p.id };
+        if (!SF.tramiteAplica(t, ctx)) return;
+        filas.push({ nombre: p.full_name, donde: eq ? eq.name : 'sin equipo',
+          h: SF.store.tramiteHecho(t.id, 'familia', p.id) });
+      });
+    }
+    if (((t.para || {}).roles || []).some(function (r) { return r === 'staff' || SF.ROLES[r]; })) {
+      SF.store.staff().forEach(function (sf) {
+        var ctx = { rol: sf.role, segment: null, esStaff: true };
+        if (!SF.tramiteAplica(t, ctx)) return;
+        filas.push({ nombre: sf.full_name, donde: (SF.rolDe(sf.role) || {}).label || sf.role,
+          h: SF.store.tramiteHecho(t.id, 'staff', sf.id) });
+      });
+    }
+
+    var hechos = filas.filter(function (x) { return x.h; }).length;
+    box.appendChild(el('<div class="tempn">' +
+      '<div><b>' + hechos + '</b><span>lo han hecho</span></div>' +
+      '<div><b>' + (filas.length - hechos) + '</b><span>faltan</span></div>' +
+      '<div><b>' + filas.length + '</b><span>a quien le toca</span></div></div>'));
+
+    var l = el('<div class="mini-list" style="max-height:46vh;overflow:auto"></div>');
+    filas.sort(function (a, b) { return (a.h ? 1 : 0) - (b.h ? 1 : 0) || a.nombre.localeCompare(b.nombre); })
+      .forEach(function (x) {
+        l.appendChild(el('<div class="mini-row"><span><b>' + esc(x.nombre) + '</b><br>' +
+          '<span class="hint">' + esc(x.donde) + '</span></span><span class="row-actions">' +
+          (x.h ? '<span class="tag tag-green">hecho</span>' : '<span class="tag tag-warn">falta</span>') +
+          '</span></div>'));
+      });
+    if (!filas.length) l.appendChild(el('<div class="mini-row"><span class="hint">A nadie del club le toca este trámite. Revisa a quién va dirigido.</span></div>'));
+    box.appendChild(l);
+    U.modal('Quién falta', box);
   }
 
   /* ===================== SESIONES DE ENTRENAMIENTO =====================
@@ -17024,6 +17723,22 @@ window.SF = window.SF || {};
        Motivo: lo lleva tambien administracion, y Configuracion tiene el boton
        rojo de "Restablecer datos", que borra el club entero. Abrirle esa
        puerta para que pueda tocar precios seria pagar demasiado por ello. */
+    /* Los tramites del club. Van aqui y no en una seccion propia porque se
+       tocan una vez por temporada: es configuracion, no trabajo diario. Lo que
+       si es diario es el bloque que sale en el muro de cada uno. */
+    var trs = SF.store.tramites();
+    var trAc = trs.filter(function (t) { return t.acuse; }).length;
+    var cTram = el('<div class="card"><h3>Trámites del club</h3>' +
+      '<p class="hint">Lo que cada persona tiene que hacer: inscripciones, pedidos de equipación, ' +
+      'la licencia federativa. Cada uno ve solo los suyos en su pantalla de inicio.</p>' +
+      '<p class="hint" style="margin-top:6px"><b>' + trs.length + '</b> ' +
+      (trs.length === 1 ? 'trámite' : 'trámites') + ' · <b>' + trAc + '</b> con acuse</p>' +
+      '<div class="row-c"></div></div>');
+    var bTram = el('<button class="btn">' + ico('list') + 'Gestionar los trámites</button>');
+    bTram.onclick = function () { modalTramites(); };
+    cTram.querySelector('.row-c').appendChild(bTram);
+    view.appendChild(cTram);
+
     var pist = el('<div class="card"><h3>Pabellones y horarios</h3>' +
       '<p class="hint">Dónde entrena tu club y en qué franjas. Es lo que dibuja el cuadrante de pistas.</p>' +
       '<div class="row-c"></div></div>');
@@ -17846,6 +18561,13 @@ window.SF = window.SF || {};
         ' desde su propio acceso. Al cumplir 18 dejó de necesitar que alguien consintiera por él.</p>'));
     }
 
+    /* Los tramites, con el contexto de ESTE jugador: el segmento de su equipo
+       decide si le tocan los de federacion o los de escuelas. */
+    var trFam = bloqueTramites({ rol: 'padre', esStaff: false, player_id: p.id,
+      segment: (p.team_id ? (SF.store.teamGet(p.team_id) || {}).segment : null) },
+      { compacto: true, titulo: 'Lo que hay que hacer' });
+    if (trFam) { b.appendChild(el('<p class="ph-sec">Trámites</p>')); b.appendChild(trFam); }
+
     view.appendChild(phone);
   };
 
@@ -18000,6 +18722,7 @@ window.SF = window.SF || {};
     var me = SF.store.staffMe();
     if (!me) { view.innerHTML = head('Mi ficha', '') + '<div class="empty-panel"><p>Tu rol todavía no tiene ficha de staff creada.</p></div>'; return; }
     pages['staff-ficha'](view, me.id, true);
+    tramitesAqui(view, 'mi-ficha');
   };
 
   pages['staff-ficha'] = function (view, id, mine) {
@@ -18596,6 +19319,11 @@ window.SF = window.SF || {};
         ? 'Última vez que lo cambiaste: ' + fmtDate(String(cj.updated_at).slice(0, 10)) + '.'
         : 'Todavía no has cambiado nada: esto es lo que quedó al cumplir los 18.') + '</p>'));
     }
+
+    var trJug = bloqueTramites({ rol: 'jugador', esStaff: false, player_id: p.id,
+      segment: (p.team_id ? (SF.store.teamGet(p.team_id) || {}).segment : null) },
+      { compacto: true, titulo: 'Lo que tienes que hacer' });
+    if (trJug) { b.appendChild(el('<p class="ph-sec">Trámites</p>')); b.appendChild(trJug); }
 
     view.appendChild(phone);
   };
@@ -20162,6 +20890,7 @@ window.SF = window.SF || {};
       });
       view.appendChild(al);
     });
+    tramitesAqui(view, 'mi-equipo');
   };
 
   /* ===================== EL HORARIO DE UN EQUIPO =====================
