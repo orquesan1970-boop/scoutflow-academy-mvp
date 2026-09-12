@@ -1494,6 +1494,19 @@ table.alm td.alm-tot{font-weight:700;background:#F3F1FA}
   padding:2px 6px;border-radius:6px;min-width:24px}
 .alm-b:hover{background:#EEEBFC;color:var(--purple-d)}
 .tram-neg{font-size:12.5px;color:#B4442F;font-weight:600}
+/* La lista de cuerpo tecnico del formulario de equipo: 28 personas no caben en
+   una fila de casillas, y con el rol al lado se elige sin dudar. */
+.chks-st{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 14px;
+  max-height:230px;overflow-y:auto;padding:6px 2px;border:1px solid var(--line);
+  border-radius:10px;background:var(--surface)}
+.chk-st{display:flex;align-items:flex-start;gap:7px;padding:5px 8px;border-radius:8px;font-size:13px}
+.chk-st:hover{background:var(--bg)}
+.chk-st input{margin-top:2px;flex:0 0 auto}
+/* El rol y el aviso de habilitacion caben o parten, pero no se cortan: "Sin
+   habilita..." no dice si esta habilitado o no. */
+.chk-st>span{min-width:0}
+.chk-st .hint{font-size:11.5px}
+.tc-revisar{color:#8A5A00}
 /* --- FILTROS RAPIDOS DE JUGADORES --- */
 .fr-fila{align-items:center;gap:6px}
 .fr-tit{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;
@@ -3763,7 +3776,7 @@ SF.ROLES = {
     label: 'Administrativo',
     nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'documentos', 'tramites', 'tienda', 'licencias', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas', 'equipacion'],
-    canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, canStore: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
+    canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canEditTeams: true, canManageFinance: true, canStore: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
   padre: {
     label: 'Padre / Tutor',
@@ -4730,11 +4743,43 @@ SF.STAFF = [
     experience: [], training: [], cv_file: '' }
 ];
 
-/* La lista de entrenadores que se puede marcar en un equipo sale del propio
-   personal. Estaba escrita a mano con tres nombres y se quedaba corta cada vez
-   que entraba alguien nuevo. */
-SF.COACHES = SF.STAFF.filter(function (s) { return s.role === 'entrenador'; })
-  .map(function (s) { return s.full_name; });
+/* EL CUERPO TECNICO DE UN EQUIPO, y hay UN solo sitio de donde sale: el staff
+   que tiene ese equipo asignado en su ficha. Es la misma lista que usan el
+   cuadrante, las sesiones y el alcance de cada uno para ver jugadores, asi que
+   no puede decir una cosa aqui y otra alli.
+
+   Antes habia una segunda lista, `t.coaches`, con nombres escritos a mano; se
+   volco a la asignacion real en la migracion `_coaches_v1`. Lo que queda de
+   ella es `coaches_sin_casar`: nombres que no correspondian a nadie del club,
+   guardados para que alguien los revise en vez de desaparecer sin avisar. */
+SF.cuerpoTecnico = function (teamId) {
+  return SF.store.staff().filter(function (s) {
+    return (s.team_ids || []).indexOf(teamId) >= 0;
+  }).sort(function (a, b) {
+    /* Primero quien dirige el entrenamiento, luego el resto. En una tarjeta
+       solo caben dos nombres: que sean los que importan. */
+    var o = { entrenador: 0, preparador_fisico: 1, coord_pf: 2, delegado_equipo: 3,
+      delegado_campo: 4, fisio: 5, psicologo: 6 };
+    var da = o[a.role] == null ? 9 : o[a.role], db2 = o[b.role] == null ? 9 : o[b.role];
+    return da - db2 || (a.full_name || '').localeCompare(b.full_name || '');
+  });
+};
+/* Los entrenadores, que es lo que se ensena en una tarjeta. */
+SF.entrenadoresDe = function (teamId) {
+  return SF.cuerpoTecnico(teamId).filter(function (s) { return s.role === 'entrenador'; });
+};
+/* EL CUERPO TECNICO DE CAMPO: quien esta en ese entrenamiento. Las direcciones
+   tecnicas tambien figuran asignadas a equipos -por su cargo, para verlos- pero
+   contarlas en la tarjeta de un equipo hinchaba el numero sin decir nada: un
+   equipo con un entrenador salia como "+5" porque detras estaban el director
+   general, el de rama y tres mas. */
+SF.ROLES_CAMPO = ['entrenador', 'preparador_fisico', 'coord_pf', 'delegado_equipo',
+  'delegado_campo', 'fisio'];
+SF.cuerpoDeCampo = function (teamId) {
+  return SF.cuerpoTecnico(teamId).filter(function (s) {
+    return SF.ROLES_CAMPO.indexOf(s.role) >= 0;
+  });
+};
 
 /* Estado de habilitación para la temporada en curso.
    Sin fila de esta temporada -> NO habilitado. La caducidad es automática. */
@@ -5035,6 +5080,8 @@ SF.CAPACIDADES = [
   { k: 'canPublishMethod',  label: 'Publicar la metodología del club',     grupo: 'Lo que puede hacer' },
   { k: 'canDocs',           label: 'Gestionar documentación y reclamarla', grupo: 'Lo que puede hacer' },
   { k: 'canStore',          label: 'Entregar ropa y mover el almacén',     grupo: 'Lo que puede hacer' },
+  { k: 'canEditTeams',      label: 'Crear y editar equipos (sin borrarlos)', grupo: 'Lo que puede hacer',
+    aviso: 'Incluye cambiar el cuerpo técnico, y eso da o quita acceso a las fichas de los jugadores.' },
   { k: 'canAnnounce',       label: 'Enviar comunicados del club',       grupo: 'Lo que puede hacer' },
   { k: 'canAskCita',        label: 'Pedir cita con salud',              grupo: 'Lo que puede hacer' },
   { k: 'canManageFinance',  label: 'Gestionar cobros y planes de pago', grupo: 'Dinero' },
@@ -5087,6 +5134,7 @@ SF.PERM_KEYS = [
   { key: 'canManageTeams', label: 'Crear y gestionar equipos' },
   { key: 'canDocs', label: 'Gestionar documentación y enviar recordatorios', nav: ['documentos'] },
   { key: 'canStore', label: 'Entregar ropa y mover el almacén', nav: ['tienda'] },
+  { key: 'canEditTeams', label: 'Crear y editar equipos (sin borrarlos)', nav: ['equipos'] },
   { key: 'canAnnounce', label: 'Enviar comunicados del club', nav: ['comunicados'] },
   { key: 'canImportData', label: 'Importar datos de partido', nav: ['importar-datos'] },
   { key: 'canSeeStaff', label: 'Ver el listado de staff', nav: ['staff'] },
@@ -6847,11 +6895,74 @@ SF.store = (function () {
     return m;
   }
 
+  /* EL ESPEJO DE NOMBRES.
+     `team_ids` en la ficha de cada persona es LA fuente de quien lleva un
+     equipo. `t.coaches` es una copia de los nombres de sus entrenadores, que
+     existe porque hay catorce sitios que la leen: el buscador -para encontrar a
+     un jugador por el nombre de su entrenador-, el alcance por compatibilidad,
+     la agenda, el cuadrante.
+
+     La regla: `coaches` NO SE ESCRIBE A MANO EN NINGUN SITIO. Se recalcula
+     aqui, y solo aqui, cada vez que cambia una asignacion. Asi las dos no
+     pueden discrepar: una se deriva de la otra en el momento de escribir.
+
+     Antes si discrepaban, y ademas habia DOS migraciones tirando en direcciones
+     opuestas -una rellenaba los nombres desde el staff y la otra los vaciaba-,
+     asi que el resultado dependia de cual corriera ultima. */
+  function espejoCoaches(d, soloIds) {
+    (d.teams || []).forEach(function (t) {
+      if (soloIds && soloIds.indexOf(t.id) < 0) return;
+      t.coaches = (d.staff || []).filter(function (m) {
+        return m.role === 'entrenador' && (m.team_ids || []).indexOf(t.id) >= 0;
+      }).map(function (m) { return m.full_name; });
+    });
+  }
+
   function migrar(d) {
     if (!d.teams) { d.teams = JSON.parse(JSON.stringify(SF.TEAMS || [])); d.teamSeq = (SF.TEAMS ? SF.TEAMS.length + 1 : 1); write(d); }
     if (!d.expenses) { d.expenses = JSON.parse(JSON.stringify(SF.EXPENSES || [])); write(d); }
     if (!d.staff) { d.staff = JSON.parse(JSON.stringify(SF.STAFF || [])); write(d); }
     if (!d.academy.economy && SF.ACADEMY.economy) { d.academy.economy = JSON.parse(JSON.stringify(SF.ACADEMY.economy)); write(d); }
+    /* OJO CON EL ORDEN: esto va DESPUES de que existan `d.teams` y `d.staff`.
+       Estaba dos lineas mas arriba y en un almacen nuevo corria cuando `d.staff`
+       todavia no existia: no volcaba nada. Un club que entra por primera vez se
+       quedaba con las dos listas sin unificar y sin que nada lo avisara. */
+    /* UNA SOLA VERDAD SOBRE QUIEN LLEVA UN EQUIPO.
+       Habia dos, y eran independientes:
+         · `t.coaches` — una lista de NOMBRES, que es lo que marcaba el
+           formulario de editar equipo y lo que pintaba la tarjeta.
+         · `s.team_ids` — la asignacion REAL de la ficha de staff, que es lo que
+           decide a quien ve cada uno, el cuadrante y las sesiones.
+       Resultado: asignar un entrenador desde la ficha del equipo no cambiaba la
+       tarjeta -de ahi los equipos que decian "Sin entrenador" teniendo gente-,
+       y marcar un nombre en el formulario no le daba acceso a los jugadores.
+       Ademas la lista solo ofrecia el rol `entrenador`: un preparador fisico no
+       se podia poner ahi.
+       Aqui se vuelca: cada nombre se busca en el staff y se le asigna el equipo
+       de verdad. Quien tenia acceso lo conserva y a partir de ahora hay una
+       sola fuente. Lo que no case con nadie del club NO se tira en silencio: se
+       queda en `coaches_sin_casar` para que alguien lo mire. */
+    if (!d._coaches_v1 && d.teams && d.staff) {
+      var porNombre = {};
+      d.staff.forEach(function (sf) { porNombre[(sf.full_name || '').trim().toLowerCase()] = sf; });
+      d.teams.forEach(function (t) {
+        var huerfanos = [];
+        (t.coaches || []).forEach(function (nom) {
+          var sf = porNombre[String(nom || '').trim().toLowerCase()];
+          if (!sf) { huerfanos.push(nom); return; }
+          sf.team_ids = sf.team_ids || [];
+          if (sf.team_ids.indexOf(t.id) < 0) sf.team_ids.push(t.id);
+        });
+        if (huerfanos.length) t.coaches_sin_casar = huerfanos;
+      });
+      /* Y se deja la lista de nombres COMO ESPEJO, recalculada desde la
+         asignacion. No se vacia: hay catorce sitios que leen esos nombres
+         -buscar un jugador por el nombre de su entrenador, entre otros- y
+         vaciarla los rompe en silencio. Lo que se arregla es que deje de ser
+         una SEGUNDA FUENTE: a partir de aqui solo se escribe derivandola. */
+      espejoCoaches(d);
+      d._coaches_v1 = true; write(d);
+    }
     /* Migración: asigna número de ficha a quien no lo tenga, sin borrar datos.
        Así no hay que subir la versión del almacén y nadie pierde su trabajo. */
     if (d.players && d.players.some(function (p) { return p.ficha == null; })) {
@@ -6981,12 +7092,10 @@ SF.store = (function () {
          entrenadores vacía, porque añadir lo que falta nunca pisa lo que hay.
          Aquí se rellena a partir del personal, y SOLO si está vacía: si el
          club ya puso a alguien a mano, esto no lo toca. */
-      (d.teams || []).forEach(function (t) {
-        if ((t.coaches || []).length) return;
-        t.coaches = (d.staff || []).filter(function (m) {
-          return m.role === 'entrenador' && (m.team_ids || []).indexOf(t.id) >= 0;
-        }).map(function (m) { return m.full_name; });
-      });
+      /* Esto rellenaba los nombres desde el staff «solo si estaba vacia», y
+         mi migracion de abajo los vaciaba: dos migraciones peleandose, y ganaba
+         la ultima. Ahora las dos llaman al MISMO espejo y da igual el orden. */
+      espejoCoaches(d);
       d._club_v3 = true;
       write(d);
     }
@@ -7560,10 +7669,18 @@ SF.store = (function () {
         }]);
         return next;
       });
+      /* La ficha de staff tambien puede cambiar sus equipos, asi que el espejo
+         se recalcula aqui tambien. Es el tercer sitio: por eso la funcion esta
+         fuera y no copiada tres veces. */
+      espejoCoaches(d);
       save(d);
       return d.staff.filter(function (s) { return s.id === id; })[0];
     },
     /* Asignar / quitar una ficha de staff a un equipo. Lo hace dirección. */
+    /* Recalcular el espejo de nombres tras cambiar una asignacion. Se llama
+       desde los DOS sitios que mueven `team_ids`; si un dia aparece un tercero,
+       tiene que llamarlo tambien o las dos listas se separan otra vez. */
+    _espejo: function (d, ids) { espejoCoaches(d, ids); },
     staffAssign: function (id, teamId, on) {
       var d = db();
       d.staff = d.staff.map(function (s) {
@@ -7573,6 +7690,7 @@ SF.store = (function () {
         if (!on && i >= 0) t.splice(i, 1);
         return Object.assign({}, s, { team_ids: t });
       });
+      espejoCoaches(d, [teamId]);
       save(d);
     },
     staffOfTeam: function (teamId) {
@@ -7635,6 +7753,47 @@ SF.store = (function () {
     teamUpdate: function (id, patch) {
       var d = db(); var t = d.teams.filter(function (x) { return x.id === id; })[0];
       if (!t) return null; Object.assign(t, patch); save(d); return t;
+    },
+    /* GUARDAR UN EQUIPO CON SU CUERPO TECNICO, en una sola operacion.
+       El formulario devuelve `_staff_ids` y esto los asigna de verdad: quien
+       entra gana el equipo en su ficha, quien sale lo pierde. Las dos cosas en
+       la misma funcion a proposito, porque separarlas es permitir que una
+       ocurra sin la otra -que es como se llega a un equipo que dice tener
+       entrenador y a un entrenador que no ve a sus jugadores-.
+       Devuelve cuantos entraron y cuantos salieron, para poder decirselo a
+       quien lo ha hecho: quitar a alguien de un equipo le quita el acceso, y
+       eso no puede pasar en silencio. */
+    teamGuardar: function (id, data) {
+      var d = db();
+      var ids = data._staff_ids || null;
+      var patch = {}; Object.keys(data).forEach(function (k) {
+        if (k !== '_staff_ids') patch[k] = data[k];
+      });
+      var t = id ? d.teams.filter(function (x) { return x.id === id; })[0] : null;
+      if (id && !t) return null;
+      if (!t) {
+        var n = d.teamSeq++; patch.id = 't' + n;
+        patch.coaches = []; patch.wall = patch.wall || [];
+        patch.created_at = new Date().toISOString();
+        t = patch; d.teams.push(t);
+      } else {
+        Object.assign(t, patch);
+      }
+      var entran = 0, salen = 0;
+      if (ids) {
+        d.staff.forEach(function (sf) {
+          var tiene = (sf.team_ids || []).indexOf(t.id) >= 0;
+          var debe = ids.indexOf(sf.id) >= 0;
+          if (debe && !tiene) { sf.team_ids = (sf.team_ids || []).concat([t.id]); entran++; }
+          if (!debe && tiene) {
+            sf.team_ids = sf.team_ids.filter(function (x) { return x !== t.id; });
+            salen++;
+          }
+        });
+      }
+      espejoCoaches(d, [t.id]);
+      save(d);
+      return { team: t, entran: entran, salen: salen };
     },
     teamRemove: function (id) {
       var d = db();
@@ -21436,7 +21595,26 @@ window.SF = window.SF || {};
     t = t || {};
     var segOpts = Object.keys(SF.SEGMENTS).map(function (s) { return '<option value="' + s + '"' + (s === t.segment ? ' selected' : '') + '>' + SF.SEGMENTS[s] + '</option>'; }).join('');
     var sportOpts = Object.keys(SF.SPORTS).map(function (s) { return '<option value="' + s + '"' + ((t.sport || 'baloncesto') === s ? ' selected' : '') + '>' + SF.SPORTS[s].label + '</option>'; }).join('');
-    var coachChecks = SF.COACHES.map(function (c) { var on = (t.coaches || []).indexOf(c) >= 0; return '<label class="chk"><input type="checkbox" class="coach" value="' + esc(c) + '"' + (on ? ' checked' : '') + '> ' + esc(c) + '</label>'; }).join('');
+    /* EL CUERPO TECNICO SE ELIGE DEL STAFF DE VERDAD, por su id, no por su
+       nombre escrito. Y de TODO el staff, no solo de los entrenadores: un
+       equipo tiene tambien preparador fisico, delegado y a veces fisio, y
+       ponerlos era imposible desde aqui.
+       Se marca por id porque un nombre no identifica a nadie: dos Garcia, o
+       alguien que se cambia el nombre en su ficha, y la lista se rompe en
+       silencio. */
+    var staffTodo = SF.store.staff().slice().sort(function (a, b) {
+      return (roleLabel(a.role) || '').localeCompare(roleLabel(b.role) || '') ||
+        (a.full_name || '').localeCompare(b.full_name || '');
+    });
+    var yaEn = t.id ? SF.cuerpoTecnico(t.id).map(function (x) { return x.id; }) : [];
+    var coachChecks = staffTodo.map(function (sf) {
+      var on = yaEn.indexOf(sf.id) >= 0;
+      var stt = SF.staffStatus(sf);
+      return '<label class="chk chk-st"><input type="checkbox" class="coach" value="' + esc(sf.id) + '"' +
+        (on ? ' checked' : '') + '> <span><b>' + esc(sf.full_name) + '</b>' +
+        '<span class="hint"> · ' + esc(roleLabel(sf.role)) +
+        (stt.level === 'ok' ? '' : ' · ' + esc(stt.label)) + '</span></span></label>';
+    }).join('');
     var progOpts = Object.keys(SF.PROGRAMAS).map(function (k) { return '<option value="' + k + '"' + ((t.programa || 'federado') === k ? ' selected' : '') + '>' + SF.PROGRAMAS[k] + '</option>'; }).join('');
     var planOpts = '<option value="">— Sin plan —</option>' + SF.store.planes().map(function (pl) { return '<option value="' + pl.id + '"' + (pl.id === t.plan_id ? ' selected' : '') + '>' + esc(pl.nombre) + '</option>'; }).join('');
     var f = el('<div class="form-grid"></div>');
@@ -21449,7 +21627,11 @@ window.SF = window.SF || {};
         '<p class="hint">Para qué paga. No es lo mismo que el segmento: un cadete masculino es federado, uno de escuelas no.</p></div>' +
       '<div class="frow"><label>Plan de pago</label><select name="plan_id">' + planOpts + '</select>' +
         '<p class="hint">Todos los jugadores del equipo heredan este plan. Se puede poner una excepción en su ficha.</p></div>' +
-      '<div class="frow"><label>Cuerpo técnico</label><div class="chks">' + coachChecks + '</div></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Cuerpo técnico</label>' +
+        '<div class="chks chks-st">' + coachChecks + '</div>' +
+        '<p class="hint">Quien marques aquí <b>pasa a ver las fichas de los jugadores de este equipo</b>, ' +
+        'y le aparecerán sus entrenamientos en el cuadrante. No es solo una etiqueta. ' +
+        'Sale todo el personal del club: entrenadores, preparadores físicos, delegados y salud.</p></div>' +
       /* Mancomunado: el equipo se comparte con otro club. No es un programa
          distinto -sigue siendo federado y paga como tal-, es una circunstancia,
          y por eso va como marca y no dentro del desplegable de programa. */
@@ -21472,7 +21654,9 @@ window.SF = window.SF || {};
         category: f.querySelector('[name=category]').value.trim(),
         programa: f.querySelector('[name=programa]').value,
         plan_id: f.querySelector('[name=plan_id]').value,
-        coaches: Array.prototype.slice.call(f.querySelectorAll('.coach:checked')).map(function (i) { return i.value; }),
+        /* Ya no viaja una lista de nombres dentro del equipo: viajan los ids
+           del staff, y quien guarda se encarga de asignarlos de verdad. */
+        _staff_ids: Array.prototype.slice.call(f.querySelectorAll('.coach:checked')).map(function (i) { return i.value; }),
         mancomunado: f.querySelector('[name=manco]').checked,
         mancomunado_con: f.querySelector('[name=manco_con]').value.trim()
       };
@@ -21547,7 +21731,11 @@ window.SF = window.SF || {};
      cualquier categoria. */
   pages.equipos = function (view) {
     var r = role();
-    var actions = r.canManageTeams ? '<button class="btn btn-primary" id="nt">' + ico('plus') + 'Crear equipo</button>' : '';
+    /* Crear y editar es un permiso; BORRAR es otro. Administracion monta los
+       equipos en septiembre -eso es su trabajo- pero eliminar uno deja a doce
+       jugadores sin equipo de golpe y no se deshace. Eso se queda en direccion. */
+    var puedeEditar = r.canManageTeams || r.canEditTeams;
+    var actions = puedeEditar ? '<button class="btn btn-primary" id="nt">' + ico('plus') + 'Crear equipo</button>' : '';
     view.innerHTML = head('Equipos', 'Organiza los jugadores por equipo y su cuerpo técnico.', actions);
 
     var todos = SF.store.teams();
@@ -21681,15 +21869,30 @@ window.SF = window.SF || {};
     function tarjeta(t) {
       var count = players.filter(function (p) { return p.team_id === t.id; }).length;
       var seg = SF.SEGMENTS[t.segment] || t.segment || '—';
-      var coaches = (t.coaches || []).length ? t.coaches.join(', ') : 'Sin entrenador';
+      /* Del staff ASIGNADO, no de una lista de nombres aparte. Antes un equipo
+         con entrenador asignado podia decir "Sin entrenador" porque las dos
+         listas no se hablaban. */
+      var ent = SF.entrenadoresDe(t.id);
+      var cuerpo = SF.cuerpoDeCampo(t.id);
+      var coaches = ent.length
+        ? ent.map(function (s) { return s.full_name; }).join(', ')
+        : (cuerpo.length
+            ? 'Sin entrenador · ' + cuerpo.length + (cuerpo.length === 1 ? ' del cuerpo técnico' : ' del cuerpo técnico')
+            : 'Sin cuerpo técnico');
+      var extra = ent.length && cuerpo.length > ent.length
+        ? ' +' + (cuerpo.length - ent.length) : '';
       var card = el('<button class="team-card"><div class="tc-top">' +
         '<span class="tag tag-purple">' + esc(seg) + '</span>' +
         (t.mancomunado ? '<span class="tag tag-teal">Mancomunado</span>' : '') +
         '<span class="hint">' + esc(t.category || '') + '</span></div>' +
         '<h3>' + esc(t.name) + '</h3>' +
-        '<p class="tc-meta">' + count + (count === 1 ? ' jugador · ' : ' jugadores · ') + esc(coaches) + '</p>' +
+        '<p class="tc-meta">' + count + (count === 1 ? ' jugador · ' : ' jugadores · ') +
+          esc(coaches) + extra + '</p>' +
         (t.mancomunado && t.mancomunado_con
           ? '<p class="tc-meta">Compartido con ' + esc(t.mancomunado_con) + '</p>' : '') +
+        ((t.coaches_sin_casar || []).length
+          ? '<p class="tc-meta tc-revisar">Por revisar: ' + esc(t.coaches_sin_casar.join(', ')) +
+            ' no está en el staff</p>' : '') +
         '</button>');
       card.onclick = function () { location.hash = '#/equipo/' + t.id; };
       return card;
@@ -21699,7 +21902,9 @@ window.SF = window.SF || {};
       var nt = view.querySelector('#nt');
       if (nt) nt.onclick = function () {
         U.modal('Crear equipo', teamForm({}, function (d) {
-          var t = SF.store.teamCreate(d); U.toast('Equipo creado'); location.hash = '#/equipo/' + t.id;
+          var res = SF.store.teamGuardar(null, d);
+          U.toast('Equipo creado' + (res.entran ? ' · ' + res.entran + ' del cuerpo técnico asignados' : ''));
+          location.hash = '#/equipo/' + res.team.id;
         }));
       };
     }
@@ -23166,19 +23371,38 @@ window.SF = window.SF || {};
     var t = SF.store.teamGet(id);
     if (!t) { view.innerHTML = head('Equipo', '') + '<div class="empty-panel"><p>Equipo no encontrado.</p></div>'; return; }
     var r = role();
-    var can = r.canManageTeams;
-    /* Administracion lleva los planes, pero NO gestiona equipos: no toca
-       plantillas, ni cuerpo tecnico, ni borra nada. Solo el plan de pago, que
-       es lo suyo. Por eso es un boton aparte y no el de Editar. */
+    /* DOS PERMISOS, NO UNO. Administracion monta los equipos de la temporada y
+       cambia el cuerpo tecnico -es su trabajo de septiembre- pero no elimina:
+       borrar un equipo deja a doce jugadores sin equipo de golpe y no se
+       deshace. `canEditTeams` crea y edita; `canManageTeams` ademas borra.
+       El plan de pago sigue siendo suyo aparte, por si algun dia se le quita
+       lo de editar y se le deja lo del dinero. */
+    var can = r.canManageTeams || r.canEditTeams;
+    var canBorrar = r.canManageTeams;
     var canPlan = r.canManageFinance;
     var head2 = '<button class="btn" id="back">' + ico('back') + 'Equipos</button>' +
-      (can ? '<button class="btn" id="ed">' + ico('edit') + 'Editar</button><button class="btn btn-danger" id="del">' + ico('trash') + '</button>' : '') +
+      (can ? '<button class="btn" id="ed">' + ico('edit') + 'Editar</button>' : '') +
+      (canBorrar ? '<button class="btn btn-danger" id="del">' + ico('trash') + '</button>' : '') +
       (canPlan ? '<button class="btn" id="plan">' + ico('card') + 'Plan de pago</button>' : '');
     view.innerHTML = head('Equipo', '', head2);
     view.querySelector('#back').onclick = function () { location.hash = '#/equipos'; };
-    if (can) {
-      view.querySelector('#ed').onclick = function () { U.modal('Editar equipo', teamForm(t, function (d) { SF.store.teamUpdate(t.id, d); U.toast('Guardado'); SF.router.render(); })); };
+    if (canBorrar) {
       view.querySelector('#del').onclick = function () { if (confirm('¿Eliminar el equipo ' + t.name + '? Los jugadores quedarán sin equipo.')) { SF.store.teamRemove(t.id); U.toast('Equipo eliminado'); location.hash = '#/equipos'; } };
+    }
+    if (can) {
+      view.querySelector('#ed').onclick = function () {
+        U.modal('Editar equipo', teamForm(t, function (d) {
+          var res = SF.store.teamGuardar(t.id, d);
+          /* Se dice lo que ha cambiado de acceso. Quitar a alguien del cuerpo
+             tecnico le quita las fichas de estos jugadores, y enterarse de eso
+             por un "Guardado" a secas es enterarse tarde. */
+          var partes = [];
+          if (res.entran) partes.push(res.entran + (res.entran === 1 ? ' persona ve ahora' : ' personas ven ahora') + ' este equipo');
+          if (res.salen) partes.push(res.salen + (res.salen === 1 ? ' deja' : ' dejan') + ' de verlo');
+          U.toast('Guardado' + (partes.length ? ' · ' + partes.join(' y ') : ''));
+          SF.router.render();
+        }));
+      };
     }
     if (canPlan) {
       view.querySelector('#plan').onclick = function () { planDeEquipoModal(t); };
