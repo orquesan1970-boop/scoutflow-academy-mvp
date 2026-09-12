@@ -1425,6 +1425,20 @@ table.alm td.alm-tot{font-weight:700;background:#F3F1FA}
   padding:2px 6px;border-radius:6px;min-width:24px}
 .alm-b:hover{background:#EEEBFC;color:var(--purple-d)}
 .tram-neg{font-size:12.5px;color:#B4442F;font-weight:600}
+/* --- FILTROS RAPIDOS DE JUGADORES --- */
+.fr-fila{align-items:center;gap:6px}
+.fr-tit{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;
+  color:var(--ink-3);margin-right:4px;flex:0 0 auto}
+/* Un filtro que no le toca a nadie no se puede pulsar: lleva a una lista vacia
+   y hace perder un clic. Se ve, para saber que existe, pero apagado. */
+.eq-chip.fr-cero{opacity:.42;cursor:default}
+.eq-chip.fr-cero:hover{border-color:var(--line)}
+.fr-pill{display:inline-block;font-size:11.5px;padding:2px 9px;border-radius:99px;
+  background:#EEEBFC;color:var(--purple-d);font-weight:600;margin-left:8px;vertical-align:middle}
+.count .lnk{margin-left:8px}
+@media(max-width:640px){
+  .fr-tit{flex-basis:100%;margin-bottom:2px}
+}
 table.alm td.alm-na{color:#CFCDD8;background:#FBFBFD}
 .mv-in{color:#2F7A4D}
 .mv-out{color:#B4442F}
@@ -2541,6 +2555,71 @@ SF.reemplazaTemporada = function (txt, deTemp, aTemp) {
   lista.sort(function (a, b) { return b.length - a.length; });
   var re = new RegExp(lista.map(function (s) { return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|'), 'g');
   return String(txt).replace(re, function (m) { return vistos[m]; });
+};
+
+/* ===================== FILTROS RÁPIDOS DE JUGADORES =====================
+   Las preguntas que el club se hace todos los días, cada una a un clic.
+
+   Esto NO es funcionalidad nueva: los filtros ya existían y ya funcionaban,
+   pero solo se llegaba a ellos pulsando un KPI del Inicio o escribiendo en el
+   buscador. Es decir: existían y no se veían. Una función a la que no se llega
+   desde la pantalla donde se necesita es, para quien la usa, una función que no
+   está — el mismo caso que el cuadrante que Jorge creía que no se podía editar.
+
+   DOS REGLAS QUE NO SON NEGOCIABLES:
+
+   1. CADA FILTRO SE PINTA SOLO A QUIEN LE CORRESPONDE. «Debe cuota» no puede
+      ser un botón para todo el mundo: un entrenador que lo ve aprende que hay
+      familias que deben dinero, y pulsándolo se lleva la lista de quiénes son.
+      Eso es exactamente lo que la matriz de permisos prohíbe. Lleva `ver`.
+
+   2. EL NÚMERO SE CUENTA SOBRE LO QUE YA ESTÁ FILTRADO, no sobre el total. Un
+      contador que pone 12 y al pulsarlo saca 3 es peor que no tener contador:
+      la próxima vez ya no te fías de ninguno. */
+SF.FILTROS_RAPIDOS = [
+  { k: 'sin_equipo', label: 'Sin equipo',
+    nota: 'Todavía no está en ninguna plantilla. Son los de captación.',
+    test: function (p) { return !p.team_id; } },
+  { k: 'incompletos', label: 'Datos incompletos',
+    nota: 'Fichas a medias: les falta algo básico.',
+    test: function (p) { return p.status === 'Datos incompletos'; } },
+  { k: 'sin_video', label: 'Sin vídeo',
+    nota: 'No hay vídeo de highlights todavía.',
+    test: function (p) { return ((p.documents || {}).video_highlights || '') === 'pendiente'; } },
+  { k: 'sin_licencia', label: 'Sin licencia',
+    nota: 'Le falta algún dato de los que pide la federación, así que no se puede federar.',
+    ver: function (r) { return (r.nav || []).indexOf('licencias') >= 0 || (r.nav || []).indexOf('documentos') >= 0; },
+    test: function (p) { return !SF.licenciaListo(p); } },
+  { k: 'papeles', label: 'Papeles pendientes',
+    nota: 'Tiene documentación del expediente sin entregar.',
+    ver: function (r) { return (r.nav || []).indexOf('documentos') >= 0; },
+    test: function (p) { return SF.docsPend(p).length > 0; } },
+  /* «Sin equipación» estuvo aquí y se quitó a propósito. Dos motivos, y los dos
+     valen para cualquier filtro que se quiera añadir mañana:
+       · Le tocaba a los 277. Un filtro que selecciona a TODO el club no filtra
+         nada: ocupa sitio y no contesta ninguna pregunta.
+       · Solo lo veía quien tiene la Tienda, y la Tienda ya contesta eso mucho
+         mejor —prenda a prenda, con talla y con el almacén al lado—. Un chip
+         que lleva a una lista de tarjetas sin el detalle de la ropa es una
+         versión peor de una pantalla que ya existe.
+     La regla que deja: que algo SE PUEDA filtrar no significa que merezca un
+     botón aquí. */
+  { k: 'no_disponible', label: 'No puede jugar',
+    nota: 'Baja, lesión o disponibilidad tocada. Sin decir de qué: eso es dato de salud.',
+    test: function (p) { return !!SF.dispo(p).activa; } },
+  /* El dinero, solo para quien puede ver el dinero. */
+  { k: 'debe', label: 'Debe cuota',
+    nota: 'Tiene algo pendiente de pago, vencido o no.',
+    ver: function (r) { return !!r.canSeeFinance; },
+    test: function (p) { var t = SF.finTotals(p); return (t.pending + t.overdue) > 0; } }
+];
+
+SF.filtrosRapidos = function (r) {
+  r = r || SF.ROLES[SF.store.role()] || {};
+  return SF.FILTROS_RAPIDOS.filter(function (f) { return !f.ver || f.ver(r); });
+};
+SF.filtroRapido = function (k) {
+  return SF.FILTROS_RAPIDOS.filter(function (f) { return f.k === k; })[0] || null;
 };
 
 /* ===================== SESIONES DE ENTRENAMIENTO =====================
@@ -8869,6 +8948,10 @@ window.SF = window.SF || {};
      con 900 fichas, entrar en un jugador y volver a la lista para encontrarse
      otra vez los 900 desde el principio es el peor castigo posible. */
   var jugAnyo = null, jugSexo = null;
+  /* Qué filtro rápido está puesto. Vive fuera de la pantalla, como el año, para
+     que volver de una ficha no lo pierda: si estabas revisando a los que deben
+     papeles y entras en uno, al volver sigues en esa lista. */
+  var jugRapido = null;
   var jugQuery = '';         // búsqueda activa (desde buscador global)
 
   function head(title, subtitle, actionsHTML) {
@@ -10628,6 +10711,17 @@ window.SF = window.SF || {};
 
     var ps = scopedPlayers();
 
+    /* EL FILTRO PUESTO SE VALIDA CONTRA QUIEN ENTRA AHORA. `jugRapido` vive
+       fuera de la pantalla para no perderlo al entrar en una ficha y volver,
+       y eso está bien; pero significa que sobrevive también a un cambio de
+       usuario. Sin esta línea, un entrenador que entra después de dirección
+       heredaba «debe cuota» puesto y se llevaba la lista de quién debe dinero.
+       Lo que se guarda de una sesión no puede aplicarse en otra sin volver a
+       preguntar si le toca. */
+    if (jugRapido && !SF.filtrosRapidos(r0).some(function (f) { return f.k === jugRapido; })) {
+      jugRapido = null;
+    }
+
     /* La escotilla del fisioterapeuta. Su lista son los que lleva, pero a veces
        un chaval se le planta delante sin que nadie haya pedido cita, y tiene
        que poder encontrarlo. Un boton, no un filtro escondido. */
@@ -10672,6 +10766,12 @@ window.SF = window.SF || {};
     var ANYOS = Array.from(new Set(ps.map(function (p) { return p.birth_year || 0; })))
       .sort(function (a, b) { return b - a; });   // 2019, 2018, ... y el 0 al final
 
+    /* ---------- Filtros rápidos ----------
+       Van ARRIBA de los años porque son la pregunta, y el año es el detalle:
+       primero «quién debe papeles», luego «de qué año». Al revés se elige un
+       año y se pierde la pregunta. */
+    var filaR = el('<div class="row-c eq-filtros fr-fila"></div>');
+    view.appendChild(filaR);
     var filaA = el('<div class="row-c eq-filtros"></div>');
     var filaS = el('<div class="row-c eq-filtros eq-sub"></div>');
     view.appendChild(filaA); view.appendChild(filaS);
@@ -10681,7 +10781,13 @@ window.SF = window.SF || {};
        pone 12 y al pulsar salen 3, el contador miente. */
     function base() {
       var fp = bar.querySelector('#fp').value, fn = bar.querySelector('#fn').value, fs = bar.querySelector('#fs').value;
+      /* El filtro rápido entra AQUÍ, con los demás. Así los contadores de los
+         años se recalculan solos al pulsarlo: si pides «debe cuota», el chip de
+         2011 pasa de 30 a 4 y ese 4 es verdad. Meterlo más abajo dejaría los
+         años contando sobre el club entero y mintiendo. */
+      var fr = jugRapido ? SF.filtroRapido(jugRapido) : null;
       return ps.filter(function (p) {
+        if (fr && !fr.test(p)) return false;
         if (preFilter && !preFilter(p)) return false;
         if (fp && p.primary_position !== fp) return false;
         if (fn && (p.nationality || []).indexOf(fn) < 0) return false;
@@ -10694,6 +10800,45 @@ window.SF = window.SF || {};
       var b = base();
       if (jugAnyo != null && ANYOS.indexOf(jugAnyo) < 0) jugAnyo = null;
 
+      /* --- LOS FILTROS RÁPIDOS ---
+         El número de cada uno se cuenta sobre los OTROS filtros puestos, pero
+         sin contarse a sí mismo: si tienes «debe cuota» activo, el botón de
+         «sin vídeo» tiene que decir cuántos de esos deben y no tienen vídeo,
+         y el de «debe cuota» tiene que seguir diciendo su total, no el que
+         queda después de aplicarse.
+         Un filtro que no le toca a nadie sale apagado y no se puede pulsar:
+         ofrecer un botón que lleva a una lista vacía es hacer perder un clic. */
+      filaR.innerHTML = '';
+      var rapidos = SF.filtrosRapidos(r0);
+      if (rapidos.length) {
+        filaR.appendChild(el('<span class="fr-tit">Lo que hay que mirar</span>'));
+        var sinRapido = ps.filter(function (p) {
+          if (preFilter && !preFilter(p)) return false;
+          var fp = bar.querySelector('#fp').value, fn2 = bar.querySelector('#fn').value, fs = bar.querySelector('#fs').value;
+          if (fp && p.primary_position !== fp) return false;
+          if (fn2 && (p.nationality || []).indexOf(fn2) < 0) return false;
+          if (fs && p.status !== fs) return false;
+          return true;
+        });
+        var bTodo = el('<button class="eq-chip eq-chip-sm' + (!jugRapido ? ' on' : '') + '">Todos' +
+          '<span class="eq-n">' + sinRapido.length + '</span></button>');
+        bTodo.onclick = function () { jugRapido = null; pintaChips(); render(); };
+        filaR.appendChild(bTodo);
+        rapidos.forEach(function (f) {
+          var n = sinRapido.filter(f.test).length;
+          var bt = el('<button class="eq-chip eq-chip-sm' + (jugRapido === f.k ? ' on' : '') +
+            (n ? '' : ' fr-cero') + '">' + esc(f.label) + '<span class="eq-n">' + n + '</span></button>');
+          bt.title = f.nota || '';
+          if (!n) bt.disabled = true;
+          bt.onclick = function () {
+            jugRapido = (jugRapido === f.k) ? null : f.k;
+            jugAnyo = null; jugSexo = null;   /* la pregunta cambia: el año se suelta */
+            pintaChips(); render();
+          };
+          filaR.appendChild(bt);
+        });
+      }
+
       filaA.innerHTML = '';
       var bT = el('<button class="eq-chip' + (jugAnyo == null ? ' on' : '') + '">Todos' +
         '<span class="eq-n">' + b.length + '</span></button>');
@@ -10702,8 +10847,14 @@ window.SF = window.SF || {};
 
       ANYOS.forEach(function (y) {
         var dely = b.filter(function (p) { return (p.birth_year || 0) === y; });
-        var bt = el('<button class="eq-chip' + (jugAnyo === y ? ' on' : '') + '">' +
+        /* Un año que se ha quedado a cero -porque el filtro rápido o los
+           desplegables lo han vaciado- se ve pero no se pulsa: la misma regla
+           que en los filtros de arriba. El año NO se esconde, que es distinto:
+           sigue ahí para que se entienda de dónde han salido los que quedan. */
+        var bt = el('<button class="eq-chip' + (jugAnyo === y ? ' on' : '') +
+          (dely.length ? '' : ' fr-cero') + '">' +
           (y ? y : 'Sin año') + '<span class="eq-n">' + dely.length + '</span></button>');
+        if (!dely.length && jugAnyo !== y) bt.disabled = true;
         /* De qué equipos son: así el que piensa en "cadete" y no en "2011"
            también encuentra su año. Sale de los equipos reales, no de una
            tabla de categorías inventada que habría que repasar cada verano. */
@@ -10756,14 +10907,35 @@ window.SF = window.SF || {};
     /* '@Pagos pendientes' es nueva: la caja de Administracion tenia una cifra
        de pendiente y no habia forma de ver de QUIEN era. Vencido es lo que ya
        pasó de fecha; pendiente es todo lo que se debe, haya vencido o no. */
+    /* AGUJERO ENCONTRADO AL PROBAR ESTO, y no era del filtro nuevo: venía de
+       antes. Estos filtros llegan por `SF._jugQuery` desde un KPI del Inicio, y
+       NINGUNO comprobaba permisos. Un entrenador con
+       `SF._jugQuery = '@Pagos pendientes'` se llevaba la lista de las cuatro
+       familias de su equipo que deben dinero, sin tener acceso a finanzas.
+       Hoy solo se llega a eso desde un panel que el entrenador no tiene, así
+       que no estaba pasando; pero lo que impedía el agujero era la pantalla de
+       al lado, no esta, y eso no es una defensa: es suerte.
+       Ahora el permiso se comprueba donde se usa el dato. */
     var qmap = { '@Pagos vencidos': function (p) { return SF.finHas(p, 'vencido'); }, '@Pagos pendientes': function (p) { var t = SF.finTotals(p); return (t.pending + t.overdue) > 0; }, '@Datos incompletos': function (p) { return p.status === 'Datos incompletos'; }, '@Pendiente de vídeo': function (p) { return p.documents.video_highlights === 'pendiente'; }, '@Entrevistas': function (p) { return p.status === 'Entrevista'; } };
+    var qDinero = ['@Pagos vencidos', '@Pagos pendientes'];
+    /* LAS DOS PUERTAS, UNA SOLA CERRADURA. Los KPI del Inicio ya traían aquí
+       con un filtro puesto, pero por un camino distinto al de los botones: dos
+       mecanismos para lo mismo, que es como se acaba teniendo uno roto. Si el
+       KPI coincide con un filtro rápido, se ENCIENDE ESE BOTÓN — así se ve qué
+       lista estás mirando y se puede quitar con un clic. */
+    var kpiRapido = { '@Datos incompletos': 'incompletos', '@Pendiente de vídeo': 'sin_video',
+      '@Pagos pendientes': 'debe' };
     var gq = SF._jugQuery || ''; SF._jugQuery = null;
+    if (gq && qDinero.indexOf(gq) >= 0 && !r0.canSeeFinance) gq = '';
+    if (gq && kpiRapido[gq] && SF.filtrosRapidos(r0).some(function (f) { return f.k === kpiRapido[gq]; })) {
+      jugRapido = kpiRapido[gq]; gq = '';
+    }
     var preFilter = qmap[gq] || null;
     if (gq && !preFilter) bar.querySelector('#q').value = gq;
     /* Si se llega desde un KPI o desde el buscador, el año que quedó puesto la
        otra vez se suelta. Pulsar "Pagos vencidos" y ver 3 de 40 porque seguía
        filtrando por 2011 es un error que nadie sabría diagnosticar. */
-    if (gq) { jugAnyo = null; jugSexo = null; }
+    if (gq) { jugAnyo = null; jugSexo = null; jugRapido = null; }
 
     function render() {
       var q = SF.norm(bar.querySelector('#q').value).trim();
@@ -10775,7 +10947,12 @@ window.SF = window.SF || {};
       var anyoSel = buscando ? null : jugAnyo, sexoSel = buscando ? null : jugSexo;
       filaA.style.opacity = filaS.style.opacity = buscando ? '.4' : '';
       var fp = bar.querySelector('#fp').value, fn = bar.querySelector('#fn').value, fs = bar.querySelector('#fs').value;
+      var frActivo = jugRapido ? SF.filtroRapido(jugRapido) : null;
       var rows = ps.filter(function (p) {
+        /* El filtro rápido NO se suelta al buscar, al contrario que el año: si
+           estás mirando quién debe papeles y escribes un nombre, quieres saber
+           si ESE debe papeles, no salir de la lista. */
+        if (frActivo && !frActivo.test(p)) return false;
         if (preFilter && !preFilter(p)) return false;
         if (anyoSel != null && (p.birth_year || 0) !== anyoSel) return false;
         if (sexoSel && (SF.sexoDe(p) || '-') !== sexoSel) return false;
@@ -10801,11 +10978,28 @@ window.SF = window.SF || {};
       if (buscando) pie = ' · buscando en todos los años';
       else if (anyoSel) pie = ' · ' + anyoSel + (sexoSel === 'M' ? ' masculino' : sexoSel === 'F' ? ' femenino' : '');
       else if (anyoSel === 0) pie = ' · sin fecha de nacimiento';
-      out.appendChild(el('<p class="count">' + rows.length + ' jugador' + (rows.length === 1 ? '' : 'es') +
-        pie + (preFilter ? ' · filtro activo' : '') + '</p>'));
+      /* LA CUENTA DICE LA VERDAD, Y DE QUÉ TOTAL.
+         «3 jugadores» a secas, con un filtro puesto, se lee como «el club tiene
+         3 jugadores». Con 277 en la plantilla eso no es un detalle de redacción:
+         es un número falso en la pantalla principal. Así que se dice de cuántos
+         son, y qué filtro lo ha recortado. */
+      var linea = el('<p class="count">' + rows.length + ' de ' + ps.length + ' jugador' +
+        (ps.length === 1 ? '' : 'es') + pie + '</p>');
+      if (frActivo) {
+        linea.appendChild(el('<span class="fr-pill">' + esc(frActivo.label) + '</span>'));
+        var bQ = el('<button class="lnk">quitar</button>');
+        bQ.onclick = function () { jugRapido = null; pintaChips(); render(); };
+        linea.appendChild(bQ);
+      }
+      if (preFilter) linea.appendChild(el('<span class="fr-pill">filtro activo</span>'));
+      out.appendChild(linea);
+      if (frActivo && frActivo.nota) {
+        out.appendChild(el('<p class="hint" style="margin-top:-4px">' + esc(frActivo.nota) + '</p>'));
+      }
       if (!rows.length) {
         out.appendChild(el('<div class="empty-panel"><p>' +
-          (anyoSel ? 'Ningún jugador del ' + anyoSel + ' con esos filtros.' : 'Ningún jugador con esos filtros.') +
+          (frActivo ? 'Nadie con «' + esc(frActivo.label) + '»' + (anyoSel ? ' del ' + anyoSel : '') + '.'
+            : (anyoSel ? 'Ningún jugador del ' + anyoSel + ' con esos filtros.' : 'Ningún jugador con esos filtros.')) +
           '</p></div>'));
         return;
       }
