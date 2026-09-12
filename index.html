@@ -821,7 +821,7 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .mv-wrap{display:contents}
 .mv-pie{display:none}
 @media(min-width:900px){
-  .mv-wrap{display:block;padding:8px 0 28px}
+  .mv-wrap{display:block;padding:8px 0 18px}
   .mv-marco{position:relative;width:412px;margin:0 auto;background:#12101F;
     border-radius:44px;padding:12px;box-shadow:0 24px 70px rgba(23,19,42,.28),
     0 0 0 1px rgba(255,255,255,.06) inset;
@@ -829,22 +829,53 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
     background-image:linear-gradient(160deg,#2A2540 0%,#12101F 38%,#12101F 62%,#332C4E 100%)}
   .mv-notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);
     width:126px;height:26px;background:#12101F;border-radius:0 0 16px 16px;
-    z-index:2;display:flex;align-items:center;justify-content:center;gap:8px}
+    /* Por encima de la cabecera pegada (z-index 3), o se queda debajo y el
+       hueco de 44 px que le hemos reservado arriba no se llena con nada. */
+    z-index:5;display:flex;align-items:center;justify-content:center;gap:8px}
   .mv-alt{width:42px;height:5px;border-radius:99px;background:#2C2740}
   .mv-cam{width:8px;height:8px;border-radius:99px;background:#231E36;
     box-shadow:0 0 0 1px #3A3355 inset}
-  .mv-pant{background:var(--bg);border-radius:34px;overflow:hidden}
+  /* LA PANTALLA TIENE LA ALTURA DE UN MOVIL y el contenido se mueve dentro.
+     La altura sale de lo que queda de ventana: 100dvh menos la cabecera, el
+     titulo, el pie y los margenes. Asi la PAGINA no se desplaza y el unico
+     sitio que se mueve es el interior del telefono. dvh y no vh porque en un
+     portatil con la barra del navegador cambiando de alto, vh miente. */
+  /* La altura la MIDE el programa, no la adivina el CSS: `calc(100dvh - 296px)`
+     daba por hecho cuanto ocupa lo que hay encima, y encima de un portal hay
+     una cosa distinta que del otro -el del jugador lleva un selector arriba-.
+     Con una resta fija la pagina se desbordaba 45 px y volvian los dos scrolls.
+     El valor de aqui es solo el de partida, antes de medir. */
+  .mv-pant{background:var(--bg);border-radius:34px;overflow:hidden;position:relative;
+    height:calc(100dvh - 320px);min-height:360px;max-height:840px}
+  /* Sticky no funciona dentro de una caja con overflow:hidden, y `.phone` lo
+     lleva de serie. Sin esto la cabecera se iba con el contenido y el notch
+     acababa sobre una tarjeta blanca. */
+  .mv-pant .phone{overflow:visible}
+  .mv-scroll{height:100%;overflow-y:auto;
+    /* Al llegar al final DENTRO del movil, el gesto no se contagia a la pagina
+       de detras. Es lo que evita la trampa del scroll dentro de scroll. */
+    overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+  /* Una barra finita, como el indicador de iOS: se ve que se puede desplazar
+     sin plantar una barra de navegador de escritorio dentro de un telefono. */
+  .mv-scroll::-webkit-scrollbar{width:4px}
+  .mv-scroll::-webkit-scrollbar-track{background:transparent}
+  .mv-scroll::-webkit-scrollbar-thumb{background:#C3BFD4;border-radius:99px}
+  .mv-scroll{scrollbar-width:thin;scrollbar-color:#C3BFD4 transparent}
   .mv-pant .phone{max-width:none;margin:0;border:0;border-radius:0;box-shadow:none;
     background:transparent}
   /* La barra de estado va DEL COLOR DE LA APP, como en un movil de verdad: la
      cabecera oscura sube por detras del notch. Dejar ahi el fondo claro se veia
      como una franja blanca sobre la cabecera negra: el fallo que delata que el
-     marco es un dibujo pegado encima. */
-  .mv-pant .phone-top{border-radius:0;padding-top:44px;position:relative;z-index:1}
-  /* La rayita de abajo. Cierra la ilusion por 6 px de alto. */
-  .mv-pant::after{content:'';display:block;width:120px;height:5px;border-radius:99px;
-    background:#C9C6D8;margin:16px auto 10px}
-  .mv-pie{display:block;max-width:412px;margin:16px auto 0;text-align:center;
+     marco es un dibujo pegado encima.
+     Y se queda PEGADA ARRIBA al desplazar: si se fuera con el contenido, el
+     notch acabaria sobre una tarjeta blanca y la familia perderia de vista
+     donde esta. Cualquier app real hace esto. */
+  .mv-pant .phone-top{border-radius:0;padding-top:44px;position:sticky;top:0;z-index:3}
+  /* La rayita del gesto. Va FUERA del area que se desplaza: en un telefono no
+     se mueve con el contenido. */
+  .mv-barra{width:120px;height:5px;border-radius:99px;background:#5A5470;
+    margin:9px auto 3px}
+  .mv-pie{display:block;max-width:412px;margin:14px auto 0;text-align:center;
     font-size:12.5px;color:var(--ink-3);line-height:1.55}
 }
 
@@ -20565,21 +20596,69 @@ window.SF = window.SF || {};
      y parece un diseño a medias. El marco convierte ese vacío en algo
      deliberado: «esto es un móvil, y esto es lo que ve la familia».
 
-     DOS COSAS QUE EL MARCO **NO** HACE, y las dos importan:
+     ES UN MÓVIL DE VERDAD: tiene la altura de una pantalla de teléfono y el
+     contenido se mueve DENTRO, no un marco estirado que crece hasta 4.000 px.
 
-     1. NO APARECE EN UN MÓVIL DE VERDAD. Dibujar un móvil dentro de un móvil
-        es absurdo y le roba 40 px de ancho a una madre que está subiendo el
-        DNI de su hijo. El marco vive en una media query de 900 px para arriba;
-        por debajo, el portal es lo que siempre fue.
-     2. NO TIENE ALTURA FIJA NI SCROLL PROPIO. Un área que se desplaza dentro de
-        otra que también se desplaza es una trampa: se pierde el sitio, la rueda
-        del ratón hace lo que no esperas y en un táctil no hay forma de salir.
-        El marco CRECE con el contenido y la página se desplaza como siempre.
-        El notch y el altavoz son decoración, no una ventana. */
+     El riesgo de eso es real —un área que se desplaza dentro de otra que
+     también se desplaza es una trampa: se pierde el sitio y la rueda del ratón
+     hace lo que no esperas— pero NO se arregla dejando crecer el marco. Se
+     arregla QUITANDO EL SCROLL DE FUERA:
+
+     1. La pantalla del móvil mide lo que queda de ventana (`100dvh` menos lo
+        que ocupan la cabecera, el título y el pie), así que **la página no se
+        desplaza**: el único sitio que se mueve es el interior del teléfono.
+        Uno, no dos.
+     2. `overscroll-behavior: contain` remata la jugada: al llegar al final
+        dentro del móvil, el gesto NO se contagia a la página de detrás.
+     3. En ventanas muy bajas el móvil se queda en su mínimo y entonces sí
+        aparece el scroll de la página. Es el único caso en que hay dos, y con
+        el punto 2 no se pisan.
+
+     NO APARECE EN UN MÓVIL DE VERDAD. Dibujar un móvil dentro de un móvil es
+     absurdo y le roba ancho a una madre que está subiendo el DNI de su hijo.
+     El marco vive en una media query de 900 px para arriba; por debajo, el
+     portal es lo que siempre fue. */
+  /* AJUSTAR LA PANTALLA A LA VENTANA.
+     Se mide donde empieza el movil y cuanto ocupa lo que va debajo -la rayita,
+     el pie y el margen- y se le da a la pantalla el resto exacto. Asi la pagina
+     no se desborda por 40 px y no aparece un segundo scroll.
+     Se recalcula al cambiar el tamaño de la ventana, y el listener se pone UNA
+     vez: registrarlo en cada pintado deja veinte listeners sobre la misma
+     ventana y la app se va poniendo lenta sin que se vea por que. */
+  function ajustaMarco() {
+    var pant = document.querySelector('.mv-pant');
+    if (!pant || window.innerWidth < 900) return;
+    /* 360 px es el suelo: por debajo la ventana es tan baja que ya no cabe un
+       telefono, y entonces si vuelve el scroll de la pagina -unico caso, y
+       `overscroll-behavior` evita que se pisen-. Un portatil de 13 pulgadas
+       ronda los 720 px utiles y con este suelo entra sin dos scrolls. */
+    var wrap = pant.closest('.mv-wrap');
+    var marco = pant.closest('.mv-marco');
+    pant.style.height = '';                       /* se suelta para medir limpio */
+    var arriba = marco.getBoundingClientRect().top + window.scrollY;
+    var deMas = wrap.getBoundingClientRect().height - pant.getBoundingClientRect().height;
+    var hueco = window.innerHeight - arriba - deMas - 16;
+    var h = Math.max(360, Math.min(840, Math.round(hueco)));
+    pant.style.height = h + 'px';
+    /* SEGUNDO PASE, y es el que acierta. Restar a ojo lo que va debajo del
+       marco falla siempre: el `padding-bottom` de la vista, un margen, lo que
+       alguien añada mañana. En vez de adivinarlo, se le PREGUNTA A LA PAGINA
+       cuanto sobra y se le quita eso. Converge a la primera y sigue valiendo
+       el dia que cambie el diseño de alrededor. */
+    var sobra = document.documentElement.scrollHeight - window.innerHeight;
+    if (sobra > 0) pant.style.height = Math.max(360, h - sobra) + 'px';
+  }
+  if (!SF._marcoResize) {
+    SF._marcoResize = true;
+    window.addEventListener('resize', function () { ajustaMarco(); });
+  }
+
   function enMarco(phone, quien) {
     var m = el('<div class="mv-wrap"><div class="mv-marco"><div class="mv-notch">' +
-      '<i class="mv-alt"></i><i class="mv-cam"></i></div><div class="mv-pant"></div></div></div>');
-    m.querySelector('.mv-pant').appendChild(phone);
+      '<i class="mv-alt"></i><i class="mv-cam"></i></div>' +
+      '<div class="mv-pant"><div class="mv-scroll"></div></div>' +
+      '<div class="mv-barra"></div></div></div>');
+    m.querySelector('.mv-scroll').appendChild(phone);
     /* El pie depende de QUIÉN mira, porque son dos frases distintas. A la
        familia no se le dice «así lo ve la familia»: lo está viendo ella. */
     var rk = SF.store.role();
@@ -20588,6 +20667,8 @@ window.SF = window.SF || {};
       ? 'Desde el móvil ocupa la pantalla entera. Esto es la misma pantalla, vista desde un ordenador.'
       : 'Así lo ve ' + (quien === 'familia' ? 'la familia' : 'el jugador') +
         ' en su móvil. En un teléfono ocupa la pantalla entera.') + '</p>'));
+    /* Se mide cuando ya esta en la pagina: antes de eso no tiene posicion. */
+    requestAnimationFrame(ajustaMarco);
     return m;
   }
 
