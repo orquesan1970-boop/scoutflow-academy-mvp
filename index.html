@@ -3524,7 +3524,7 @@ SF.ROLES = {
   dt_general: {
     label: 'Dirección Técnica General',
     nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'sueldos', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canAskCita: true, canStore: true, segments: 'all', staff: true, canCreatePlayers: true, canSeeSalaries: true
   },
   preparador_fisico: {
@@ -3571,25 +3571,25 @@ SF.ROLES = {
   dt_femenino: {
     label: 'Dirección Técnica Femenino',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['femenino'], canCreatePlayers: true
   },
   dt_masculino: {
     label: 'Dirección Técnica Masculino',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['masculino'], canCreatePlayers: true
   },
   dt_escuelas: {
     label: 'Dirección Técnica Escuelas',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['escuelas'], canCreatePlayers: true
   },
   dt_minis: {
     label: 'Dirección Técnica Minis',
     nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['minis'], canCreatePlayers: true
   },
   scout: {
@@ -3608,13 +3608,13 @@ SF.ROLES = {
   entrenador: {
     label: 'Entrenador',
     nav: ['mi-equipo', 'jugadores', 'equipos', 'informes', 'economia', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes'],
+    tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, canAskCita: true, team_scope: true, segments: 'all', staff: true
   },
   administrativo: {
     label: 'Administrativo',
     nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'documentos', 'tramites', 'tienda', 'licencias', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'mis-avisos', 'mi-ficha'],
-    tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
+    tabs: ['perfil', 'familia', 'documentos', 'finanzas', 'equipacion'],
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, canStore: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
   padre: {
@@ -7839,6 +7839,13 @@ SF.store = (function () {
     },
 
     movs: function () { return db().movs || []; },
+    /* Los movimientos de UNA persona, lo último arriba. Es el historial que se
+       enseña en su ficha: qué se le dio, cuándo exactamente y quién lo cerró. */
+    movsDe: function (kind, id) {
+      return this.movs().filter(function (m) {
+        return kind === 'jugador' ? m.player_id === id : m.staff_id === id;
+      }).slice().reverse();
+    },
     /* Un movimiento, y solo por aqui se toca el almacen. `delta` es la cantidad
        con signo: -1 al entregar, +1 al devolver. */
     movCrear: function (m) {
@@ -7879,7 +7886,12 @@ SF.store = (function () {
        exactamente el fallo que se viene a evitar. */
     prendaEntregar: function (quien, packId, artId, talla) {
       var e = this._entregasDe(quien);
-      e[artId] = { estado: 'entregado', talla: talla, at: SF.hoyISO() };
+      /* QUIEN CIERRA LA ENTREGA queda escrito en la propia entrega, no solo en
+         el registro de movimientos. El registro lo explica todo, pero para
+         contestar "¿quién le dio esto?" delante de un padre no se puede estar
+         rebuscando en cuatro mil lineas: se lee de la ficha. */
+      e[artId] = { estado: 'entregado', talla: talla, at: SF.hoyISO(),
+        at_exacto: new Date().toISOString(), por: this.currentUser().name };
       this._guardaEntregas(quien, e, packId);
       this.movCrear({ art_id: artId, talla: talla, delta: -1, motivo: 'entrega',
         pack_id: packId,
@@ -7904,7 +7916,8 @@ SF.store = (function () {
     prendaCambio: function (quien, packId, artId, tallaNueva) {
       var e = this._entregasDe(quien); var prev = e[artId] || {};
       e[artId] = { estado: 'cambio', talla: prev.talla || null,
-        cambio_a: tallaNueva || null, at: SF.hoyISO() };
+        cambio_a: tallaNueva || null, at: SF.hoyISO(),
+        at_exacto: new Date().toISOString(), por: this.currentUser().name };
       this._guardaEntregas(quien, e, packId);
       if (prev.estado === 'entregado' && prev.talla) {
         this.movCrear({ art_id: artId, talla: prev.talla, delta: 1, motivo: 'devuelta',
@@ -10824,7 +10837,8 @@ window.SF = window.SF || {};
   var TABS = [
     ['perfil', 'Perfil'], ['deportivo', 'Deportivo'], ['trayectoria', 'Trayectoria'], ['academico', 'Académico'], ['familia', 'Familia'],
     ['documentos', 'Documentos'], ['videos', 'Vídeos'], ['captacion', 'Captación'], ['seguimiento', 'Seguimiento'],
-    ['informes', 'Informes'], ['finanzas', 'Finanzas'], ['portal', 'Portales'], ['notas', 'Notas internas']
+    ['informes', 'Informes'], ['finanzas', 'Finanzas'], ['equipacion', 'Equipación'],
+    ['portal', 'Portales'], ['notas', 'Notas internas']
   ];
 
   pages.jugador = function (view, id) {
@@ -12093,6 +12107,116 @@ window.SF = window.SF || {};
            catalogo de planes (Configuracion), donde se pueden cambiar sin
            tocar el codigo y aplicar a un equipo entero de golpe. */
         body.appendChild(kitBlock(p, role().canManageFinance, refF));
+      } else if (cur === 'equipacion') {
+        /* EQUIPACIÓN DEL JUGADOR.
+           La Tienda contesta «¿a quién le falta ropa?» para todo el club. Aquí
+           se contesta la pregunta que se hace con el padre delante: «¿qué le
+           dimos a mi hijo, cuándo, y quién se lo dio?».
+
+           Va después de Finanzas y antes de los portales porque es
+           administración, no deporte; y el historial de abajo es el registro
+           del almacén filtrado a esta persona: la misma verdad, no una copia. */
+        var pkE = packDeJugador(p);
+        var koE = p.kit_order || {};
+        var puedeEq = ['director', 'administrativo'].indexOf(SF.store.role()) >= 0 || !!role().canStore;
+
+        if (!pkE) {
+          body.appendChild(el('<div class="empty-panel"><p>A este jugador no le corresponde ningún pack.</p>' +
+            '<p class="hint">Los packs se reparten por rama y rol desde la Tienda, en Catálogo. ' +
+            'Un jugador sin equipo todavía no entra en ninguno.</p></div>'));
+        } else {
+          var entE = koE.entregas || {};
+          var artsE = SF.artsDe(pkE);
+          var dadasE = artsE.filter(function (x) { return (entE[x.id] || {}).estado === 'entregado'; }).length;
+          var camE = artsE.filter(function (x) { return (entE[x.id] || {}).estado === 'cambio'; }).length;
+
+          body.appendChild(el('<div class="foco ' + (dadasE === artsE.length ? 'is-ok' : 'is-warn') + '">' +
+            '<div class="foco-ic">' + ico(dadasE === artsE.length ? 'check' : 'alert') + '</div><div class="foco-body">' +
+            '<p class="foco-t">' + dadasE + ' de ' + artsE.length + ' prendas entregadas</p>' +
+            '<p class="foco-s">' + esc(pkE.nombre) +
+            /* El precio es dinero: solo para quien puede ver finanzas. Un
+               entrenador ve qué ropa lleva su jugador, no lo que ha pagado. */
+            (pkE.precio && role().canSeeFinance ? ' · ' + pkE.precio + ' €' : '') +
+            (camE ? ' · ' + camE + ' en cambio de talla' : '') +
+            (dadasE === artsE.length ? '. Está completo.' : '.') + '</p></div></div>'));
+
+          if (koE.print_name || koE.print_number) {
+            body.appendChild(el('<p class="hint">Serigrafía: <b>' + esc(koE.print_name || '—') +
+              '</b> · nº ' + esc(koE.print_number || '—') + '</p>'));
+          }
+
+          body.appendChild(el('<p class="sec-label">Prenda a prenda</p>'));
+          var lE = el('<div class="mini-list"></div>');
+          artsE.forEach(function (art) {
+            var st = entE[art.id] || {};
+            var estado = st.estado || 'pendiente';
+            var dd = SF.PRENDA_ESTADOS[estado] || {};
+            var tallaPedida = (koE.sizes || {})[art.label];
+            var det;
+            if (estado === 'entregado') {
+              det = 'talla <b>' + esc(st.talla || '?') + '</b>' +
+                (st.at ? ' · ' + fmtDate(st.at) : '') +
+                /* QUIÉN CERRÓ LA ENTREGA. Lo que hoy no consta en ningún sitio
+                   y es lo primero que se pregunta cuando algo no cuadra. */
+                (st.por ? ' · la cerró <b>' + esc(st.por) + '</b>'
+                        : ' · <span class="hint">no consta quién la cerró</span>');
+            } else if (estado === 'cambio') {
+              det = 'devuelta la <b>' + esc(st.talla || '?') + '</b>, espera la <b>' +
+                esc(st.cambio_a || '—') + '</b>' + (st.at ? ' · ' + fmtDate(st.at) : '') +
+                (st.por ? ' · lo tramitó ' + esc(st.por) : '');
+            } else {
+              det = tallaPedida ? 'talla pedida: <b>' + esc(tallaPedida) + '</b>, sin entregar'
+                                : 'sin talla elegida';
+            }
+            lE.appendChild(el('<div class="mini-row mr-wrap"><span style="min-width:0"><b>' +
+              esc(art.label) + '</b>' +
+              (art.serigrafia ? ' <span class="tag tag-gray">se serigrafía</span>' : '') + '<br>' +
+              '<span class="tag ' + dd.tag + '">' + esc(dd.label) + '</span> ' +
+              '<span class="hint">' + det + '</span></span></div>'));
+          });
+          body.appendChild(lE);
+
+          /* --- EL HISTORIAL ---
+             Los movimientos del almacén de esta persona. No es una copia de lo
+             de arriba: arriba está el ESTADO de ahora, aquí está lo que PASÓ.
+             Si una camiseta se entregó, se cambió y se volvió a entregar, arriba
+             sale una línea y aquí tres. */
+          var hist = SF.store.movsDe('jugador', p.id);
+          body.appendChild(el('<p class="sec-label">Historial · ' + hist.length +
+            (hist.length === 1 ? ' movimiento' : ' movimientos') + '</p>'));
+          if (!hist.length) {
+            body.appendChild(el('<p class="hint">Todavía no se le ha entregado nada.</p>'));
+          } else {
+            var lh = el('<div class="mini-list"></div>');
+            hist.forEach(function (m) {
+              var art = SF.store.artGet(m.art_id) || {};
+              var mo = SF.MOV_MOTIVOS[m.motivo] || { label: m.motivo };
+              var hora = (m.at || '').slice(11, 16);
+              lh.appendChild(el('<div class="mini-row mr-wrap"><span style="min-width:0">' +
+                '<b class="' + (m.delta > 0 ? 'mv-in' : 'mv-out') + '">' + (m.delta > 0 ? '+' : '') +
+                m.delta + '</b> ' + esc(art.label || m.art_id) + ' · talla ' + esc(m.talla) +
+                '<br><span class="hint">' + esc(mo.label) +
+                (m.nota ? ' · ' + esc(m.nota) : '') + '</span>' +
+                '</span><span class="row-actions"><span class="hint">' +
+                fmtDate((m.at || '').slice(0, 10)) + (hora ? ' a las ' + hora : '') +
+                '<br>' + esc(m.por || '—') + '</span></span></div>'));
+            });
+            body.appendChild(lh);
+            body.appendChild(el('<p class="hint">Cada línea movió el almacén. Un <b>+1</b> es ropa que volvió ' +
+              '—un cambio de talla o una entrega deshecha— y un <b>−1</b> es ropa que salió.</p>'));
+          }
+
+          if (puedeEq && SF.router.puede('tienda')) {
+            var bIr = el('<button class="btn btn-light btn-sm">' + ico('grid') + 'Entregar en la Tienda</button>');
+            bIr.onclick = function () { SF._tiendaTab = 'entregas'; location.hash = '#/tienda'; };
+            body.appendChild(bIr);
+            body.appendChild(el('<p class="hint">La entrega se marca en la Tienda, prenda a prenda, porque ' +
+              'ahí es donde descuenta del almacén. Marcarla aquí sin mover el almacén dejaría las dos ' +
+              'cifras diciendo cosas distintas.</p>'));
+          } else if (!puedeEq) {
+            body.appendChild(el('<p class="hint">La ropa la entrega administración. Esta pestaña es de consulta.</p>'));
+          }
+        }
       } else if (cur === 'portal') {
         /* AQUÍ ES DONDE LA GENTE LOS BUSCA. La pestaña se llamaba "Portal
            Family" y solo ofrecía el de la familia: el del jugador existía pero
@@ -13622,6 +13746,12 @@ window.SF = window.SF || {};
     var misEq = misEquipos(me);
     var idsEq = misEq.map(function (t) { return t.id; });
 
+    /* LOS ENLACES VAN AL FINAL, y es una decision de uso, no de estetica.
+       Esta pantalla se abre con un padre delante: lo primero tiene que ser el
+       buscador. La tarjeta de enlaces se consulta dos veces al año -cuando se
+       manda el pedido- y ocupaba la primera pantalla entera, dejando el
+       buscador por debajo del pliegue. Se construye aqui y se pinta abajo. */
+    var cajaEnlaces = null;
     /* Los enlaces del pedido, que es donde empieza todo: la familia pide en la
        tienda de fuera y el club entrega aquí. Se leen de los trámites para no
        tener la misma url escrita en dos sitios. */
@@ -13645,10 +13775,17 @@ window.SF = window.SF || {};
       ce.appendChild(el('<p class="hint">El pedido se paga en la tienda del club y esa tienda ' +
         '<b>no nos dice quién ha pagado</b>. Lo que la app sí sabe es lo que hemos entregado ' +
         'nosotros, y eso es lo de abajo.</p>'));
-      body.appendChild(ce);
+      cajaEnlaces = ce;
     }
 
+    /* EL BUSCADOR DEL MOSTRADOR. Viene un padre, dice su nombre, y hay que
+       encontrar a su hijo entre 295. Sin esto había que saber de qué equipo es
+       -que el padre a veces no sabe decirlo bien- o bajar por la lista entera.
+       Busca por el nombre del jugador, por el del padre o tutor, y por el
+       código de ficha, que es lo que el club usa por teléfono. */
     var bar = el('<div class="filters">' +
+      '<input id="fn" placeholder="Nombre del jugador, del padre o su código de ficha…" ' +
+      'style="flex:1 1 260px;min-width:0">' +
       '<select id="ft"><option value="">Todos mis equipos</option>' +
       misEq.map(function (t) { return '<option value="' + t.id + '">' + esc(t.name) + '</option>'; }).join('') +
       '</select>' +
@@ -13657,6 +13794,43 @@ window.SF = window.SF || {};
       '<option value="cambio">Solo cambios pendientes</option></select></div>');
     body.appendChild(bar);
     var out = el('<div></div>'); body.appendChild(out);
+
+    /* El texto por el que se busca a cada uno. El nombre del padre solo se
+       mira si quien busca tiene acceso a la pestaña Familia: buscar por el
+       nombre de un tutor es leer un dato de contacto. */
+    function textoDe(q) {
+      var t = [q.nombre, q.donde];
+      if (q.kind === 'jugador') {
+        t.push(SF.fichaCode(q.obj.ficha), q.obj.scoutflow_id, q.obj.dorsal);
+        var verFam = (r.tabs === 'all') || ((r.tabs || []).indexOf('familia') >= 0);
+        if (verFam) {
+          var fam = q.obj.family || {};
+          t.push(fam.contact, fam.father, fam.mother, fam.tutor);
+        }
+      } else {
+        t.push(SF.staffCode(q.obj.num));
+      }
+      return SF.norm(t.filter(Boolean).join(' '));
+    }
+
+    /* POR QUÉ HA SALIDO ESTA PERSONA. Buscar "Pablo" saca a Blanca Soler,
+       porque su padre se llama Pablo — que es justo lo que se quería— pero sin
+       decirlo parece un fallo del buscador y se deja de usar. Cuando la
+       coincidencia NO está en el nombre del jugador, se dice dónde está. */
+    function porQueCasa(q, txt) {
+      if (!txt || SF.norm(q.nombre).indexOf(txt) >= 0) return '';
+      if (q.kind === 'jugador') {
+        var fam = q.obj.family || {};
+        var quien = [fam.contact, fam.father, fam.mother, fam.tutor].filter(Boolean)
+          .filter(function (n) { return SF.norm(n).indexOf(txt) >= 0; })[0];
+        if (quien) return 'coincide con <b>' + esc(quien) + '</b>' +
+          (fam.relation ? ' (' + esc(fam.relation) + ')' : ' de su familia');
+        var cod = SF.fichaCode(q.obj.ficha);
+        if (cod && SF.norm(cod).indexOf(txt) >= 0) return 'coincide con su código <b>' + esc(cod) + '</b>';
+        if (q.obj.dorsal && SF.norm(String(q.obj.dorsal)).indexOf(txt) >= 0) return 'coincide con su dorsal';
+      }
+      return 'coincide con <b>' + esc(q.donde || '') + '</b>';
+    }
 
     function paint() {
       out.innerHTML = '';
@@ -13682,7 +13856,12 @@ window.SF = window.SF || {};
       var filas = gente.concat(staff).map(function (q) { q.est = estadoPack(q); return q; })
         .filter(function (q) { return !!q.est; });
 
+      /* Buscar manda sobre el filtro: si escribes un nombre, quieres ver A ESA
+         PERSONA, tenga el pack completo o no. Si no, se busca a alguien que ya
+         tiene todo entregado y la pantalla dice que no existe. */
+      var txt = SF.norm((bar.querySelector('#fn').value || '').trim());
       var visibles = filas.filter(function (q) {
+        if (txt) return textoDe(q).indexOf(txt) >= 0;
         if (fq === 'todos') return true;
         if (fq === 'cambio') return q.est.cambio > 0;
         return q.est.entregadas < q.est.total;
@@ -13698,13 +13877,31 @@ window.SF = window.SF || {};
         (enCambio ? ' · ' + enCambio + ' con un cambio de talla pendiente' : '') +
         '. La ropa que se entrega aquí sale del almacén sola.</p></div></div>'));
 
+      if (txt) {
+        out.appendChild(el('<p class="sec-label">' + visibles.length +
+          (visibles.length === 1 ? ' persona' : ' personas') + ' con «' + esc(txt) + '»' +
+          ' <span class="tag tag-gray">se ignora el filtro de arriba</span></p>'));
+      }
+
       if (!visibles.length) {
-        out.appendChild(el('<div class="empty-panel"><p>Nada que entregar con este filtro.</p></div>'));
+        out.appendChild(el('<div class="empty-panel"><p>' + (txt
+          ? 'Nadie con «' + esc(txt) + '».'
+          : 'Nada que entregar con este filtro.') + '</p>' +
+          (txt ? '<p class="hint">Se busca por el nombre del jugador, por el del padre o tutor ' +
+            'y por el código de ficha. Si el jugador no tiene pack asignado, no aparece aquí.</p>' : '') +
+          '</div>'));
         return;
       }
 
       var l = el('<div class="mini-list"></div>');
       visibles.sort(function (a, b) {
+        /* Buscando, manda quien coincide por su PROPIO nombre: si escribes
+           "Pablo" y hay un Pablo, ese va primero, no el hijo de un Pablo. */
+        if (txt) {
+          var da = SF.norm(a.nombre).indexOf(txt) >= 0 ? 0 : 1;
+          var db = SF.norm(b.nombre).indexOf(txt) >= 0 ? 0 : 1;
+          if (da !== db) return da - db;
+        }
         return (a.est.entregadas / a.est.total) - (b.est.entregadas / b.est.total) ||
           a.nombre.localeCompare(b.nombre);
       }).forEach(function (q) {
@@ -13717,8 +13914,10 @@ window.SF = window.SF || {};
               (f.talla ? ' · ' + esc(f.talla) : ' · sin talla')) + '</span>';
         }).join(' ');
         var pc = e.total ? Math.round(e.entregadas * 100 / e.total) : 0;
+        var porQue = porQueCasa(q, txt);
         var row = el('<div class="mini-row mr-wrap"><span style="min-width:0"><b>' + esc(q.nombre) + '</b> ' +
           '<span class="hint">' + esc(q.donde || '') + ' · ' + esc(e.pack.nombre) + '</span>' +
+          (porQue ? '<br><span class="hint">' + porQue + '</span>' : '') +
           '<span class="tram-barra"><i style="width:' + pc + '%"></i></span>' +
           '<span class="hint"><b>' + e.entregadas + ' de ' + e.total + '</b> entregadas</span>' +
           (chips ? '<br>' + chips : '') +
@@ -13733,7 +13932,13 @@ window.SF = window.SF || {};
 
     bar.querySelector('#ft').addEventListener('change', paint);
     bar.querySelector('#fq').addEventListener('change', paint);
+    /* Al teclear, sin esperar a nada: el padre está delante. */
+    var tBusca = null;
+    bar.querySelector('#fn').addEventListener('input', function () {
+      clearTimeout(tBusca); tBusca = setTimeout(paint, 180);
+    });
     paint();
+    if (cajaEnlaces) body.appendChild(cajaEnlaces);
   }
 
   /* La pantalla de mostrador: una persona, su pack, prenda a prenda. Se abre
@@ -25177,13 +25382,32 @@ SF.router = (function () {
     }
     if (gs) {
       gs.addEventListener('keydown', function (e) { if (e.key === 'Enter') goSearch(); });
-      /* Al escribir, si ya estás viendo resultados, se van afinando solos.
-         Con un respiro de 250 ms para no repintar en cada tecla. */
+      /* BUSCA MIENTRAS SE ESCRIBE, y esto era un fallo de verdad.
+         Antes solo se afinaba si YA estabas en la pantalla de resultados; si
+         estabas en cualquier otra, escribir no hacía nada y había que acertar
+         con el Enter o con la lupa. El resultado práctico es que se escribe un
+         nombre, no pasa nada, y se da por hecho que el buscador está roto.
+         Nadie va a pulsar Enter en un buscador que parece muerto.
+
+         Dos precauciones para que buscar al teclear no moleste: a partir de
+         DOS letras -con una sola, "a" saca medio club- y con 300 ms de respiro,
+         que es lo que se tarda en escribir la siguiente letra. Así no salta a
+         los resultados a mitad de palabra. */
       var gsT = null;
       gs.addEventListener('input', function () {
-        if (location.hash !== '#/buscar') return;
         clearTimeout(gsT);
-        gsT = setTimeout(function () { SF._q = gs.value.trim(); render(); }, 250);
+        var v = gs.value.trim();
+        gsT = setTimeout(function () {
+          if (v.length < 2) {
+            /* Se ha borrado lo escrito: se vuelve de los resultados a donde
+               estaba, en vez de dejarle mirando una pantalla vacía. */
+            if (location.hash === '#/buscar' && !v) { SF._q = ''; location.hash = defaultRoute(); }
+            return;
+          }
+          SF._q = v;
+          if (location.hash === '#/buscar') render();
+          else location.hash = '#/buscar';
+        }, 300);
       });
     }
 
