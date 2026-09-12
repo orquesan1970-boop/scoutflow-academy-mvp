@@ -3346,7 +3346,7 @@ SF.CONDICIONES = [
     test: function (p) { return !p.photo_url; } },
 
   { k: 'sin_video', label: 'Sin vídeo', ayuda: 'No ha entregado vídeo de highlights',
-    frases: ['sin video', 'sin videos', 'sin highlights'],
+    muestra: 'sin vídeo', frases: ['sin video', 'sin videos', 'sin highlights'],
     test: function (p) {
       if ((p.videos || []).length) return false;
       var st = (p.documents || {}).video_highlights;
@@ -3364,7 +3364,7 @@ SF.CONDICIONES = [
   { k: 'sin_familia', label: 'Sin contacto de familia', ayuda: 'Nadie a quien llamar si pasa algo',
     frases: ['sin familia', 'sin contacto', 'sin tutor', 'sin padres'],
     test: function (p) { return !((p.family || {}).contact || '').trim(); } },
-  { k: 'sin_telefono', label: 'Sin teléfono', frases: ['sin telefono', 'sin movil'],
+  { k: 'sin_telefono', label: 'Sin teléfono', muestra: 'sin teléfono', frases: ['sin telefono', 'sin movil'],
     test: function (p) { return !((p.phone || '') + ((p.family || {}).phone || '')).trim(); } },
   { k: 'sin_email', label: 'Sin email', frases: ['sin email', 'sin correo'],
     test: function (p) { return !((p.email || '') + ((p.family || {}).email || '')).trim(); } },
@@ -3376,11 +3376,12 @@ SF.CONDICIONES = [
     test: function (p) { return !!p.family_active; } },
 
   { k: 'sin_evaluar', label: 'Sin evaluar', ayuda: 'Todavía no tiene Scout Score',
-    frases: ['sin evaluar', 'sin evaluacion', 'sin score', 'sin puntuar'],
+    muestra: 'sin evaluación', frases: ['sin evaluar', 'sin evaluacion', 'sin score', 'sin puntuar'],
     permiso: 'canSeeScore',
     test: function (p) { return !SF.scoutScore(p); } },
 
-  { k: 'sin_fecha', label: 'Sin fecha de nacimiento', frases: ['sin fecha de nacimiento', 'sin edad', 'sin año'],
+  { k: 'sin_fecha', label: 'Sin fecha de nacimiento', muestra: 'sin fecha de nacimiento',
+    frases: ['sin fecha de nacimiento', 'sin edad', 'sin año'],
     test: function (p) { return !p.birth_date && !p.birth_year; } },
   { k: 'sin_altura', label: 'Sin altura', frases: ['sin altura', 'sin medir'],
     test: function (p) { return !p.height_cm; } },
@@ -3411,6 +3412,12 @@ SF.CONDICIONES = [
     test: function (p) { return ((p.availability || {}).estado || 'disponible') !== 'disponible'; } }
 ];
 
+/* Como se escribe la condicion EN PANTALLA. Las frases del vocabulario van sin
+   tilde porque SF.norm las compara sin tilde; ensenar "sin video" en un chip
+   seria ensenar a escribirlo mal. Lo que se muestra lleva tilde, y al pulsarlo
+   se escribe asi: al normalizar vuelve a casar con la frase. */
+SF.frasePara = function (c) { return (c && (c.muestra || (c.frases || [])[0])) || ''; };
+
 /* Que condiciones puede usar este rol. */
 SF.condicionesDe = function (r) {
   return SF.CONDICIONES.filter(function (c) { return !c.permiso || !!(r || {})[c.permiso]; });
@@ -3436,6 +3443,78 @@ SF.parseBusqueda = function (q, r) {
     texto = texto.slice(0, i + 1) + texto.slice(i + 1 + x.f.length);
   });
   return { conds: conds, usadas: usadas, terms: texto.trim().split(/\s+/).filter(Boolean) };
+};
+
+/* ===================== BUSCAR JUGADORES, UN SOLO SITIO =====================
+   Todo esto existia ya, pero SOLO dentro de la pantalla de resultados del
+   buscador global. Los otros dos buscadores de la app -el de la pantalla de
+   Jugadores y el de "añadir jugadores a un equipo"- tenian cada uno su propia
+   comparacion de texto sobre tres o cuatro campos. Resultado: "sin equipo"
+   funcionaba en uno y en los otros dos no devolvia nada, sin decir por que.
+
+   Un buscador que entiende una cosa en una pantalla y no en la de al lado
+   enseña a no confiar en ninguno. Asi que la lista de lo que se entiende y la
+   forma de comprobarlo viven aqui, y las tres pantallas llaman a lo mismo. */
+
+SF.textoJugador = function (p, r) {
+  r = r || SF.ROLES[SF.store.role()] || {};
+  var eq = p.team_id ? SF.store.teamGet(p.team_id) : null;
+  var ed = SF.ageAt(p);
+  var t = [
+    p.full_name, p.first_name, p.last_name, SF.fichaCode(p.ficha), p.scoutflow_id, p.dorsal,
+    p.birth_year, p.birth_date, ed ? ed.años + ' años' : '', p.gender,
+    p.primary_position, p.secondary_position, (p.nationality || []).join(' '),
+    p.city, p.residence_country, p.status, p.objective,
+    p.club, p.league, p.category, p.school, p.course, p.english, p.other_languages,
+    (p.languages || []).join(' '), p.dominant_hand,
+    p.height_cm ? p.height_cm + ' cm' : '', p.weight_kg ? p.weight_kg + ' kg' : '',
+    p.channel, p.responsible,
+    eq ? eq.name : '', eq ? (eq.coaches || []).join(' ') : '', eq ? eq.category : ''
+  ];
+  /* El contacto de la familia solo para quien tiene esa pestaña. */
+  if ((r.tabs === 'all') || ((r.tabs || []).indexOf('familia') >= 0)) {
+    var fam = p.family || {};
+    t.push(fam.contact, fam.relation, fam.phone, fam.email, p.phone, p.email);
+  }
+  /* Las notas internas -presupuesto, situacion economica- solo para quien las
+     puede leer. Sin esto, un entrenador escribiendo "beca" encontraria al
+     jugador y sabria que hay una nota sobre eso. */
+  if (r.canSeeNotes) t.push(p.notes_internal);
+  return SF.norm(t.filter(Boolean).join(' '));
+};
+
+SF.textoTrayectoria = function (p) {
+  var t = [];
+  SF.careerNorm(p.career_history).forEach(function (c) {
+    t.push(c.club);
+    (c.seasons || []).forEach(function (x) { t.push(x.season, x.category, x.competition, x.finish); });
+  });
+  return SF.norm(t.filter(Boolean).join(' '));
+};
+
+/* Filtra una lista de jugadores con la consulta entera: condiciones ("sin
+   equipo", "debe") mas texto libre, y TODOS los terminos tienen que casar
+   -"cadete 2009" busca las dos cosas, no una o la otra-.
+   Devuelve tambien lo que ha entendido, para que la pantalla lo pueda decir
+   en voz alta: un buscador que filtra en silencio es un buscador que miente. */
+SF.filtraJugadores = function (lista, q, r) {
+  r = r || SF.ROLES[SF.store.role()] || {};
+  var parsed = SF.parseBusqueda(q, r);
+  var terms = parsed.terms;
+  var rows = (lista || []).filter(function (p) {
+    if (!parsed.conds.every(function (c) { return c.test(p); })) return false;
+    if (!terms.length) return true;
+    /* NUMERO DE FICHA. Acepta las tres formas en que se escribe -"7", "J-7",
+       "J-0007"- y si la consulta es un numero se compara EXACTA, para que
+       buscar "7" no devuelva a todos los nacidos en 2007. */
+    if (terms.length === 1) {
+      var qn = terms[0].replace(/^j-?/, '').replace(/^0+(?=\d)/, '');
+      if (/^\d+$/.test(qn) && String(p.ficha) === qn) return true;
+    }
+    var txt = SF.textoJugador(p, r) + ' ' + SF.textoTrayectoria(p);
+    return terms.every(function (t) { return txt.indexOf(t) >= 0; });
+  });
+  return { rows: rows, conds: parsed.conds, terms: terms, hubo: !!(parsed.conds.length || terms.length) };
 };
 
 /* ===================== LAS COPIAS =====================
@@ -5422,7 +5501,19 @@ SF.planDe = function (p) {
   var planes = (SF.store && SF.store.planes) ? SF.store.planes() : [];
   function buscar(id) { return planes.filter(function (x) { return x.id === id; })[0] || null; }
 
-  /* 1. Excepcion en la ficha: manda sobre todo. */
+  /* 0. PLAN ESPECIAL: una beca, una ayuda, un acuerdo con esta familia.
+     Vive DENTRO de la ficha y no en el catalogo, a proposito: el catalogo es
+     la tarifa del club y si cada acuerdo particular entrara ahi, con 900
+     jugadores dejaria de poder leerse. Al vivir en la ficha, se ve como lo
+     que es -una excepcion de este jugador- y no se le puede aplicar a nadie
+     mas por error. */
+  var esp = p && p.finance && p.finance.plan_especial;
+  if (esp && (esp.items || []).length) {
+    return { plan: Object.assign({ id: 'especial:' + p.id, nombre: 'Plan especial', version: 1 }, esp),
+             origen: 'especial' };
+  }
+
+  /* 1. Excepcion en la ficha: otro plan DEL CATALOGO, distinto al del equipo. */
   if (p && p.finance && p.finance.plan_id) {
     var pr = buscar(p.finance.plan_id);
     if (pr) return { plan: pr, origen: 'excepcion' };
@@ -7444,12 +7535,20 @@ SF.store = (function () {
        Devuelve el resumen para poder enseñarlo ANTES de tocar nada. */
     planAplicar: function (playerIds, planId, opts) {
       opts = opts || {};
-      var d = db(), plan = (d.academy.planes || []).filter(function (x) { return x.id === planId; })[0];
-      if (!plan) return { jugadores: 0, cargos: 0, importe: 0, respetados: 0 };
+      var d = db();
+      var base = (d.academy.planes || []).filter(function (x) { return x.id === planId; })[0] || null;
+      /* Un plan especial no esta en el catalogo: vive en la ficha. Si el id
+         que llega es uno de esos (o no llega ninguno), se resuelve jugador a
+         jugador. Si llega un id de catalogo que no existe, no se inventa
+         nada: mejor no generar que generar lo que no es. */
+      var porFicha = !planId || String(planId).indexOf('especial:') === 0;
+      if (!base && !porFicha) return { jugadores: 0, cargos: 0, importe: 0, respetados: 0 };
       var res = { jugadores: 0, cargos: 0, importe: 0, respetados: 0 };
 
       (d.players || []).forEach(function (p) {
         if (playerIds.indexOf(p.id) < 0) return;
+        var plan = base || (SF.planDe(p) || {}).plan;
+        if (!plan) return;
         var previos = SF.finItems(p);
         var conservar = previos.filter(function (it) {
           return it.status === 'pagado' || it.manual || !it.plan_id;
@@ -7519,6 +7618,33 @@ SF.store = (function () {
       });
       save(d);
       return (pares || []).length;
+    },
+
+    /* El plan especial de un jugador. datos = null lo retira y devuelve al
+       jugador a lo que le toque por su equipo. */
+    planEspecial: function (playerId, datos) {
+      var d = db(), p = (d.players || []).filter(function (x) { return x.id === playerId; })[0];
+      if (!p) return null;
+      p.finance = p.finance || {};
+      if (!datos) { delete p.finance.plan_especial; save(d); return null; }
+      var yo = (SF.USERS || {})[d.role] || d.role;
+      var esp = {
+        nombre: (datos.nombre || '').trim() || 'Plan especial',
+        programa: datos.programa || 'federado',
+        /* Un concepto de 0 € no se guarda: emitiria un recibo de cero euros
+           en el portal de la familia, y eso es una llamada al club. Una beca
+           completa es simplemente un plan sin conceptos. */
+        items: (datos.items || []).filter(function (i) { return (+i.amount || 0) > 0; }),
+        /* Sin descuentos de hermano: el importe especial YA es el acordado.
+           Aplicarle encima un descuento seria cobrar dos veces la misma
+           rebaja, que es justo el error que nadie detecta hasta junio. */
+        descuentos: {},
+        motivo: (datos.motivo || '').trim(),
+        por: yo, at: new Date().toISOString()
+      };
+      p.finance.plan_especial = esp;
+      save(d);
+      return esp;
     },
 
     /* Marca una excepcion: este jugador paga otro plan que el de su equipo. */
@@ -8325,7 +8451,12 @@ SF.store = (function () {
     /* El PLAN de una sesion, indexado por la clave de la sesion del cuadrante.
        Una sesion tiene como mucho un plan: dos planes para el mismo martes es
        la forma mas rapida de que el equipo no sepa cual vale. */
-    planes: function (teamId) {
+    /* OJO: se llama planesSesion y no planes porque SF.store ya tiene un
+       planes() que devuelve el catalogo de planes de PAGO (linea ~7406). Dos
+       claves con el mismo nombre en el mismo objeto no dan error: la segunda
+       gana en silencio. Eso tuvo roto el catalogo de planes de pago, el
+       desplegable del equipo y la herencia del jugador. */
+    planesSesion: function (teamId) {
       var lista = db().planes || [];
       return teamId ? lista.filter(function (x) { return x.team_id === teamId; }) : lista;
     },
@@ -11166,7 +11297,14 @@ window.SF = window.SF || {};
     if (gq) { jugAnyo = null; jugSexo = null; jugRapido = null; }
 
     function render() {
-      var q = SF.norm(bar.querySelector('#q').value).trim();
+      var qCruda = bar.querySelector('#q').value;
+      var q = SF.norm(qCruda).trim();
+      /* EL MISMO IDIOMA QUE EL BUSCADOR GLOBAL. Antes esta caja comparaba
+         texto contra cinco campos y tenia un caso especial escrito a mano
+         ("sin pasaporte"). "sin equipo" no devolvia nada aqui y si en la lupa
+         de arriba: el mismo club, la misma pregunta, dos respuestas. */
+      var busca = q ? SF.filtraJugadores(ps, qCruda, r0) : null;
+      var setBusca = busca ? busca.rows.reduce(function (a, x) { a[x.id] = 1; return a; }, {}) : null;
       /* Buscar manda sobre los botones. Si alguien tiene puesto 2011 y escribe
          "Pablo", tiene que salir Pablo aunque sea del 2009: buscar y no
          encontrar lo que existe es el fallo que hace desconfiar de una app.
@@ -11187,18 +11325,7 @@ window.SF = window.SF || {};
         if (fp && p.primary_position !== fp) return false;
         if (fn && (p.nationality || []).indexOf(fn) < 0) return false;
         if (fs && p.status !== fs) return false;
-        if (q) {
-          /* Búsqueda por NÚMERO DE FICHA. Acepta las tres formas en que la
-             gente lo va a escribir: "7", "J-7", "J-0007". Si la consulta es
-             un número, se compara EXACTA, para que buscar "7" no devuelva a
-             todos los nacidos en 2007. */
-          var qn = q.replace(/^j-?/, '').replace(/^0+(?=\d)/, '');
-          if (/^\d+$/.test(qn) && String(p.ficha) === qn) return true;
-          var hay = SF.norm(p.full_name + ' ' + (p.primary_position || '') + ' ' + (p.nationality || []).join(' ') + ' ' +
-            (p.birth_year || '') + ' ' + (p.scoutflow_id || '') + ' ' + SF.fichaCode(p.ficha));
-          if (q.indexOf('sin pasaporte') >= 0) return p.documents.pasaporte === 'pendiente';
-          if (hay.indexOf(q) < 0) return false;
-        }
+        if (setBusca && !setBusca[p.id]) return false;
         return true;
       });
       out.innerHTML = '';
@@ -11220,6 +11347,12 @@ window.SF = window.SF || {};
         linea.appendChild(bQ);
       }
       if (preFilter) linea.appendChild(el('<span class="fr-pill">filtro activo</span>'));
+      /* Lo que ha entendido, dicho. Si alguien escribe "sin equipo" y le salen
+         12 de 277, tiene que ver que ha filtrado por eso y no que el club
+         tenga 12 jugadores. */
+      if (busca && busca.conds.length) {
+        busca.conds.forEach(function (c) { linea.appendChild(el('<span class="tag tag-purple">' + esc(c.label) + '</span>')); });
+      }
       out.appendChild(linea);
       if (frActivo && frActivo.nota) {
         out.appendChild(el('<p class="hint" style="margin-top:-4px">' + esc(frActivo.nota) + '</p>'));
@@ -15864,7 +15997,7 @@ window.SF = window.SF || {};
   function pintaMetodo(body, misEq) {
     var hoy = SF.hoyISO(), desde = SF.seasonStartISO(hoy);
     var delClub = SF.store.ejercicios().filter(function (x) { return (x.nivel || 'club') === 'club'; });
-    var planes = SF.store.planes().filter(function (p) { return (p.fecha || '') >= desde; });
+    var planes = SF.store.planesSesion().filter(function (p) { return (p.fecha || '') >= desde; });
 
     body.appendChild(el('<p class="hint">Lo que el club ha publicado como metodología, y con qué frecuencia ' +
       'aparece de verdad en los entrenamientos. Desde el ' + esc(fmtDate(desde)) + '.</p>'));
@@ -17940,12 +18073,18 @@ window.SF = window.SF || {};
      que va a pasar: con 300 jugadores, un boton que "hace cosas" sin decir
      cuantas ni por cuanto dinero da miedo, y con razon. */
   function aplicarPlanModal(playerIds, planId, refresh) {
-    var plan = SF.store.planGet(planId);
+    var plan = SF.store.planGet(planId), esEsp = String(planId || '').indexOf('especial:') === 0;
+    /* Un plan especial no esta en el catalogo: vive en la ficha del jugador. */
+    if (!plan && esEsp) {
+      var pEsp = SF.store.get(String(planId).slice(9));
+      plan = pEsp ? (SF.planDe(pEsp) || {}).plan : null;
+    }
     if (!plan) { U.toast('Ese plan ya no existe'); return; }
     var sim = SF.store.planAplicar(playerIds, planId, { simular: true });
 
     var w = el('<div></div>');
-    w.appendChild(el('<p class="hint">Plan <b>' + esc(plan.nombre) + '</b> · versión ' + (plan.version || 1) + '</p>'));
+    w.appendChild(el('<p class="hint">Plan <b>' + esc(plan.nombre) + '</b> · ' +
+      (esEsp ? '<span class="tag tag-warn">solo para este jugador</span>' : 'versión ' + (plan.version || 1)) + '</p>'));
     w.appendChild(el('<div class="kpis">' +
       '<div class="kpi"><div class="kpi-top"><span>Jugadores</span></div><div class="kpi-num">' + sim.jugadores + '</div></div>' +
       '<div class="kpi"><div class="kpi-top"><span>Cargos</span></div><div class="kpi-num">' + sim.cargos + '</div></div>' +
@@ -17971,25 +18110,173 @@ window.SF = window.SF || {};
   }
 
   /* Una excepcion: este jugador paga otro plan que su equipo. Se marca aparte
-     justamente para que se VEA que es una excepcion y no un descuido. */
+     justamente para que se VEA que es una excepcion y no un descuido.
+
+     TRES ESTADOS Y NO MAS, porque son los tres casos reales del club:
+       · el del equipo      -> lo normal, 9 de cada 10 jugadores
+       · otro del catalogo  -> juega en cadete pero paga como escuela
+       · PLAN ESPECIAL      -> una beca, una ayuda, un acuerdo con la familia
+     El especial no entra en el catalogo (ver SF.planDe). Y se guarda UNO de
+     los tres, nunca dos a la vez: un jugador con excepcion de catalogo Y plan
+     especial es un importe que nadie sabria explicar. */
   function excepcionPlanModal(p, refresh) {
-    var res = SF.planDe(p);
+    var esp = (p.finance && p.finance.plan_especial) || null;
     var opts = '<option value="">— El del equipo —</option>' + SF.store.planes().map(function (pl) {
-      return '<option value="' + pl.id + '"' + ((p.finance && p.finance.plan_id) === pl.id ? ' selected' : '') + '>' + esc(pl.nombre) + '</option>';
-    }).join('');
-    var f = el('<div class="form-grid"><div class="frow"><label>Plan de este jugador</label>' +
+      return '<option value="' + pl.id + '"' + ((!esp && (p.finance && p.finance.plan_id) === pl.id) ? ' selected' : '') + '>' + esc(pl.nombre) + '</option>';
+    }).join('') + '<option value="__esp"' + (esp ? ' selected' : '') + '>Plan especial (precio propio)</option>';
+
+    var eIns = (esp ? (esp.items || []).filter(function (i) { return i.type === 'inscripcion'; })[0] : null) || { amount: 0 };
+    var eCuo = (esp ? (esp.items || []).filter(function (i) { return i.type === 'cuota'; })[0] : null) || { amount: 0, desde: 'Septiembre', hasta: 'Junio' };
+    var mo = function (sel) { return SF.MESES_TEMPORADA.map(function (m) { return '<option' + (m === sel ? ' selected' : '') + '>' + m + '</option>'; }).join(''); };
+
+    var f = el('<div class="form-grid"><div class="frow" style="grid-column:1/-1"><label>Plan de este jugador</label>' +
       '<select id="pex">' + opts + '</select>' +
       '<p class="hint">Lo normal es dejarlo en "el del equipo". Elige otro solo si esta familia ' +
       'tiene un acuerdo distinto: así queda claro que es a propósito.</p></div></div>');
+
+    /* El panel del plan especial va EN LINEA, no en otro modal: la app solo
+       admite un modal abierto, y abrir uno encima cerraria este. */
+    var pan = el('<div class="ej-pick" style="display:none">' +
+      '<p class="sec-label">Plan especial <span class="tag tag-warn">solo para ' + esc(p.full_name) + '</span></p>' +
+      '<div class="form-grid">' +
+      '<div class="frow"><label>Cómo se llama</label><input id="en" value="' + esc(esp ? esp.nombre : 'Plan especial') + '" placeholder="Plan especial"></div>' +
+      '<div class="frow"><label>Inscripción (€)</label><input id="ei" type="number" min="0" value="' + (+eIns.amount || 0) + '"></div>' +
+      '<div class="frow"><label>Importe de cada cuota (€)</label><input id="ec" type="number" min="0" value="' + (+eCuo.amount || 0) + '"></div>' +
+      '<div class="frow"><label>Primera cuota</label><select id="ed">' + mo(eCuo.desde || 'Septiembre') + '</select></div>' +
+      '<div class="frow"><label>Última cuota</label><select id="eh">' + mo(eCuo.hasta || 'Junio') + '</select></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Motivo (interno)</label>' +
+      '<input id="em" value="' + esc(esp ? (esp.motivo || '') : '') + '" placeholder="Beca del club, acuerdo con la familia…"></div>' +
+      '</div>' +
+      '<p class="hint">El importe es el acordado: <b>no se le aplica encima el descuento de hermano</b>. ' +
+      'El motivo es interno y no sale nunca en el portal de la familia: ahí solo verá lo que tiene que pagar.</p>' +
+      '</div>');
+
+    var sel = f.querySelector('#pex');
+    function pinta() { pan.style.display = (sel.value === '__esp') ? '' : 'none'; }
+    sel.onchange = pinta;
+
+    var w = el('<div></div>'); w.appendChild(f); w.appendChild(pan);
+    if (esp) {
+      w.appendChild(el('<p class="hint">Plan especial puesto por ' + esc(esp.por || '—') +
+        (esp.at ? ' el ' + esc(fmtDate(esp.at.slice(0, 10))) : '') + '.</p>'));
+    }
+    w.appendChild(el('<p class="hint">Cambiar el plan no mueve ningún importe todavía. ' +
+      'Después hay que pulsar <b>Aplicar plan</b> para generar los cargos.</p>'));
+
     var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
     foot.children[0].onclick = U.closeModal;
     foot.children[1].onclick = function () {
-      SF.store.planExcepcion(p.id, f.querySelector('#pex').value);
-      U.closeModal(); U.toast('Plan actualizado');
+      if (sel.value === '__esp') {
+        var di = SF.MESES_TEMPORADA.indexOf(pan.querySelector('#ed').value);
+        var hi = SF.MESES_TEMPORADA.indexOf(pan.querySelector('#eh').value);
+        if (hi < di) { U.toast('La última cuota es anterior a la primera'); return; }
+        var ins = +pan.querySelector('#ei').value || 0, cuo = +pan.querySelector('#ec').value || 0;
+        var its = [];
+        /* Un importe de 0 no se emite como cargo: un recibo de 0 € en el
+           portal de la familia solo genera una llamada. Una beca completa es
+           inscripcion 0 y cuota 0, y entonces no hay nada que cobrar. */
+        if (ins > 0) its.push({ type: 'inscripcion', label: 'Inscripción', amount: ins });
+        if (cuo > 0) its.push({ type: 'cuota', label: 'Cuota', amount: cuo,
+          desde: pan.querySelector('#ed').value, hasta: pan.querySelector('#eh').value });
+        SF.store.planEspecial(p.id, {
+          nombre: pan.querySelector('#en').value,
+          programa: (SF.store.teamGet(p.team_id) || {}).programa || 'federado',
+          items: its, motivo: pan.querySelector('#em').value
+        });
+        SF.store.planExcepcion(p.id, '');   /* uno de los tres, no dos */
+        U.closeModal();
+        U.toast(its.length ? 'Plan especial guardado' : 'Plan especial sin importes: este jugador no paga nada');
+      } else {
+        SF.store.planEspecial(p.id, null);
+        SF.store.planExcepcion(p.id, sel.value);
+        U.closeModal(); U.toast('Plan actualizado');
+      }
       if (refresh) refresh(); else SF.router.render();
     };
-    var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
+    w.appendChild(foot);
+    pinta();
     U.modal('Cambiar el plan de ' + esc(p.full_name), w);
+  }
+
+  /* El desplegable de plan de pago, con su propia forma de crear uno.
+
+     Por que no abre el editor de planes: el editor es un modal, y la app solo
+     admite un modal abierto a la vez (U.modal cierra el anterior). Abrirlo
+     desde dentro del formulario del equipo tiraria el formulario a medio
+     rellenar. Asi que el creador va EN LINEA, aqui mismo, con los cuatro
+     campos que hacen falta; el resto se ajusta luego en el catalogo.
+
+     Y si no hay ningun plan todavia, el panel se abre solo: un desplegable con
+     una sola opcion que dice "— Sin plan —" no explica que falta crear uno. */
+  function planPicker(planIdActual, nombreCampo) {
+    var cont = el('<div></div>');
+    var sel = el('<select' + (nombreCampo ? ' name="' + nombreCampo + '"' : '') + '></select>');
+
+    function rellena(sel2) {
+      var planes = SF.store.planes();
+      sel.innerHTML = '<option value="">— Sin plan —</option>' + planes.map(function (pl) {
+        var ins = (pl.items || []).filter(function (i) { return i.type === 'inscripcion'; })[0];
+        var cuo = (pl.items || []).filter(function (i) { return i.type === 'cuota'; })[0];
+        var det = [];
+        if (ins && +ins.amount) det.push((+ins.amount) + ' € inscripción');
+        if (cuo && +cuo.amount) det.push((+cuo.amount) + ' €/mes');
+        return '<option value="' + pl.id + '"' + (pl.id === sel2 ? ' selected' : '') + '>' +
+          esc(pl.nombre) + (det.length ? ' · ' + det.join(' + ') : '') + '</option>';
+      }).join('');
+      return planes.length;
+    }
+    var hay = rellena(planIdActual);
+    cont.appendChild(sel);
+
+    var abrir = el('<p class="hint">' +
+      (hay ? '' : '<b>Todavía no hay ningún plan creado.</b> ') +
+      '<button class="lnk" type="button">' + (hay ? 'Crear un plan nuevo' : 'Crear el primero aquí mismo') +
+      '</button></p>');
+    cont.appendChild(abrir);
+
+    var mo = function (sel3) { return SF.MESES_TEMPORADA.map(function (m) { return '<option' + (m === sel3 ? ' selected' : '') + '>' + m + '</option>'; }).join(''); };
+    var progOpts = Object.keys(SF.PROGRAMAS).map(function (k) { return '<option value="' + k + '">' + SF.PROGRAMAS[k] + '</option>'; }).join('');
+    var pan = el('<div class="ej-pick" style="display:' + (hay ? 'none' : '') + '">' +
+      '<div class="form-grid">' +
+      '<div class="frow"><label>Nombre del plan</label><input id="np" placeholder="Federado Cadete"></div>' +
+      '<div class="frow"><label>Programa</label><select id="npp">' + progOpts + '</select></div>' +
+      '<div class="frow"><label>Inscripción (€)</label><input id="ni" type="number" min="0" value="0"></div>' +
+      '<div class="frow"><label>Importe de cada cuota (€)</label><input id="nc" type="number" min="0" value="0"></div>' +
+      '<div class="frow"><label>Primera cuota</label><select id="nd">' + mo('Septiembre') + '</select></div>' +
+      '<div class="frow"><label>Última cuota</label><select id="nh">' + mo('Junio') + '</select></div>' +
+      '</div>' +
+      '<div class="row-c"><button class="btn btn-primary btn-sm" type="button" id="ngo">Crear plan</button></div>' +
+      '<p class="hint">Los descuentos de hermano se ponen después en <b>Finanzas → planes de pago</b>. ' +
+      'Crear un plan no cobra nada: hay que aplicarlo.</p>' +
+      '</div>');
+    cont.appendChild(pan);
+
+    abrir.querySelector('button').onclick = function () {
+      pan.style.display = pan.style.display === 'none' ? '' : 'none';
+      if (pan.style.display === '') pan.querySelector('#np').focus();
+    };
+    pan.querySelector('#ngo').onclick = function () {
+      var nom = pan.querySelector('#np').value.trim();
+      if (!nom) { U.toast('Ponle nombre al plan'); pan.querySelector('#np').focus(); return; }
+      var di = SF.MESES_TEMPORADA.indexOf(pan.querySelector('#nd').value);
+      var hi = SF.MESES_TEMPORADA.indexOf(pan.querySelector('#nh').value);
+      if (hi < di) { U.toast('La última cuota es anterior a la primera'); return; }
+      var nuevo = SF.store.planSave({
+        nombre: nom, programa: pan.querySelector('#npp').value, activo: true, descuentos: {},
+        items: [
+          { type: 'inscripcion', label: 'Inscripción', amount: +pan.querySelector('#ni').value || 0 },
+          { type: 'cuota', label: 'Cuota', amount: +pan.querySelector('#nc').value || 0,
+            desde: pan.querySelector('#nd').value, hasta: pan.querySelector('#nh').value }
+        ]
+      });
+      rellena(nuevo.id);
+      pan.style.display = 'none';
+      pan.querySelector('#np').value = '';
+      abrir.innerHTML = '<button class="lnk" type="button">Crear un plan nuevo</button>';
+      abrir.querySelector('button').onclick = function () { pan.style.display = pan.style.display === 'none' ? '' : 'none'; };
+      U.toast('Plan "' + nom + '" creado y seleccionado');
+    };
+    return { el: cont, select: sel, valor: function () { return sel.value; } };
   }
 
   /* Editor de un plan del catalogo. */
@@ -18071,12 +18358,23 @@ window.SF = window.SF || {};
     var res = SF.planDe(p);
     var cab;
     if (res.plan) {
-      var deDonde = res.origen === 'excepcion'
-        ? '<span class="tag tag-warn">excepción de esta ficha</span>'
-        : '<span class="tag tag-gray">heredado de ' + esc(res.equipo || 'su equipo') + '</span>';
-      var herm = p.siblings_position && (res.plan.descuentos || {})[p.siblings_position]
+      /* DE DONDE SALE EL IMPORTE: solo para quien gestiona el dinero.
+         El rol "Padre / Tutor" tiene canSeeFinance (tiene que ver lo que debe)
+         pero NO canManageFinance, y de donde sale el precio de su hijo es
+         informacion interna del club: por que se le hizo una beca, o que su
+         equipo paga otra cosa. La familia ve lo que paga; el club, por que.
+         Regla 10 del proyecto. */
+      var deDonde = !canManage ? '' : (res.origen === 'especial'
+        ? '<span class="tag tag-warn">plan especial de esta ficha</span>'
+        : res.origen === 'excepcion'
+          ? '<span class="tag tag-warn">excepción de esta ficha</span>'
+          : '<span class="tag tag-gray">heredado de ' + esc(res.equipo || 'su equipo') + '</span>');
+      var herm = (canManage && p.siblings_position && (res.plan.descuentos || {})[p.siblings_position])
         ? ' · con descuento de ' + esc(p.siblings_position).toLowerCase() + ' hermano' : '';
-      cab = el('<div class="mini-row" style="margin-bottom:10px"><span><b>Plan: ' + esc(res.plan.nombre) + '</b> ' +
+      /* El motivo no sale nunca de aqui, y aqui solo si gestionas cobros. */
+      if (canManage && res.origen === 'especial' && res.plan.motivo) herm += ' · ' + esc(res.plan.motivo);
+      cab = el('<div class="mini-row" style="margin-bottom:10px"><span><b>Plan: ' +
+        esc(canManage ? res.plan.nombre : (res.origen === 'especial' ? 'acordado con el club' : res.plan.nombre)) + '</b> ' +
         deDonde + herm + '</span><span class="row-actions"></span></div>');
     } else {
       cab = el('<div class="mini-row" style="margin-bottom:10px"><span class="hint">' +
@@ -18092,7 +18390,8 @@ window.SF = window.SF || {};
         bAp.onclick = function () { aplicarPlanModal([p.id], res.plan.id, refresh); };
         tools.appendChild(bAp);
       }
-      var bEx = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Cambiar plan</button>');
+      var bEx = el('<button class="btn btn-light btn-sm">' + ico('edit') +
+        (res.origen === 'especial' ? 'Editar plan especial' : 'Cambiar plan') + '</button>');
       bEx.onclick = function () { excepcionPlanModal(p, refresh); };
       tools.appendChild(bEx);
       var b1 = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Inscripción</button>'); b1.onclick = function () { inscriptionModal(p, refresh); };
@@ -18501,20 +18800,20 @@ window.SF = window.SF || {};
     var progOpts = Object.keys(SF.PROGRAMAS).map(function (k) {
       return '<option value="' + k + '"' + ((t.programa || 'federado') === k ? ' selected' : '') + '>' + SF.PROGRAMAS[k] + '</option>';
     }).join('');
-    var planOpts = '<option value="">— Sin plan —</option>' + SF.store.planes().map(function (pl) {
-      return '<option value="' + pl.id + '"' + (pl.id === t.plan_id ? ' selected' : '') + '>' + esc(pl.nombre) + '</option>';
-    }).join('');
     var n = SF.store.players().filter(function (x) { return x.team_id === t.id; }).length;
     var f = el('<div class="form-grid">' +
       '<div class="frow"><label>Programa</label><select id="tp">' + progOpts + '</select>' +
         '<p class="hint">Para qué paga. No es lo mismo que el segmento deportivo.</p></div>' +
-      '<div class="frow"><label>Plan de pago</label><select id="tpl">' + planOpts + '</select>' +
+      '<div class="frow" id="planrow"><label>Plan de pago</label>' +
         '<p class="hint">Lo heredan los <b>' + n + '</b> jugadores del equipo. Cambiarlo aquí no genera ningún cargo: ' +
         'para eso está "Aplicar un plan a un equipo", en Finanzas.</p></div></div>');
+    var picker = planPicker(t.plan_id, null);
+    var prow = f.querySelector('#planrow');
+    prow.insertBefore(picker.el, prow.querySelector('.hint'));
     var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
     foot.children[0].onclick = U.closeModal;
     foot.children[1].onclick = function () {
-      SF.store.teamUpdate(t.id, { programa: f.querySelector('#tp').value, plan_id: f.querySelector('#tpl').value });
+      SF.store.teamUpdate(t.id, { programa: f.querySelector('#tp').value, plan_id: picker.valor() });
       U.closeModal(); U.toast('Plan del equipo guardado'); SF.router.render();
     };
     var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
@@ -21616,7 +21915,6 @@ window.SF = window.SF || {};
         (stt.level === 'ok' ? '' : ' · ' + esc(stt.label)) + '</span></span></label>';
     }).join('');
     var progOpts = Object.keys(SF.PROGRAMAS).map(function (k) { return '<option value="' + k + '"' + ((t.programa || 'federado') === k ? ' selected' : '') + '>' + SF.PROGRAMAS[k] + '</option>'; }).join('');
-    var planOpts = '<option value="">— Sin plan —</option>' + SF.store.planes().map(function (pl) { return '<option value="' + pl.id + '"' + (pl.id === t.plan_id ? ' selected' : '') + '>' + esc(pl.nombre) + '</option>'; }).join('');
     var f = el('<div class="form-grid"></div>');
     f.innerHTML =
       '<div class="frow"><label>Nombre del equipo</label><input name="name" value="' + esc(t.name) + '"></div>' +
@@ -21625,8 +21923,9 @@ window.SF = window.SF || {};
       '<div class="frow"><label>Categoría</label><input name="category" value="' + esc(t.category) + '"></div>' +
       '<div class="frow"><label>Programa</label><select name="programa">' + progOpts + '</select>' +
         '<p class="hint">Para qué paga. No es lo mismo que el segmento: un cadete masculino es federado, uno de escuelas no.</p></div>' +
-      '<div class="frow"><label>Plan de pago</label><select name="plan_id">' + planOpts + '</select>' +
-        '<p class="hint">Todos los jugadores del equipo heredan este plan. Se puede poner una excepción en su ficha.</p></div>' +
+      '<div class="frow" id="planrow"><label>Plan de pago</label>' +
+        '<p class="hint">Todos los jugadores del equipo heredan este plan. Se puede poner una excepción, ' +
+        'o un <b>plan especial</b> con su propio precio, en la ficha del jugador.</p></div>' +
       '<div class="frow" style="grid-column:1/-1"><label>Cuerpo técnico</label>' +
         '<div class="chks chks-st">' + coachChecks + '</div>' +
         '<p class="hint">Quien marques aquí <b>pasa a ver las fichas de los jugadores de este equipo</b>, ' +
@@ -21640,6 +21939,13 @@ window.SF = window.SF || {};
         '<input name="manco_con" value="' + esc(t.mancomunado_con || '') + '" placeholder="¿Con qué club? Ej.: CB Pozuelo" ' +
         'style="margin-top:8px' + (t.mancomunado ? '' : ';display:none') + '">' +
         '<p class="hint">Aparecen juntos en su propio botón de la pantalla de Equipos, sin salir de su categoría.</p></div>';
+    /* El desplegable de plan se monta aparte porque trae su propio creador
+       en linea: el catalogo puede estar vacio, y mandar a la persona a otra
+       pantalla a mitad de crear un equipo es perderle el trabajo hecho. */
+    var picker = planPicker(t.plan_id, 'plan_id');
+    var prow = f.querySelector('#planrow');
+    prow.insertBefore(picker.el, prow.querySelector('.hint'));
+
     /* El "con qué club" solo tiene sentido si está marcado. */
     f.querySelector('[name=manco]').onchange = function (e) {
       f.querySelector('[name=manco_con]').style.display = e.target.checked ? '' : 'none';
@@ -21653,7 +21959,7 @@ window.SF = window.SF || {};
         segment: f.querySelector('[name=segment]').value,
         category: f.querySelector('[name=category]').value.trim(),
         programa: f.querySelector('[name=programa]').value,
-        plan_id: f.querySelector('[name=plan_id]').value,
+        plan_id: picker.valor(),
         /* Ya no viaja una lista de nombres dentro del equipo: viajan los ids
            del staff, y quien guarda se encarga de asignarlos de verdad. */
         _staff_ids: Array.prototype.slice.call(f.querySelectorAll('.coach:checked')).map(function (i) { return i.value; }),
@@ -21677,7 +21983,14 @@ window.SF = window.SF || {};
     var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot); return w;
   }
 
+  /* Añadir jugadores a un equipo.
+     El buscador de aqui comparaba nombre + año + posicion y nada mas, asi que
+     "sin equipo" -justo lo que se busca al montar una plantilla- no devolvia
+     nada. Ahora usa el MISMO idioma que el buscador global (SF.filtraJugadores)
+     y lo enseña con chips: nadie adivina "sin acceso Family", pero si la lee
+     una vez la usa siempre. */
   function openAddPlayers(t) {
+    var r = role();
     var candidates = SF.store.players().filter(function (p) { return p.team_id !== t.id; });
     candidates.sort(function (a, b) {
       var ai = a.status === 'Inscrito' ? 0 : 1, bi = b.status === 'Inscrito' ? 0 : 1;
@@ -21685,34 +21998,96 @@ window.SF = window.SF || {};
       return (a.full_name || '').localeCompare(b.full_name || '');
     });
     var box = el('<div></div>');
-    box.appendChild(el('<p class="hint">Busca por nombre, año o posición y marca los jugadores (con ficha) a incorporar. Los inscritos aparecen primero.</p>'));
-    var search = el('<input class="add-search" placeholder="Buscar jugador por nombre, año o posición…">');
+    box.appendChild(el('<p class="hint">Marca los jugadores a incorporar a <b>' + esc(t.name) + '</b>. ' +
+      'Los inscritos aparecen primero.</p>'));
+    var search = el('<input class="add-search" placeholder="Nombre, ficha, año, posición, club… o «sin equipo»">');
     box.appendChild(search);
-    var list = el('<div class="mini-list add-list"></div>');
-    if (!candidates.length) list.appendChild(el('<p class="hint">No hay más jugadores con ficha para añadir.</p>'));
-    candidates.forEach(function (p) {
-      var tag = p.status === 'Inscrito' ? '<span class="tag tag-green">Inscrito</span>' : '<span class="tag tag-gray">' + esc(p.status) + '</span>';
-      var other = (p.team_id && p.team_id !== t.id) ? ' · <span class="hint">en ' + esc((SF.store.teamGet(p.team_id) || {}).name || 'otro equipo') + '</span>' : '';
-      var row = el('<label class="mini-row add-row"><span><input type="checkbox" value="' + p.id + '"> <b>' + esc(p.full_name) + '</b> · ' + (p.birth_year || '—') + ' · ' + esc(p.primary_position || '—') + other + '</span>' + tag + '</label>');
-      row.dataset.hay = SF.norm(p.full_name + ' ' + (p.birth_year || '') + ' ' + (p.primary_position || ''));
-      list.appendChild(row);
-    });
-    box.appendChild(list);
-    var empty = el('<p class="hint add-empty" style="display:none">Sin coincidencias.</p>'); box.appendChild(empty);
-    search.oninput = function () {
-      var q = SF.norm(search.value).trim(), vis = 0;
-      Array.prototype.forEach.call(list.querySelectorAll('.add-row'), function (r) {
-        var show = !q || r.dataset.hay.indexOf(q) >= 0; r.style.display = show ? '' : 'none'; if (show) vis++;
+
+    /* Las condiciones que este rol puede usar, pulsables. Se suman a lo que ya
+       haya escrito: «2011 sin equipo» son las dos cosas. */
+    var chips = el('<div class="row-c" style="margin:8px 0 4px"></div>');
+    /* Las seis que de verdad se usan al montar una plantilla. "Sin foto"
+       tambien esta en el vocabulario, pero hoy le toca a los 277 y un chip que
+       selecciona a todo el club no contesta ninguna pregunta. */
+    var sug = ['sin equipo', 'sin video', 'sin evaluar', 'sin documentos', 'sin familia', 'sin medidas'];
+    SF.condicionesDe(r).filter(function (c) { return sug.indexOf(SF.norm(c.frases[0])) >= 0; })
+      .forEach(function (c) {
+        var fr = SF.frasePara(c);
+        var b = el('<button class="eq-chip eq-chip-sm" type="button" title="' + esc(c.ayuda || c.label) + '">' + esc(fr) + '</button>');
+        b.onclick = function () {
+          var v = search.value.trim();
+          search.value = v ? (v + ' ' + fr) : fr;
+          pinta();
+        };
+        chips.appendChild(b);
       });
-      empty.style.display = (candidates.length && !vis) ? '' : 'none';
-    };
+    var bTodo = el('<button class="lnk" type="button">ver todo lo que entiende</button>');
+    var vocab = el('<div class="ej-pick" style="display:none"></div>');
+    var vfila = el('<div class="row-c"></div>');
+    SF.condicionesDe(r).forEach(function (c) {
+      var fr = SF.frasePara(c);
+      var b = el('<button class="eq-chip eq-chip-sm" type="button" title="' + esc(c.ayuda || c.label) + '">' + esc(fr) + '</button>');
+      b.onclick = function () { var v = search.value.trim(); search.value = v ? (v + ' ' + fr) : fr; pinta(); };
+      vfila.appendChild(b);
+    });
+    vocab.appendChild(el('<p class="sec-label">Condiciones que entiende</p>'));
+    vocab.appendChild(vfila);
+    vocab.appendChild(el('<p class="hint" style="margin-top:10px">Y por texto: nombre, número de ficha, año, edad, ' +
+      'posición, nacionalidad, ciudad, equipo, entrenador, colegio, curso, dorsal, estado, altura, peso, ' +
+      'mano dominante, y el club, la categoría o la competición de su trayectoria.</p>'));
+    bTodo.onclick = function () { vocab.style.display = vocab.style.display === 'none' ? '' : 'none'; };
+    chips.appendChild(bTodo);
+    box.appendChild(chips); box.appendChild(vocab);
+
+    var linea = el('<p class="count"></p>'); box.appendChild(linea);
+    var list = el('<div class="mini-list add-list"></div>'); box.appendChild(list);
+
+    /* Lo marcado sobrevive a un cambio de busqueda: buscar "sin equipo",
+       marcar tres, buscar "2011" y marcar dos mas tiene que añadir cinco. */
+    var marcados = {};
+
+    function fila(p) {
+      var tag = p.status === 'Inscrito' ? '<span class="tag tag-green">Inscrito</span>' : '<span class="tag tag-gray">' + esc(p.status) + '</span>';
+      var other = p.team_id ? ' · <span class="hint">en ' + esc((SF.store.teamGet(p.team_id) || {}).name || 'otro equipo') + '</span>'
+        : ' · <span class="tag tag-warn">sin equipo</span>';
+      var row = el('<label class="mini-row mr-wrap add-row"><span><input type="checkbox" value="' + p.id + '"' +
+        (marcados[p.id] ? ' checked' : '') + '> <b>' + esc(p.full_name) + '</b> · ' + (p.birth_year || '—') +
+        ' · ' + esc(p.primary_position || '—') + other + '</span>' + tag + '</label>');
+      row.querySelector('input').onchange = function (e) {
+        if (e.target.checked) marcados[p.id] = 1; else delete marcados[p.id];
+        pinta(true);
+      };
+      return row;
+    }
+
+    function pinta(soloCuenta) {
+      var qv = search.value.trim();
+      var res = qv ? SF.filtraJugadores(candidates, qv, r) : { rows: candidates, conds: [], terms: [] };
+      if (!soloCuenta) {
+        list.innerHTML = '';
+        if (!candidates.length) list.appendChild(el('<p class="hint">No hay más jugadores con ficha para añadir.</p>'));
+        else if (!res.rows.length) list.appendChild(el('<p class="hint">Sin coincidencias. Prueba con menos palabras.</p>'));
+        else res.rows.forEach(function (p) { list.appendChild(fila(p)); });
+      }
+      linea.innerHTML = res.rows.length + ' de ' + candidates.length + ' disponible' + (candidates.length === 1 ? '' : 's');
+      res.conds.forEach(function (c) { linea.appendChild(el('<span class="tag tag-purple">' + esc(c.label) + '</span>')); });
+      var n = Object.keys(marcados).length;
+      if (n) linea.appendChild(el('<span class="fr-pill">' + n + ' marcado' + (n === 1 ? '' : 's') + '</span>'));
+    }
+
+    var tmr = null;
+    search.oninput = function () { clearTimeout(tmr); tmr = setTimeout(function () { pinta(); }, 200); };
+    pinta();
+
     var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Añadir seleccionados</button></div>');
     foot.children[0].onclick = U.closeModal;
     foot.children[1].onclick = function () {
-      var ids = Array.prototype.slice.call(list.querySelectorAll('input:checked')).map(function (i) { return i.value; });
+      var ids = Object.keys(marcados);
       if (!ids.length) { U.toast('Marca al menos un jugador'); return; }
       ids.forEach(function (id) { SF.store.update(id, { team_id: t.id }); });
-      U.closeModal(); U.toast(ids.length + ' jugador(es) añadidos'); SF.router.render();
+      U.closeModal();
+      U.toast(ids.length === 1 ? '1 jugador añadido a ' + t.name : ids.length + ' jugadores añadidos a ' + t.name);
+      SF.router.render();
     };
     box.appendChild(foot);
     U.modal('Buscar y añadir jugadores a ' + esc(t.name), box);
@@ -24104,42 +24479,12 @@ window.SF = window.SF || {};
      LA SALUD NO ENTRA NUNCA, ni para quien puede verla. Encontrar a un chaval
      escribiendo "rodilla" es exactamente lo que no debe poder pasarle a la
      ficha medica de un menor. */
-  function textoJugador(p, r) {
-    r = r || role();
-    var eq = p.team_id ? SF.store.teamGet(p.team_id) : null;
-    var ed = SF.ageAt(p);
-    var t = [
-      p.full_name, p.first_name, p.last_name, SF.fichaCode(p.ficha), p.scoutflow_id, p.dorsal,
-      p.birth_year, p.birth_date, ed ? ed.años + ' años' : '', p.gender,
-      p.primary_position, p.secondary_position, (p.nationality || []).join(' '),
-      p.city, p.residence_country, p.status, p.objective,
-      p.club, p.league, p.category, p.school, p.course, p.english, p.other_languages,
-      (p.languages || []).join(' '), p.dominant_hand,
-      p.height_cm ? p.height_cm + ' cm' : '', p.weight_kg ? p.weight_kg + ' kg' : '',
-      p.channel, p.responsible,
-      eq ? eq.name : '', eq ? (eq.coaches || []).join(' ') : '', eq ? eq.category : ''
-    ];
-    /* El contacto de la familia solo para quien tiene esa pestaña. */
-    if ((r.tabs === 'all') || ((r.tabs || []).indexOf('familia') >= 0)) {
-      var fam = p.family || {};
-      t.push(fam.contact, fam.relation, fam.phone, fam.email, p.phone, p.email);
-    }
-    /* Las notas internas -presupuesto, situacion economica- solo para quien
-       las puede leer. Sin esto, un entrenador escribiendo "beca" encontraria
-       al jugador y sabria que hay una nota sobre eso. */
-    if (r.canSeeNotes) t.push(p.notes_internal);
-    return SF.norm(t.filter(Boolean).join(' '));
-  }
+  /* Vive en SF.textoJugador: lo usan tambien el buscador de Jugadores y el de
+     añadir a un equipo, y tres copias del mismo indice acaban siendo tres. */
+  function textoJugador(p, r) { return SF.textoJugador(p, r || role()); }
   /* La trayectoria va aparte para poder decir POR QUÉ ha salido:
      si buscas "EBA" quieres saber que ha coincidido ahí, no adivinarlo. */
-  function textoTrayectoria(p) {
-    var t = [];
-    SF.careerNorm(p.career_history).forEach(function (c) {
-      t.push(c.club);
-      c.seasons.forEach(function (s) { t.push(s.season, s.category, s.competition, s.finish); });
-    });
-    return SF.norm(t.filter(Boolean).join(' '));
-  }
+  function textoTrayectoria(p) { return SF.textoTrayectoria(p); }
   function trayectoriaResumen(p, terms) {
     var out = [];
     SF.careerNorm(p.career_history).forEach(function (c) {
@@ -24173,12 +24518,13 @@ window.SF = window.SF || {};
       '«cadete sin vídeo» o «2009 sin equipo».</p></div>');
     var fila = el('<div class="row-c" style="margin-top:10px"></div>');
     SF.condicionesDe(r).forEach(function (c) {
+      var fr = SF.frasePara(c);
       var b = el('<button class="eq-chip eq-chip-sm" title="' + esc(c.ayuda || c.label) + '">' +
-        esc(c.frases[0]) + '</button>');
+        esc(fr) + '</button>');
       b.onclick = function () {
-        SF._q = c.frases[0];
+        SF._q = fr;
         var caja2 = document.getElementById('gsearch');
-        if (caja2) caja2.value = c.frases[0];
+        if (caja2) caja2.value = fr;
         location.hash = '#/buscar';
         SF.router.render();
       };
