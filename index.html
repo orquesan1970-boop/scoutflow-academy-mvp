@@ -810,6 +810,44 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 .toast .ic{width:15px;height:15px;color:var(--purple-2)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 
+/* ===== EL MARCO DE MOVIL =====
+   Solo de 900 px para arriba. En un movil de verdad no se dibuja: un movil
+   dentro de un movil es absurdo y le quita ancho a quien esta subiendo un DNI.
+   Y no lleva altura fija ni scroll propio -crece con el contenido- porque un
+   area que se desplaza dentro de otra que tambien se desplaza es una trampa. */
+/* Por debajo de 900 px no hay marco Y TAMPOCO PIE. Decirle a una madre «desde
+   el movil ocupa la pantalla entera» mientras lo esta mirando en el movil es
+   explicarle donde esta. El pie es para quien mira desde un ordenador. */
+.mv-wrap{display:contents}
+.mv-pie{display:none}
+@media(min-width:900px){
+  .mv-wrap{display:block;padding:8px 0 28px}
+  .mv-marco{position:relative;width:412px;margin:0 auto;background:#12101F;
+    border-radius:44px;padding:12px;box-shadow:0 24px 70px rgba(23,19,42,.28),
+    0 0 0 1px rgba(255,255,255,.06) inset;
+    /* El borde metalico de un telefono, sin dibujar una marca concreta. */
+    background-image:linear-gradient(160deg,#2A2540 0%,#12101F 38%,#12101F 62%,#332C4E 100%)}
+  .mv-notch{position:absolute;top:12px;left:50%;transform:translateX(-50%);
+    width:126px;height:26px;background:#12101F;border-radius:0 0 16px 16px;
+    z-index:2;display:flex;align-items:center;justify-content:center;gap:8px}
+  .mv-alt{width:42px;height:5px;border-radius:99px;background:#2C2740}
+  .mv-cam{width:8px;height:8px;border-radius:99px;background:#231E36;
+    box-shadow:0 0 0 1px #3A3355 inset}
+  .mv-pant{background:var(--bg);border-radius:34px;overflow:hidden}
+  .mv-pant .phone{max-width:none;margin:0;border:0;border-radius:0;box-shadow:none;
+    background:transparent}
+  /* La barra de estado va DEL COLOR DE LA APP, como en un movil de verdad: la
+     cabecera oscura sube por detras del notch. Dejar ahi el fondo claro se veia
+     como una franja blanca sobre la cabecera negra: el fallo que delata que el
+     marco es un dibujo pegado encima. */
+  .mv-pant .phone-top{border-radius:0;padding-top:44px;position:relative;z-index:1}
+  /* La rayita de abajo. Cierra la ilusion por 6 px de alto. */
+  .mv-pant::after{content:'';display:block;width:120px;height:5px;border-radius:99px;
+    background:#C9C6D8;margin:16px auto 10px}
+  .mv-pie{display:block;max-width:412px;margin:16px auto 0;text-align:center;
+    font-size:12.5px;color:var(--ink-3);line-height:1.55}
+}
+
 /* Portal Family (mobile-first) */
 .phone{max-width:380px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:26px;overflow:hidden;box-shadow:0 10px 40px rgba(23,19,42,.12)}
 .phone-top{background:var(--sidebar);color:#fff;display:flex;align-items:center;gap:9px;padding:16px 18px;font-size:14px;font-weight:500}
@@ -20515,8 +20553,43 @@ window.SF = window.SF || {};
       { compacto: true, titulo: 'Lo que hay que hacer' });
     if (trFam) { b.appendChild(el('<p class="ph-sec">Trámites</p>')); b.appendChild(trFam); }
 
-    view.appendChild(phone);
+    view.appendChild(enMarco(phone, 'familia'));
   };
+
+  /* EL MARCO DE MÓVIL. Envuelve un portal para que en un portátil se vea como
+     lo que es: una app de móvil.
+
+     No es solo para vender, aunque para eso sirve y es la mejor forma de
+     enseñarle a un club lo que van a recibir sus familias. Es que hoy, en una
+     pantalla de portátil, el portal queda flotando en medio de un hueco vacío
+     y parece un diseño a medias. El marco convierte ese vacío en algo
+     deliberado: «esto es un móvil, y esto es lo que ve la familia».
+
+     DOS COSAS QUE EL MARCO **NO** HACE, y las dos importan:
+
+     1. NO APARECE EN UN MÓVIL DE VERDAD. Dibujar un móvil dentro de un móvil
+        es absurdo y le roba 40 px de ancho a una madre que está subiendo el
+        DNI de su hijo. El marco vive en una media query de 900 px para arriba;
+        por debajo, el portal es lo que siempre fue.
+     2. NO TIENE ALTURA FIJA NI SCROLL PROPIO. Un área que se desplaza dentro de
+        otra que también se desplaza es una trampa: se pierde el sitio, la rueda
+        del ratón hace lo que no esperas y en un táctil no hay forma de salir.
+        El marco CRECE con el contenido y la página se desplaza como siempre.
+        El notch y el altavoz son decoración, no una ventana. */
+  function enMarco(phone, quien) {
+    var m = el('<div class="mv-wrap"><div class="mv-marco"><div class="mv-notch">' +
+      '<i class="mv-alt"></i><i class="mv-cam"></i></div><div class="mv-pant"></div></div></div>');
+    m.querySelector('.mv-pant').appendChild(phone);
+    /* El pie depende de QUIÉN mira, porque son dos frases distintas. A la
+       familia no se le dice «así lo ve la familia»: lo está viendo ella. */
+    var rk = SF.store.role();
+    var soyYo = (quien === 'familia' && rk === 'padre') || (quien === 'jugador' && rk === 'jugador');
+    m.appendChild(el('<p class="mv-pie">' + (soyYo
+      ? 'Desde el móvil ocupa la pantalla entera. Esto es la misma pantalla, vista desde un ordenador.'
+      : 'Así lo ve ' + (quien === 'familia' ? 'la familia' : 'el jugador') +
+        ' en su móvil. En un teléfono ocupa la pantalla entera.') + '</p>'));
+    return m;
+  }
 
   /* Los dos portales de un jugador, uno debajo del otro: el de su familia y
      el suyo. Una sola implementación, porque el día que cambie lo que ve cada
@@ -21272,7 +21345,7 @@ window.SF = window.SF || {};
       { compacto: true, titulo: 'Lo que tienes que hacer' });
     if (trJug) { b.appendChild(el('<p class="ph-sec">Trámites</p>')); b.appendChild(trJug); }
 
-    view.appendChild(phone);
+    view.appendChild(enMarco(phone, 'jugador'));
   };
 
   /* ===================== EQUIPOS ===================== */
