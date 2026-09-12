@@ -1394,6 +1394,37 @@ button.pf-ley:hover{filter:brightness(.96)}
 .tram-nota{display:block;font-size:12.5px;color:var(--ojo,#B4761B);font-weight:600;margin-top:1px}
 .tram-sec{display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px}
 .tram-sec code{background:var(--bg);border-radius:5px;padding:1px 6px;font-size:12px}
+/* --- TIENDA --- */
+/* La rejilla de tallas. Botones grandes porque se pulsan de pie, en el
+   mostrador, con el movil en una mano y una camiseta en la otra. */
+.talla-grid{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.talla{display:flex;flex-direction:column;align-items:center;gap:1px;min-width:52px;
+  padding:7px 8px;border:1px solid var(--line);border-radius:9px;background:var(--surface);
+  cursor:pointer;font-family:inherit;font-size:13px;color:var(--ink);transition:border-color .12s,background .12s}
+.talla:hover{border-color:var(--purple)}
+.talla.on{border-color:var(--purple);background:#F2EFFE}
+.talla span{font-size:11px;color:var(--ink-3)}
+/* Sin existencias no se prohibe: se avisa. Quien entrega decide. */
+.talla.vacia span{color:#B4442F}
+.talla.vacia{border-style:dashed}
+.talla-in{display:flex;flex-direction:column;gap:2px;min-width:56px}
+.talla-in b{font-size:11.5px;color:var(--ink-3);text-align:center}
+.talla-in input{width:100%;padding:6px;border:1px solid var(--line);border-radius:8px;
+  font-family:inherit;font-size:13px;text-align:center}
+/* La tabla del almacen: prendas por tallas. Se desplaza a lo ancho en movil en
+   su propio contenedor, sin arrastrar la pagina. */
+.tbl-wrap{overflow-x:auto;margin:4px 0 10px;-webkit-overflow-scrolling:touch}
+table.alm{border-collapse:collapse;font-size:12.5px;min-width:100%}
+table.alm th,table.alm td{border:1px solid var(--line);padding:5px 8px;text-align:center;white-space:nowrap}
+table.alm thead th{background:#F3F1FA;color:var(--ink-3);font-size:11px;text-transform:uppercase;letter-spacing:.4px}
+table.alm tbody th{text-align:left;background:var(--surface);font-weight:600;position:sticky;left:0;z-index:1}
+table.alm td.alm-cero{color:var(--ink-3);background:#FAFAFD}
+table.alm td.alm-neg{color:#B4442F;background:#FDF0ED;font-weight:700}
+table.alm td.alm-tot{font-weight:700;background:#F3F1FA}
+.alm-b{border:0;background:none;font-family:inherit;font-size:12.5px;color:inherit;cursor:pointer;
+  padding:2px 6px;border-radius:6px;min-width:24px}
+.alm-b:hover{background:#EEEBFC;color:var(--purple-d)}
+.tram-neg{font-size:12.5px;color:#B4442F;font-weight:600}
 .tram-barra{display:block;height:6px;max-width:320px;background:#EDEBF6;border-radius:99px;
   margin:7px 0 5px;overflow:hidden}
 .tram-barra i{display:block;height:100%;background:var(--purple);border-radius:99px}
@@ -2219,8 +2250,12 @@ SF.TRAMITES_BASE = [
 /* ¿Le toca a esta persona? El contexto es siempre el mismo objeto, venga de un
    rol de staff o del portal de una familia: asi la regla se escribe una vez.
      ctx = { rol, segment, esStaff } */
-SF.tramiteAplica = function (t, ctx) {
-  var pa = t.para || {};
+/* «A quien le toca» se escribe UNA vez y la usan los tramites y los packs de
+   equipacion. Son la misma pregunta -¿esto es para esta persona?- y con la
+   misma respuesta: rol, rol excluido y segmento. Tenerla dos veces es tenerla
+   mal en una de las dos el dia que alguien la cambie. */
+SF.aplicaPara = function (pa, ctx) {
+  pa = pa || {};
   var roles = pa.roles || [];
   if ((pa.excluye_roles || []).indexOf(ctx.rol) >= 0) return false;
   if (roles.length) {
@@ -2236,6 +2271,8 @@ SF.tramiteAplica = function (t, ctx) {
   }
   return true;
 };
+
+SF.tramiteAplica = function (t, ctx) { return SF.aplicaPara(t.para, ctx); };
 
 /* Dos temporadas escritas de distinta manera pueden ser la misma: "2026-27",
    "2026/2027" y "202627" son el mismo curso. Se comparan por los años, no por
@@ -2281,6 +2318,132 @@ SF.ctxTramite = function (p, rolForzado) {
 SF.tramiteHechoDe = function (t, p) {
   return SF.store.tramiteHecho(t.id, 'familia', p.id) ||
          SF.store.tramiteHecho(t.id, 'jugador', p.id) || null;
+};
+
+/* ===================== TIENDA: PACKS, ENTREGAS Y ALMACEN =====================
+
+   Tres cosas distintas que la lista de enlaces del club mezclaba en una:
+
+     1. EL PACK. Que prendas lleva y a quien le toca. No hay un pack: hay el de
+        federacion, el de escuelas y el del cuerpo tecnico, y los tres estan en
+        los enlaces que reparte el club. Con un pack unico, a un nino de escuela
+        le sale en su ficha una "2a equipacion de juego" que nadie le va a dar.
+     2. LA ENTREGA. Prenda a prenda, con su talla. Lo que hoy se lleva en una
+        libreta: "a este le falta el chandal, y la camiseta se la cambiamos a L".
+     3. EL ALMACEN. Cuantas hay de cada cosa y de cada talla, de esta temporada
+        y de las anteriores.
+
+   LA DECISION QUE SOSTIENE TODO ESTO: el almacen NO es un numero que alguien
+   mantiene. Es la SUMA DE SUS MOVIMIENTOS. Cada entrega, cada cambio, cada
+   entrada de mercancia y cada recuento es un movimiento con su fecha, su motivo
+   y quien lo hizo; las existencias se calculan sumando.
+
+   Por que, y esto es lo importante: si las existencias fueran un campo aparte,
+   el dia que alguien entregue sin descontar -y va a pasar- el almacen y las
+   entregas dirian cosas distintas y ya no serviria ninguno de los dos numeros.
+   Sumando movimientos eso no puede ocurrir: no hay dos verdades que cuadrar.
+   A cambio, cada cifra se puede explicar, que es lo que se pide cuando al final
+   de temporada faltan ocho sudaderas.
+
+   El precio del pack NO se cobra desde aqui. La equipacion ya es un concepto de
+   Finanzas y el dinero vive alli; esta pantalla controla la ROPA. */
+
+SF.TALLAS_ROPA = ['6', '8', '10', '12', '14', 'XS', 'S', 'M', 'L', 'XL', '2XL', '3XL', '4XL'];
+
+/* Estados de una prenda para UNA persona. "Sin pedir" no es un estado: es no
+   tener talla elegida todavia, y se ve solo. */
+SF.PRENDA_ESTADOS = {
+  pendiente: { label: 'Por entregar', tag: 'tag-warn' },
+  entregado: { label: 'Entregada',    tag: 'tag-green' },
+  cambio:    { label: 'En cambio',    tag: 'tag-purple' }
+};
+
+/* Motivos de movimiento. El motivo no es decoracion: es lo que permite
+   distinguir "faltan ocho sudaderas porque se entregaron" de "faltan ocho y no
+   sabemos donde estan". */
+SF.MOV_MOTIVOS = {
+  entrada:   { label: 'Entrada de mercancía', signo: 1 },
+  entrega:   { label: 'Entrega a jugador',    signo: -1 },
+  devuelta:  { label: 'Devuelta por cambio',  signo: 1 },
+  deshecha:  { label: 'Entrega deshecha',     signo: 1 },
+  recuento:  { label: 'Ajuste por recuento',  signo: 0 },
+  baja:      { label: 'Baja (rota o perdida)', signo: -1 }
+};
+
+/* Los packs reales del CBJA. El de federacion sale de lo que el club ya tenia
+   definido en la app; los otros dos, de los enlaces que reparte. Se editan en
+   la propia Tienda: aqui solo esta el punto de partida. */
+SF.PACKS_BASE = [
+  { id: 'pk1', nombre: 'Pack deportivo · jugador/a FBM', temporada: '2026-27', precio: 150,
+    para: { roles: ['padre', 'jugador'], excluye_segments: ['escuelas'] },
+    tramite_id: 'tr4',
+    prendas: [
+      { k: 'eq1',     label: '1ª equipación de juego', serigrafia: true },
+      { k: 'eq2',     label: '2ª equipación de juego', serigrafia: true },
+      { k: 'pant',    label: 'Pantalón de juego' },
+      { k: 'cubre',   label: 'Cubre partidos' },
+      { k: 'revers',  label: 'Cubre reversible' },
+      { k: 'chandal', label: 'Chándal oficial' }
+    ] },
+  { id: 'pk2', nombre: 'Equipación · escuelas', temporada: '2026-27', precio: 60,
+    para: { roles: ['padre', 'jugador'], segments: ['escuelas'] },
+    tramite_id: 'tr5',
+    prendas: [
+      { k: 'cam',   label: 'Camiseta reversible' },
+      { k: 'pant',  label: 'Pantalón' },
+      { k: 'sudad', label: 'Sudadera' }
+    ] },
+  { id: 'pk3', nombre: 'Ropa deportiva de entrenador/a', temporada: '2026-27', precio: 0,
+    para: { roles: ['entrenador', 'preparador_fisico', 'coord_pf', 'delegado_equipo', 'delegado_campo'] },
+    tramite_id: 'tr7',
+    prendas: [
+      { k: 'polo',    label: 'Polo de banquillo' },
+      { k: 'chandal', label: 'Chándal oficial' },
+      { k: 'sudad',   label: 'Sudadera' }
+    ] }
+];
+
+/* El pack de una persona. Se resuelve con la misma regla que los tramites, asi
+   que cambiar a quien le toca un pack es cambiar un campo, no el programa.
+   Si le tocara mas de uno -no deberia- manda el primero, y se dice en pantalla
+   para que alguien lo arregle en vez de que la app elija en silencio. */
+SF.packsPara = function (ctx) {
+  return SF.store.packs().filter(function (pk) {
+    if (pk.temporada && !SF.mismaTemporada(pk.temporada, SF.SEASON)) return false;
+    return SF.aplicaPara(pk.para, ctx);
+  });
+};
+SF.packDe = function (ctx) { return SF.packsPara(ctx)[0] || null; };
+
+/* La clave de una existencia: pack + prenda + temporada + talla. La temporada
+   va dentro a proposito: una camiseta 25-26 y una 26-27 no son la misma
+   camiseta ni se pueden entregar indistintamente, aunque se llamen igual.
+
+   Y va NORMALIZADA a sus años, no como venga escrita. El club escribe la misma
+   temporada de tres maneras -"2026-27" en el pack, "2026/2027" en SF.SEASON,
+   "202627" en un enlace- y sin normalizar, una entrada de mercancia y la
+   entrega de esa misma prenda caian en dos cubos distintos: el almacen decia
+   que quedaban veinte camisetas M y a la vez que se habian entregado veinte,
+   sin restar ninguna. Un fallo silencioso, de los que no dan error y solo se
+   notan en junio cuando no cuadra nada. */
+SF.tempClave = function (temporada) {
+  var a = SF.anyosTemporada(temporada);
+  return a ? (a.a1 + '-' + a.a2) : String(temporada || '').replace(/\s/g, '');
+};
+SF.claveStock = function (packId, prendaK, temporada, talla) {
+  return [packId, prendaK, SF.tempClave(temporada), talla].join('|');
+};
+
+/* Las existencias, sumando movimientos. Se calcula UN indice por pantalla y se
+   consulta ese: sumar por cada celda de una rejilla de 13 tallas seria recorrer
+   el registro entero setenta veces para pintar una tabla. */
+SF.stockIndice = function () {
+  var ix = {};
+  SF.store.movs().forEach(function (m) {
+    var k = SF.claveStock(m.pack_id, m.prenda_k, m.temporada, m.talla);
+    ix[k] = (ix[k] || 0) + (m.delta || 0);
+  });
+  return ix;
 };
 
 SF.tramiteFamiliaLabel = function (k) {
@@ -3306,14 +3469,14 @@ SF.rolesOrdenados = function () {
 SF.ROLES = {
   director: {
     label: 'Director',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'tramites', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
-    tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, canSetAvailability: true, canSeeMedical: true, canAskCita: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'tramites', 'tienda', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
+    tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, canSetAvailability: true, canSeeMedical: true, canAskCita: true, canStore: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
   dt_general: {
     label: 'Dirección Técnica General',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'tramites', 'informes', 'economia', 'sueldos', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'sueldos', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
-    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canAskCita: true, segments: 'all', staff: true, canCreatePlayers: true, canSeeSalaries: true
+    canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canAskCita: true, canStore: true, segments: 'all', staff: true, canCreatePlayers: true, canSeeSalaries: true
   },
   preparador_fisico: {
     label: 'Preparador Físico',
@@ -3358,25 +3521,25 @@ SF.ROLES = {
   },
   dt_femenino: {
     label: 'Dirección Técnica Femenino',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['femenino'], canCreatePlayers: true
   },
   dt_masculino: {
     label: 'Dirección Técnica Masculino',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['masculino'], canCreatePlayers: true
   },
   dt_escuelas: {
     label: 'Dirección Técnica Escuelas',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['escuelas'], canCreatePlayers: true
   },
   dt_minis: {
     label: 'Dirección Técnica Minis',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['minis'], canCreatePlayers: true
   },
@@ -3401,9 +3564,9 @@ SF.ROLES = {
   },
   administrativo: {
     label: 'Administrativo',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'documentos', 'tramites', 'licencias', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'documentos', 'tramites', 'tienda', 'licencias', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
-    canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
+    canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, canStore: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
   padre: {
     label: 'Padre / Tutor',
@@ -4638,7 +4801,8 @@ SF.SECCION_LABEL = {
   inicio: 'Inicio', agenda: 'Agenda', jugadores: 'Jugadores', equipos: 'Equipos',
   calendario: 'Calendario', horarios: 'Cuadrantes', sesiones: 'Sesiones', importar: 'Importar',
   'importar-datos': 'Datos de partido', captacion: 'Captación', documentos: 'Documentos',
-  licencias: 'Licencias', tramites: 'Fichas e inscripciones', informes: 'Informes', family: 'Family', finanzas: 'Finanzas',
+  licencias: 'Licencias', tramites: 'Fichas e inscripciones', tienda: 'Tienda',
+  informes: 'Informes', family: 'Family', finanzas: 'Finanzas',
   presupuesto: 'Presupuesto', economia: 'Economía', sueldos: 'Sueldos', permisos: 'Permisos',
   config: 'Configuración', 'mi-equipo': 'Mi equipo', comunicados: 'Comunicados', staff: 'Staff',
   adjuntos: 'Personal adjunto',
@@ -4651,7 +4815,7 @@ SF.seccionLabel = function (k) { return SF.SECCION_LABEL[k] || k; };
 /* Que se puede repartir seccion a seccion. No estan todas: las de "lo mio" y
    los portales no se conceden, se tienen por ser quien eres. */
 SF.SECCIONES_REPARTIBLES = ['inicio', 'agenda', 'jugadores', 'equipos', 'calendario', 'horarios', 'sesiones',
-  'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'tramites', 'informes', 'family',
+  'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'tramites', 'tienda', 'informes', 'family',
   'finanzas', 'presupuesto', 'economia', 'sueldos', 'comunicados', 'staff', 'adjuntos', 'mi-equipo'];
 
 /* Las capacidades que se pueden dar o quitar a un rol, agrupadas por la
@@ -4673,6 +4837,7 @@ SF.CAPACIDADES = [
   { k: 'canPlanTraining',   label: 'Planificar sesiones de entrenamiento', grupo: 'Lo que puede hacer' },
   { k: 'canPublishMethod',  label: 'Publicar la metodología del club',     grupo: 'Lo que puede hacer' },
   { k: 'canDocs',           label: 'Gestionar documentación y reclamarla', grupo: 'Lo que puede hacer' },
+  { k: 'canStore',          label: 'Entregar ropa y mover el almacén',     grupo: 'Lo que puede hacer' },
   { k: 'canAnnounce',       label: 'Enviar comunicados del club',       grupo: 'Lo que puede hacer' },
   { k: 'canAskCita',        label: 'Pedir cita con salud',              grupo: 'Lo que puede hacer' },
   { k: 'canManageFinance',  label: 'Gestionar cobros y planes de pago', grupo: 'Dinero' },
@@ -4724,6 +4889,7 @@ SF.PERM_KEYS = [
   { key: 'canEditPhysical', label: 'Tomar y editar medidas físicas' },
   { key: 'canManageTeams', label: 'Crear y gestionar equipos' },
   { key: 'canDocs', label: 'Gestionar documentación y enviar recordatorios', nav: ['documentos'] },
+  { key: 'canStore', label: 'Entregar ropa y mover el almacén', nav: ['tienda'] },
   { key: 'canAnnounce', label: 'Enviar comunicados del club', nav: ['comunicados'] },
   { key: 'canImportData', label: 'Importar datos de partido', nav: ['importar-datos'] },
   { key: 'canSeeStaff', label: 'Ver el listado de staff', nav: ['staff'] },
@@ -7545,6 +7711,151 @@ SF.store = (function () {
         d.tramites.push(c); n++;
       });
       save(d); return n;
+    },
+
+    /* --- TIENDA: PACKS, MOVIMIENTOS Y ENTREGAS --- */
+    packs: function () {
+      var d = db();
+      if (!d.packs) {
+        d.packs = JSON.parse(JSON.stringify(SF.PACKS_BASE || []));
+        /* Lo que el club ya tenia definido manda sobre la semilla: si habia un
+           pack con sus prendas y su precio, ese es el de federacion. */
+        var k = (d.academy || {}).kit;
+        if (k && (k.garments || []).length) {
+          d.packs[0] = Object.assign({}, d.packs[0], {
+            nombre: k.pack_name || d.packs[0].nombre,
+            precio: k.pack_price != null ? k.pack_price : d.packs[0].precio,
+            prendas: k.garments.map(function (g, i) {
+              var vieja = (d.packs[0].prendas || [])[i] || {};
+              return { k: vieja.k || ('p' + (i + 1)), label: g, serigrafia: !!vieja.serigrafia };
+            })
+          });
+        }
+        save(d);
+      }
+      return d.packs;
+    },
+    packGet: function (id) { return this.packs().filter(function (x) { return x.id === id; })[0] || null; },
+    packSet: function (pk) {
+      var d = db(); d.packs = this.packs();
+      var i = d.packs.map(function (x) { return x.id; }).indexOf(pk.id);
+      if (i < 0) { pk.id = pk.id || 'pk' + Date.now(); d.packs.push(pk); } else d.packs[i] = pk;
+      save(d); return pk;
+    },
+    /* Quitar un pack NO borra sus movimientos: el almacen tiene que poder
+       explicar lo que paso aunque el pack ya no se use. Queda archivado. */
+    packArchivar: function (id, v) {
+      var d = db(); d.packs = this.packs();
+      d.packs.forEach(function (x) { if (x.id === id) x.archivado = v !== false; });
+      save(d);
+    },
+    packsDuplicar: function (deTemp, aTemp) {
+      var d = db(); d.packs = this.packs();
+      var origen = d.packs.filter(function (x) { return SF.mismaTemporada(x.temporada, deTemp); });
+      if (!origen.length) return 0;
+      var t = Date.now(), n = 0;
+      origen.forEach(function (x, i) {
+        var c = JSON.parse(JSON.stringify(x));
+        c.id = 'pk' + (t + i); c.temporada = aTemp; c.archivado = false;
+        c.nombre = SF.reemplazaTemporada(c.nombre, deTemp, aTemp);
+        d.packs.push(c); n++;
+      });
+      save(d); return n;
+    },
+
+    movs: function () { return db().movs || []; },
+    /* Un movimiento, y solo por aqui se toca el almacen. `delta` es la
+       cantidad con signo: -1 al entregar, +1 al devolver. */
+    movCrear: function (m) {
+      var d = db(); d.movs = d.movs || [];
+      var mv = {
+        id: 'mv' + Date.now() + Math.floor(Math.random() * 1000),
+        at: new Date().toISOString(),
+        pack_id: m.pack_id, prenda_k: m.prenda_k, temporada: m.temporada || SF.SEASON,
+        talla: m.talla, delta: m.delta, motivo: m.motivo || 'entrada',
+        player_id: m.player_id || null, staff_id: m.staff_id || null,
+        nota: m.nota || '',
+        por: (SF.USERS || {})[d.role] || d.role
+      };
+      d.movs.push(mv); save(d); return mv;
+    },
+    /* El recuento no suma: FIJA. Se guarda como el movimiento que hace falta
+       para llegar a la cifra contada, y asi el registro sigue explicando el
+       total sin excepciones. */
+    movRecuento: function (packId, prendaK, temporada, talla, contado, nota) {
+      var actual = SF.stockIndice()[SF.claveStock(packId, prendaK, temporada, talla)] || 0;
+      var delta = contado - actual;
+      if (!delta) return null;
+      return this.movCrear({ pack_id: packId, prenda_k: prendaK, temporada: temporada,
+        talla: talla, delta: delta, motivo: 'recuento',
+        nota: nota || ('Contadas ' + contado + ', el sistema tenía ' + actual) });
+    },
+
+    /* --- LA ENTREGA DE UNA PRENDA ---
+       Vive dentro de kit_order.entregas, junto a las tallas que ya estaban.
+       Cada cambio de estado mueve el almacen; son la misma operacion y por eso
+       estan en la misma funcion: separarlas es permitir que una ocurra sin la
+       otra, que es exactamente el fallo que se viene a evitar. */
+    prendaEntregar: function (quien, packId, prendaK, talla) {
+      var e = this._entregasDe(quien);
+      e[prendaK] = { estado: 'entregado', talla: talla, at: SF.hoyISO() };
+      this._guardaEntregas(quien, e, packId);
+      this.movCrear({ pack_id: packId, prenda_k: prendaK, talla: talla, delta: -1,
+        temporada: this._tempDe(packId),
+        motivo: 'entrega', player_id: quien.kind === 'jugador' ? quien.id : null,
+        staff_id: quien.kind === 'staff' ? quien.id : null });
+    },
+    /* La temporada la manda el PACK. Si la pusiera el club, entregar ropa del
+       pack del año pasado -que pasa, con un fichaje tardio- descontaria de las
+       existencias de este. */
+    _tempDe: function (packId) { return (this.packGet(packId) || {}).temporada || SF.SEASON; },
+    prendaDeshacer: function (quien, packId, prendaK) {
+      var e = this._entregasDe(quien); var prev = e[prendaK] || {};
+      delete e[prendaK];
+      this._guardaEntregas(quien, e, packId);
+      if (prev.estado === 'entregado' && prev.talla) {
+        this.movCrear({ pack_id: packId, prenda_k: prendaK, talla: prev.talla, delta: 1,
+          temporada: this._tempDe(packId),
+          motivo: 'deshecha', player_id: quien.kind === 'jugador' ? quien.id : null,
+          staff_id: quien.kind === 'staff' ? quien.id : null });
+      }
+    },
+    /* Cambio de talla. La prenda vuelve al almacen AHORA y la nueva NO se
+       descuenta todavia: se descuenta cuando se entregue de verdad. Reservarla
+       antes seria apuntar como entregado algo que sigue en la estanteria, y si
+       no hay talla nueva el cambio se queda esperando, que es lo que pasa. */
+    prendaCambio: function (quien, packId, prendaK, tallaNueva) {
+      var e = this._entregasDe(quien); var prev = e[prendaK] || {};
+      e[prendaK] = { estado: 'cambio', talla: prev.talla || null, cambio_a: tallaNueva || null,
+        at: SF.hoyISO() };
+      this._guardaEntregas(quien, e, packId);
+      if (prev.estado === 'entregado' && prev.talla) {
+        this.movCrear({ pack_id: packId, prenda_k: prendaK, talla: prev.talla, delta: 1,
+          temporada: this._tempDe(packId),
+          motivo: 'devuelta', player_id: quien.kind === 'jugador' ? quien.id : null,
+          staff_id: quien.kind === 'staff' ? quien.id : null,
+          nota: tallaNueva ? 'Pide la ' + tallaNueva : '' });
+      }
+    },
+    _entregasDe: function (quien) {
+      var o = quien.kind === 'jugador'
+        ? (this.get(quien.id) || {}).kit_order
+        : (this.staffGet(quien.id) || {}).kit_order;
+      return JSON.parse(JSON.stringify((o || {}).entregas || {}));
+    },
+    _guardaEntregas: function (quien, entregas, packId) {
+      if (quien.kind === 'jugador') {
+        var p = this.get(quien.id) || {};
+        var ko = Object.assign({}, p.kit_order || {}, { entregas: entregas, pack_id: packId });
+        this.update(quien.id, { kit_order: ko });
+      } else {
+        var s = this.staffGet(quien.id) || {};
+        var ks = Object.assign({}, s.kit_order || {}, { entregas: entregas, pack_id: packId });
+        /* La ficha de staff guarda historial de todo lo que se le toca. Sin un
+           motivo escrito, veinte entregas de ropa dejan veinte lineas que dicen
+           "modificacion de la ficha" y entierran lo que si importa. */
+        this.staffUpdate(quien.id, { kit_order: ks }, 'Equipación: entrega actualizada');
+      }
     },
 
     tramitesHechos: function () { return db().tramites_hechos || []; },
@@ -13147,6 +13458,660 @@ window.SF = window.SF || {};
     paint();
   };
 
+  /* ===================== TIENDA =====================
+     Cuatro pestañas porque son cuatro preguntas, y cada una se hace en un
+     momento distinto del año:
+
+       · ENTREGAS — «¿a quién le falta ropa?». Es el trabajo de septiembre y de
+         cada vez que llega un jugador nuevo. Abre aquí por eso.
+       · ALMACÉN — «¿cuántas tallas M me quedan?». La pregunta del que abre la
+         tienda un sábado.
+       · PACKS — «¿qué lleva el pack?». Se toca una vez al año.
+       · MOVIMIENTOS — «¿dónde están las ocho sudaderas que faltan?». No se usa
+         nunca hasta el día que hace falta, y ese día es lo único que importa.
+
+     El almacén se mueve SOLO desde aquí y solo por movimientos (ver el modelo).
+     Entregar descuenta; deshacer y cambiar devuelven. No hay ninguna pantalla
+     donde se pueda escribir una existencia a mano sin dejar rastro: el recuento
+     también es un movimiento, con lo contado y lo que había. */
+  pages.tienda = function (view, _p, _r, embed) {
+    var r = role();
+    var rk = SF.store.role();
+    /* Entrega quien abre la tienda: administración y dirección. Se puede
+       repartir con el permiso de la sección, como todo lo demás. */
+    var puede = ['director', 'administrativo'].indexOf(rk) >= 0 || !!r.canStore;
+
+    view.innerHTML = embed ? '' : head('Tienda',
+      'La ropa del club: qué se ha entregado, qué falta y qué queda en el almacén.');
+
+    var tab = SF._tiendaTab || 'entregas';
+    if (!embed) {
+      var tabs = el('<div class="tabbar"></div>');
+      [['entregas', 'Entregas'], ['almacen', 'Almacén'], ['packs', 'Packs'],
+       ['movs', 'Movimientos']].forEach(function (t) {
+        var b = el('<button class="tab' + (tab === t[0] ? ' on' : '') + '">' + t[1] + '</button>');
+        b.onclick = function () { SF._tiendaTab = t[0]; SF.router.render(); };
+        tabs.appendChild(b);
+      });
+      view.appendChild(tabs);
+    }
+    var body = el('<div></div>'); view.appendChild(body);
+
+    if (tab === 'almacen') pintaAlmacen(body, puede);
+    else if (tab === 'packs') pintaPacks(body, puede);
+    else if (tab === 'movs') pintaMovs(body);
+    else pintaEntregas(body, puede);
+  };
+
+  /* Las tallas que ofrece una prenda: las suyas si las tiene, y si no las del
+     club. Una prenda puede necesitar su propia tabla -el calzado- y por eso el
+     campo existe, aunque hoy ninguna lo use. */
+  function tallasDe(prenda) {
+    return (prenda && prenda.tallas && prenda.tallas.length) ? prenda.tallas
+      : ((SF.store.academy().kit || {}).sizes || SF.TALLAS_ROPA);
+  }
+
+  /* Lo que le falta a una persona de su pack. Devuelve el pack, las prendas con
+     su estado, y los tres números que se enseñan: entregadas, en cambio y por
+     entregar. Una sola función para jugadores y para staff: la pregunta es la
+     misma y la respuesta también. */
+  function estadoPack(quien) {
+    var ctx = quien.kind === 'jugador'
+      ? SF.ctxTramite(quien.obj, 'padre')
+      : { rol: quien.obj.role, segment: null, esStaff: true };
+    var pk = SF.packDe(ctx);
+    if (!pk) return null;
+    var ko = quien.obj.kit_order || {};
+    var ent = ko.entregas || {};
+    var filas = (pk.prendas || []).map(function (pr) {
+      var e = ent[pr.k] || {};
+      return { pr: pr, estado: e.estado || 'pendiente',
+        talla: e.talla || (ko.sizes || {})[pr.label] || null,
+        cambio_a: e.cambio_a || null, at: e.at || null };
+    });
+    return {
+      pack: pk, filas: filas,
+      entregadas: filas.filter(function (f) { return f.estado === 'entregado'; }).length,
+      cambio: filas.filter(function (f) { return f.estado === 'cambio'; }).length,
+      total: filas.length
+    };
+  }
+
+  /* ---------- PESTAÑA 1: ENTREGAS ---------- */
+  function pintaEntregas(body, puede) {
+    var r = role();
+    var me = SF.store.staffMe();
+    var misEq = misEquipos(me);
+    var idsEq = misEq.map(function (t) { return t.id; });
+
+    /* Los enlaces del pedido, que es donde empieza todo: la familia pide en la
+       tienda de fuera y el club entrega aquí. Se leen de los trámites para no
+       tener la misma url escrita en dos sitios. */
+    var enlaces = SF.store.tramites().filter(function (t) {
+      return t.familia === 'equipacion' && SF.mismaTemporada(t.temporada, SF.SEASON) &&
+        (t.destino || {}).url;
+    });
+    if (enlaces.length) {
+      var ce = el('<div class="card tram-caja"></div>');
+      ce.appendChild(el('<div class="tram-top"><b>Dónde se hace el pedido</b>' +
+        '<span class="tag tag-gray">' + enlaces.length + ' enlaces</span></div>'));
+      var le = el('<div class="tram-list"></div>');
+      enlaces.forEach(function (t) {
+        var f = el('<div class="tram-f"><span class="tram-b"><b>' + esc(t.titulo) + '</b>' +
+          (t.nota ? '<span class="tram-nota">' + esc(t.nota) + '</span>' : '') +
+          '<span class="hint tram-url">' + esc(t.destino.url) + '</span></span>' +
+          '<span class="tram-acc"><a class="btn btn-sm btn-light" target="_blank" ' +
+          'rel="noopener noreferrer" href="' + esc(t.destino.url) + '">Abrir ' + ico('arrow') + '</a></span></div>');
+        le.appendChild(f);
+      });
+      ce.appendChild(le);
+      ce.appendChild(el('<p class="hint">El pedido se hace fuera y la tienda no nos dice quién ha pagado. ' +
+        'Lo que la app sí sabe es <b>lo que hemos entregado nosotros</b>, y eso es lo de abajo.</p>'));
+      body.appendChild(ce);
+    }
+
+    var bar = el('<div class="filters">' +
+      '<select id="ft"><option value="">Todos mis equipos</option>' +
+      misEq.map(function (t) { return '<option value="' + t.id + '">' + esc(t.name) + '</option>'; }).join('') +
+      '</select>' +
+      '<select id="fq"><option value="deben">Solo a quien le falta algo</option>' +
+      '<option value="todos">Todos</option>' +
+      '<option value="cambio">Solo cambios pendientes</option></select></div>');
+    body.appendChild(bar);
+    var out = el('<div></div>'); body.appendChild(out);
+
+    function paint() {
+      out.innerHTML = '';
+      var ft = bar.querySelector('#ft').value;
+      var fq = bar.querySelector('#fq').value;
+
+      var gente = scopedPlayers().filter(function (p) {
+        if (p.status === 'Rechazado') return false;
+        return !ft || p.team_id === ft;
+      }).map(function (p) { return { kind: 'jugador', id: p.id, obj: p, nombre: p.full_name,
+        donde: p.team_id ? (SF.store.teamGet(p.team_id) || {}).name : 'sin equipo' }; });
+
+      /* El cuerpo técnico también lleva ropa del club, y hoy eso se apunta en
+         una libreta aparte. Aquí va en la misma lista. */
+      var staff = SF.store.staff().filter(function (s) {
+        if (r.segments && r.segments !== 'all') {
+          if (!(s.team_ids || []).some(function (id) { return idsEq.indexOf(id) >= 0; })) return false;
+        }
+        return !ft || (s.team_ids || []).indexOf(ft) >= 0;
+      }).map(function (s) { return { kind: 'staff', id: s.id, obj: s, nombre: s.full_name,
+        donde: roleLabel(s.role) }; });
+
+      var filas = gente.concat(staff).map(function (q) {
+        q.est = estadoPack(q); return q;
+      }).filter(function (q) { return !!q.est; });
+
+      var visibles = filas.filter(function (q) {
+        if (fq === 'todos') return true;
+        if (fq === 'cambio') return q.est.cambio > 0;
+        return q.est.entregadas < q.est.total;
+      });
+
+      var completos = filas.filter(function (q) { return q.est.entregadas === q.est.total; }).length;
+      var enCambio = filas.filter(function (q) { return q.est.cambio > 0; }).length;
+
+      var foco = el('<div class="foco ' + (completos === filas.length ? 'is-ok' : 'is-warn') + '">' +
+        '<div class="foco-ic">' + ico(completos === filas.length ? 'check' : 'alert') + '</div><div class="foco-body">' +
+        '<p class="foco-t">' + completos + ' de ' + filas.length + ' con el pack completo</p>' +
+        '<p class="foco-s">' + (filas.length - completos) + ' con algo por entregar' +
+        (enCambio ? ' · ' + enCambio + ' con un cambio de talla pendiente' : '') +
+        '. La ropa que se entrega aquí sale del almacén sola.</p></div></div>');
+      out.appendChild(foco);
+
+      if (!visibles.length) {
+        out.appendChild(el('<div class="empty-panel"><p>Nada que entregar con este filtro.</p></div>'));
+        return;
+      }
+
+      var l = el('<div class="mini-list"></div>');
+      visibles.sort(function (a, b) {
+        return (a.est.entregadas / a.est.total) - (b.est.entregadas / b.est.total) ||
+          a.nombre.localeCompare(b.nombre);
+      }).forEach(function (q) {
+        var e = q.est;
+        var chips = e.filas.map(function (f) {
+          if (f.estado === 'entregado') return '';
+          var d = SF.PRENDA_ESTADOS[f.estado] || {};
+          return '<span class="tag ' + d.tag + '">' + esc(f.pr.label) +
+            (f.estado === 'cambio' ? (f.cambio_a ? ' → ' + esc(f.cambio_a) : ' → talla?') :
+              (f.talla ? ' · ' + esc(f.talla) : ' · sin talla')) + '</span>';
+        }).join(' ');
+        var pc = e.total ? Math.round(e.entregadas * 100 / e.total) : 0;
+        var row = el('<div class="mini-row mr-wrap"><span style="min-width:0"><b>' + esc(q.nombre) + '</b> ' +
+          '<span class="hint">' + esc(q.donde || '') + ' · ' + esc(e.pack.nombre) + '</span>' +
+          '<span class="tram-barra"><i style="width:' + pc + '%"></i></span>' +
+          '<span class="hint"><b>' + e.entregadas + ' de ' + e.total + '</b> entregadas</span>' +
+          (chips ? '<br>' + chips : '') +
+          '</span><span class="row-actions"></span></div>');
+        var acc = row.querySelector('.row-actions');
+        var b = el('<button class="lnk">' + (puede ? 'Entregar' : 'Ver') + '</button>');
+        b.onclick = function () { modalEntrega(q, puede, paint); };
+        acc.appendChild(b);
+        l.appendChild(row);
+      });
+      out.appendChild(l);
+    }
+
+    bar.querySelector('#ft').addEventListener('change', paint);
+    bar.querySelector('#fq').addEventListener('change', paint);
+    paint();
+  }
+
+  /* La pantalla de mostrador: una persona, su pack, prenda a prenda. Se abre
+     con el chaval delante, así que enseña la talla pedida y cuántas quedan de
+     esa talla antes de pulsar nada. */
+  function modalEntrega(q, puede, refresh) {
+    var box = el('<div></div>');
+    var res = el('<div></div>');
+
+    function pinta() {
+      res.innerHTML = '';
+      var e = estadoPack(q);
+      if (!e) { res.appendChild(el('<p class="hint">A esta persona no le corresponde ningún pack.</p>')); return; }
+      var ix = SF.stockIndice();
+      res.appendChild(el('<p class="hint">' + esc(e.pack.nombre) +
+        (e.pack.temporada ? ' · ' + esc(e.pack.temporada) : '') +
+        ' · <b>' + e.entregadas + ' de ' + e.total + '</b> entregadas</p>'));
+
+      var ko = q.obj.kit_order || {};
+      if (ko.print_name || ko.print_number) {
+        res.appendChild(el('<p class="hint">Serigrafía: <b>' + esc(ko.print_name || '—') +
+          '</b> · nº ' + esc(ko.print_number || '—') + '</p>'));
+      }
+
+      var l = el('<div class="mini-list"></div>');
+      e.filas.forEach(function (f) {
+        var d = SF.PRENDA_ESTADOS[f.estado] || {};
+        var tallaMostrar = f.estado === 'cambio' ? (f.cambio_a || '') : (f.talla || '');
+        var quedan = tallaMostrar
+          ? (ix[SF.claveStock(e.pack.id, f.pr.k, e.pack.temporada, tallaMostrar)] || 0)
+          : null;
+        var fila = el('<div class="mini-row mr-wrap"><span style="min-width:0"><b>' + esc(f.pr.label) + '</b>' +
+          (f.pr.serigrafia ? ' <span class="tag tag-gray">se serigrafía</span>' : '') + '<br>' +
+          '<span class="tag ' + d.tag + '">' + esc(d.label) + '</span> ' +
+          (f.estado === 'entregado'
+            ? '<span class="hint">talla ' + esc(f.talla || '?') + (f.at ? ' · ' + fmtDate(f.at) : '') + '</span>'
+            : (f.estado === 'cambio'
+              ? '<span class="hint">devuelta la ' + esc(f.talla || '?') +
+                ', espera la ' + esc(f.cambio_a || '—') + '</span>'
+              : '<span class="hint">talla pedida: ' + esc(f.talla || 'sin elegir') + '</span>')) +
+          (quedan !== null ? ' <span class="' + (quedan <= 0 ? 'tram-neg' : 'hint') + '">· ' +
+            (quedan <= 0 ? 'no quedan de la ' + esc(tallaMostrar) : 'quedan ' + quedan + ' de la ' + esc(tallaMostrar)) +
+            '</span>' : '') +
+          '</span><span class="row-actions"></span></div>');
+        var acc = fila.querySelector('.row-actions');
+        if (puede) {
+          if (f.estado !== 'entregado') {
+            var bt = el('<button class="lnk">Entregar</button>');
+            bt.onclick = function () { pideTalla(e, f, 'entregar'); };
+            acc.appendChild(bt);
+          }
+          if (f.estado === 'entregado') {
+            var bc = el('<button class="lnk">Cambio de talla</button>');
+            bc.onclick = function () { pideTalla(e, f, 'cambio'); };
+            var bd = el('<button class="lnk">Deshacer</button>');
+            bd.onclick = function () {
+              SF.store.prendaDeshacer({ kind: q.kind, id: q.id }, e.pack.id, f.pr.k);
+              q.obj = q.kind === 'jugador' ? SF.store.get(q.id) : SF.store.staffGet(q.id);
+              U.toast('Entrega deshecha · vuelve al almacén'); pinta();
+            };
+            acc.appendChild(bc); acc.appendChild(bd);
+          }
+        }
+        l.appendChild(fila);
+      });
+      res.appendChild(l);
+      if (puede) {
+        res.appendChild(el('<p class="hint">Entregar descuenta del almacén; deshacer y cambiar lo devuelven. ' +
+          'Si una talla está a cero <b>no se bloquea la entrega</b>: el chaval está delante con la camiseta en la ' +
+          'mano y el que está mal es el recuento. Queda en negativo y sale avisado en el Almacén.</p>'));
+      }
+    }
+
+    /* Elegir la talla en el momento. No se da por buena la del pedido sin
+       preguntar: entre junio, cuando se pidió, y septiembre, cuando se entrega,
+       un chaval de 14 años ha dado un estirón. */
+    function pideTalla(e, f, modo) {
+      var ix = SF.stockIndice();
+      var tallas = tallasDe(f.pr);
+      var cur = modo === 'cambio' ? (f.cambio_a || '') : (f.talla || '');
+      var pick = el('<div class="ej-pick"></div>');
+      pick.appendChild(el('<p class="sec-label">' +
+        (modo === 'cambio' ? 'Cambiar a qué talla' : 'Qué talla se entrega') + '</p>'));
+      var g = el('<div class="talla-grid"></div>');
+      tallas.forEach(function (t) {
+        var n = ix[SF.claveStock(e.pack.id, f.pr.k, e.pack.temporada, t)] || 0;
+        var b = el('<button class="talla' + (cur === t ? ' on' : '') + (n <= 0 ? ' vacia' : '') + '">' +
+          '<b>' + esc(t) + '</b><span>' + n + '</span></button>');
+        b.onclick = function () {
+          if (modo === 'cambio') {
+            SF.store.prendaCambio({ kind: q.kind, id: q.id }, e.pack.id, f.pr.k, t);
+            U.toast('En cambio a la talla ' + t);
+          } else {
+            SF.store.prendaEntregar({ kind: q.kind, id: q.id }, e.pack.id, f.pr.k, t);
+            U.toast(f.pr.label + ' entregada · talla ' + t);
+          }
+          q.obj = q.kind === 'jugador' ? SF.store.get(q.id) : SF.store.staffGet(q.id);
+          pinta();
+        };
+        g.appendChild(b);
+      });
+      pick.appendChild(g);
+      pick.appendChild(el('<p class="hint">El número pequeño es lo que queda de esa talla.</p>'));
+      var cancel = el('<button class="btn btn-light btn-sm">Cancelar</button>');
+      cancel.onclick = function () { pinta(); };
+      pick.appendChild(cancel);
+      res.innerHTML = ''; res.appendChild(pick);
+    }
+
+    box.appendChild(res);
+    pinta();
+    U.modal('Equipación — ' + q.nombre, box);
+    /* Al cerrar, la lista de detrás tiene que reflejar lo entregado. */
+    var obs = setInterval(function () {
+      if (!document.querySelector('.modal, .sheet')) { clearInterval(obs); refresh && refresh(); }
+    }, 400);
+  }
+
+  /* ---------- PESTAÑA 2: ALMACÉN ---------- */
+  function pintaAlmacen(body, puede) {
+    var packs = SF.store.packs();
+    var temps = [];
+    packs.forEach(function (pk) { if (temps.indexOf(pk.temporada) < 0) temps.push(pk.temporada); });
+    temps.sort().reverse();
+    var tSel = SF._almTemp || (temps.indexOf(SF.SEASON) >= 0 ? SF.SEASON : temps[0]);
+
+    var bar = el('<div class="filters"><select id="ftemp">' +
+      temps.map(function (t) {
+        return '<option value="' + esc(t) + '"' + (SF.mismaTemporada(t, tSel) ? ' selected' : '') + '>Temporada ' + esc(t) +
+          (SF.mismaTemporada(t, SF.SEASON) ? ' · en curso' : '') + '</option>';
+      }).join('') + '</select></div>');
+    body.appendChild(bar);
+    var out = el('<div></div>'); body.appendChild(out);
+
+    function paint() {
+      out.innerHTML = '';
+      var temp = bar.querySelector('#ftemp').value;
+      SF._almTemp = temp;
+      var ix = SF.stockIndice();
+      var lista = packs.filter(function (pk) { return SF.mismaTemporada(pk.temporada, temp); });
+
+      if (!lista.length) {
+        out.appendChild(el('<div class="empty-panel"><p>No hay packs de esa temporada.</p></div>'));
+        return;
+      }
+
+      var negativas = 0, ceros = 0, unidades = 0;
+      lista.forEach(function (pk) {
+        (pk.prendas || []).forEach(function (pr) {
+          tallasDe(pr).forEach(function (t) {
+            var n = ix[SF.claveStock(pk.id, pr.k, pk.temporada, t)] || 0;
+            if (n < 0) negativas++; else if (n === 0) ceros++;
+            if (n > 0) unidades += n;
+          });
+        });
+      });
+
+      out.appendChild(el('<div class="foco ' + (negativas ? 'is-warn' : 'is-ok') + '">' +
+        '<div class="foco-ic">' + ico(negativas ? 'alert' : 'check') + '</div><div class="foco-body">' +
+        '<p class="foco-t">' + unidades + ' prendas en el almacén</p>' +
+        '<p class="foco-s">' + (negativas
+          ? negativas + (negativas === 1 ? ' talla en negativo: se ha entregado más de lo que constaba. Toca recontarla.'
+            : ' tallas en negativo: se ha entregado más de lo que constaba. Tocan recuentos.')
+          : 'Ninguna talla en negativo. Las cuentas cuadran con lo entregado.') + '</p></div></div>'));
+
+      lista.forEach(function (pk) {
+        out.appendChild(el('<p class="sec-label">' + esc(pk.nombre) + '</p>'));
+        var tallas = tallasDe((pk.prendas || [])[0]);
+        var tabla = el('<div class="tbl-wrap"><table class="alm"><thead><tr><th>Prenda</th>' +
+          tallas.map(function (t) { return '<th>' + esc(t) + '</th>'; }).join('') +
+          '<th>Total</th></tr></thead><tbody></tbody></table></div>');
+        var tb = tabla.querySelector('tbody');
+        (pk.prendas || []).forEach(function (pr) {
+          var tr = el('<tr><th>' + esc(pr.label) + '</th></tr>');
+          var suma = 0;
+          tallasDe(pr).forEach(function (t) {
+            var n = ix[SF.claveStock(pk.id, pr.k, pk.temporada, t)] || 0;
+            suma += n;
+            var td = el('<td class="' + (n < 0 ? 'alm-neg' : (n === 0 ? 'alm-cero' : '')) + '">' +
+              (puede ? '<button class="alm-b">' + n + '</button>' : n) + '</td>');
+            if (puede) td.querySelector('button').onclick = function () { modalCelda(pk, pr, t, n, paint); };
+            tr.appendChild(td);
+          });
+          tr.appendChild(el('<td class="alm-tot">' + suma + '</td>'));
+          tb.appendChild(tr);
+        });
+        out.appendChild(tabla);
+
+        if (puede) {
+          var bE = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Entrada de mercancía</button>');
+          bE.onclick = function () { modalEntrada(pk, paint); };
+          out.appendChild(bE);
+        }
+      });
+
+      out.appendChild(el('<p class="hint">Cada número es la suma de sus movimientos, no una cifra que alguien ' +
+        'mantiene: por eso el almacén y las entregas <b>no pueden decir cosas distintas</b>. ' +
+        (puede ? 'Pulsa una cifra para meter mercancía, recontar o dar de baja. ' : '') +
+        'Las tallas de temporadas anteriores siguen contando aparte: una camiseta 25-26 no es una 26-27.</p>'));
+    }
+
+    bar.querySelector('#ftemp').addEventListener('change', paint);
+    paint();
+  }
+
+  /* Una celda del almacén: las tres cosas que se le pueden hacer a una talla. */
+  function modalCelda(pk, pr, talla, actual, refresh) {
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint"><b>' + esc(pr.label) + '</b> · talla ' + esc(talla) +
+      ' · ' + esc(pk.nombre) + '<br>Ahora mismo constan <b>' + actual + '</b>.</p>'));
+    var f = smallForm([
+      { name: 'motivo', label: 'Qué ha pasado', type: 'select',
+        options: ['Entrada de mercancía', 'Ajuste por recuento', 'Baja (rota o perdida)'] },
+      { name: 'n', label: 'Cuántas', type: 'number' },
+      { name: 'nota', label: 'Nota (opcional)' }
+    ], { motivo: 'Entrada de mercancía', n: 1 }, function (v) {
+      var n = parseInt(v.n, 10);
+      if (!n || n < 0) { U.toast('Pon un número'); return false; }
+      if (v.motivo === 'Ajuste por recuento') {
+        var mv = SF.store.movRecuento(pk.id, pr.k, pk.temporada, talla, n, v.nota);
+        U.toast(mv ? 'Recuento guardado' : 'Ya constaba esa cantidad');
+      } else if (v.motivo === 'Baja (rota o perdida)') {
+        SF.store.movCrear({ pack_id: pk.id, prenda_k: pr.k, temporada: pk.temporada,
+          talla: talla, delta: -n, motivo: 'baja', nota: v.nota });
+        U.toast(n + ' de baja');
+      } else {
+        SF.store.movCrear({ pack_id: pk.id, prenda_k: pr.k, temporada: pk.temporada,
+          talla: talla, delta: n, motivo: 'entrada', nota: v.nota });
+        U.toast(n + ' al almacén');
+      }
+      U.closeModal(); refresh();
+    });
+    box.appendChild(f);
+    box.appendChild(el('<p class="hint">El <b>recuento</b> fija la cantidad a lo que has contado: se guarda la ' +
+      'diferencia, así que el registro sigue explicando el total. Los otros dos suman o restan.</p>'));
+    U.modal('Almacén — ' + pr.label, box);
+  }
+
+  /* Llega el pedido del proveedor: una prenda, varias tallas de golpe. Meterlo
+     talla a talla son trece modales para una caja. */
+  function modalEntrada(pk, refresh) {
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint">Lo que ha llegado de <b>' + esc(pk.nombre) +
+      '</b>. Deja en blanco lo que no venga en la caja.</p>'));
+    var sel = el('<div class="filters"><select id="pr">' +
+      (pk.prendas || []).map(function (p2) { return '<option value="' + esc(p2.k) + '">' + esc(p2.label) + '</option>'; }).join('') +
+      '</select></div>');
+    box.appendChild(sel);
+    var g = el('<div class="talla-grid ent"></div>');
+    function pintaG() {
+      g.innerHTML = '';
+      var pr = (pk.prendas || []).filter(function (x) { return x.k === sel.querySelector('#pr').value; })[0];
+      tallasDe(pr).forEach(function (t) {
+        g.appendChild(el('<label class="talla-in"><b>' + esc(t) + '</b>' +
+          '<input type="number" min="0" data-t="' + esc(t) + '" placeholder="0"></label>'));
+      });
+    }
+    sel.querySelector('#pr').addEventListener('change', pintaG);
+    pintaG();
+    box.appendChild(g);
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+      '<button class="btn btn-primary">Meter en el almacén</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var prK = sel.querySelector('#pr').value, n = 0, u = 0;
+      g.querySelectorAll('input[data-t]').forEach(function (i) {
+        var v = parseInt(i.value, 10);
+        if (v > 0) {
+          SF.store.movCrear({ pack_id: pk.id, prenda_k: prK, temporada: pk.temporada,
+            talla: i.dataset.t, delta: v, motivo: 'entrada' });
+          n++; u += v;
+        }
+      });
+      if (!n) { U.toast('No has puesto ninguna cantidad'); return; }
+      U.toast(u + ' prendas en ' + n + (n === 1 ? ' talla' : ' tallas'));
+      U.closeModal(); refresh();
+    };
+    box.appendChild(foot);
+    U.modal('Entrada de mercancía', box);
+  }
+
+  /* ---------- PESTAÑA 3: PACKS ---------- */
+  function pintaPacks(body, puede) {
+    var out = el('<div></div>'); body.appendChild(out);
+
+    function paint() {
+      out.innerHTML = '';
+      var lista = SF.store.packs();
+      var temps = [];
+      lista.forEach(function (pk) { if (temps.indexOf(pk.temporada) < 0) temps.push(pk.temporada); });
+
+      out.appendChild(el('<p class="hint">Qué lleva cada pack y a quién le toca. ' +
+        'El reparto usa la misma regla que los trámites: rol y rama. Un pack que no le toca a nadie ' +
+        'no aparece en ninguna ficha.</p>'));
+
+      temps.sort().reverse().forEach(function (tp) {
+        out.appendChild(el('<p class="sec-label">Temporada ' + esc(tp) +
+          (SF.mismaTemporada(tp, SF.SEASON) ? ' <span class="tag tag-green">en curso</span>'
+            : ' <span class="tag tag-gray">otra temporada</span>') + '</p>'));
+        var l = el('<div class="mini-list"></div>');
+        lista.filter(function (pk) { return pk.temporada === tp; }).forEach(function (pk) {
+          var quien = (pk.para || {}).roles || [];
+          var row = el('<div class="mini-row mr-wrap"><span style="min-width:0"><b>' + esc(pk.nombre) + '</b>' +
+            (pk.archivado ? ' <span class="tag tag-gray">archivado</span>' : '') +
+            (pk.precio ? ' <span class="hint">· ' + pk.precio + ' €</span>' : '') + '<br>' +
+            '<span class="hint">' + (pk.prendas || []).length + ' prendas · ' +
+            (quien.length ? esc(quien.join(', ')) : 'nadie') +
+            ((pk.para || {}).segments && pk.para.segments.length ? ' · solo ' + esc(pk.para.segments.join(', ')) : '') +
+            ((pk.para || {}).excluye_segments && pk.para.excluye_segments.length ? ' · salvo ' + esc(pk.para.excluye_segments.join(', ')) : '') +
+            '</span><br>' +
+            (pk.prendas || []).map(function (p2) { return '<span class="tag tag-gray">' + esc(p2.label) + '</span>'; }).join(' ') +
+            '</span><span class="row-actions"></span></div>');
+          if (puede) {
+            var acc = row.querySelector('.row-actions');
+            var be = el('<button class="lnk">Editar</button>');
+            be.onclick = function () { modalPack(pk, paint); };
+            acc.appendChild(be);
+          }
+          l.appendChild(row);
+        });
+        out.appendChild(l);
+      });
+
+      if (puede) {
+        var fila = el('<div class="row-c"></div>');
+        var bn = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Nuevo pack</button>');
+        bn.onclick = function () { modalPack(null, paint); };
+        var bd = el('<button class="btn btn-light btn-sm">' + ico('file') + 'Duplicar a otra temporada</button>');
+        bd.onclick = function () {
+          var box = el('<div></div>');
+          box.appendChild(el('<p class="hint">Copia los packs de una temporada a la siguiente con sus prendas ' +
+            'y su reparto. El almacén <b>no</b> se copia: las prendas nuevas se meten cuando lleguen.</p>'));
+          box.appendChild(smallForm([
+            { name: 'de', label: 'Copiar de', type: 'select', options: temps },
+            { name: 'a', label: 'A la temporada' }
+          ], { de: SF.SEASON, a: '' }, function (v) {
+            if (!v.a) { U.toast('Escribe la temporada nueva'); return false; }
+            var n = SF.store.packsDuplicar(v.de, v.a);
+            U.toast(n ? n + ' packs copiados' : 'No había nada que copiar');
+            U.closeModal(); paint();
+          }));
+          U.modal('Duplicar packs', box);
+        };
+        fila.appendChild(bn); fila.appendChild(bd);
+        out.appendChild(fila);
+      }
+    }
+    paint();
+  }
+
+  function modalPack(pk, refresh) {
+    var nuevo = !pk;
+    pk = pk ? JSON.parse(JSON.stringify(pk)) : { id: '', nombre: '', temporada: SF.SEASON, precio: 0,
+      para: { roles: ['padre', 'jugador'] }, prendas: [] };
+    var box = el('<div></div>');
+    var datos = smallForm([
+      { name: 'nombre', label: 'Nombre del pack' },
+      { name: 'temporada', label: 'Temporada' },
+      { name: 'precio', label: 'Precio (€)', type: 'number' },
+      { name: 'roles', label: 'A quién le toca', hint: 'padre, jugador, entrenador, staff… separados por coma' },
+      { name: 'segments', label: 'Solo estas ramas', hint: 'masculino, femenino, escuelas, minis. En blanco: todas' },
+      { name: 'excluye_segments', label: 'Salvo estas ramas' }
+    ], {
+      nombre: pk.nombre, temporada: pk.temporada, precio: pk.precio,
+      roles: ((pk.para || {}).roles || []).join(', '),
+      segments: ((pk.para || {}).segments || []).join(', '),
+      excluye_segments: ((pk.para || {}).excluye_segments || []).join(', ')
+    }, function (v) {
+      var lista = function (t) {
+        return String(t || '').split(',').map(function (x) { return x.trim(); }).filter(Boolean);
+      };
+      if (!v.nombre) { U.toast('Ponle nombre'); return false; }
+      pk.nombre = v.nombre; pk.temporada = v.temporada || SF.SEASON;
+      pk.precio = parseFloat(v.precio) || 0;
+      pk.para = { roles: lista(v.roles), segments: lista(v.segments),
+        excluye_segments: lista(v.excluye_segments) };
+      SF.store.packSet(pk);
+      U.toast(nuevo ? 'Pack creado' : 'Pack guardado');
+      U.closeModal(); refresh();
+    });
+
+    /* Las prendas se editan en la lista, no en el formulario: quitar una prenda
+       de un pack que ya se ha entregado deja entregas huérfanas, y conviene
+       verlo mientras se hace. */
+    var pl = el('<div></div>');
+    function pintaPrendas() {
+      pl.innerHTML = '';
+      pl.appendChild(el('<p class="sec-label">Prendas · ' + (pk.prendas || []).length + '</p>'));
+      var l = el('<div class="mini-list"></div>');
+      (pk.prendas || []).forEach(function (pr, i) {
+        var row = el('<div class="mini-row mr-wrap"><span><b>' + esc(pr.label) + '</b>' +
+          (pr.serigrafia ? ' <span class="tag tag-gray">se serigrafía</span>' : '') +
+          '</span><span class="row-actions"></span></div>');
+        var acc = row.querySelector('.row-actions');
+        var bs = el('<button class="lnk">' + (pr.serigrafia ? 'Quitar serigrafía' : 'Se serigrafía') + '</button>');
+        bs.onclick = function () { pk.prendas[i].serigrafia = !pr.serigrafia; pintaPrendas(); };
+        var bx = el('<button class="lnk-del">' + ico('x') + '</button>');
+        bx.onclick = function () { pk.prendas.splice(i, 1); pintaPrendas(); };
+        acc.appendChild(bs); acc.appendChild(bx);
+        l.appendChild(row);
+      });
+      pl.appendChild(l);
+      var add = el('<div class="filters"><input id="np" placeholder="Añadir prenda… (p. ej. Sudadera)">' +
+        '<button class="btn btn-light btn-sm">Añadir</button></div>');
+      add.querySelector('button').onclick = function () {
+        var v = add.querySelector('#np').value.trim();
+        if (!v) return;
+        pk.prendas = (pk.prendas || []).concat([{ k: 'x' + Date.now(), label: v }]);
+        pintaPrendas();
+      };
+      pl.appendChild(add);
+      pl.appendChild(el('<p class="hint">Las prendas se guardan al pulsar <b>Guardar</b> abajo.</p>'));
+    }
+    pintaPrendas();
+
+    box.appendChild(pl);
+    box.appendChild(datos);
+    U.modal(nuevo ? 'Nuevo pack' : 'Pack — ' + pk.nombre, box);
+  }
+
+  /* ---------- PESTAÑA 4: MOVIMIENTOS ---------- */
+  function pintaMovs(body) {
+    var movs = SF.store.movs().slice().reverse();
+    body.appendChild(el('<p class="hint">Todo lo que ha entrado y salido del almacén, lo último arriba. ' +
+      'Esto es lo que hace que las cifras se puedan explicar: cuando en junio falten ocho sudaderas, ' +
+      'aquí está dónde fueron.</p>'));
+    if (!movs.length) {
+      body.appendChild(el('<div class="empty-panel"><p>Todavía no hay movimientos.</p>' +
+        '<p class="hint">El primero suele ser la entrada del pedido del proveedor, en Almacén.</p></div>'));
+      return;
+    }
+    var l = el('<div class="mini-list"></div>');
+    movs.slice(0, 300).forEach(function (m) {
+      var pk = SF.store.packGet(m.pack_id) || {};
+      var pr = ((pk.prendas || []).filter(function (x) { return x.k === m.prenda_k; })[0] || {}).label || m.prenda_k;
+      var mo = SF.MOV_MOTIVOS[m.motivo] || { label: m.motivo };
+      var quien = '';
+      if (m.player_id) { var p2 = SF.store.get(m.player_id); quien = p2 ? p2.full_name : ''; }
+      if (m.staff_id) { var s2 = SF.store.staffGet(m.staff_id); quien = s2 ? s2.full_name : ''; }
+      l.appendChild(el('<div class="mini-row mr-wrap"><span style="min-width:0">' +
+        '<b>' + (m.delta > 0 ? '+' : '') + m.delta + '</b> ' + esc(pr) + ' · talla ' + esc(m.talla) +
+        '<br><span class="hint">' + esc(mo.label) + (quien ? ' · ' + esc(quien) : '') +
+        ' · ' + esc(pk.nombre || '') + '</span>' +
+        (m.nota ? '<br><span class="hint">' + esc(m.nota) + '</span>' : '') +
+        '</span><span class="row-actions"><span class="hint">' + fmtDate((m.at || '').slice(0, 10)) +
+        ' · ' + esc(m.por || '') + '</span></span></div>'));
+    });
+    body.appendChild(l);
+    if (movs.length > 300) {
+      body.appendChild(el('<p class="hint">Se enseñan los 300 últimos de ' + movs.length + '.</p>'));
+    }
+  }
+
   /* ===================== INFORMES ===================== */
   pages.informes = function (view) {
     view.innerHTML = head('Informes', 'Un resumen automático de cada jugador: en qué destaca, qué le falta y qué tocaría hacer.');
@@ -16410,13 +17375,24 @@ window.SF = window.SF || {};
      "Federado" del catalogo (Configuracion > Planes de pago), donde se pueden
      cambiar sin tocar el programa y aplicar a un equipo entero de una vez. */
 
-  /* ── Equipación / Pack deportivo ── */
+  /* ── Equipación / Pack deportivo ──
+     El pack ya no es uno para todo el club: se resuelve por la rama y el rol de
+     cada uno (ver SF.packsPara). Un niño de escuela pedía tallas de una "2ª
+     equipación de juego" que nunca se le iba a dar. Si no le toca ninguno, se
+     cae al pack que el club tenía definido, para no dejar la ficha en blanco. */
+  function packDeJugador(p) {
+    return SF.packDe(SF.ctxTramite(p, 'padre'));
+  }
   function kitOrderForm(p, onSave) {
     var a = SF.store.academy(), kit = a.kit || {}, ko = p.kit_order || { sizes: {} };
+    var pk = packDeJugador(p);
+    var prendas = pk ? (pk.prendas || []).map(function (x) { return x.label; }) : (kit.garments || []);
     var grid = el('<div class="form-grid"></div>');
-    (kit.garments || []).forEach(function (g) {
+    if (pk) grid.appendChild(el('<div class="frow-sep"><p class="sec-label">' + esc(pk.nombre) + '</p>' +
+      '<p class="hint">' + prendas.length + ' prendas' + (pk.precio ? ' · ' + pk.precio + ' €' : '') + '</p></div>'));
+    prendas.forEach(function (g) {
       var cur = (ko.sizes || {})[g] || '';
-      var opts = '<option value="">—</option>' + (kit.sizes || []).map(function (s) { return '<option' + (cur === s ? ' selected' : '') + '>' + s + '</option>'; }).join('');
+      var opts = '<option value="">—</option>' + (kit.sizes || SF.TALLAS_ROPA).map(function (s) { return '<option' + (cur === s ? ' selected' : '') + '>' + s + '</option>'; }).join('');
       grid.appendChild(el('<div class="frow"><label>' + esc(g) + '</label><select data-g="' + esc(g) + '">' + opts + '</select></div>'));
     });
     grid.appendChild(el('<div class="frow"><label>Nombre serigrafiado</label><input id="pn" value="' + esc(ko.print_name) + '"></div>'));
@@ -16436,13 +17412,36 @@ window.SF = window.SF || {};
 
   function kitBlock(p, canManage, refresh) {
     var a = SF.store.academy(), kit = a.kit || {}, ko = p.kit_order || { sizes: {} };
+    var pk = packDeJugador(p);
     var wrap = el('<div></div>');
-    wrap.appendChild(el('<p class="sec-label">Equipación — ' + esc(kit.pack_name || 'Pack deportivo') + '</p>'));
-    wrap.appendChild(el('<p class="hint">' + (kit.pack_price ? kit.pack_price + ' € · ' : '') + 'Estado: ' + kitStatus(ko.status) + (ko.requested_at ? ' · ' + esc(ko.requested_at) : '') + '</p>'));
+    wrap.appendChild(el('<p class="sec-label">Equipación — ' +
+      esc(pk ? pk.nombre : (kit.pack_name || 'Pack deportivo')) + '</p>'));
+    var precio = pk ? pk.precio : kit.pack_price;
+    wrap.appendChild(el('<p class="hint">' + (precio ? precio + ' € · ' : '') + 'Estado: ' + kitStatus(ko.status) + (ko.requested_at ? ' · ' + esc(ko.requested_at) : '') + '</p>'));
     var ml = el('<div class="mini-list"></div>');
-    var chosen = ko.sizes && Object.keys(ko.sizes).length;
-    if (!chosen) ml.appendChild(el('<p class="hint">Sin tallas seleccionadas.</p>'));
-    else (kit.garments || []).forEach(function (g) { if (ko.sizes[g]) ml.appendChild(el('<div class="mini-row"><span>' + esc(g) + '</span><span class="hint">Talla ' + esc(ko.sizes[g]) + '</span></div>')); });
+    /* Lo que se ve aqui es la ENTREGA, que es lo que pregunta la familia. Si
+       solo se enseñara la talla pedida, la ficha diria "talla M" de una
+       sudadera que sigue en el almacen. */
+    if (pk) {
+      var e = { filas: [] };
+      var ent = ko.entregas || {};
+      (pk.prendas || []).forEach(function (pr) {
+        var st = ent[pr.k] || {};
+        var estado = st.estado || 'pendiente';
+        var d = SF.PRENDA_ESTADOS[estado] || {};
+        var talla = st.talla || (ko.sizes || {})[pr.label] || '';
+        ml.appendChild(el('<div class="mini-row mr-wrap"><span><b>' + esc(pr.label) + '</b><br>' +
+          '<span class="tag ' + d.tag + '">' + esc(d.label) + '</span> ' +
+          '<span class="hint">' + (estado === 'cambio'
+            ? 'devuelta la ' + esc(talla || '?') + ', espera la ' + esc(st.cambio_a || '—')
+            : (talla ? 'talla ' + esc(talla) : 'sin talla elegida')) +
+          (st.at ? ' · ' + fmtDate(st.at) : '') + '</span></span></div>'));
+      });
+    } else {
+      var chosen = ko.sizes && Object.keys(ko.sizes).length;
+      if (!chosen) ml.appendChild(el('<p class="hint">Sin tallas seleccionadas.</p>'));
+      else (kit.garments || []).forEach(function (g) { if (ko.sizes[g]) ml.appendChild(el('<div class="mini-row"><span>' + esc(g) + '</span><span class="hint">Talla ' + esc(ko.sizes[g]) + '</span></div>')); });
+    }
     wrap.appendChild(ml);
     if (ko.print_name || ko.print_number) wrap.appendChild(el('<p class="hint">Serigrafiado: <b>' + esc(ko.print_name) + '</b> · nº ' + esc(ko.print_number) + '</p>'));
     if (canManage) {
@@ -23701,7 +24700,8 @@ SF.router = (function () {
     ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'],
     ['importar', 'Importar', 'ai'],
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'],
-    ['tramites', 'Fichas e inscripciones', 'check'], ['informes', 'Informes', 'chart'],
+    ['tramites', 'Fichas e inscripciones', 'check'], ['tienda', 'Tienda', 'grid'],
+    ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'],
     ['sueldos', 'Sueldos', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
@@ -23726,7 +24726,7 @@ SF.router = (function () {
   var NAV_GRUPOS = [
     { id: 'dia',      label: '',                keys: ['inicio', 'agenda', 'mi-equipo', 'jugadores', 'equipos', 'horarios', 'calendario', 'sesiones'] },
     { id: 'captacion',label: 'Captación',       keys: ['captacion', 'importar'] },
-    { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos', 'tramites'] },
+    { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos', 'tramites', 'tienda'] },
     { id: 'personas', label: 'Personas',        keys: ['staff', 'adjuntos', 'family', 'comunicados'] },
     { id: 'dinero',   label: 'Dinero',          keys: ['finanzas', 'economia', 'sueldos'] },
     { id: 'ajustes',  label: 'Ajustes',         keys: ['permisos', 'config'] },
@@ -23754,7 +24754,7 @@ SF.router = (function () {
     adjuntos: 'adjuntos',
     comunicados: 'comunicados', 'importar-datos': 'sec-importar', 'mis-avisos': 'mis-avisos',
     buscar: 'buscar', presupuesto: 'sec-finanzas', licencias: 'sec-documentos',
-    tramites: 'tramites', inscripcion: 'inscripcion'
+    tramites: 'tramites', tienda: 'tienda', inscripcion: 'inscripcion'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff',
