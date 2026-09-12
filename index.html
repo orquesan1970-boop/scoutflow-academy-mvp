@@ -893,6 +893,10 @@ button.kpi:hover{border-color:var(--purple-2);transform:translateY(-2px)}
 @media(max-width:560px){
   .mini-row.mr-wrap{flex-wrap:wrap}
   .mini-row.mr-wrap .row-actions{width:100%;justify-content:flex-start;flex:1 1 100%}
+  /* Una etiqueta con el nombre entero de un tramite -"Pedido del pack de ropa
+     deportiva - jugador/a FBM"- es mas ancha que un movil. Antes que salirse de
+     la pantalla, parte. */
+  .mini-row.mr-wrap .tag{white-space:normal}
 }
 .lnk-del{border:0;background:none;cursor:pointer;color:var(--ink-3);padding:2px;border-radius:6px;flex:0 0 auto}
 .lnk-del:hover{color:var(--danger)}
@@ -1390,6 +1394,9 @@ button.pf-ley:hover{filter:brightness(.96)}
 .tram-nota{display:block;font-size:12.5px;color:var(--ojo,#B4761B);font-weight:600;margin-top:1px}
 .tram-sec{display:block;font-size:12.5px;color:var(--ink-3);margin-top:2px}
 .tram-sec code{background:var(--bg);border-radius:5px;padding:1px 6px;font-size:12px}
+.tram-barra{display:block;height:6px;max-width:320px;background:#EDEBF6;border-radius:99px;
+  margin:7px 0 5px;overflow:hidden}
+.tram-barra i{display:block;height:100%;background:var(--purple);border-radius:99px}
 .tram-acc{flex:0 0 auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
 /* El enlace es un boton: no lleva subrayado de enlace. */
 .tram-acc a,.tram-acc a:hover{text-decoration:none}
@@ -2265,6 +2272,15 @@ SF.ctxTramite = function (p, rolForzado) {
     seg = t ? t.segment : null;
   }
   return { rol: rk, segment: seg, esStaff: esStaff, player_id: p ? p.id : null };
+};
+
+/* ¿Está hecho? Para el club, la inscripción de un jugador se hace UNA vez, y
+   la puede marcar la familia desde su portal o el propio jugador desde el suyo.
+   Contarlo dos veces daría un club con la mitad de las inscripciones sin hacer
+   que en realidad están hechas. Vale cualquiera de los dos acuses. */
+SF.tramiteHechoDe = function (t, p) {
+  return SF.store.tramiteHecho(t.id, 'familia', p.id) ||
+         SF.store.tramiteHecho(t.id, 'jugador', p.id) || null;
 };
 
 SF.tramiteFamiliaLabel = function (k) {
@@ -3290,12 +3306,12 @@ SF.rolesOrdenados = function () {
 SF.ROLES = {
   director: {
     label: 'Director',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'tramites', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
     tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, canSetAvailability: true, canSeeMedical: true, canAskCita: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
   dt_general: {
     label: 'Dirección Técnica General',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'informes', 'economia', 'sueldos', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'tramites', 'informes', 'economia', 'sueldos', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canAskCita: true, segments: 'all', staff: true, canCreatePlayers: true, canSeeSalaries: true
   },
@@ -3342,25 +3358,25 @@ SF.ROLES = {
   },
   dt_femenino: {
     label: 'Dirección Técnica Femenino',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['femenino'], canCreatePlayers: true
   },
   dt_masculino: {
     label: 'Dirección Técnica Masculino',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['masculino'], canCreatePlayers: true
   },
   dt_escuelas: {
     label: 'Dirección Técnica Escuelas',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['escuelas'], canCreatePlayers: true
   },
   dt_minis: {
     label: 'Dirección Técnica Minis',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['minis'], canCreatePlayers: true
   },
@@ -3385,7 +3401,7 @@ SF.ROLES = {
   },
   administrativo: {
     label: 'Administrativo',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'documentos', 'licencias', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'documentos', 'tramites', 'licencias', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'familia', 'documentos', 'finanzas'],
     canSeeScore: false, canSeeFinance: true, canSeeNotes: false, canEvaluate: false, canManageTeams: false, canManageFinance: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
@@ -4622,7 +4638,7 @@ SF.SECCION_LABEL = {
   inicio: 'Inicio', agenda: 'Agenda', jugadores: 'Jugadores', equipos: 'Equipos',
   calendario: 'Calendario', horarios: 'Cuadrantes', sesiones: 'Sesiones', importar: 'Importar',
   'importar-datos': 'Datos de partido', captacion: 'Captación', documentos: 'Documentos',
-  licencias: 'Licencias', informes: 'Informes', family: 'Family', finanzas: 'Finanzas',
+  licencias: 'Licencias', tramites: 'Fichas e inscripciones', informes: 'Informes', family: 'Family', finanzas: 'Finanzas',
   presupuesto: 'Presupuesto', economia: 'Economía', sueldos: 'Sueldos', permisos: 'Permisos',
   config: 'Configuración', 'mi-equipo': 'Mi equipo', comunicados: 'Comunicados', staff: 'Staff',
   adjuntos: 'Personal adjunto',
@@ -4635,7 +4651,7 @@ SF.seccionLabel = function (k) { return SF.SECCION_LABEL[k] || k; };
 /* Que se puede repartir seccion a seccion. No estan todas: las de "lo mio" y
    los portales no se conceden, se tienen por ser quien eres. */
 SF.SECCIONES_REPARTIBLES = ['inicio', 'agenda', 'jugadores', 'equipos', 'calendario', 'horarios', 'sesiones',
-  'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'informes', 'family',
+  'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'tramites', 'informes', 'family',
   'finanzas', 'presupuesto', 'economia', 'sueldos', 'comunicados', 'staff', 'adjuntos', 'mi-equipo'];
 
 /* Las capacidades que se pueden dar o quitar a un rol, agrupadas por la
@@ -12780,6 +12796,350 @@ window.SF = window.SF || {};
 
       SF.store.staffUpdate(s.id, { doc_reminder_at: SF.hoyISO() },
         'Recordatorio de documentación enviado: ' + pend.map(function (d) { return d.label; }).join(', '));
+      return true;
+    }
+
+    bar.querySelector('#ft').addEventListener('change', paint);
+    paint();
+  };
+
+  /* ===================== FICHAS E INSCRIPCIONES =====================
+     El otro lado del trámite. En el Portal Family y en el muro de cada uno se
+     contesta "¿qué me toca hacer?"; aquí se contesta la pregunta del club:
+     «¿quién lo tiene hecho y quién no?» — y, sobre todo, se reclama.
+
+     Mismo patrón que Documentos, a propósito: quien ya sabe reclamar papeles
+     no tiene que aprender nada nuevo. Y la misma regla de oro: el aviso se
+     manda UNO A UNO, con lo de cada uno. Nadie recibe una lista con los
+     nombres de los demás.
+
+     El alcance manda. Una dirección técnica de escuelas ve y reclama LO DE
+     ESCUELAS: sus jugadores salen de scopedPlayers -que ya filtra por rama- y
+     su staff, de los equipos que lleva. Si no, el primer día reclamaría a un
+     entrenador de femenino una ficha que no le corresponde pedir. */
+  pages.tramites = function (view, _p, _r, embed) {
+    var r = role();
+    var rk = SF.store.role();
+    view.innerHTML = embed ? '' : head('Fichas e inscripciones',
+      'Quién la tiene hecha y quién no. Desde aquí se reclama.');
+
+    /* Reclaman dirección y administración, y quien dirige una rama dentro de
+       la suya. Si el director da el permiso de documentación a otra persona,
+       aquí lo hereda sola, igual que en Documentos. */
+    var puedeAvisar = !!r.canDocs || ['director', 'administrativo'].indexOf(rk) >= 0 || !!r.canManageTeams;
+
+    var me = SF.store.staffMe();
+    var misEq = misEquipos(me);
+    var idsEq = misEq.map(function (t) { return t.id; });
+
+    /* El staff del ámbito: quien lleva alguno de mis equipos. Administración y
+       dirección general ven a todo el club; una dirección de rama, a los suyos.
+       Quien no lleva ningún equipo -administración, dirección- no es de una
+       rama concreta, así que no aparece en la lista de una. */
+    function staffAmbito() {
+      var todos = SF.store.staff();
+      if (!r.segments || r.segments === 'all') return todos;
+      return todos.filter(function (s) {
+        return (s.team_ids || []).some(function (id) { return idsEq.indexOf(id) >= 0; });
+      });
+    }
+
+    /* Lo que le falta a un jugador: los trámites de su familia con acuse que
+       nadie ha marcado. Sin acuse no se puede afirmar nada (ver el último
+       bloque), y afirmarlo sería peor que no saberlo. */
+    function pendDe(p) {
+      return SF.tramitesPara(SF.ctxTramite(p, 'padre')).filter(function (t) {
+        return t.acuse && !SF.tramiteHechoDe(t, p);
+      });
+    }
+    function pendStaff(s) {
+      return SF.tramitesPara({ rol: s.role, segment: null, esStaff: true }).filter(function (t) {
+        return t.acuse && !SF.store.tramiteHecho(t.id, 'staff', s.id);
+      });
+    }
+
+    /* ---------- filtro por equipo, solo los del ámbito ---------- */
+    var bar = el('<div class="filters"><select id="ft"><option value="">Todos mis equipos</option>' +
+      misEq.map(function (t) { return '<option value="' + t.id + '">' + esc(t.name) + '</option>'; }).join('') +
+      '<option value="__sin">Sin equipo</option></select></div>');
+    view.appendChild(bar);
+    var out = el('<div></div>'); view.appendChild(out);
+
+    function paint() {
+      out.innerHTML = '';
+      var ft = bar.querySelector('#ft').value;
+      var ps = scopedPlayers().filter(function (p) {
+        if (p.status === 'Rechazado') return false;
+        if (ft === '__sin') return !p.team_id;
+        return !ft || p.team_id === ft;
+      });
+      var sfs = staffAmbito().filter(function (s) {
+        if (!ft || ft === '__sin') return !ft;
+        return (s.team_ids || []).indexOf(ft) >= 0;
+      });
+
+      var jug = ps.map(function (p) { return { p: p, pend: pendDe(p) }; });
+      var per = sfs.map(function (s) { return { s: s, pend: pendStaff(s) }; });
+      var jugMal = jug.filter(function (x) { return x.pend.length; });
+      var perMal = per.filter(function (x) { return x.pend.length; });
+
+      /* ---------- CÓMO VA CADA TRÁMITE ----------
+         La pregunta de dirección: no "quién debe algo" sino "cómo va la
+         inscripción". Un trámite al 95 % y otro al 30 % se gestionan distinto,
+         y en una lista de personas eso no se ve. */
+      var conAcuse = {};
+      jug.forEach(function (x) {
+        SF.tramitesPara(SF.ctxTramite(x.p, 'padre')).forEach(function (t) {
+          if (!t.acuse) return;
+          var g = conAcuse[t.id] = conAcuse[t.id] || { t: t, total: 0, hechos: 0, falta: [] };
+          g.total++;
+          if (SF.tramiteHechoDe(t, x.p)) g.hechos++; else g.falta.push({ kind: 'jugador', p: x.p });
+        });
+      });
+      per.forEach(function (x) {
+        SF.tramitesPara({ rol: x.s.role, segment: null, esStaff: true }).forEach(function (t) {
+          if (!t.acuse) return;
+          var g = conAcuse[t.id] = conAcuse[t.id] || { t: t, total: 0, hechos: 0, falta: [] };
+          g.total++;
+          if (SF.store.tramiteHecho(t.id, 'staff', x.s.id)) g.hechos++; else g.falta.push({ kind: 'staff', s: x.s });
+        });
+      });
+      var grupos = Object.keys(conAcuse).map(function (k) { return conAcuse[k]; })
+        .sort(function (a, b) { return (a.t.orden || 99) - (b.t.orden || 99); });
+
+      if (!grupos.length) {
+        out.appendChild(el('<div class="empty-panel"><p>No hay ningún trámite con acuse para tu ámbito.</p>' +
+          '<p class="hint">Los trámites se crean en Configuración. Solo se puede saber quién lo ha hecho ' +
+          'en los que tienen acuse.</p></div>'));
+        return;
+      }
+
+      out.appendChild(el('<p class="sec-label">Cómo va cada trámite</p>'));
+      var gl = el('<div class="mini-list"></div>');
+      grupos.forEach(function (g) {
+        var pc = g.total ? Math.round(g.hechos * 100 / g.total) : 0;
+        var fila = el('<div class="mini-row mr-wrap"><span style="min-width:0"><b>' + esc(g.t.titulo) + '</b>' +
+          (g.t.nota ? ' <span class="hint">· ' + esc(g.t.nota) + '</span>' : '') +
+          '<br><span class="tram-barra"><i style="width:' + pc + '%"></i></span>' +
+          '<span class="hint"><b>' + g.hechos + ' de ' + g.total + '</b> hechas' +
+          (g.falta.length ? ' · faltan ' + g.falta.length : ' · al día') + '</span>' +
+          '</span><span class="row-actions"></span></div>');
+        var acc = fila.querySelector('.row-actions');
+        var bq = el('<button class="lnk">Quién falta</button>');
+        bq.onclick = function () { modalFaltanDe(g); };
+        acc.appendChild(bq);
+        if (g.falta.length && puedeAvisar) {
+          var ba = el('<button class="lnk">Avisar a los ' + g.falta.length + '</button>');
+          ba.onclick = function () {
+            if (!confirm('Se enviará un aviso a cada uno de los ' + g.falta.length +
+              ' que no lo ha hecho, con este trámite y su enlace. Cada uno recibe el suyo; ' +
+              'nadie ve la lista de los demás.\n\n¿Continuar?')) return;
+            var n = 0;
+            g.falta.forEach(function (f) {
+              if (f.kind === 'jugador') { if (avisaFamilia(f.p, [g.t])) n++; }
+              else { if (avisaStaff(f.s, [g.t])) n++; }
+            });
+            U.toast(n + (n === 1 ? ' aviso enviado' : ' avisos enviados'));
+            SF.router.render();
+          };
+          acc.appendChild(ba);
+        }
+        gl.appendChild(fila);
+      });
+      out.appendChild(gl);
+
+      /* ---------- QUIÉN DEBE ALGO ----------
+         El envío general de verdad: un aviso por persona con TODO lo que le
+         falta. Si se mandara un aviso por trámite, a quien debe tres cosas le
+         llegarían tres mensajes el mismo día y dejaría de leerlos. */
+      var totalMal = jugMal.length + perMal.length;
+      var top = el('<div class="empty-panel" style="text-align:left"></div>');
+      if (!totalMal) {
+        top.appendChild(el('<p><b>Nada pendiente.</b> Todas las fichas e inscripciones de tu ámbito están hechas.</p>'));
+      } else {
+        top.appendChild(el('<p><b>' + totalMal + (totalMal === 1 ? ' pendiente' : ' pendientes') + '</b> · ' +
+          jugMal.length + ' jugador' + (jugMal.length === 1 ? '' : 'es') + ' y ' +
+          perMal.length + ' del staff</p>'));
+        if (puedeAvisar) {
+          var bAll = el('<button class="btn btn-primary btn-sm">' + ico('ai') +
+            'Enviar recordatorio a los ' + totalMal + '</button>');
+          bAll.onclick = function () {
+            if (!confirm('Se enviará UN aviso a cada uno con todo lo que le falta y sus enlaces. ' +
+              'Nadie ve lo de los demás.\n\n¿Continuar?')) return;
+            var n = 0;
+            jugMal.forEach(function (x) { if (avisaFamilia(x.p, x.pend)) n++; });
+            perMal.forEach(function (x) { if (avisaStaff(x.s, x.pend)) n++; });
+            U.toast(n + (n === 1 ? ' recordatorio enviado' : ' recordatorios enviados'));
+            SF.router.render();
+          };
+          top.appendChild(bAll);
+          top.appendChild(el('<p class="hint">Un solo aviso por persona, con lo suyo y con el enlace. ' +
+            'A quien le faltan tres cosas no le llegan tres mensajes.</p>'));
+        } else {
+          top.appendChild(el('<p class="hint">Los recordatorios los envía dirección o administración.</p>'));
+        }
+      }
+      out.appendChild(top);
+
+      if (jugMal.length) {
+        out.appendChild(el('<p class="sec-label">Jugadores · ' + jugMal.length + '</p>'));
+        var jl = el('<div class="mini-list"></div>');
+        jugMal.sort(function (a, b) { return b.pend.length - a.pend.length || a.p.full_name.localeCompare(b.p.full_name); })
+          .forEach(function (x) {
+            var eq = x.p.team_id ? (SF.store.teamGet(x.p.team_id) || {}).name : 'sin equipo';
+            var av = x.p.tram_reminder_at ? '<span class="hint">avisado ' + fmtDate(x.p.tram_reminder_at) + '</span> ' : '';
+            var row = el('<div class="mini-row mr-wrap"><span><b>' + esc(x.p.full_name) + '</b> ' +
+              '<span class="hint">' + SF.fichaCode(x.p.ficha) + ' · ' + esc(eq || '') + '</span><br>' +
+              x.pend.map(function (t) { return '<span class="tag tag-warn">' + esc(t.titulo) + '</span>'; }).join(' ') +
+              '</span><span class="row-actions">' + av + '</span></div>');
+            var acc = row.querySelector('.row-actions');
+            if (puedeAvisar) {
+              var b1 = el('<button class="lnk">Recordar</button>');
+              b1.onclick = function () {
+                if (avisaFamilia(x.p, x.pend)) { U.toast('Aviso enviado a la familia de ' + x.p.full_name); SF.router.render(); }
+              };
+              acc.appendChild(b1);
+            }
+            if (SF.router.puede('jugador')) {
+              var b2 = el('<button class="lnk">Ficha</button>');
+              b2.onclick = function () { location.hash = '#/jugador/' + x.p.id; };
+              acc.appendChild(b2);
+            }
+            jl.appendChild(row);
+          });
+        out.appendChild(jl);
+      }
+
+      if (perMal.length) {
+        out.appendChild(el('<p class="sec-label">Staff · ' + perMal.length + '</p>'));
+        var puedeFicha = SF.router.puede('staff');
+        var pl = el('<div class="mini-list"></div>');
+        perMal.sort(function (a, b) { return b.pend.length - a.pend.length || a.s.full_name.localeCompare(b.s.full_name); })
+          .forEach(function (x) {
+            var av = x.s.tram_reminder_at ? '<span class="hint">avisado ' + fmtDate(x.s.tram_reminder_at) + '</span> ' : '';
+            var row = el('<div class="mini-row mr-wrap"><span><b>' + esc(x.s.full_name) + '</b> ' +
+              '<span class="hint">' + SF.staffCode(x.s.num) + ' · ' + esc(roleLabel(x.s.role)) + '</span><br>' +
+              x.pend.map(function (t) {
+                return '<span class="tag ' + (t.nota ? 'tag-danger' : 'tag-warn') + '">' + esc(t.titulo) + '</span>';
+              }).join(' ') + '</span><span class="row-actions">' + av + '</span></div>');
+            var acc = row.querySelector('.row-actions');
+            if (puedeAvisar) {
+              var b3 = el('<button class="lnk">Recordar</button>');
+              b3.onclick = function () { avisaStaff(x.s, x.pend); U.toast('Aviso enviado a ' + x.s.full_name); SF.router.render(); };
+              acc.appendChild(b3);
+            }
+            if (puedeFicha) {
+              var b4 = el('<button class="lnk">Ficha</button>');
+              b4.onclick = function () { location.hash = '#/staff/' + x.s.id; };
+              acc.appendChild(b4);
+            }
+            pl.appendChild(row);
+          });
+        out.appendChild(pl);
+        out.appendChild(el('<p class="hint">La ficha de entrenador, delegado o personal del club es ' +
+          '<b>obligatoria para poder cobrar</b>. Va en rojo por eso, no por llevar más tiempo pendiente.</p>'));
+      }
+
+      /* ---------- LO QUE NO SE PUEDE SABER ----------
+         Un pedido de ropa en una tienda de fuera no nos dice quién ha pagado.
+         Marcarlo como "pendiente" sería inventarse un dato; enseñarlo aparte,
+         con su nombre, es lo honesto. */
+      var sinAcuse = [];
+      jug.slice(0, 1).forEach(function (x) {
+        SF.tramitesPara(SF.ctxTramite(x.p, 'padre')).forEach(function (t) { if (!t.acuse) sinAcuse.push(t); });
+      });
+      per.slice(0, 1).forEach(function (x) {
+        SF.tramitesPara({ rol: x.s.role, segment: null, esStaff: true }).forEach(function (t) {
+          if (!t.acuse && sinAcuse.indexOf(t) < 0) sinAcuse.push(t);
+        });
+      });
+      if (sinAcuse.length) {
+        out.appendChild(el('<p class="sec-label">Esto no se puede comprobar desde la app</p>'));
+        var sl2 = el('<div class="mini-list"></div>');
+        sinAcuse.forEach(function (t) {
+          sl2.appendChild(el('<div class="mini-row mr-wrap"><span><b>' + esc(t.titulo) + '</b><br>' +
+            '<span class="hint">Se hace en una web de fuera y no nos devuelve quién lo ha hecho.</span></span>' +
+            '<span class="row-actions"><span class="tag tag-gray">sin acuse</span></span></div>'));
+        });
+        out.appendChild(sl2);
+        out.appendChild(el('<p class="hint">Si el club quiere seguir alguno de estos, en Configuración se le ' +
+          'puede pedir <b>acuse</b>: entonces cada uno marca «ya está» y aparece en las listas de arriba. ' +
+          'Mientras no lo tenga, la app no se lo inventa.</p>'));
+      }
+    }
+
+    /* Quién falta, de un trámite concreto. Con nombre y con dónde está, que es
+       lo que hace falta para descolgar el teléfono. */
+    function modalFaltanDe(g) {
+      var box = el('<div></div>');
+      box.appendChild(el('<p class="hint">' + esc(g.t.titulo) +
+        (g.t.nota ? ' · <b>' + esc(g.t.nota) + '</b>' : '') + '</p>'));
+      box.appendChild(el('<div class="tempn">' +
+        '<div><b>' + g.hechos + '</b><span>hecha</span></div>' +
+        '<div><b>' + g.falta.length + '</b><span>faltan</span></div>' +
+        '<div><b>' + g.total + '</b><span>a quien le toca</span></div></div>'));
+      if (!g.falta.length) {
+        box.appendChild(el('<div class="empty-panel"><p>No falta nadie.</p></div>'));
+      } else {
+        var l = el('<div class="mini-list" style="max-height:46vh;overflow:auto"></div>');
+        g.falta.forEach(function (f) {
+          var nombre = f.kind === 'jugador' ? f.p.full_name : f.s.full_name;
+          var donde = f.kind === 'jugador'
+            ? (f.p.team_id ? (SF.store.teamGet(f.p.team_id) || {}).name : 'sin equipo')
+            : roleLabel(f.s.role);
+          var row = el('<div class="mini-row mr-wrap"><span><b>' + esc(nombre) + '</b><br>' +
+            '<span class="hint">' + esc(donde || '') + '</span></span><span class="row-actions"></span></div>');
+          if (puedeAvisar) {
+            var b = el('<button class="lnk">Recordar</button>');
+            b.onclick = function () {
+              if (f.kind === 'jugador') avisaFamilia(f.p, [g.t]); else avisaStaff(f.s, [g.t]);
+              U.toast('Aviso enviado'); U.closeModal(); SF.router.render();
+            };
+            row.querySelector('.row-actions').appendChild(b);
+          }
+          l.appendChild(row);
+        });
+        box.appendChild(l);
+      }
+      U.modal('Quién falta', box);
+    }
+
+    /* El texto del aviso. Lo que hoy se escribe a mano en un WhatsApp: qué
+       falta, el enlace, la contraseña si la hay y el porqué si lo tiene. */
+    function textoDe(lista) {
+      return lista.map(function (t) {
+        var s = '· ' + t.titulo;
+        if (t.nota) s += '\n    ' + t.nota;
+        if ((t.destino || {}).kind === 'url' && t.destino.url) s += '\n    ' + t.destino.url;
+        if (t.secreto) s += '\n    ' + (t.secreto_label || 'Clave') + ': ' + t.secreto;
+        return s;
+      }).join('\n\n');
+    }
+
+    function avisaFamilia(p, lista) {
+      if (!lista.length) return false;
+      SF.store.annCreate(p.team_id || null, {
+        kind: 'inscripcion',
+        title: lista.length === 1 ? lista[0].titulo : 'Te falta por hacer',
+        body: 'Para completar la temporada ' + SF.SEASON + ' todavía falta esto:\n\n' + textoDe(lista) +
+              '\n\nCuando lo hayas hecho, márcalo en el Portal Family y nos ahorras la llamada. ' +
+              'Si ya lo hiciste, márcalo igual y lo damos por bueno.'
+      }, [p.id]);
+      SF.store.update(p.id, { tram_reminder_at: SF.hoyISO() });
+      return true;
+    }
+
+    function avisaStaff(s, lista) {
+      if (!lista.length) return false;
+      SF.store.commCreate({
+        mode: 'directo',
+        title: lista.length === 1 ? lista[0].titulo : 'Te falta por hacer',
+        body: 'Hola ' + s.full_name.split(' ')[0] + ':\n\nPara la temporada ' + SF.SEASON +
+              ' todavía falta esto:\n\n' + textoDe(lista) +
+              '\n\nCuando lo hagas, márcalo en tu pantalla de inicio. Si ya lo hiciste, márcalo igual.'
+      }, [{ staff_id: s.id, team_id: null }]);
+      SF.store.staffUpdate(s.id, { tram_reminder_at: SF.hoyISO() },
+        'Recordatorio enviado: ' + lista.map(function (t) { return t.titulo; }).join(', '));
       return true;
     }
 
@@ -23340,7 +23700,8 @@ SF.router = (function () {
     ['inicio', 'Inicio', 'home'], ['agenda', 'Agenda', 'cal'],
     ['jugadores', 'Jugadores', 'users'], ['equipos', 'Equipos', 'grid'],
     ['importar', 'Importar', 'ai'],
-    ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'], ['informes', 'Informes', 'chart'],
+    ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'],
+    ['tramites', 'Fichas e inscripciones', 'check'], ['informes', 'Informes', 'chart'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'],
     ['sueldos', 'Sueldos', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
@@ -23365,7 +23726,7 @@ SF.router = (function () {
   var NAV_GRUPOS = [
     { id: 'dia',      label: '',                keys: ['inicio', 'agenda', 'mi-equipo', 'jugadores', 'equipos', 'horarios', 'calendario', 'sesiones'] },
     { id: 'captacion',label: 'Captación',       keys: ['captacion', 'importar'] },
-    { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos'] },
+    { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos', 'tramites'] },
     { id: 'personas', label: 'Personas',        keys: ['staff', 'adjuntos', 'family', 'comunicados'] },
     { id: 'dinero',   label: 'Dinero',          keys: ['finanzas', 'economia', 'sueldos'] },
     { id: 'ajustes',  label: 'Ajustes',         keys: ['permisos', 'config'] },
@@ -23392,7 +23753,8 @@ SF.router = (function () {
     staff: 'staff', 'staff-ficha': 'staff-ficha', 'mi-ficha': 'mi-ficha', 'mi-equipo': 'mi-equipo',
     adjuntos: 'adjuntos',
     comunicados: 'comunicados', 'importar-datos': 'sec-importar', 'mis-avisos': 'mis-avisos',
-    buscar: 'buscar', presupuesto: 'sec-finanzas', licencias: 'sec-documentos', inscripcion: 'inscripcion'
+    buscar: 'buscar', presupuesto: 'sec-finanzas', licencias: 'sec-documentos',
+    tramites: 'tramites', inscripcion: 'inscripcion'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff',
