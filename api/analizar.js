@@ -156,8 +156,12 @@ async function conOpenAI(texto, key) {
   return { campos: JSON.parse(msg.content), modelo: modelo };
 }
 
+import { mismaCasa, fueraDeCasa } from './_origen.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, motivo: 'metodo' });
+  /* Solo responde a nuestra propia app: esto gasta cuota. */
+  if (!mismaCasa(req)) return fueraDeCasa(res);
 
   const gem = process.env.GEMINI_API_KEY;
   const ant = process.env.ANTHROPIC_API_KEY;

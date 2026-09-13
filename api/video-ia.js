@@ -158,8 +158,12 @@ function limpia(v, max) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, max || 300);
 }
 
+import { mismaCasa, fueraDeCasa } from './_origen.js';
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, motivo: 'metodo' });
+  /* Solo responde a nuestra propia app: esto gasta cuota. */
+  if (!mismaCasa(req)) return fueraDeCasa(res);
 
   const key = process.env.GEMINI_API_KEY;
   /* Aquí NO valen Claude ni OpenAI: ninguno acepta una URL de YouTube. Se
