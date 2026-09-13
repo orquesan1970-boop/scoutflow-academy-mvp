@@ -26,7 +26,12 @@ const PERMITIDOS = [
   'liga', 'estado', 'anios_en_el_club', 'score', 'score_cobertura',
   'evaluacion', 'evolucion', 'documentos_pendientes', 'disponibilidad',
   'nacionalidades', 'curso', 'idioma_ingles', 'objetivo', 'edad_de_inicio',
-  'trayectoria', 'selecciones', 'proxima_cita'
+  'trayectoria', 'selecciones', 'proxima_cita',
+  /* Lo que se le ha visto hacer en los partidos: los cortes que marco su
+     cuerpo tecnico. Es la unica parte de esta lista que no sale de un
+     formulario sino del texto que escribio una persona, asi que el modelo
+     tiene una instruccion aparte para no tratarla como estadistica. */
+  'cortes_totales', 'observado_en_video', 'sobre_los_cortes'
 ];
 
 /* Palabras que delatan que alguien ha metido donde no debía. Si aparecen en
@@ -68,6 +73,17 @@ const INSTRUCCIONES = [
   '   decirse.',
   '5. No hables de dinero, de salud, ni de la situación de la familia. Si',
   '   aparecieran, ignóralos.',
+  '6. Si viene "observado_en_video", eso es ORO y va primero: son jugadas',
+  '   concretas que su entrenador vio y anotó, con fecha. Úsalas para',
+  '   sostener lo que digas —"le cuesta la ayuda", y citas el partido— en vez',
+  '   de hablar solo de las notas. Pero NO son estadísticas: no las cuentes,',
+  '   no saques porcentajes ni promedios, y no digas "en el 70% de las',
+  '   acciones". Son los momentos que alguien eligió marcar, no todo lo que',
+  '   pasó, y confundir una cosa con la otra es el error más fácil de cometer',
+  '   aquí.',
+  '7. Si un corte lo dice y las notas dicen lo contrario, dilo en vez de',
+  '   elegir: "en vídeo se le ve X, aunque su nota de X es baja" es',
+  '   exactamente la observación que hace falta para una reunión.',
   '6. Tono sobrio y en español de España. Frases cortas. Nada de superlativos',
   '   ni de lenguaje de folleto.',
   '7. Cada apartado, como mucho tres puntos. Prefiere decir menos y mejor.'
