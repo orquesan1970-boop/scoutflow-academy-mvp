@@ -1471,6 +1471,56 @@ button.pf-ley:hover{filter:brightness(.96)}
 .vnum{flex:0 0 26px;width:26px;height:26px;border-radius:50%;background:var(--purple);color:#fff;
   display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
 .vhonesto{margin-top:14px;padding:10px 12px;background:var(--bg);border-left:3px solid var(--purple);border-radius:0 8px 8px 0}
+/* PROPUESTAS DE LA IA. Se ven distintas de un corte a proposito: un corte lo
+   marco una persona y esto todavia no lo ha mirado nadie. El borde punteado
+   dice "esto esta a medias" sin tener que escribirlo en cada fila. */
+/* LAS PROPUESTAS DE LA IA.
+   Antes era un recuadro gris punteado, que se lee como "esto esta sin
+   terminar". Y no lo esta: es trabajo hecho esperando a que una persona
+   decida. Asi que lleva el color de la IA -el mismo cian de los botones,
+   para que se reconozca de una pantalla a otra- y se distingue de un corte
+   sin necesidad de que ponga «esto no es un corte» debajo. */
+.vprop{margin-bottom:20px;border-radius:14px;overflow:hidden;
+  border:1px solid rgba(18,181,203,.32);background:var(--ia-bg)}
+.vprop-cab{display:flex;align-items:center;gap:9px;flex-wrap:wrap;
+  padding:11px 14px;background:rgba(18,181,203,.14);
+  border-bottom:1px solid rgba(18,181,203,.24)}
+.vprop-cab .sec-label{display:flex;align-items:center;gap:7px;margin:0;color:var(--ia-d)}
+.vprop-cab .sec-label svg{width:15px;height:15px}
+.vprop-cab .count-inline{display:inline-flex;align-items:center;justify-content:center;
+  min-width:21px;height:21px;padding:0 6px;border-radius:99px;background:var(--ia);
+  color:#fff;font-weight:700;font-size:11.5px;line-height:1;vertical-align:middle}
+.vprop-cab .lnk{margin-left:auto;color:var(--ia-d)}
+.vprop-cuerpo{padding:11px 14px 13px}
+.vprop .mini-row{background:var(--surface);border:1px solid rgba(18,181,203,.2)}
+.vprop .mini-row .row-actions{display:flex;gap:13px;align-items:center;flex:0 0 auto}
+.vprop .mini-row+.mini-row{margin-top:7px}
+.vprop .hint{color:var(--ia-d)}
+.vprop .hint b{color:#065C68}
+.prop-row{border-left:3px solid var(--ia)}
+.prop-row .vtime-s{background:var(--ia-d);color:#fff;border-radius:6px;padding:2px 7px;
+  font-variant-numeric:tabular-nums}
+.prop-hecha{opacity:.55;border-left-color:var(--line)}
+.prop-hecha .vtime-s{background:var(--ink-3)}
+/* El mismo cian, pero calculado para fondo claro: sobre blanco hace falta el
+   tono oscuro para que el texto pase el contraste mínimo. */
+.btn-ia-claro{background:var(--ia-bg);color:var(--ia-d);border:1px solid rgba(18,181,203,.4);font-weight:600}
+.btn-ia-claro:hover{background:#CFF1F6;border-color:var(--ia);color:#065C68}
+.btn-ia-claro svg{color:var(--ia-d)}
+/* «descartar» es una acción secundaria y tiene que parecerlo: gris hasta que
+   se pasa por encima. Antes usaba --muted, que no existe en esta paleta, así
+   que salía en negro y pesaba más que «marcar este», que es justo al revés
+   de lo que interesa. */
+.lnk-mute{color:var(--ink-3);font-weight:500}
+.lnk-mute:hover{color:var(--danger)}
+.iap-guardadas{display:flex;gap:7px;align-items:flex-start;padding:9px 11px;background:var(--bg);border-radius:9px;margin:8px 0 12px}
+.iap-guardadas svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px;color:var(--ok)}
+/* Informes guardados: la lista que permite comparar el de noviembre con el de
+   febrero, que es la pregunta que se hace un club de formacion. */
+.inf-row{border-left:3px solid var(--purple)}
+.inf-cuerpo{margin-top:8px;padding-left:11px;border-left:2px solid var(--line)}
+.inf-cuerpo .sec-label{margin-top:9px}
+.inf-cuerpo ul{margin:3px 0 0 17px}
 .valta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .valta-2{grid-template-columns:repeat(4,1fr)}
 .valta+.valta{margin-top:10px}
@@ -1524,6 +1574,124 @@ button.pf-ley:hover{filter:brightness(.96)}
 .vseg select{max-width:230px}
 .vdor{width:80px}
 .vsegav{margin:6px 0 0}
+/* ===================================================================
+   EL ESTUDIO DE VIDEO
+   -------------------------------------------------------------------
+   Por que oscuro, y por que SOLO aqui.
+
+   Todas las herramientas del sector -Hudl Sportscode, Wyscout- envuelven
+   el video en chrome oscuro. No es estetica: entre una pista iluminada y
+   una pagina blanca el ojo esta compensando brillo todo el rato, y en dos
+   horas de partido eso cansa de verdad. Ademas el marco oscuro dice "lo
+   que hay aqui dentro actua sobre el video" sin tener que escribirlo.
+
+   Y por eso se acaba donde se acaba: debajo hay cortes, notas e informes,
+   que son TEXTO, y para leer texto el fondo oscuro es peor. Oscuro para el
+   medio, claro para los datos.
+
+   Reglas que se siguen aqui (las de cualquier interfaz oscura decente):
+     · nada de negro puro: #14102A, de la familia del sidebar, que ya es
+       color de marca y no un color nuevo;
+     · la profundidad se hace con superficies MAS CLARAS, no con sombras:
+       #14102A -> #1E1838 -> #2A2350;
+     · el morado de marca se desatura al subirlo a fondo oscuro (#6F5AEF
+       vibra sobre negro): dentro del estudio se usa #9B8CFF.
+   ------------------------------------------------------------------- */
+:root{
+  --st-0:#14102A;      /* fondo del estudio */
+  --st-1:#1E1838;      /* superficie elevada: cabecera, barras */
+  --st-2:#2A2350;      /* elevada del todo: botones secundarios, chips */
+  --st-line:#342C5E;
+  --st-ink:#EFECFF;    /* texto principal sobre oscuro */
+  --st-ink-2:#A99FD4;  /* secundario; pasa 4.5:1 sobre --st-0 */
+  --st-purple:#9B8CFF; /* el morado de marca, desaturado para fondo oscuro */
+  /* EL COLOR DE LA IA. Uno solo, y distinto del morado de marca, para que
+     "esto lo ha hecho una maquina" se vea de un vistazo sin leer. Cian
+     porque no choca ni con el morado (accion humana) ni con el verde
+     (confirmado) ni con el ambar (pendiente). Cuatro colores, cuatro
+     significados: eso es un sistema; mas colores serian adornos. */
+  --ia:#12B5CB; --ia-d:#08737F; --ia-bg:#E2F7FA; --ia-on:#5BE3F2;
+}
+.vstudio{background:var(--st-0);border-radius:18px;overflow:hidden;
+  border:1px solid var(--st-line);margin-bottom:18px}
+.vstudio .vcab{margin:0;padding:14px 18px;background:var(--st-1);
+  border-bottom:1px solid var(--st-line);align-items:center;gap:12px}
+.vstudio .vcab h3{color:var(--st-ink);font-size:17px;letter-spacing:-.2px}
+.vstudio .vcab .hint{color:var(--st-ink-2);margin:3px 0 0}
+.vstudio .vcab .tag{background:var(--st-2);color:var(--st-ink);border:0}
+/* Los botones de la cabecera, sobre oscuro: fantasma, para que no compitan
+   con la accion de verdad, que es marcar un corte. */
+.vstudio .vcab .btn-light{background:transparent;color:var(--st-ink-2);
+  border:1px solid var(--st-line)}
+.vstudio .vcab .btn-light:hover{background:var(--st-2);color:var(--st-ink);
+  border-color:var(--st-purple)}
+.vstudio-play{background:#0B0818;position:relative;line-height:0}
+/* Dentro del estudio el vídeo va a sangre: sin esquinas redondeadas propias
+   ni hueco alrededor. El marco lo pone el estudio, no el reproductor. */
+.vstudio-play .vid-frame{border-radius:0;background:#0B0818}
+.vstudio-play .empty-panel{border:0;background:transparent;color:var(--st-ink-2);line-height:1.5}
+.vstudio-play .empty-panel p{color:var(--st-ink-2)}
+.vstudio-play iframe,.vstudio-play video{display:block;width:100%;border-radius:0}
+.vstudio .vsegav,.vstudio .vapi{color:var(--st-ink-2);margin:0;padding:9px 18px 0}
+.vstudio .vapi:last-child,.vstudio .vsegav:last-child{padding-bottom:15px}
+.vstudio>*:last-child{padding-bottom:15px}
+.vstudio-nota{color:var(--st-ink-2);margin:0;padding:13px 18px 0;line-height:1.6;
+  border-top:1px solid var(--st-line)}
+.vstudio-nota b{color:var(--st-ink)}
+.vstudio .vsegav b{color:var(--st-ink)}
+
+/* La tira de saltar a corte, ya dentro del estudio: deja de ser una barra
+   negra flotando entre un video gris y unos botones blancos. */
+.vstudio .vtira{margin:0;padding:11px 18px;background:var(--st-1);
+  border-radius:0;border-bottom:1px solid var(--st-line)}
+.vstudio .vtira-l{color:var(--st-ink-2)}
+.vstudio .vtira-b{background:var(--st-2);color:var(--st-ink);border:1px solid transparent}
+.vstudio .vtira-b:hover{background:var(--st-purple);color:#14102A;border-color:var(--st-purple)}
+.vstudio .vtira-b:hover b,.vstudio .vtira-b:hover i{color:#14102A}
+.vstudio .vtira-b b{color:var(--st-ink)}
+
+/* LA BARRA DE MARCAR. Aqui es donde el color hace trabajo:
+     morado solido = la accion humana, marcar un corte -la mas usada-;
+     cian con borde  = lo que hace la IA, que es otra cosa y se ve que lo es;
+     fantasma        = lo accesorio.
+   Tres pesos visuales para tres importancias. Antes los tres botones
+   pesaban lo mismo y habia que leerlos para saber cual era cual. */
+.vstudio .vmarca{display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  padding:14px 18px;background:var(--st-1);border-top:1px solid var(--st-line)}
+.vstudio .vmarca .btn-primary{background:linear-gradient(135deg,#7C68F5,#6F5AEF);
+  border:0;box-shadow:0 2px 12px rgba(111,90,239,.45);font-weight:650}
+.vstudio .vmarca .btn-primary:hover{background:linear-gradient(135deg,#8E7DFF,#7C68F5);
+  box-shadow:0 4px 18px rgba(111,90,239,.6)}
+.vstudio .vmarca .btn-ia{background:rgba(18,181,203,.13);color:var(--ia-on);
+  border:1px solid rgba(18,181,203,.45);font-weight:600}
+.vstudio .vmarca .btn-ia:hover{background:rgba(18,181,203,.24);border-color:var(--ia-on);
+  box-shadow:0 3px 14px rgba(18,181,203,.28)}
+.vstudio .vmarca .btn-ia svg{color:var(--ia-on)}
+.vstudio .vseg{display:flex;align-items:center;gap:8px;flex-wrap:wrap;
+  margin-left:auto;padding-left:12px}
+.vstudio .vseg .hint{color:var(--st-ink-2)}
+.vstudio .vseg input,.vstudio .vseg .pick-in{background:var(--st-2);border:1px solid var(--st-line);
+  color:var(--st-ink)}
+.vstudio .vseg input::placeholder,.vstudio .vseg .pick-in::placeholder{color:var(--st-ink-2)}
+.vstudio .vseg input:focus,.vstudio .vseg .pick-in:focus{border-color:var(--st-purple);
+  box-shadow:0 0 0 3px rgba(155,140,255,.2)}
+.vstudio .vdor{max-width:92px}
+
+/* Marca de agua de la fuente sobre el reproductor, como en las herramientas
+   del sector: dice de donde sale el metraje sin robar sitio. */
+.vstudio-fuente{position:absolute;top:11px;left:13px;z-index:2;display:flex;gap:7px;
+  align-items:center;padding:5px 10px;border-radius:99px;font-size:11px;font-weight:600;
+  background:rgba(11,8,24,.72);color:var(--st-ink);backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.13);pointer-events:none}
+.vstudio-fuente i{width:6px;height:6px;border-radius:99px;background:#FF4D4D;font-style:normal}
+
+@media (max-width:760px){
+  .vstudio{border-radius:14px}
+  .vstudio .vcab,.vstudio .vmarca,.vstudio .vtira{padding-left:13px;padding-right:13px}
+  .vstudio .vseg{margin-left:0;padding-left:0;width:100%}
+  .vstudio .vmarca .btn{flex:1 1 auto;justify-content:center}
+}
+
 .vcortes{margin-top:16px}
 /* LA TIRA DE MARCAS, pegada al reproductor. Es lo que más se usa: "ponme el
    27:00". Scroll horizontal y no wrap, para que no empuje la lista hacia
@@ -1545,8 +1713,23 @@ button.pf-ley:hover{filter:brightness(.96)}
    toda la pantalla para leer una frase; en tarjeta se lee de un vistazo y
    caben el doble en el mismo alto. */
 .vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;margin-top:10px}
+/* ---- LAS TARJETAS DE CORTE ----
+   Lo que mas se mira de esta pantalla despues del video. Tres cosas:
+     · el minuto es lo primero que busca el ojo -> chip con numeros de ancho
+       fijo, que ademas evita el baile al cambiar de 9:58 a 10:01;
+     · el borde de color dice de un vistazo si fue acierto o cosa a trabajar,
+       sin leer la etiqueta;
+     · al pasar por encima se levanta un poco: son pulsables y tienen que
+       parecerlo. */
 .vcard{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line-2);
-  border-radius:var(--r);padding:12px 14px;min-width:0}
+  border-radius:var(--r);padding:12px 14px;min-width:0;
+  transition:transform .12s ease,box-shadow .12s ease,border-color .12s ease}
+.vcard:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(31,36,48,.09);
+  border-color:var(--line-2)}
+.vcard .vtime{font-variant-numeric:tabular-nums;letter-spacing:.3px}
+.vcard-t{font-size:14.5px}
+.vcard-ia{border-left-color:var(--ia)}
+.vcard-ia .vtime{background:var(--ia-d)}
 .vcard-ok{border-left-color:var(--ok)}
 .vcard-warn{border-left-color:var(--warn)}
 .vcard-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
@@ -1594,7 +1777,14 @@ button.pf-ley:hover{filter:brightness(.96)}
 .vinf-bloque li{margin-bottom:4px}
 @media(max-width:900px){
   .vsplit{grid-template-columns:1fr}
-  .vlado{order:-1}
+  /* EL VÍDEO PRIMERO, TAMBIÉN EN EL MÓVIL.
+     La videoteca tenía order:-1 y se ponía delante: en un teléfono eso
+     significa bajar por una lista de partidos cada vez que entras, para
+     llegar al que ya estaba abierto. Se cambia de vídeo una vez; se mira
+     veinte. Así que el estudio va arriba y la lista queda debajo, para
+     cuando de verdad se quiera cambiar. */
+  .vlado{order:1}
+  .vlado .vid-mini{max-height:none}
   .vpasos{grid-template-columns:1fr}
   .valta,.valta-2{grid-template-columns:1fr}
   .vseg select{max-width:100%}
@@ -7943,6 +8133,53 @@ SF.store = (function () {
       });
       save(d); return x;
     },
+    /* ---------------- informes guardados ----------------
+
+       POR QUE SE GUARDAN. Hasta ahora cada informe se generaba, se ensenaba
+       en una ventana y se perdia al cerrarla. Para un club de formacion eso
+       tira lo unico que de verdad importa: la COMPARACION. "Lo que deciamos
+       de el en noviembre" al lado de "lo que decimos en febrero" es la
+       conversacion que se tiene con la familia y con el chaval; un informe
+       suelto no es ninguna conversacion.
+
+       Se guarda con la fecha, el modelo que lo escribio y CUANTOS CORTES
+       leyo. Ese ultimo numero es el que explica por que el informe de febrero
+       dice mas que el de noviembre: no es que el chaval haya cambiado tanto,
+       es que ahora hay catorce jugadas suyas y antes habia dos. Sin ese dato,
+       comparar los dos informes enganaria. */
+    informeSave: function (playerId, inf, quien) {
+      var d = db(), p = (d.players || []).filter(function (x) { return x.id === playerId; })[0];
+      if (!p) return null;
+      p.reports = p.reports || [];
+      var r = {
+        id: 'if' + Date.now() + Math.floor(Math.random() * 1000),
+        at: new Date().toISOString(),
+        por: (quien || {}).name || '',
+        tipo: inf.tipo || 'ia',
+        modelo: inf.modelo || '',
+        cortes: +inf.cortes || 0,
+        cuerpo: inf.cuerpo || {},
+        /* Un informe de IA NO se publica solo: la familia ve lo que el staff
+           decide publicar, y eso lo decide una persona despues de leerlo. */
+        published: false
+      };
+      p.reports.unshift(r);
+      /* Mas de 30 informes de IA en una ficha no los lee nadie y engordan el
+         almacen. Se quedan los 30 ultimos; los publicados nunca se tiran. */
+      var ias = p.reports.filter(function (x) { return x.tipo === 'ia' && !x.published; });
+      if (ias.length > 30) {
+        var sobran = ias.slice(30);
+        p.reports = p.reports.filter(function (x) { return sobran.indexOf(x) < 0; });
+      }
+      save(d); return r;
+    },
+    informeQuitar: function (playerId, repId) {
+      var d = db(), p = (d.players || []).filter(function (x) { return x.id === playerId; })[0];
+      if (!p) return;
+      p.reports = (p.reports || []).filter(function (x) { return x.id !== repId; });
+      save(d);
+    },
+
     videoQuitar: function (id) {
       var d = db();
       d.videoteca = (d.videoteca || []).filter(function (x) { return x.id !== id; });
@@ -7968,6 +8205,86 @@ SF.store = (function () {
       v.cortes.sort(function (a, b) { return (+a.t || 0) - (+b.t || 0); });
       save(d); return c;
     },
+    /* ---------------- lo que ha propuesto la IA ----------------
+
+       UNA PROPUESTA NO ES UN CORTE, y mezclarlas seria el peor atajo de toda
+       esta pantalla. Un corte lo ha marcado una persona: tiene autor, tiene
+       jugador y alguien responde de el. Una propuesta es lo que la IA CREE
+       haber visto, sin nombre y sin revisar. Si las ocho propuestas cayeran
+       directamente en `cortes`, dentro de tres meses nadie sabria cuales miro
+       un entrenador y cuales se colaron solas, y esa diferencia es justo la
+       que importa cuando se habla de un chaval de quince anos.
+
+       Asi que se guardan aparte y con estado. Aceptar una la convierte en
+       corte -y entonces si tiene autor- y deja escrito de que propuesta
+       salio. Descartar tambien se guarda: saber que un momento se miro y no
+       valia evita volver a proponerlo y volver a mirarlo.
+
+       POR QUE SE GUARDAN Y NO SE TIRAN. Cada busqueda cuesta dinero y un
+       minuto de espera. Tirar siete de las ocho propuestas porque solo se
+       pudo marcar una es pagar ocho y usar una. */
+    propuestasSave: function (videoId, lista, ctx) {
+      var d = db(), v = (d.videoteca || []).filter(function (x) { return x.id === videoId; })[0];
+      if (!v) return [];
+      v.propuestas = v.propuestas || [];
+      var lote = 'lt' + Date.now() + Math.floor(Math.random() * 1000);
+      var nuevas = [];
+      (lista || []).forEach(function (m, i) {
+        var t = SF.videoSegundos(m.t);
+        t = Math.max(0, Math.floor(+t || 0));
+        /* Si ya hay una propuesta en ese mismo segundo, no se duplica: se
+           vuelve a mirar el mismo tramo mas veces de las que parece. */
+        var ya = v.propuestas.filter(function (p) { return p.t === t && p.titulo === (m.titulo || ''); })[0];
+        if (ya) return;
+        var p = {
+          id: 'pr' + Date.now() + i + Math.floor(Math.random() * 1000),
+          lote: lote,
+          t: t,
+          titulo: m.titulo || '',
+          etiqueta: m.etiqueta || '',
+          por_que: m.por_que || '',
+          estado: 'pendiente',
+          corte_id: null,
+          at: new Date().toISOString(),
+          /* De donde salio: el tramo mirado, lo que se le pidio y que modelo
+             lo escribio. Sin esto, dentro de un mes una propuesta rara no se
+             puede explicar. */
+          desde: (ctx || {}).desde != null ? +ctx.desde : null,
+          hasta: (ctx || {}).hasta != null ? +ctx.hasta : null,
+          busca: (ctx || {}).busca || '',
+          modelo: (ctx || {}).modelo || '',
+          aviso: (ctx || {}).no_visible || ''
+        };
+        v.propuestas.push(p); nuevas.push(p);
+      });
+      v.propuestas.sort(function (a, b) { return (+a.t || 0) - (+b.t || 0); });
+      save(d); return nuevas;
+    },
+    propuestasDe: function (videoId) {
+      var v = (db().videoteca || []).filter(function (x) { return x.id === videoId; })[0];
+      return v ? (v.propuestas || []) : [];
+    },
+    /* Marcar una propuesta como aceptada o descartada. Se apunta quien y
+       cuando: una propuesta descartada sin autor no se le puede preguntar a
+       nadie, igual que un corte. */
+    propuestaEstado: function (videoId, propId, estado, quien, corteId) {
+      var d = db(), v = (d.videoteca || []).filter(function (x) { return x.id === videoId; })[0];
+      if (!v) return null;
+      var p = (v.propuestas || []).filter(function (x) { return x.id === propId; })[0];
+      if (!p) return null;
+      p.estado = estado;
+      p.visto_por = (quien || {}).name || '';
+      p.visto_at = new Date().toISOString();
+      if (corteId !== undefined) p.corte_id = corteId;
+      save(d); return p;
+    },
+    propuestaQuitar: function (videoId, propId) {
+      var d = db(), v = (d.videoteca || []).filter(function (x) { return x.id === videoId; })[0];
+      if (!v) return;
+      v.propuestas = (v.propuestas || []).filter(function (p) { return p.id !== propId; });
+      save(d);
+    },
+
     corteQuitar: function (videoId, corteId) {
       var d = db(), v = (d.videoteca || []).filter(function (x) { return x.id === videoId; })[0];
       if (!v) return;
@@ -13195,8 +13512,18 @@ window.SF = window.SF || {};
         }
       } else if (cur === 'informes') {
         var b = el('<button class="btn btn-primary">' + ico('ai') + 'Analizar con IA</button>');
-        b.onclick = function () { analizarIA(p); };
+        b.onclick = function () { analizarIA(p, function () { p = SF.store.get(p.id); paint(); }); };
         body.appendChild(b);
+
+        /* CUANTO SABEMOS DE EL EN VIDEO. Va junto al boton porque cambia lo
+           que el informe puede decir: con dos cortes sale un informe de ficha
+           y con catorce sale uno que habla de jugadas concretas. Decirlo
+           antes evita la decepcion de pedir un informe y que no diga nada. */
+        var nCor = (typeof SF.cortesDe === 'function') ? SF.cortesDe(p.id).length : 0;
+        body.appendChild(el('<p class="hint">' + (nCor
+          ? 'Leerá su ficha <b>y sus ' + nCor + ' cortes de vídeo</b>: las jugadas suyas que ha marcado el cuerpo técnico en los partidos.'
+          : 'Todavía no tiene ningún corte de vídeo marcado, así que el informe saldrá solo de la ficha. ' +
+            'Cada corte que se le marque en un partido hace el siguiente informe más concreto.') + '</p>'));
         /* Decia "(simulado)" y ya no es verdad: cuando hay clave de IA
            configurada, esto llama a un modelo de verdad. Dejar la etiqueta
            vieja es peor que no ponerla -alguien pega datos reales creyendo que
@@ -13204,8 +13531,58 @@ window.SF = window.SF || {};
            IA, exigible desde el 2 de agosto de 2026, obliga a decir con
            claridad que se esta usando IA antes de usarla, no despues. */
         body.appendChild(el('<p class="hint">Resumen, puntos fuertes, áreas de mejora y siguiente paso. ' +
-          'Lo escribe una <b>IA</b> a partir de la ficha deportiva; no se le envían notas internas, ' +
+          'Lo escribe una <b>IA</b> a partir de la ficha deportiva y de los cortes de vídeo; no se le envían notas internas, ' +
           'ni datos económicos, ni médicos, ni contactos de la familia. Revísalo antes de usarlo.</p>'));
+
+        /* LOS INFORMES ANTERIORES. Esto es lo que convierte una herramienta de
+           "generar un texto" en un seguimiento: al lado del de hoy esta el de
+           hace tres meses, con cuantos cortes se escribio cada uno. */
+        var guardados = (p.reports || []).filter(function (r) { return r.tipo === 'ia'; });
+        if (guardados.length) {
+          body.appendChild(el('<p class="sec-label" style="margin-top:22px">Informes anteriores ' +
+            '<span class="count-inline">' + guardados.length + '</span></p>'));
+          var lg = el('<div class="mini-list"></div>');
+          guardados.forEach(function (r) {
+            var row = el('<div class="mini-row mr-wrap inf-row"><span>' +
+              '<b>' + fmtDate(r.at.slice(0, 10)) + '</b>' +
+              (r.cortes ? ' <span class="tag tag-purple">' + r.cortes + ' cortes</span>'
+                        : ' <span class="tag tag-gray">solo ficha</span>') +
+              '<br><span class="hint">' + esc((r.cuerpo || {}).resumen || '').slice(0, 150) +
+              (((r.cuerpo || {}).resumen || '').length > 150 ? '…' : '') + '</span>' +
+              '<br><span class="hint vfirma">' + esc(r.modelo || 'IA') +
+              (r.por ? ' · lo pidió ' + esc(r.por) : '') + '</span>' +
+              '</span><span class="row-actions"></span></div>');
+            var cuerpo = el('<div class="inf-cuerpo" hidden></div>');
+            var bVer = el('<button class="lnk">ver entero</button>');
+            bVer.onclick = function () {
+              if (!cuerpo.hidden) { cuerpo.hidden = true; bVer.textContent = 'ver entero'; return; }
+              var i2 = r.cuerpo || {};
+              function bl(t, arr) {
+                if (!arr || !arr.length) return '';
+                return '<p class="sec-label">' + t + '</p><ul>' +
+                  arr.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul>';
+              }
+              cuerpo.innerHTML = '<p>' + esc(i2.resumen || '') + '</p>' +
+                bl('En qué destaca', i2.fuerte) + bl('Qué le toca trabajar', i2.mejorar) +
+                bl('Qué falta en la ficha', i2.faltan) +
+                (i2.siguiente ? '<p class="sec-label">Siguiente paso</p><p>' + esc(i2.siguiente) + '</p>' : '');
+              cuerpo.hidden = false; bVer.textContent = 'cerrar';
+            };
+            row.querySelector('.row-actions').appendChild(bVer);
+            if (role().canSeeNotes) {
+              var bQ = el('<button class="lnk lnk-mute">borrar</button>');
+              bQ.onclick = function () {
+                SF.store.informeQuitar(p.id, r.id); p = SF.store.get(p.id); paint();
+              };
+              row.querySelector('.row-actions').appendChild(bQ);
+            }
+            lg.appendChild(row); lg.appendChild(cuerpo);
+          });
+          body.appendChild(lg);
+          body.appendChild(el('<p class="hint">Se guardan para poder comparar: el mismo chaval en noviembre y en febrero. ' +
+            'El número de cortes explica por qué uno dice más que otro. ' +
+            '<b>La familia no los ve</b>: solo ve los informes que el club publica a propósito.</p>'));
+        }
       } else if (cur === 'finanzas') {
         if (!role().canSeeFinance) { body.appendChild(el('<div class="empty-panel"><p>Tu rol no tiene acceso a finanzas.</p></div>')); return; }
         var refF = function () { p = SF.store.get(p.id); paint(); };
@@ -13499,12 +13876,50 @@ window.SF = window.SF || {};
     var sel = p.selections || {};
     var sels = ['local', 'provincial', 'regional', 'national'].map(function (k) { return sel[k]; }).filter(function (x) { return x && x !== 'No'; });
     set('selecciones', sels);
+
+    /* LO QUE SE LE HA VISTO HACER, que hasta ahora no entraba y era la
+       ausencia mas grande de este informe.
+
+       Un jugador puede tener catorce cortes marcados por su entrenador en
+       partidos de verdad -"sale tarde en la ayuda", "tira con equilibrio tras
+       parada"- y el informe seguia escribiendose solo con la altura, el peso y
+       unas notas del 0 al 10. Es como valorar a alguien por su ficha del
+       medico sin haberle visto jugar.
+
+       Van en bloque aparte y DICIENDO DE DONDE SALEN: son observaciones de una
+       persona viendo un partido, con fecha. No son estadisticas y no hay que
+       dejar que el modelo las trate como si lo fueran.
+
+       Se mandan los ultimos 40. Un jugador con tres temporadas puede tener
+       cien cortes, y meterlos todos ni cabe ni ayuda: lo reciente es lo que
+       dice como esta ahora. */
+    var mis = (typeof SF.cortesDe === 'function') ? SF.cortesDe(p.id) : [];
+    if (mis.length) {
+      set('cortes_totales', mis.length);
+      set('observado_en_video', mis.slice(0, 40).map(function (x) {
+        var c = x.corte, v = x.video, tro = [];
+        if (v.fecha) tro.push(v.fecha);
+        if (v.rival) tro.push('vs ' + v.rival);
+        tro.push(c.titulo || 'jugada');
+        if (c.etiqueta) tro.push('[' + c.etiqueta + ']');
+        if (SF.CORTE_SIGNOS[c.signo]) tro.push('(' + SF.CORTE_SIGNOS[c.signo] + ')');
+        /* Los tres campos del corte son lo mas valioso que hay aqui: lo que
+           hizo con balon, sin balon y como acabo. */
+        if (c.con_balon) tro.push('con balón: ' + c.con_balon);
+        if (c.sin_balon) tro.push('sin balón: ' + c.sin_balon);
+        if (c.resultado) tro.push('resultado: ' + c.resultado);
+        if (c.nota) tro.push(c.nota);
+        return tro.join(' · ');
+      }));
+      set('sobre_los_cortes', 'Son observaciones que ha escrito el cuerpo técnico viendo los partidos, ' +
+        'ordenadas de más reciente a más antigua. No son estadísticas: no cuentes ni saques porcentajes de ellas.');
+    }
     return f;
   }
 
   /* Análisis con la IA de verdad. Si no hay clave o falla el proveedor, cae
      al resumen por reglas: mejor un resumen pobre que una pantalla rota. */
-  function analizarIA(p) {
+  function analizarIA(p, alGuardarInforme) {
     var box = el('<div></div>');
     box.appendChild(el('<p class="hint">Leyendo la ficha de <b>' + esc(p.full_name) + '</b>…</p>'));
     var m = U.modal('Análisis · ' + p.full_name, box);
@@ -13525,9 +13940,23 @@ window.SF = window.SF || {};
         bloque('Qué falta en la ficha', i.faltan) +
         (i.siguiente ? '<p class="sec-label">Siguiente paso</p><p>' + esc(i.siguiente) + '</p>' : '') +
         '</div>';
-      /* Se dice quién lo ha escrito y qué ha salido del club. Un resumen de
-         IA sin decir que es de IA es exactamente el problema que tuvimos. */
-      var pie = el('<p class="hint">Escrito por <b>' + esc(d.modelo || 'la IA') + '</b> a partir de la ficha. ' +
+      /* SE GUARDA. Antes esta ventana era el final del informe: se cerraba y
+         no quedaba nada. Ahora queda en su ficha con la fecha y con cuantos
+         cortes leyo, que es lo que permite ponerlo al lado del de dentro de
+         tres meses y ver si hemos cambiado de opinion sobre el chaval. */
+      var nCortes = (ficha.observado_en_video || []).length;
+      SF.store.informeSave(p.id, {
+        tipo: 'ia', modelo: d.modelo || '', cortes: nCortes, cuerpo: i
+      }, quienFirma());
+      p = SF.store.get(p.id);
+      if (typeof alGuardarInforme === 'function') alGuardarInforme();
+
+      /* Se dice quién lo ha escrito, con qué, y qué ha salido del club. Un
+         resumen de IA sin decir que es de IA es exactamente el problema que
+         tuvimos. */
+      var pie = el('<p class="hint">Escrito por <b>' + esc(d.modelo || 'la IA') + '</b> a partir de la ficha' +
+        (nCortes ? ' y de <b>' + nCortes + ' cortes de vídeo</b> que marcó el cuerpo técnico' : '') + '. ' +
+        'Queda guardado en su pestaña de Informes. ' +
         'Revísalo antes de usarlo: puede equivocarse. <button class="lnk" data-q>¿Qué se ha enviado?</button></p>');
       pie.querySelector('[data-q]').onclick = function () {
         U.modal('Qué ha salido del club', el('<div><p class="hint">Solo estos campos. No se envían notas internas, ' +
@@ -26752,7 +27181,88 @@ window.SF = window.SF || {};
     return { name: (yo && yo.full_name) || SF.store.currentUser().name, staff_id: yo ? yo.id : null };
   }
 
-  function iaProponeCortes(v, alAceptar) {
+  /* LA LISTA DE PROPUESTAS, en un solo sitio.
+     Se pinta igual dentro del panel de la IA y en la pantalla de Video, y por
+     eso vive aqui: dos listas parecidas en dos sitios acaban siendo dos
+     listas distintas al tercer cambio.
+
+     Cada fila puede hacer tres cosas, y las tres se guardan:
+       · ver el momento -salta el reproductor, sin decidir nada-;
+       · marcarla, que abre el corte con el minuto puesto para que una persona
+         le ponga jugador y responda de el;
+       · descartarla, que tambien se apunta: saber que algo se miro y no valia
+         evita volver a mirarlo el mes que viene. */
+  function pintaPropuestas(zona, v, alAceptar, alGuardar, opts) {
+    opts = opts || {};
+    var props = SF.store.propuestasDe(v.id);
+    var pend = props.filter(function (p) { return p.estado === 'pendiente'; });
+    var lista = opts.soloPendientes ? pend : props;
+    if (!lista.length) return 0;
+
+    var ml = el('<div class="mini-list"></div>');
+    lista.forEach(function (p) {
+      var esPend = p.estado === 'pendiente';
+      var row = el('<div class="mini-row mr-wrap prop-row' + (esPend ? '' : ' prop-hecha') + '"><span>' +
+        '<b class="vtime-s">' + SF.videoTiempo(p.t) + '</b> ' + esc(p.titulo) +
+        (p.etiqueta ? ' <span class="tag tag-gray">' + esc(p.etiqueta) + '</span>' : '') +
+        (p.estado === 'aceptada' ? ' <span class="tag tag-green">marcada</span>' : '') +
+        (p.estado === 'descartada' ? ' <span class="tag tag-gray">descartada</span>' : '') +
+        (p.por_que ? '<br><span class="hint">' + esc(p.por_que) + '</span>' : '') +
+        (!esPend && p.visto_por ? '<br><span class="hint vfirma">' + esc(p.visto_por) +
+          (p.visto_at ? ' · ' + fmtDate(p.visto_at.slice(0, 10)) : '') + '</span>' : '') +
+        '</span><span class="row-actions"></span></div>');
+      var acc = row.querySelector('.row-actions');
+
+      /* Ver el momento no decide nada, asi que esta siempre, tambien en las
+         ya descartadas: comprobar por que se descarto es legitimo. */
+      if (opts.saltar) {
+        var bV = el('<button class="lnk">ver</button>');
+        bV.onclick = function () { opts.saltar(p.t); };
+        acc.appendChild(bV);
+      }
+
+      if (esPend) {
+        var bM = el('<button class="lnk">marcar este</button>');
+        bM.onclick = function () {
+          /* Se apunta ANTES de abrir el corte: si la persona se arrepiente y
+             cierra el formulario, la propuesta queda como aceptada pero sin
+             corte, y eso se ve y se arregla. Al reves -corte creado y
+             propuesta sin marcar- volveria a proponerse lo mismo. */
+          SF.store.propuestaEstado(v.id, p.id, 'aceptada', quienFirma());
+          if (alGuardar) alGuardar();
+          U.closeModal();
+          alAceptar(p.t, { titulo: p.titulo, etiqueta: p.etiqueta, _prop_id: p.id, _video_id: v.id });
+        };
+        acc.appendChild(bM);
+
+        var bD = el('<button class="lnk lnk-mute">descartar</button>');
+        bD.onclick = function () {
+          SF.store.propuestaEstado(v.id, p.id, 'descartada', quienFirma());
+          if (alGuardar) alGuardar();
+          /* No se cierra el panel: descartar es un gesto rapido y en cadena.
+             Se repinta la lista en su sitio y se sigue. */
+          var padre = zona;
+          padre.innerHTML = '';
+          pintaPropuestas(padre, SF.store.videoGet(v.id), alAceptar, alGuardar, opts);
+        };
+        acc.appendChild(bD);
+      } else if (p.estado === 'descartada') {
+        var bR = el('<button class="lnk">recuperar</button>');
+        bR.onclick = function () {
+          SF.store.propuestaEstado(v.id, p.id, 'pendiente', quienFirma());
+          if (alGuardar) alGuardar();
+          zona.innerHTML = '';
+          pintaPropuestas(zona, SF.store.videoGet(v.id), alAceptar, alGuardar, opts);
+        };
+        acc.appendChild(bR);
+      }
+      ml.appendChild(row);
+    });
+    zona.appendChild(ml);
+    return lista.length;
+  }
+
+  function iaProponeCortes(v, alAceptar, alGuardar) {
     var me = quienFirma();
     var inf = SF.videoInfo(v.url) || {};
     if (inf.fuente !== 'YouTube') { U.toast('Esto solo funciona con vídeos de YouTube'); return; }
@@ -26864,27 +27374,25 @@ window.SF = window.SF || {};
             (d.no_visible ? '<br>Dice: ' + esc(d.no_visible) : '') + '</p>'));
           return;
         }
-        zona.appendChild(el('<p class="iap-t">Propuestas <span class="count-inline">' + d.momentos.length + '</span></p>'));
-        var ml = el('<div class="mini-list"></div>');
-        d.momentos.forEach(function (m) {
-          var t = SF.videoSegundos(m.t);
-          var row = el('<div class="mini-row mr-wrap"><span>' +
-            '<b class="vtime-s">' + esc(m.t) + '</b> ' + esc(m.titulo) +
-            (m.etiqueta ? ' <span class="tag tag-gray">' + esc(m.etiqueta) + '</span>' : '') +
-            (m.por_que ? '<br><span class="hint">' + esc(m.por_que) + '</span>' : '') +
-            '</span><span class="row-actions"></span></div>');
-          var b3 = el('<button class="lnk">marcar este</button>');
-          b3.onclick = function () {
-            U.closeModal();
-            alAceptar(t == null ? 0 : t, { titulo: m.titulo, etiqueta: m.etiqueta });
-          };
-          row.querySelector('.row-actions').appendChild(b3);
-          ml.appendChild(row);
+        /* LO PRIMERO: GUARDARLAS TODAS. Antes solo sobrevivia la que se
+           marcaba y las otras siete se tiraban al cerrar el panel: se pagaba
+           una busqueda entera para usar un octavo. Ahora se guardan en el
+           video en cuanto llegan, antes de pintar nada, y el panel es solo
+           una forma de mirarlas. */
+        SF.store.propuestasSave(v.id, d.momentos, {
+          desde: d0, hasta: h0, busca: SF._iaBusca,
+          modelo: d.modelo, no_visible: d.no_visible
         });
-        zona.appendChild(ml);
-        if (d.no_visible) zona.appendChild(el('<p class="hint">La IA avisa: ' + esc(d.no_visible) + '</p>'));
-        zona.appendChild(el('<p class="hint">Pulsa <b>marcar este</b> y se abre el corte con el minuto puesto, ' +
-          'para que le pongas jugador y lo revises.</p>'));
+        v = SF.store.videoGet(v.id);
+        if (typeof alGuardar === 'function') alGuardar();
+
+        zona.appendChild(el('<p class="iap-t">Propuestas <span class="count-inline">' + d.momentos.length + '</span></p>'));
+        zona.appendChild(el('<p class="hint iap-guardadas">' + ico('check') +
+          ' <b>Las ' + d.momentos.length + ' quedan guardadas en el vídeo.</b> ' +
+          'Marca la que quieras ahora; las demás te esperan en <b>Propuestas de la IA</b>, ' +
+          'y volver a abrirlas no cuesta otra búsqueda.</p>'));
+        pintaPropuestas(zona, v, alAceptar, alGuardar);
+        if (d.no_visible) zona.appendChild(el('<p class="hint vhonesto">La IA avisa: ' + esc(d.no_visible) + '</p>'));
       });
     };
     w.appendChild(foot);
@@ -27064,7 +27572,13 @@ window.SF = window.SF || {};
       gcuerpo.style.display = abierto ? 'none' : '';
       gtog.textContent = abierto ? 'ver los 3 pasos' : 'ocultar';
     };
-    view.appendChild(guia);
+    /* LA GUÍA, DEBAJO DEL TODO CUANDO YA HAY METRAJE.
+       Estaba entre la cabecera y el reproductor, y con sus tres pasos y el
+       aviso empujaba el vídeo por debajo del pliegue. El vídeo es la pantalla;
+       la guía es material de consulta, y el material de consulta no va
+       delante de la herramienta. Con la videoteca vacía sí va arriba: ahí no
+       hay nada más que mirar y es justo lo que hace falta leer. */
+    if (!lista.length) view.appendChild(guia);
 
     /* ---- Traer un vídeo ---- */
     if (puedeEditar) {
@@ -27168,6 +27682,7 @@ window.SF = window.SF || {};
     var der = el('<div class="vlado"></div>');
     cuerpo.appendChild(izq); cuerpo.appendChild(der);
     view.appendChild(cuerpo);
+    view.appendChild(guia);
 
     var abierto = SF._videoAbierto || (lista[0] && lista[0].id);
     SF._videoAbierto = null;
@@ -27264,24 +27779,48 @@ window.SF = window.SF || {};
         acc.appendChild(bEd); acc.appendChild(bDel);
       }
       cab.appendChild(acc);
-      izq.appendChild(cab);
 
-      var caja = el('<div></div>'); izq.appendChild(caja);
+      /* EL ESTUDIO. Cabecera, reproductor, tira de cortes y barra de marcar
+         dentro de UNA sola superficie oscura, en vez de cuatro trozos sueltos
+         sobre fondo blanco.
+
+         No es decoracion. Todas las herramientas del sector -Hudl Sportscode,
+         Wyscout- ponen chrome oscuro alrededor del video por dos motivos: el
+         ojo deja de compensar el salto de brillo entre la pista y la pagina,
+         y todo lo que esta dentro del marco oscuro se lee como "esto actua
+         sobre el video" sin tener que explicarlo.
+
+         Debajo del estudio se vuelve a claro: los cortes y los informes son
+         texto y datos, y el fondo oscuro para leer es peor, no mejor. */
+      var studio = el('<div class="vstudio"></div>');
+      studio.appendChild(cab);
+      izq.appendChild(studio);
+
+      var caja = el('<div class="vstudio-play"></div>'); studio.appendChild(caja);
       /* SALTAR A CORTE, pegado al vídeo y no al final de la pantalla.
          Es lo que más se usa -"ponme el 27:00"- y tenerlo que buscar en una
          lista de abajo es perder el tiempo con el partido parado. Va aquí,
          entre el reproductor y los botones, porque pertenece al vídeo. */
-      izq.appendChild(el('<div class="vtira-slot"></div>'));
+      studio.appendChild(el('<div class="vtira-slot"></div>'));
+      /* De donde sale el metraje, encima del propio vídeo. Va DESPUÉS de
+         construir el reproductor: `Reproductor` empieza vaciando la caja, así
+         que ponerla antes era escribirla para que la borrase acto seguido. */
+      var ponMarca = function () {
+        caja.appendChild(el('<span class="vstudio-fuente"><i></i>' +
+          esc(inf.fuente || 'Enlace') + (v.competicion ? ' · ' + esc(v.competicion) : '') + '</span>'));
+      };
       repro = new Reproductor(caja, v.url, function (conApi) {
         hayApi = conApi;
         var av = izq.querySelector('.vapi');
         if (av) av.style.display = conApi ? 'none' : '';
       });
+      ponMarca();
 
       if (!puedeEditar) { pintaCortes(v); return; }
 
       /* --- La barra de marcar --- */
       var barraM = el('<div class="vmarca"></div>');
+      studio.appendChild(barraM);
       var bMarcar = el('<button class="btn btn-primary">' + ico('plus') + 'Marcar corte aquí</button>');
       bMarcar.onclick = function () {
         var seg = repro ? repro.segundo() : null;
@@ -27293,12 +27832,12 @@ window.SF = window.SF || {};
       /* La pasada de la IA, al lado del botón de marcar a mano: son las dos
          formas de llenar la lista y no hay motivo para esconder una. */
       if ((SF.videoInfo(v.url) || {}).fuente === 'YouTube') {
-        var bProp = el('<button class="btn btn-light">' + ico('ai') + 'Que la IA proponga</button>');
+        var bProp = el('<button class="btn btn-light btn-ia">' + ico('ai') + 'Que la IA proponga</button>');
         bProp.onclick = function () {
           iaProponeCortes(v, function (t, datos) {
             if (repro) repro.saltar(t);
             nuevoCorte(v, t, null, datos);
-          });
+          }, function () { pintaCortes(SF.store.videoGet(v.id)); });
         };
         barraM.appendChild(bProp);
       }
@@ -27321,10 +27860,19 @@ window.SF = window.SF || {};
       segCaja.appendChild(el('<span class="hint">Siguiendo a:</span>'));
       segCaja.appendChild(pickS.el); segCaja.appendChild(inpD);
       barraM.appendChild(segCaja);
-      izq.appendChild(barraM);
+
+      /* EL AVISO, DONDE SE PULSA EL BOTÓN.
+         La guía entera se ha ido abajo, pero esto no puede irse con ella: es
+         lo que separa una herramienta honesta de una que promete lo que no
+         hace, y tiene que leerse en el sitio donde alguien está a punto de
+         pedirle algo a la IA, no al final de la página. */
+      studio.appendChild(el('<p class="hint vstudio-nota"><b>La IA sí mira el vídeo</b> y te propone momentos, ' +
+        'pero no sabe quién es quién: las propuestas no llevan nombre hasta que se lo pones tú. ' +
+        'Y <b>no da números</b> —ni valoraciones sobre 100, ni estadísticas de posesión—: desde la grada ' +
+        'y a dos fotogramas por segundo serían inventados.</p>'));
 
       var segAviso = el('<p class="hint vsegav"></p>');
-      izq.appendChild(segAviso);
+      studio.appendChild(segAviso);
       function pintaSegAviso() {
         var pj = seguir.player_id ? SF.store.get(seguir.player_id) : null;
         segAviso.innerHTML = pj
@@ -27334,7 +27882,7 @@ window.SF = window.SF || {};
       }
       pintaSegAviso();
 
-      izq.appendChild(el('<p class="hint vapi" style="display:none">El reproductor avanzado no ha cargado ' +
+      studio.appendChild(el('<p class="hint vapi" style="display:none">El reproductor avanzado no ha cargado ' +
         '(puede ser la red del club). Se puede seguir marcando cortes, pero habrá que escribir el minuto a mano.</p>'));
 
       pintaCortes(v);
@@ -27379,11 +27927,52 @@ window.SF = window.SF || {};
         if (fCorte.etiqueta && (c.etiqueta || '') !== fCorte.etiqueta) return false;
         return true;
       });
+      /* LO QUE LA IA YA MIRO, ANTES DE LOS CORTES.
+         Va arriba porque es trabajo pendiente de decidir: son momentos que
+         alguien tiene que mirar y marcar o descartar. Los cortes de abajo ya
+         estan decididos.
+
+         Y va aqui, en el video, y no en la ficha de nadie: una propuesta
+         todavia no tiene jugador. Cuando se marca y se le pone nombre, baja a
+         los cortes y entonces si aparece en su ficha. */
+      var props = SF.store.propuestasDe(v.id);
+      var pendP = props.filter(function (x) { return x.estado === 'pendiente'; });
+      if (props.length) {
+        var pc = el('<div class="vprop"></div>');
+        var pcab = el('<div class="vprop-cab"><p class="sec-label">' + ico('ai') +
+          ' Propuestas de la IA <span class="count-inline">' + pendP.length + '</span>' +
+          (pendP.length < props.length ? ' <span class="hint">· ' + (props.length - pendP.length) + ' ya vistas</span>' : '') +
+          '</p></div>');
+        /* Ver tambien las ya decididas, sin que estorben por defecto. */
+        var verTodas = !!SF._propTodas;
+        if (pendP.length < props.length) {
+          var bT = el('<button class="lnk">' + (verTodas ? 'ver solo las pendientes' : 'ver también las vistas') + '</button>');
+          bT.onclick = function () { SF._propTodas = !verTodas; pintaCortes(SF.store.videoGet(v.id)); };
+          pcab.appendChild(bT);
+        }
+        pc.appendChild(pcab);
+        var pcuerpo = el('<div class="vprop-cuerpo"></div>');
+        pc.appendChild(pcuerpo);
+        var pzona = el('<div></div>');
+        var n = pintaPropuestas(pzona, v, function (t, datos) {
+          if (repro) repro.saltar(t);
+          nuevoCorte(v, t, null, datos);
+        }, function () { pintaCortes(SF.store.videoGet(v.id)); }, {
+          soloPendientes: !verTodas,
+          saltar: function (t) { if (repro) repro.saltar(t); }
+        });
+        pcuerpo.appendChild(pzona);
+        if (!n) pcuerpo.appendChild(el('<p class="hint">Todas vistas. Pulsa «ver también las vistas» para repasarlas.</p>'));
+        else pcuerpo.appendChild(el('<p class="hint">Esto <b>no es un corte todavía</b>: la IA no sabe quién es quién. ' +
+          'Al marcar una, le pones jugador y pasa a los cortes de abajo — y ahí sí entra en su ficha.</p>'));
+        cont.appendChild(pc);
+      }
+
       var cab = el('<div class="row-b"><p class="sec-label" style="margin:0">Cortes <span class="count-inline">' +
         (visibles.length === cortes.length ? cortes.length : visibles.length + ' de ' + cortes.length) +
         '</span></p></div>');
       if (cortes.length >= 2) {
-        var bIA = el('<button class="btn btn-light btn-sm">' + ico('ai') + 'Informe con IA</button>');
+        var bIA = el('<button class="btn btn-light btn-sm btn-ia-claro">' + ico('ai') + 'Informe con IA</button>');
         bIA.onclick = function () { informeVideoIA(v); };
         cab.appendChild(bIA);
       }
@@ -27586,7 +28175,7 @@ window.SF = window.SF || {};
         var tit = f.querySelector('#cn').value.trim();
         if (!tit) { U.toast('Ponle un título al corte: en tres semanas «Corte 4» no dice nada'); return; }
         ultimoCuarto = f.querySelector('#cq').value;
-        SF.store.corteSave(v.id, {
+        var hecho = SF.store.corteSave(v.id, {
           id: corte ? corte.id : undefined, t: t, titulo: tit,
           player_id: f.querySelector('#cp').value, dorsal: f.querySelector('#cd').value.trim(),
           etiqueta: f.querySelector('#ce').value, cuarto: ultimoCuarto,
@@ -27596,6 +28185,13 @@ window.SF = window.SF || {};
           resultado: f.querySelector('#c3').value.trim(),
           nota: f.querySelector('#cx').value.trim()
         }, me);
+        /* Si este corte sale de una propuesta de la IA, se deja escrito de
+           cual: dentro de tres meses se puede saber que un corte nacio de una
+           sugerencia y quien la valido, que es distinto de uno que marco una
+           persona mirando el partido. */
+        if (propuesta && propuesta._prop_id) {
+          SF.store.propuestaEstado(propuesta._video_id || v.id, propuesta._prop_id, 'aceptada', me, hecho.id);
+        }
         U.closeModal();
         var pj = f.querySelector('#cp').value ? SF.store.get(f.querySelector('#cp').value) : null;
         U.toast(pj ? 'Corte guardado en la ficha de ' + pj.full_name : 'Corte guardado');
