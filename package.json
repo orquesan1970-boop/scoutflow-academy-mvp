@@ -2,6 +2,8 @@
   "name": "scoutflow-academy-mvp",
   "version": "0.3.0",
   "description": "ScoutFlow Academy — CRM deportivo para academias y clubes de formacion",
+  "_comentario_type": "SIN ESTA LINEA NO FUNCIONA NINGUNA FUNCION DE api/. Los archivos de api/ usan 'export default' (ES modules). Node trata un .js como CommonJS salvo que el package.json diga lo contrario, asi que sin esto Vercel no consigue construir la funcion: la ruta devuelve 404 con HTML, el navegador intenta leerlo como JSON y la app acaba diciendo 'no hay conexion con el servidor'. La alternativa seria renombrar los archivos a .mjs.",
+  "type": "module",
   "scripts": {
     "start": "npx serve ."
   },

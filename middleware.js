@@ -21,9 +21,20 @@
    Para quitar la protección: borra la variable SF_PASS y vuelve a desplegar.
    ========================================================================== */
 
+/* LAS RUTAS DE api/ QUEDAN FUERA DE LA PUERTA, y hay que explicar por qué.
+
+   Esta puerta pide usuario y contraseña para ver la web mientras está en
+   construcción. Con el matcher de antes también tapaba `/api/*`, y eso rompía
+   las llamadas de la propia app: el navegador recibía un 401 en texto plano
+   donde esperaba JSON, y la pantalla acababa diciendo "no hay conexión con el
+   servidor" —que no era verdad y no ayudaba a nadie a arreglarlo—.
+
+   Dejarlas fuera NO las deja al aire: cada función comprueba por su cuenta que
+   la petición viene de este mismo sitio (ver api/_origen.js). La puerta es
+   para las personas; la comprobación de origen, para las máquinas. */
 export const config = {
-  // Se protege todo menos el icono de la pestaña y los archivos internos
-  matcher: '/((?!favicon.ico|_vercel).*)'
+  // Se protege todo menos el icono, los archivos internos de Vercel y la API
+  matcher: '/((?!favicon.ico|_vercel|api/).*)'
 };
 
 export default function middleware(request) {

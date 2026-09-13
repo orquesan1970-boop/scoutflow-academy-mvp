@@ -3014,6 +3014,72 @@ SF.videoInfo = function (url) {
   return { fuente: 'Enlace', embed: null, miniatura: null };
 };
 
+/* ===================== HABLAR CON EL SERVIDOR =====================
+
+   POR QUÉ EXISTE ESTO. La app decía "no hay conexión con el servidor" ante
+   cualquier fallo, porque era el `catch` de un fetch. Y casi nunca era verdad:
+   la conexión estaba bien y lo que pasaba era otra cosa —la función no estaba
+   desplegada, la puerta de contraseña devolvía texto donde se esperaba JSON, o
+   el archivo estaba abierto desde el Escritorio y no desde la web—. Un mensaje
+   que no distingue esos casos hace perder una tarde.
+
+   `SF.api()` hace la llamada y, cuando falla, dice en cristiano qué ha pasado
+   Y QUÉ HAY QUE HACER. Devuelve siempre un objeto con `ok`, para que quien
+   llama no tenga que distinguir entre un error de red y un "no" del servidor. */
+
+SF.api = function (ruta, datos) {
+  /* 1. Abierto desde el disco. Aquí no hay servidor que valga: `/api/…` no
+        existe en un archivo, y ninguna IA va a funcionar. Es el primer caso
+        porque es el más fácil de sufrir sin sospecharlo: el archivo está en el
+        Escritorio y se abre de doble clic. */
+  if (location.protocol === 'file:') {
+    return Promise.resolve({ ok: false, motivo: '_local', detalle:
+      'Estás viendo el archivo desde tu ordenador (file://), no desde la web. ' +
+      'Las funciones de IA viven en el servidor, así que aquí no pueden funcionar. ' +
+      'Entra por app.scoutflow-academy.com y vuelve a probar.' });
+  }
+
+  var opciones = datos
+    ? { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(datos) }
+    : {};
+  /* Las credenciales de la puerta de contraseña viajan con la petición: sin
+     esto, una app protegida recibe un 401 en sus propias llamadas. */
+  opciones.credentials = 'same-origin';
+
+  return fetch(ruta, opciones).then(function (r) {
+    return r.text().then(function (txt) {
+      /* 2. ¿Es JSON? Si no lo es, el cuerpo dice mucho más que el código. */
+      var d = null;
+      try { d = JSON.parse(txt); } catch (e) { d = null; }
+      if (d) { d.ok = !!d.ok; return d; }
+
+      if (r.status === 404) {
+        return { ok: false, motivo: '_no_desplegada', detalle:
+          'El servidor no encuentra ' + ruta + '. La función no está publicada todavía: ' +
+          'mira en Vercel que el último despliegue haya terminado bien.' };
+      }
+      if (r.status === 401 || r.status === 403) {
+        return { ok: false, motivo: '_puerta', detalle:
+          'El servidor ha pedido la contraseña de la web (' + r.status + ') en vez de contestar. ' +
+          'Recarga la página, vuelve a entrar con el usuario y la clave, y prueba otra vez.' };
+      }
+      if (r.status >= 500) {
+        return { ok: false, motivo: '_error_servidor', detalle:
+          'La función ha fallado en el servidor (' + r.status + '). ' +
+          'En Vercel → Deployments → Functions están los registros con el motivo exacto.' };
+      }
+      return { ok: false, motivo: '_respuesta_rara', detalle:
+        'El servidor ha contestado algo que no es JSON (' + r.status + '): ' +
+        txt.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160) };
+    });
+  }).catch(function (e) {
+    /* 3. Aquí sí: no se ha podido ni preguntar. */
+    return { ok: false, motivo: '_sin_red', detalle:
+      'No se ha podido contactar con el servidor. Revisa tu conexión. (' +
+      String((e && e.message) || e).slice(0, 100) + ')' };
+  });
+};
+
 /* ===================== VÍDEO: LA VIDEOTECA Y LOS CORTES =====================
 
    QUÉ ES ESTO Y QUÉ NO ES. Conviene dejarlo escrito aquí arriba porque la
@@ -13340,9 +13406,7 @@ window.SF = window.SF || {};
         'Del club solo han salido los minutos y las notas de los cortes. Revísalo antes de usarlo.</p>'));
     }
 
-    fetch('/api/video', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
-    }).then(function (r) { return r.json(); }).then(function (d) {
+    SF.api('/api/video', payload).then(function (d) {
       if (d && d.ok) return pinta(d.informe, d.modelo);
       zona.innerHTML = '';
       var motivo = d && d.motivo;
@@ -13365,9 +13429,6 @@ window.SF = window.SF || {};
           (pj ? ' — ' + esc(pj.full_name) : '') + (c.nota ? '<br><span class="hint">' + esc(c.nota) + '</span>' : '') + '</li>'));
       });
       res.appendChild(ul); zona.appendChild(res);
-    }).catch(function () {
-      zona.innerHTML = '<div class="empty-panel"><p>No hay conexión con el servidor. ' +
-        'Los cortes están guardados igual.</p></div>';
     });
   }
 
@@ -13449,12 +13510,9 @@ window.SF = window.SF || {};
     var m = U.modal('Análisis · ' + p.full_name, box);
     var ficha = fichaParaIA(p);
 
-    fetch('/api/analizar', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ficha: ficha })
-    }).then(function (r) { return r.json(); }).then(function (d) {
+    SF.api('/api/analizar', { ficha: ficha }).then(function (d) {
       if (!document.getElementById('sf-modal')) return;          // lo cerró mientras esperaba
-      if (!d.ok) { box.innerHTML = ''; box.appendChild(informePorReglas(p, d.motivo)); return; }
+      if (!d.ok) { box.innerHTML = ''; box.appendChild(informePorReglas(p, d.motivo, d.detalle)); return; }
       var i = d.informe;
       function bloque(t, arr) {
         if (!arr || !arr.length) return '';
@@ -13484,7 +13542,7 @@ window.SF = window.SF || {};
   }
 
   /* El de siempre, por reglas. Ahora es el plan B y lo dice claramente. */
-  function informePorReglas(p, motivo) {
+  function informePorReglas(p, motivo, detalle) {
     var strengths = [], gaps = [];
     if (p.height_cm >= 195) strengths.push('Envergadura física destacada para su posición.');
     var ssInf = SF.scoutScore(p);
@@ -13509,8 +13567,12 @@ window.SF = window.SF || {};
        encargó. */
     var razon = motivo === 'sin_clave'
       ? 'No hay ninguna IA configurada en este momento, así que este resumen está <b>hecho por reglas</b> de la propia app, no escrito por una IA.'
-      : motivo === 'red'
-        ? 'No se ha podido conectar con la IA. Este resumen está <b>hecho por reglas</b> de la propia app.'
+      /* Los motivos que empiezan por "_" los pone SF.api y ya traen su propia
+         explicación. Decir "no se ha podido conectar" cuando el problema es
+         que la función no está desplegada manda a buscar donde no es. */
+      : (motivo && motivo.charAt(0) === '_')
+        ? esc(detalle || 'No se ha podido hablar con el servidor.') +
+          ' Mientras tanto, este resumen está <b>hecho por reglas</b> de la propia app.'
         : 'La IA no ha podido responder. Este resumen está <b>hecho por reglas</b> de la propia app.';
     node.appendChild(el('<p class="hint">' + razon + ' Sirve para salir del paso; el bueno lo escribe la IA.</p>'));
     return node;
@@ -13578,10 +13640,7 @@ window.SF = window.SF || {};
       estado.textContent = 'Leyendo el mensaje…';
       outp.innerHTML = '';
 
-      fetch('/api/extraer', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ texto: t })
-      }).then(function (r) { return r.json(); }).catch(function () { return { ok: false, motivo: 'red' }; })
+      SF.api('/api/extraer', { texto: t })
         .then(function (res) {
           if (res.ok) {
             estado.innerHTML = 'Leído con IA <span class="hint">(' + esc(res.modelo || '') + ')</span>';
@@ -13597,7 +13656,10 @@ window.SF = window.SF || {};
               ? 'La IA no está conectada todavía, así que he usado el lector básico: solo pilla año, altura, posición y cuatro nacionalidades. ' +
                 'Para activarla, añade en Vercel una clave: <b>GEMINI_API_KEY</b> (Google, tiene capa gratuita), ' +
                 '<b>ANTHROPIC_API_KEY</b> o <b>OPENAI_API_KEY</b>. La app usa la que encuentre.'
-              : res.motivo === 'red' ? 'No he podido contactar con el servidor. He usado el lector básico.'
+              /* Los motivos de SF.api empiezan por "_" y traen su explicación:
+                 se usa la suya, que dice qué hacer, en vez de "no hay red". */
+              : (res.motivo && res.motivo.charAt(0) === '_')
+                ? esc(res.detalle || '') + ' He usado el lector básico.'
               : 'La IA ha respondido con un error' + (res.detalle ? ': <span class="hint">' + esc(res.detalle) + '</span>' : '') +
                 '. He usado el lector básico.';
             estado.innerHTML = '<b>' + motivo + '</b>';
@@ -18162,8 +18224,7 @@ window.SF = window.SF || {};
         var chip = el('<div class="ia-chip ia-chip-mirando"><span class="ia-punto"></span>' +
           '<span>Comprobando si la IA está conectada…</span></div>');
         box.appendChild(chip);
-        fetch('/api/cuadrante').then(function (r) { return r.json(); })
-          .catch(function () { return null; })
+        SF.api('/api/cuadrante')
           .then(function (st) {
             chip.classList.remove('ia-chip-mirando');
             if (st && st.ia) {
@@ -18300,19 +18361,16 @@ window.SF = window.SF || {};
 
       function pedir(payload) {
         espera('Leyendo el cuadrante…');
-        fetch('/api/cuadrante', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }).then(function (r) { return r.json(); })
-          .catch(function () { return { ok: false, motivo: 'red' }; })
+        SF.api('/api/cuadrante', payload)
           .then(function (res) {
             if (!res.ok) {
               if (res.motivo === 'sin_clave') {
                 fallo('La IA no está conectada. Se activa en Vercel → Settings → Environment Variables ' +
                   'añadiendo <b>GEMINI_API_KEY</b> (Google, tiene capa gratuita), <b>ANTHROPIC_API_KEY</b> o ' +
                   '<b>OPENAI_API_KEY</b>. Mientras tanto, las sesiones se pueden añadir a mano.');
-              } else if (res.motivo === 'red') {
-                fallo('No he podido contactar con el servidor.');
+              } else if (res.motivo && res.motivo.charAt(0) === '_') {
+                /* SF.api ya ha averiguado qué ha pasado: se dice eso. */
+                fallo(esc(res.detalle || 'No he podido contactar con el servidor.'));
               } else {
                 fallo('La IA ha devuelto un error: <span class="hint">' + esc(res.detalle || '') + '</span>');
               }
@@ -26664,14 +26722,11 @@ window.SF = window.SF || {};
       if (ek !== (v.equipacion || '') || erk !== (v.equipacion_rival || '')) {
         SF.store.videoSave({ id: v.id, equipacion: ek, equipacion_rival: erk }, me);
       }
-      fetch('/api/video-ia', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: v.url, desde: desde, hasta: hasta, modo: 'corte',
+      SF.api('/api/video-ia', { url: v.url, desde: desde, hasta: hasta, modo: 'corte',
           dorsal: dorsal || '', categoria: eqCat,
           busca: extra.querySelector('#cbusca').value.trim(),
           equipacion: ek, equipacion_rival: erk,
-          contexto: v.contexto || '' })
-      }).then(function (r) { return r.json(); }).then(function (d) {
+          contexto: v.contexto || '' }).then(function (d) {
         bGo.disabled = false;
         if (d && d.ok) {
           panel.style.display = 'none'; panel.innerHTML = '';
@@ -26680,9 +26735,6 @@ window.SF = window.SF || {};
         }
         zona.innerHTML = '';
         zona.appendChild(el('<p class="hint">' + esc(motivoIA(d)) + '</p>'));
-      }).catch(function () {
-        bGo.disabled = false;
-        zona.innerHTML = '<p class="hint">No hay conexión con el servidor.</p>';
       });
     };
     acc.appendChild(bGo); acc.appendChild(bNo);
@@ -26800,13 +26852,10 @@ window.SF = window.SF || {};
 
       foot.children[1].disabled = true;
       zona.innerHTML = '<p class="hint">Mirando el vídeo… un tramo largo puede tardar un minuto.</p>';
-      fetch('/api/video-ia', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: v.url, desde: d0, hasta: h0, modo: 'propuesta',
+      SF.api('/api/video-ia', { url: v.url, desde: d0, hasta: h0, modo: 'propuesta',
           busca: SF._iaBusca,
           categoria: (SF.store.teamGet(v.team_id) || {}).category || '',
-          equipacion: ek, equipacion_rival: erk, contexto: ctx })
-      }).then(function (r) { return r.json(); }).then(function (d) {
+          equipacion: ek, equipacion_rival: erk, contexto: ctx }).then(function (d) {
         foot.children[1].disabled = false;
         zona.innerHTML = '';
         if (!d || !d.ok) { zona.appendChild(el('<p class="hint">' + esc(motivoIA(d)) + '</p>')); return; }
@@ -26836,9 +26885,6 @@ window.SF = window.SF || {};
         if (d.no_visible) zona.appendChild(el('<p class="hint">La IA avisa: ' + esc(d.no_visible) + '</p>'));
         zona.appendChild(el('<p class="hint">Pulsa <b>marcar este</b> y se abre el corte con el minuto puesto, ' +
           'para que le pongas jugador y lo revises.</p>'));
-      }).catch(function () {
-        foot.children[1].disabled = false;
-        zona.innerHTML = '<p class="hint">No hay conexión con el servidor.</p>';
       });
     };
     w.appendChild(foot);
@@ -26847,6 +26893,11 @@ window.SF = window.SF || {};
 
   function motivoIA(d) {
     var m = d && d.motivo;
+    /* Los que empiezan por "_" los pone SF.api y ya vienen explicados: no hay
+       que traducirlos otra vez, solo dejarlos pasar. */
+    if (m && m.charAt(0) === '_') return d.detalle || 'No se ha podido contactar con el servidor.';
+    if (m === 'otro_origen') return 'El servidor no ha reconocido de dónde viene la llamada. ' +
+      'Entra por la dirección de siempre (app.scoutflow-academy.com) y vuelve a probar.';
     if (m === 'sin_gemini') return 'Esto necesita una clave de Google (GEMINI_API_KEY) en Vercel. ' +
       'Claude y OpenAI no sirven aquí: son los únicos que no aceptan un enlace de YouTube.';
     if (m === 'video_no_publico') return 'Google no puede abrir este vídeo. Casi seguro está como «no listado» ' +
