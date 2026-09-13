@@ -204,6 +204,11 @@ function limpia(s) {
   };
 }
 
+/* CUÁNTO SE LE DEJA TARDAR. Por defecto Vercel corta una función a los 10
+   segundos y devuelve un error que no explica nada. Leer la foto de un cuadrante puede pasar de ahi.
+   Si el plan de Vercel no permite este tope, el despliegue lo avisa. */
+export const config = { maxDuration: 30 };
+
 export default async function handler(req, res) {
   const gem = process.env.GEMINI_API_KEY;
   const ant = process.env.ANTHROPIC_API_KEY;

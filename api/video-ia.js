@@ -160,6 +160,11 @@ function limpia(v, max) {
 
 import { mismaCasa, fueraDeCasa } from './_origen.js';
 
+/* CUÁNTO SE LE DEJA TARDAR. Por defecto Vercel corta una función a los 10
+   segundos y devuelve un error que no explica nada. Mirar 40 segundos de partido a 2 fotogramas por segundo le lleva a Gemini bastante mas que eso.
+   Si el plan de Vercel no permite este tope, el despliegue lo avisa. */
+export const config = { maxDuration: 60 };
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, motivo: 'metodo' });
   /* Solo responde a nuestra propia app: esto gasta cuota. */
@@ -209,7 +214,7 @@ export default async function handler(req, res) {
      defensivos" son dos búsquedas distintas sobre el mismo metraje, y sin
      esto la IA devuelve lo que le parece, que casi nunca es lo que hacía
      falta. Va lo primero del prompt: es el encargo. */
-  const busca = limpiaTexto(b.busca, 600);
+  const busca = limpia(b.busca, 600);
 
   const instruccion = modo === 'corte'
     ? [busca ? 'LO QUE TE PIDE EL ENTRENADOR: ' + busca : '',

@@ -148,6 +148,11 @@ async function conOpenAI(texto, key) {
 
 import { mismaCasa, fueraDeCasa } from './_origen.js';
 
+/* CUÁNTO SE LE DEJA TARDAR. Por defecto Vercel corta una función a los 10
+   segundos y devuelve un error que no explica nada. Proponer los cortes de un partido puede pasar de ahi.
+   Si el plan de Vercel no permite este tope, el despliegue lo avisa. */
+export const config = { maxDuration: 30 };
+
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, motivo: 'metodo' });
   /* Solo responde a nuestra propia app: esto gasta cuota. */
