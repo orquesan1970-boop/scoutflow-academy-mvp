@@ -1513,6 +1513,128 @@ button.pf-ley:hover{filter:brightness(.96)}
    de lo que interesa. */
 .lnk-mute{color:var(--ink-3);font-weight:500}
 .lnk-mute:hover{color:var(--danger)}
+/* =====================================================================
+   EL DIÁLOGO DE LA IA, EN OSCURO
+   ---------------------------------------------------------------------
+   Era un formulario blanco con controles por defecto del navegador, y se
+   notaba: la pantalla más importante de la herramienta -donde se le
+   encarga trabajo a la IA- parecía la pantalla de ajustes.
+
+   Va en oscuro porque es parte del estudio y actúa sobre el vídeo. Las
+   mismas variables, para que no haya dos oscuros distintos.
+   ===================================================================== */
+.modal-estudio{background:var(--st-0);border:1px solid var(--st-line);
+  box-shadow:0 24px 70px rgba(11,8,24,.55)}
+.modal-estudio .modal-head{background:var(--st-1);border-bottom:1px solid var(--st-line)}
+.modal-estudio .modal-head h3{color:var(--st-ink)}
+.modal-estudio .icon-btn{color:var(--st-ink-2)}
+.modal-estudio .icon-btn:hover{background:var(--st-2);color:var(--st-ink)}
+.modal-estudio .modal-body{color:var(--st-ink)}
+.modal-estudio .hint{color:var(--st-ink-2)}
+.modal-estudio .hint b{color:var(--st-ink)}
+.modal-estudio .iap-t{color:var(--st-ink-2)}
+.modal-estudio label{color:var(--st-ink-2)}
+/* Los campos: fondo elevado, borde que responde. El foco se ve, que en un
+   formulario oscuro con el borde apagado no se sabe dónde estás escribiendo. */
+.modal-estudio input,.modal-estudio textarea,.modal-estudio select{
+  background:var(--st-2);border:1px solid var(--st-line);color:var(--st-ink)}
+.modal-estudio input::placeholder,.modal-estudio textarea::placeholder{color:#7C73A8}
+.modal-estudio input:focus,.modal-estudio textarea:focus,.modal-estudio select:focus{
+  border-color:var(--ia);box-shadow:0 0 0 3px rgba(18,181,203,.22);outline:0}
+.modal-estudio .vhonesto{background:rgba(155,140,255,.09);border-left-color:var(--st-purple)}
+.modal-estudio .vhonesto b{color:var(--st-ink)}
+.modal-estudio .iap-reco{background:var(--st-1);border:1px solid var(--st-line)}
+.modal-estudio .lnk{color:var(--st-purple)}
+
+/* Qué partido se está mirando. Lo primero que se comprueba. */
+.iap-ctx{display:flex;gap:11px;align-items:center;padding:11px 13px;margin-bottom:16px;
+  background:var(--st-1);border:1px solid var(--st-line);border-radius:11px}
+.iap-ctx-ic{display:flex;align-items:center;justify-content:center;width:32px;height:32px;
+  flex:0 0 auto;border-radius:9px;background:rgba(155,140,255,.16);color:var(--st-purple)}
+.iap-ctx-ic svg{width:16px;height:16px}
+.iap-ctx b{display:block;color:var(--st-ink);font-size:13.5px;line-height:1.3}
+.iap-ctx-s{display:block;font-size:11.5px;color:var(--st-ink-2);margin-top:2px}
+
+/* El encargo es lo importante de esta pantalla, así que ocupa como tal. */
+.modal-estudio .iap-q{min-height:78px;font-size:14.5px;line-height:1.5;padding:11px 13px;border-radius:11px}
+
+/* Los ejemplos, como controles de verdad: el pulsado se queda marcado. */
+.iap-chip{border:1px solid var(--st-line);background:var(--st-2);color:var(--st-ink-2);
+  border-radius:99px;padding:6px 13px;font-size:12.5px;font-weight:600;cursor:pointer;
+  transition:all .12s ease;font-family:inherit}
+.iap-chip:hover{border-color:var(--st-purple);color:var(--st-ink)}
+.iap-chip.on{background:var(--st-purple);border-color:var(--st-purple);color:#14102A}
+.iap-chip-min{font-variant-numeric:tabular-nums;padding:5px 12px}
+
+/* EL TRAMO. Los minutos con cifras de ancho fijo -si no, cambiar de 9:58 a
+   10:01 mueve el campo entero- y al lado lo que va a pasar al pulsar. */
+.iap-rango{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap}
+.iap-rango label{display:flex;flex-direction:column;gap:4px;font-size:11px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px}
+.iap-rango input{width:104px;font-variant-numeric:tabular-nums;font-size:15px;
+  text-align:center;letter-spacing:.5px;padding:9px 10px;border-radius:10px}
+.iap-flecha{color:var(--st-ink-2);padding-bottom:10px;font-size:15px}
+.iap-lectura{margin-left:auto;text-align:right;font-size:12px;color:var(--st-ink-2);
+  padding-bottom:4px;line-height:1.45}
+.iap-lectura b{color:var(--ia-on);font-variant-numeric:tabular-nums}
+.iap-lectura span{display:block;font-size:11px;opacity:.85}
+.iap-lectura.is-mal{color:#FF8F8F}
+
+.iap-ok,.iap-falta{display:inline-block;padding:2px 8px;border-radius:99px;
+  font-size:10.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;margin-left:6px}
+.iap-ok{background:rgba(27,158,116,.2);color:#5FE0B4}
+.iap-falta{background:rgba(214,150,0,.2);color:#F5C44E}
+
+/* LOS BOTONES. El principal es una acción de IA, así que lleva su color: el
+   mismo cian del botón que abre esto y del panel de propuestas. */
+.modal-estudio .modal-actions{border-top:1px solid var(--st-line);padding-top:15px;margin-top:20px}
+.btn-fantasma{background:transparent;border:1px solid var(--st-line);color:var(--st-ink-2)}
+.btn-fantasma:hover{background:var(--st-2);color:var(--st-ink)}
+.btn-ia-solido{background:linear-gradient(135deg,#16C6DE,#12B5CB);border:0;color:#04252A;
+  font-weight:700;box-shadow:0 2px 14px rgba(18,181,203,.4)}
+.btn-ia-solido:hover{background:linear-gradient(135deg,#2AD8EF,#16C6DE);
+  box-shadow:0 4px 20px rgba(18,181,203,.55)}
+.btn-ia-solido svg{color:#04252A}
+.btn-ia-solido:disabled{opacity:.5;box-shadow:none}
+
+/* EL PROGRESO. Con la búsqueda troceada hay algo que contar mientras pasa, y
+   contarlo es lo que distingue "está trabajando" de "se ha colgado". */
+.iap-prog{margin:16px 0 14px;padding:12px 13px;background:var(--st-1);
+  border:1px solid var(--st-line);border-radius:11px}
+.iap-prog.is-fin{border-color:rgba(18,181,203,.4)}
+.iap-prog-c{display:flex;align-items:center;gap:10px}
+.iap-prog-t{margin:0;flex:1;font-size:12.5px;color:var(--st-ink);font-variant-numeric:tabular-nums}
+.iap-barra{height:4px;border-radius:99px;background:var(--st-2);overflow:hidden;margin-top:10px}
+.iap-barra i{display:block;height:100%;border-radius:99px;
+  background:linear-gradient(90deg,#12B5CB,#5BE3F2);transition:width .35s ease}
+.modal-estudio .iap-guardadas{background:rgba(18,181,203,.11);color:var(--st-ink-2)}
+.modal-estudio .iap-guardadas b{color:var(--st-ink)}
+.modal-estudio .iap-guardadas svg{color:var(--ia-on)}
+
+/* Lo que la IA dice que NO ha podido ver. En ámbar y con su icono, porque es
+   una advertencia y antes era una línea de texto gris que no leía nadie. */
+.iap-aviso{margin-top:13px;padding:11px 13px;border-radius:11px;
+  background:rgba(214,150,0,.11);border:1px solid rgba(214,150,0,.3);color:#F0D49A;font-size:12.5px}
+.iap-aviso b{display:flex;align-items:center;gap:7px;color:#F5C44E;margin-bottom:6px}
+.iap-aviso b svg{width:14px;height:14px}
+.iap-aviso ul{margin:0 0 0 17px;line-height:1.55}
+
+/* Las propuestas dentro del diálogo: sobre oscuro necesitan su propia piel. */
+.modal-estudio .mini-row{background:var(--st-2);border:1px solid var(--st-line);color:var(--st-ink)}
+.modal-estudio .mini-row .hint{color:var(--st-ink-2)}
+.modal-estudio .prop-row{border-left:3px solid var(--ia)}
+.modal-estudio .prop-row .vtime-s{background:var(--ia);color:#04252A;font-weight:700}
+.modal-estudio .tag-gray{background:var(--st-line);color:var(--st-ink-2)}
+.modal-estudio .lnk-mute{color:#7C73A8}
+.modal-estudio .lnk-mute:hover{color:#FF8F8F}
+
+@media (max-width:600px){
+  .iap-rango{gap:8px}
+  .iap-rango input{width:88px;font-size:14px}
+  .iap-lectura{margin-left:0;width:100%;text-align:left;padding-top:4px}
+  .modal-estudio .modal-actions .btn{flex:1;justify-content:center}
+}
+
 .iap-guardadas{display:flex;gap:7px;align-items:flex-start;padding:9px 11px;background:var(--bg);border-radius:9px;margin:8px 0 12px}
 .iap-guardadas svg{width:15px;height:15px;flex:0 0 auto;margin-top:1px;color:var(--ok)}
 /* Informes guardados: la lista que permite comparar el de noviembre con el de
@@ -27268,6 +27390,13 @@ window.SF = window.SF || {};
     if (inf.fuente !== 'YouTube') { U.toast('Esto solo funciona con vídeos de YouTube'); return; }
 
     var w = el('<div class="iap"></div>');
+    /* QUÉ PARTIDO SE ESTÁ MIRANDO. Faltaba, y es lo primero que se comprueba
+       antes de gastar una búsqueda: que no te has equivocado de vídeo. */
+    w.appendChild(el('<div class="iap-ctx"><span class="iap-ctx-ic">' + ico('camera') + '</span>' +
+      '<span><b>' + esc(v.titulo || 'Sin título') + '</b>' +
+      (v.rival || v.fecha ? '<span class="iap-ctx-s">' +
+        esc([v.fecha ? fmtDate(v.fecha) : '', v.rival || ''].filter(Boolean).join(' · ')) + '</span>' : '') +
+      '</span></div>'));
 
     /* 1. EL ENCARGO. Es lo primero porque es lo que la persona tiene en la
        cabeza cuando abre esto: "quiero ver los rebotes del 4". Sin esto la IA
@@ -27290,21 +27419,68 @@ window.SF = window.SF || {};
      ['Transiciones', 'Busca las transiciones: contraataques a favor y balances defensivos tras pérdida.'],
      ['Lo que se pueda enseñar', 'Todo lo que merezca la pena enseñar a un equipo de formación, bueno o corregible.']
     ].forEach(function (x) {
-      var b2 = el('<button class="eq-chip eq-chip-sm" type="button">' + esc(x[0]) + '</button>');
-      b2.onclick = function () { qta.value = x[1]; qta.focus(); };
+      var b2 = el('<button class="iap-chip" type="button">' + esc(x[0]) + '</button>');
+      b2.onclick = function () {
+        qta.value = x[1]; qta.focus();
+        /* El elegido se queda marcado. Un botón que no deja rastro de
+           haberse pulsado obliga a releer el texto para saber cuál era. */
+        ej.querySelectorAll('.iap-chip').forEach(function (o) { o.classList.remove('on'); });
+        b2.classList.add('on');
+      };
       ej.appendChild(b2);
     });
     w.appendChild(ej);
 
     /* 2. EL TRAMO. */
     w.appendChild(el('<p class="iap-t">¿De qué parte del vídeo?</p>'));
-    var f = el('<div class="iap-2">' +
-      '<label>Desde el minuto<input id="pd" value="0:00"></label>' +
-      '<label>Hasta el minuto<input id="ph" value="10:00"></label>' +
+    var f = el('<div class="iap-rango">' +
+      '<label>Desde<input id="pd" value="0:00" inputmode="numeric"></label>' +
+      '<span class="iap-flecha">→</span>' +
+      '<label>Hasta<input id="ph" value="10:00" inputmode="numeric"></label>' +
+      '<div class="iap-lectura" id="plec"></div>' +
       '</div>');
     w.appendChild(f);
-    w.appendChild(el('<p class="hint">Tramos de diez minutos van bien. Un partido entero de golpe es caro, ' +
-      'lento y devuelve un resumen que nadie puede comprobar.</p>'));
+    /* Saltos rápidos: nadie quiere escribir "12:00" a mano para mirar el
+       segundo cuarto. */
+    var saltos = el('<div class="row-c iap-ej"></div>');
+    [['Primeros 10 min', 0, 600], ['Q1', 0, 600], ['Q2', 600, 1200], ['Q3', 1200, 1800], ['Q4', 1800, 2400]]
+      .slice(1).forEach(function (x) {
+        var bq = el('<button class="iap-chip iap-chip-min" type="button">' + esc(x[0]) + '</button>');
+        bq.onclick = function () {
+          f.querySelector('#pd').value = SF.videoTiempo(x[1]);
+          f.querySelector('#ph').value = SF.videoTiempo(x[2]);
+          saltos.querySelectorAll('.iap-chip').forEach(function (o) { o.classList.remove('on'); });
+          bq.classList.add('on');
+          lectura();
+        };
+        saltos.appendChild(bq);
+      });
+    w.appendChild(saltos);
+
+    /* LO QUE VA A PASAR, ANTES DE PULSAR.
+       La función del servidor tiene 60 segundos, así que un tramo largo se
+       parte en pasadas de dos minutos. Decir cuántas van a ser y cuánto van a
+       tardar es la diferencia entre esperar y no saber si se ha colgado. */
+    var TRAMO_SEG = 120;
+    function lectura() {
+      var a = SF.videoSegundos(f.querySelector('#pd').value);
+      var b = SF.videoSegundos(f.querySelector('#ph').value);
+      var caja = f.querySelector('#plec');
+      if (a == null || b == null || b <= a) {
+        caja.className = 'iap-lectura is-mal';
+        caja.innerHTML = 'Revisa los minutos';
+        return;
+      }
+      var dur = b - a, n = Math.ceil(dur / TRAMO_SEG);
+      caja.className = 'iap-lectura';
+      caja.innerHTML = '<b>' + SF.videoTiempo(dur) + '</b> de partido' +
+        '<span>' + n + (n === 1 ? ' pasada' : ' pasadas') + ' · unos ' + (n * 12) + ' s</span>';
+    }
+    f.querySelector('#pd').oninput = lectura;
+    f.querySelector('#ph').oninput = lectura;
+    lectura();
+    w.appendChild(el('<p class="hint">La IA no traga un partido entero de una vez: se mira por tramos de dos ' +
+      'minutos, uno detrás de otro, y las propuestas van apareciendo según llegan. Puedes parar cuando tengas bastante.</p>'));
 
     /* 3. CÓMO RECONOCER AL EQUIPO, EDITABLE AQUÍ MISMO.
        Estaba solo en el alta y en Editar, así que un vídeo dado de alta antes
@@ -27313,7 +27489,7 @@ window.SF = window.SF || {};
        de diseño, no un detalle: se escribe aquí y se guarda en el vídeo. */
     var abierto = !v.equipacion;
     w.appendChild(el('<p class="iap-t">Cómo reconocer a los tuyos' +
-      (v.equipacion ? ' <span class="tag tag-green">puesto</span>' : ' <span class="tag tag-warn">sin poner</span>') +
+      (v.equipacion ? ' <span class="iap-ok">puesto</span>' : ' <span class="iap-falta">sin poner</span>') +
       '</p>'));
     var reco = el('<div class="iap-reco"' + (abierto ? '' : ' style="display:none"') + '>' +
       '<div class="iap-2">' +
@@ -27340,14 +27516,14 @@ window.SF = window.SF || {};
 
     var zona = el('<div></div>'); w.appendChild(zona);
 
-    var foot = el('<div class="modal-actions"><button class="btn">Cerrar</button>' +
-      '<button class="btn btn-primary">' + ico('ai') + 'Buscar momentos</button></div>');
+    var foot = el('<div class="modal-actions iap-foot"><button class="btn btn-fantasma">Cerrar</button>' +
+      '<button class="btn btn-ia-solido">' + ico('ai') + 'Buscar momentos</button></div>');
     foot.children[0].onclick = U.closeModal;
     foot.children[1].onclick = function () {
       var d0 = SF.videoSegundos(f.querySelector('#pd').value);
       var h0 = SF.videoSegundos(f.querySelector('#ph').value);
       if (d0 == null || h0 == null || h0 <= d0) { U.toast('Revisa los minutos: el final va después del principio'); return; }
-      if (h0 - d0 > 1800) { U.toast('Máximo media hora de una vez'); return; }
+      if (h0 - d0 > 3600) { U.toast('Máximo una hora de una vez'); return; }
 
       /* Lo que se escriba aquí se GUARDA en el vídeo antes de buscar: la
          próxima vez ya está puesto y no hay que volver a escribirlo. */
@@ -27360,43 +27536,122 @@ window.SF = window.SF || {};
       }
       SF._iaBusca = qta.value.trim();
 
-      foot.children[1].disabled = true;
-      zona.innerHTML = '<p class="hint">Mirando el vídeo… un tramo largo puede tardar un minuto.</p>';
-      SF.api('/api/video-ia', { url: v.url, desde: d0, hasta: h0, modo: 'propuesta',
-          busca: SF._iaBusca,
-          categoria: (SF.store.teamGet(v.team_id) || {}).category || '',
-          equipacion: ek, equipacion_rival: erk, contexto: ctx }).then(function (d) {
-        foot.children[1].disabled = false;
-        zona.innerHTML = '';
-        if (!d || !d.ok) { zona.appendChild(el('<p class="hint">' + esc(motivoIA(d)) + '</p>')); return; }
-        if (!d.momentos.length) {
-          zona.appendChild(el('<p class="hint">No ha encontrado nada que encaje con lo que le has pedido en ese tramo.' +
-            (d.no_visible ? '<br>Dice: ' + esc(d.no_visible) : '') + '</p>'));
-          return;
-        }
-        /* LO PRIMERO: GUARDARLAS TODAS. Antes solo sobrevivia la que se
-           marcaba y las otras siete se tiraban al cerrar el panel: se pagaba
-           una busqueda entera para usar un octavo. Ahora se guardan en el
-           video en cuanto llegan, antes de pintar nada, y el panel es solo
-           una forma de mirarlas. */
-        SF.store.propuestasSave(v.id, d.momentos, {
-          desde: d0, hasta: h0, busca: SF._iaBusca,
-          modelo: d.modelo, no_visible: d.no_visible
-        });
-        v = SF.store.videoGet(v.id);
-        if (typeof alGuardar === 'function') alGuardar();
+      /* ===== POR QUÉ ESTO VA POR TRAMOS Y NO DE UNA VEZ =====
 
-        zona.appendChild(el('<p class="iap-t">Propuestas <span class="count-inline">' + d.momentos.length + '</span></p>'));
-        zona.appendChild(el('<p class="hint iap-guardadas">' + ico('check') +
-          ' <b>Las ' + d.momentos.length + ' quedan guardadas en el vídeo.</b> ' +
-          'Marca la que quieras ahora; las demás te esperan en <b>Propuestas de la IA</b>, ' +
-          'y volver a abrirlas no cuesta otra búsqueda.</p>'));
-        pintaPropuestas(zona, v, alAceptar, alGuardar);
-        if (d.no_visible) zona.appendChild(el('<p class="hint vhonesto">La IA avisa: ' + esc(d.no_visible) + '</p>'));
-      });
+         Pedir diez minutos de golpe daba un 504: la función del servidor
+         tiene SESENTA SEGUNDOS para contestar -es el tope del plan, no un
+         fallo- y mirar diez minutos de partido no cabe ahí. Medido en
+         producción: dos minutos tardan unos diez segundos; cuatro ya no
+         llegan.
+
+         Se podría haber recortado lo que se puede pedir, pero entonces
+         analizar un partido serían quince visitas a este diálogo. Así que se
+         trocea aquí: el navegador pide tramos de dos minutos, uno detrás de
+         otro, y va pintando lo que llega.
+
+         Tres cosas salen ganando, y ninguna es el rendimiento:
+           · se ven propuestas a los diez segundos, no al minuto;
+           · si un tramo falla, los demás ya están guardados;
+           · y se puede parar a mitad cuando ya hay bastante. */
+      var TRAMO = 120;
+      var tramos = [];
+      for (var t = d0; t < h0; t += TRAMO) tramos.push([t, Math.min(t + TRAMO, h0)]);
+
+      var bBuscar = foot.children[1];
+      bBuscar.disabled = true;
+      var cancelado = false, total = 0, avisos = [], fallos = 0, modelo = '';
+
+      zona.innerHTML = '';
+      var prog = el('<div class="iap-prog"></div>');
+      var pBarra = el('<div class="iap-barra"><i style="width:0%"></i></div>');
+      var pTexto = el('<p class="iap-prog-t">Mirando el vídeo…</p>');
+      var pStop = el('<button class="lnk" type="button">parar</button>');
+      pStop.onclick = function () { cancelado = true; pTexto.textContent = 'Parando después de este tramo…'; };
+      var pCab = el('<div class="iap-prog-c"></div>');
+      pCab.appendChild(pTexto); pCab.appendChild(pStop);
+      prog.appendChild(pCab); prog.appendChild(pBarra);
+      zona.appendChild(prog);
+      var lista = el('<div></div>'); zona.appendChild(lista);
+
+      function repinta() {
+        lista.innerHTML = '';
+        if (!total) return;
+        lista.appendChild(el('<p class="hint iap-guardadas">' + ico('check') +
+          ' <b>' + total + (total === 1 ? ' momento guardado' : ' momentos guardados') + ' en el vídeo.</b> ' +
+          'Marca los que quieras ahora; los demás te esperan en <b>Propuestas de la IA</b>.</p>'));
+        pintaPropuestas(lista, SF.store.videoGet(v.id), alAceptar, alGuardar, { soloPendientes: true });
+      }
+
+      function siguiente(i) {
+        if (cancelado || i >= tramos.length) return fin(i);
+        var a = tramos[i][0], b = tramos[i][1];
+        pTexto.textContent = 'Mirando el minuto ' + SF.videoTiempo(a) + ' – ' + SF.videoTiempo(b) +
+          (tramos.length > 1 ? '  ·  tramo ' + (i + 1) + ' de ' + tramos.length : '');
+        pBarra.firstChild.style.width = Math.round((i / tramos.length) * 100) + '%';
+
+        SF.api('/api/video-ia', { url: v.url, desde: a, hasta: b, modo: 'propuesta',
+            busca: SF._iaBusca,
+            categoria: (SF.store.teamGet(v.team_id) || {}).category || '',
+            equipacion: ek, equipacion_rival: erk, contexto: ctx }).then(function (d) {
+          if (!document.getElementById('sf-modal')) return;      // lo cerró mientras buscaba
+          if (!d || !d.ok) {
+            fallos++;
+            /* Un tramo que falla no tumba la búsqueda: se apunta y se sigue.
+               Antes un fallo dejaba la pantalla con un mensaje y nada más. */
+            avisos.push('El tramo ' + SF.videoTiempo(a) + '–' + SF.videoTiempo(b) + ': ' + motivoIA(d));
+          } else {
+            if (d.modelo) modelo = d.modelo;
+            if (d.no_visible) avisos.push(d.no_visible);
+            if (d.momentos && d.momentos.length) {
+              /* Se guardan EN CUANTO LLEGAN. Si el club cierra la pestaña a
+                 mitad, lo mirado hasta ahí ya está pagado y guardado. */
+              SF.store.propuestasSave(v.id, d.momentos, {
+                desde: a, hasta: b, busca: SF._iaBusca, modelo: d.modelo, no_visible: d.no_visible
+              });
+              total += d.momentos.length;
+              if (typeof alGuardar === 'function') alGuardar();
+              repinta();
+            }
+          }
+          siguiente(i + 1);
+        });
+      }
+
+      function fin(hasta) {
+        bBuscar.disabled = false;
+        pBarra.firstChild.style.width = '100%';
+        prog.classList.add('is-fin');
+        pStop.remove();
+        var mirado = cancelado ? (' Parado en el minuto ' + SF.videoTiempo(tramos[Math.min(hasta, tramos.length - 1)][1]) + '.') : '';
+        pTexto.textContent = total
+          ? total + (total === 1 ? ' momento encontrado.' : ' momentos encontrados.') + mirado
+          : 'No ha encontrado nada que encaje con lo que le has pedido.' + mirado;
+        if (!total && !avisos.length) {
+          lista.appendChild(el('<p class="hint">Prueba a pedirle otra cosa, o a mirar otro tramo del partido.</p>'));
+        }
+        /* Lo que la IA dice que NO ha podido distinguir. Se juntan los avisos
+           de todos los tramos y se quitan los repetidos: si no se distinguen
+           los dorsales, lo va a decir en los cinco tramos. */
+        var unicos = [];
+        avisos.forEach(function (x) { if (x && unicos.indexOf(x) < 0) unicos.push(x); });
+        if (unicos.length) {
+          lista.appendChild(el('<div class="iap-aviso"><b>' + ico('alert') + ' La IA avisa de lo que no ha podido ver</b>' +
+            '<ul>' + unicos.slice(0, 4).map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></div>'));
+        }
+        if (fallos) {
+          lista.appendChild(el('<p class="hint">' + fallos + ' de los ' + tramos.length +
+            ' tramos no se pudieron mirar. Lo que sí se miró está guardado; puedes volver a lanzarlo sobre ese trozo.</p>'));
+        }
+      }
+
+      siguiente(0);
     };
     w.appendChild(foot);
-    U.modal('Que la IA busque en el vídeo', w);
+    var back = U.modal('Que la IA busque en el vídeo', w);
+    /* El diálogo va en oscuro como el estudio: es la misma herramienta y
+       tiene que parecerlo. Se marca desde aquí porque U.modal no admite una
+       clase, y hacerlo con :has() dejaría fuera navegadores viejos. */
+    back.querySelector('.modal').classList.add('modal-estudio');
   }
 
   function motivoIA(d) {
