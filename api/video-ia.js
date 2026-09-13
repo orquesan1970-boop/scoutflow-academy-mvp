@@ -199,13 +199,26 @@ export default async function handler(req, res) {
   if (b.contexto) pistas.push('Contexto del vídeo que da el club: ' + limpia(b.contexto, 600));
   if (b.categoria) pistas.push('Categoría: ' + limpia(b.categoria, 60) + '. Es formación, no profesional.');
 
+  /* QUÉ BUSCAR EN ESTA PASADA. Es distinto de las pistas del vídeo: aquello
+     describe el partido -de qué color van, dónde está la cámara- y esto dice
+     qué quiere el entrenador HOY. "Sigue al 4" y "enséñame los rebotes
+     defensivos" son dos búsquedas distintas sobre el mismo metraje, y sin
+     esto la IA devuelve lo que le parece, que casi nunca es lo que hacía
+     falta. Va lo primero del prompt: es el encargo. */
+  const busca = limpiaTexto(b.busca, 600);
+
   const instruccion = modo === 'corte'
-    ? ['Mira este tramo del partido y descríbeme la jugada principal.', ...pistas,
-       'Recuerda: nada de números inventados, y di lo que no se distinga.', '', ESQUEMA_CORTE].join('\n')
-    : ['Recórrete este tramo y propón los momentos que merece la pena enseñar a un equipo de formación.',
+    ? [busca ? 'LO QUE TE PIDE EL ENTRENADOR: ' + busca : '',
+       'Mira este tramo del partido y descríbeme la jugada principal.', ...pistas,
+       'Recuerda: nada de números inventados, y di lo que no se distinga.', '', ESQUEMA_CORTE]
+       .filter(Boolean).join('\n')
+    : [busca ? 'LO QUE TE PIDE EL ENTRENADOR, y manda sobre todo lo demás: ' + busca : '',
+       busca ? 'Devuelve SOLO momentos que encajen con eso. Si en este tramo no hay ninguno, devuelve la lista vacía y dilo en no_visible: es mejor no devolver nada que devolver relleno.'
+             : 'Recórrete este tramo y propón los momentos que merece la pena enseñar a un equipo de formación.',
        ...pistas,
        'Los minutos que devuelvas son del VÍDEO, contando desde su principio (00:00), no del reloj del partido.',
-       'Recuerda: nada de números inventados, y di lo que no se distinga.', '', ESQUEMA_PROPUESTA].join('\n');
+       'Recuerda: nada de números inventados, y di lo que no se distinga.', '', ESQUEMA_PROPUESTA]
+       .filter(Boolean).join('\n');
 
   const payload = {
     systemInstruction: { parts: [{ text: REGLAS }] },
