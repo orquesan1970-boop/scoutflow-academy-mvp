@@ -8701,8 +8701,33 @@ SF.store = (function () {
     expenseUpdate: function (id, patch) { var d = db(); var x = (d.expenses || []).filter(function (e) { return e.id === id; })[0]; if (x) { Object.assign(x, patch); save(d); } return x; },
     expenseRemove: function (id) { var d = db(); d.expenses = (d.expenses || []).filter(function (e) { return e.id !== id; }); save(d); },
 
-    role: function () { return db().role; },
-    setRole: function (r) { var d = db(); d.role = r; save(d); },
+    /* EL ROL LO MANDA EL SERVIDOR, NO LA PANTALLA.
+       Mientras esto era una demo, el rol era un desplegable: venía bien para
+       enseñar las 17 vistas sin crear 17 cuentas. Pero con el club en la nube
+       y varias personas dentro, un desplegable que da permisos es un agujero:
+       un entrenador elige «Director» y ve los sueldos.
+
+       Así que si la nube dice quién eres, eso manda y el desplegable pasa a
+       ser un visor. Sin nube -modo local, demo, pruebas- se sigue comportando
+       como antes, porque ahí no hay nada que proteger. */
+    role: function () {
+      var c = (window.SF && SF.cloud && SF.cloud.club) ? SF.cloud.club() : null;
+      if (c && c.role) return c.role;
+      return db().role;
+    },
+    /* Qué rol tiene guardado la pantalla, sin que el servidor lo pise. Lo usa
+       el propio selector para marcar la opción correcta. */
+    roleLocal: function () { return db().role; },
+    /* Si el servidor ha sellado un rol, cambiarlo aquí no hace nada: se
+       devuelve false para que la pantalla pueda decirlo en vez de fingir. */
+    rolSellado: function () {
+      var c = (window.SF && SF.cloud && SF.cloud.club) ? SF.cloud.club() : null;
+      return !!(c && c.role);
+    },
+    setRole: function (r) {
+      if (SF.store.rolSellado()) return false;
+      var d = db(); d.role = r; save(d); return true;
+    },
     /* `me()` es lo mismo que `currentUser()`. Existe porque habia codigo
        llamando a `SF.store.me()` -el boton de desbloquear una ficha de staff-
        y esa funcion no existia: la pantalla se rompia en silencio y el boton
@@ -21050,6 +21075,25 @@ window.SF = window.SF || {};
     var tab = SF._permTab || 'pide';
     var pendientes = SF.store.accesos().filter(function (x) { return x.estado === 'pendiente'; });
 
+    /* INVITAR A ALGUIEN AL CLUB.
+       Es lo que convierte «una cuenta = un club» en un club de verdad, y va
+       aquí arriba porque es lo primero que hace un director el primer día:
+       meter a su cuerpo técnico.
+
+       Solo sale con la nube activa. En local no hay a quién invitar, y un
+       botón que no puede funcionar es peor que no tenerlo. */
+    if (esDirector && SF.cloud && SF.cloud.activa && SF.cloud.activa() && SF.cloud.club && SF.cloud.club()) {
+      var inv = el('<div class="foco"><div class="foco-ic">' + ico('users') + '</div>' +
+        '<div class="foco-body"><p class="foco-t">Meter a alguien en ' +
+        esc((SF.cloud.club() || {}).nombre || 'el club') + '</p>' +
+        '<p class="foco-s">Le sale un código. Lo pega al entrar y ve este mismo club, ' +
+        'con el rol que le pongas — no una academia vacía.</p></div></div>');
+      var bInv = el('<button class="btn btn-primary btn-sm">' + ico('plus') + 'Invitar</button>');
+      bInv.onclick = function () { invitaAlguien(); };
+      inv.querySelector('.foco-body').appendChild(bInv);
+      view.appendChild(inv);
+    }
+
     var tabs = el('<div class="tabbar"></div>');
     [['pide', 'Solicitudes' + (pendientes.length ? ' (' + pendientes.length + ')' : '')],
      ['roles', 'Por rol'], ['personas', 'Por persona'], ['mapa', 'Quién puede qué']].forEach(function (t) {
@@ -21058,6 +21102,62 @@ window.SF = window.SF || {};
       tabs.appendChild(b);
     });
     view.appendChild(tabs);
+
+    /* El diálogo de invitar. Pide el rol y, si se quiere, con qué ficha de
+       personal se corresponde: sin eso, «mis equipos» no significaría nada
+       para quien entra y vería el club entero o nada. */
+    function invitaAlguien() {
+      var w = el('<div></div>');
+      var f = el('<div class="form-grid">' +
+        '<div class="frow" style="grid-column:1/-1"><label>Correo de la persona</label>' +
+        '<input id="iv-c" type="email" placeholder="entrenador@club.es"></div>' +
+        '<div class="frow"><label>Entra como</label><select id="iv-r">' +
+        SF.rolesPorGrupo().map(function (g) {
+          return '<optgroup label="' + esc(g.label) + '">' + g.keys.map(function (k) {
+            return '<option value="' + k + '"' + (k === 'entrenador' ? ' selected' : '') + '>' +
+              esc(SF.rolDe(k).label) + '</option>';
+          }).join('') + '</optgroup>';
+        }).join('') + '</select></div>' +
+        '<div class="frow"><label>Su ficha de personal</label><select id="iv-s">' +
+        '<option value="">— ninguna por ahora —</option>' +
+        SF.store.staff().map(function (st) {
+          return '<option value="' + esc(st.id) + '">' + esc(st.name) + '</option>';
+        }).join('') + '</select></div></div>');
+      w.appendChild(f);
+      w.appendChild(el('<p class="hint">El correo es solo para acordarte de a quién invitaste: ' +
+        '<b>el código hay que pasárselo tú</b> (por WhatsApp, por ejemplo). Caduca a los 14 días. ' +
+        'Volver a invitar al mismo correo no crea un código nuevo, refresca el que ya tenía.</p>'));
+      var zona = el('<div></div>'); w.appendChild(zona);
+      var foot = el('<div class="modal-actions"><button class="btn">Cerrar</button>' +
+        '<button class="btn btn-primary">Crear el código</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        var b2 = foot.children[1];
+        b2.disabled = true; b2.textContent = 'Un momento…';
+        SF.cloud.invitar(f.querySelector('#iv-c').value.trim(),
+                         f.querySelector('#iv-r').value,
+                         f.querySelector('#iv-s').value || null).then(function (r) {
+          b2.disabled = false; b2.textContent = 'Crear el código';
+          zona.innerHTML = '';
+          if (!r.ok) {
+            zona.appendChild(el('<p class="hint">No se ha podido crear: ' + esc(r.detalle || 'error') + '</p>'));
+            return;
+          }
+          var caja = el('<div class="foco is-ok" style="margin-top:12px"><div class="foco-ic">' + ico('check') + '</div>' +
+            '<div class="foco-body"><p class="foco-t" style="font-family:monospace;letter-spacing:2px;font-size:22px">' +
+            esc(r.codigo) + '</p><p class="foco-s">Pásale este código. Al entrar lo pega y ya está dentro.</p></div></div>');
+          var bCop = el('<button class="btn btn-light btn-sm">Copiar</button>');
+          bCop.onclick = function () {
+            try { navigator.clipboard.writeText(r.codigo); U.toast('Código copiado'); }
+            catch (e) { U.toast('Cópialo a mano: ' + r.codigo); }
+          };
+          caja.querySelector('.foco-body').appendChild(bCop);
+          zona.appendChild(caja);
+        });
+      };
+      w.appendChild(foot);
+      U.modal('Invitar a alguien al club', w);
+    }
 
     if (!esDirector) {
       view.appendChild(el('<div class="foco"><div class="foco-ic">' + ico('shield') + '</div>' +
@@ -29238,7 +29338,17 @@ SF.router = (function () {
       /* Cambiar de rol es cambiar de persona: el buzon que estabas mirando y lo
          que estabas buscando en el no son de quien entra ahora. */
       SF._avFiltro = null; SF._avFechas = false; SF._avSupTodas = false;
-      SF.store.setRole(sel.value); renderShell(); location.hash = defaultRoute(); render(); recepcion();
+      /* Con el club en la nube, el rol lo sella el servidor y este selector no
+         puede cambiarlo. Se dice en vez de dejar que parezca que ha
+         funcionado: un desplegable que no hace nada y no lo avisa es peor que
+         un desplegable que no está. */
+      if (!SF.store.setRole(sel.value)) {
+        sel.value = SF.store.role();
+        U.toast('Tu rol lo decide tu club, no esta pantalla. Habla con quien lo dirija.');
+        SF._cambioRol = false;
+        return;
+      }
+      renderShell(); location.hash = defaultRoute(); render(); recepcion();
       SF._cambioRol = false;
     };
 
@@ -29467,6 +29577,10 @@ SF.cloud = (function () {
   var LOCAL = 'scoutflow:db:v2';      // el almacén de siempre del navegador
 
   var cli = null, usuario = null, datos = null, modoLocal = false;
+  /* A qué club pertenece quien ha entrado, y con qué rol. Lo dice el
+     servidor en cada arranque: el desplegable de rol de la demo ya no
+     puede dar permisos que no tocan. */
+  var club = null;
   var temporizador = null, estado = 'listo', guardando = false, pendiente = false;
 
   function el(h) { var d = document.createElement('div'); d.innerHTML = h.trim(); return d.firstChild; }
@@ -29516,40 +29630,228 @@ SF.cloud = (function () {
     marcar('guardando');
   }
 
+  /* ===================================================================
+     PASO 2 · EL CLUB ES DE TODOS, NO DE UNA CUENTA
+     -------------------------------------------------------------------
+     Antes el club entero era UNA fila con un JSON, y la fila era de una
+     cuenta (`owner_id`). Consecuencia: si un entrenador se registraba, no
+     veía el club — veía una academia vacía recién sembrada. Los 17 roles
+     eran un desplegable de la pantalla, no personas.
+
+     Ahora los datos cuelgan del CLUB (`academy_id`), y las personas
+     pertenecen al club con un rol (`members`). El rol lo dice el servidor.
+
+     POR QUÉ FILAS Y NO CUARENTA TABLAS: normalizar obligaría a reescribir
+     los ~100 métodos de `SF.store` como llamadas asíncronas, o sea tocar
+     todas las pantallas de una app que funciona. Partiéndolo en filas,
+     `SF.store` sigue viendo un objeto y no se entera de nada.
+     =================================================================== */
+
+  /* Las tres colecciones que crecen. Se parten para que cambiar un dorsal
+     suba UNA fila y no el club entero: con 277 jugadores, la diferencia es
+     subir 8 KB o subir un mega, cuarenta veces por tarde. El resto de listas
+     viajan enteras porque son pequeñas y partirlas no compensa. */
+  var PARTIR = ['players', 'staff', 'teams'];
+
+  /* Del almacén a filas. */
+  function partir(d) {
+    var filas = [];
+    if (!d) return filas;
+    PARTIR.forEach(function (col) {
+      if (!Array.isArray(d[col])) return;
+      d[col].forEach(function (x, i) {
+        filas.push({ col: col, item: String(x && x.id ? x.id : col + '_' + i), ord: i, data: x });
+      });
+    });
+    Object.keys(d).forEach(function (k, i) {
+      if (PARTIR.indexOf(k) >= 0) return;
+      /* Se envuelve en {v:…} porque la columna es un objeto JSON y lo que
+         guardamos puede ser un número, un texto o una lista. */
+      filas.push({ col: '_todo', item: k, ord: i, data: { v: d[k] } });
+    });
+    /* EL ORDEN DE LAS CLAVES, guardado aparte.
+       Al recomponer, las listas partidas quedaban al final y el resto delante,
+       así que el almacén volvía con las mismas claves pero en otro orden.
+       Para la app da igual -lee por nombre-, pero hace que comparar un export
+       de antes con uno de después salga distinto en todas las líneas, y en una
+       migración de datos eso es justo lo que no quieres: que la única forma de
+       comprobar que no se ha perdido nada sea fiarse. Con esto, la ida y
+       vuelta es idéntica carácter a carácter. */
+    filas.push({ col: '_meta', item: 'orden', ord: 0, data: { v: Object.keys(d) } });
+    return filas;
+  }
+
+  /* Y de vuelta. El `ord` NO es decorativo: sin ordenar por él, las fichas
+     vuelven barajadas. No falla nada, simplemente queda mal, que es la forma
+     más silenciosa de romper una restauración. */
+  function juntar(filas) {
+    var suelto = {}, tmp = {}, orden = null;
+    (filas || []).forEach(function (f) {
+      if (f.col === '_meta') {
+        if (f.item === 'orden' && f.data && Array.isArray(f.data.v)) orden = f.data.v;
+        return;
+      }
+      if (f.col === '_todo') { suelto[f.item] = f.data ? f.data.v : null; return; }
+      (tmp[f.col] = tmp[f.col] || []).push(f);
+    });
+    Object.keys(tmp).forEach(function (col) {
+      tmp[col].sort(function (a, b) { return (a.ord || 0) - (b.ord || 0); });
+      suelto[col] = tmp[col].map(function (f) { return f.data; });
+    });
+
+    /* UNA LISTA VACÍA NO PUEDE DESAPARECER.
+       `players: []` no genera ninguna fila, así que al recomponer la clave no
+       existía y el almacén volvía SIN `players`. Parece un caso de laboratorio
+       y no lo es: es justo el estado de un club recién creado, o sea lo que le
+       pasaría a todo cliente nuevo el primer día. Lo cazó la prueba de ida y
+       vuelta antes de publicar nada. */
+    PARTIR.forEach(function (col) {
+      if (!(col in suelto) && orden && orden.indexOf(col) >= 0) suelto[col] = [];
+    });
+
+    /* Se recompone en el orden original si se guardó. Si no -datos migrados
+       por el SQL, que no lo apunta-, se devuelve tal cual: funciona igual, solo
+       que un export saldrá con las claves en otro orden. */
+    if (!orden) return suelto;
+    var d = {};
+    orden.forEach(function (k) { if (k in suelto) d[k] = suelto[k]; });
+    /* Una clave que apareciera después de guardarse el orden no se puede
+       perder por no estar en la lista. */
+    Object.keys(suelto).forEach(function (k) { if (!(k in d)) d[k] = suelto[k]; });
+    return d;
+  }
+
+  /* Lo último que se subió, para poder mandar SOLO lo que cambió. */
+  var ultimas = null;
+
   function subir() {
     if (!activa() || !datos) return;
     if (guardando) { pendiente = true; return; }
+
+    /* Sin club todavía (está en la pantalla de entrar con código o crear
+       club): no se sube nada, porque no se sabe dónde.
+       Se deja el indicador en reposo a propósito: si se saliera dejándolo en
+       «guardando…», el pie se quedaría diciendo eso para siempre y parecería
+       que hay algo colgado cuando lo único que pasa es que aún no hay club. */
+    if (!club) { marcar('listo'); return; }
+
     guardando = true;
-    cli.from('academy_data')
-      .upsert({ owner_id: usuario.id, data: datos }, { onConflict: 'owner_id' })
-      .then(function (r) {
-        guardando = false;
-        if (r.error) { console.error('[ScoutFlow] al guardar:', r.error); marcar('error'); }
-        else marcar('listo');
-        if (pendiente) { pendiente = false; subir(); }
+    var ahora = partir(datos);
+    var mapa = {}; ahora.forEach(function (f) { mapa[f.col + '|' + f.item] = f; });
+
+    var cambiadas = [], borradas = [];
+    if (!ultimas) {
+      cambiadas = ahora;                       // primera subida: todo
+    } else {
+      ahora.forEach(function (f) {
+        var antes = ultimas[f.col + '|' + f.item];
+        if (!antes || antes.json !== JSON.stringify(f.data) || antes.ord !== f.ord) cambiadas.push(f);
       });
+      Object.keys(ultimas).forEach(function (k) {
+        if (!mapa[k]) borradas.push(ultimas[k]);
+      });
+    }
+
+    if (!cambiadas.length && !borradas.length) {
+      guardando = false; marcar('listo');
+      if (pendiente) { pendiente = false; subir(); }
+      return;
+    }
+
+    /* En lotes: un club grande en una sola petición se pasa del límite del
+       servidor y falla entero. Cuarenta filas por lote va sobrado. */
+    var lotes = [];
+    for (var i = 0; i < cambiadas.length; i += 40) lotes.push(cambiadas.slice(i, i + 40));
+
+    var cadena = Promise.resolve({ error: null });
+    lotes.forEach(function (lote) {
+      cadena = cadena.then(function (r) {
+        if (r && r.error) return r;
+        return cli.from('academy_docs').upsert(lote.map(function (f) {
+          return { academy_id: club.academy_id, col: f.col, item: f.item, ord: f.ord, data: f.data };
+        }), { onConflict: 'academy_id,col,item' });
+      });
+    });
+
+    borradas.forEach(function (f) {
+      cadena = cadena.then(function (r) {
+        if (r && r.error) return r;
+        return cli.from('academy_docs').delete()
+          .eq('academy_id', club.academy_id).eq('col', f.col).eq('item', f.item);
+      });
+    });
+
+    cadena.then(function (r) {
+      guardando = false;
+      if (r && r.error) {
+        console.error('[ScoutFlow] al guardar:', r.error);
+        marcar('error');
+      } else {
+        /* Solo se da por subido lo que de verdad subió. Si falla a mitad, la
+           próxima vez se vuelve a mandar: mejor repetir que perder. */
+        var nuevo = {};
+        ahora.forEach(function (f) { nuevo[f.col + '|' + f.item] = { json: JSON.stringify(f.data), ord: f.ord, col: f.col, item: f.item }; });
+        ultimas = nuevo;
+        marcar('listo');
+      }
+      if (pendiente) { pendiente = false; subir(); }
+    });
   }
 
   /* Al cerrar la pestaña, si quedaba algo por subir, se sube ya sin esperar. */
   window.addEventListener('pagehide', function () { clearTimeout(temporizador); subir(); });
 
   /* ---------------- carga inicial ---------------- */
+  /* QUIÉN SOY Y DÓNDE. Una sola llamada al entrar, en vez de tres consultas.
+     Si devuelve vacío, esta cuenta todavía no pertenece a ningún club: ahí
+     entra la pantalla de «un paso más». */
+  function cargarMiembro() {
+    return cli.rpc('app_quien_soy').then(function (r) {
+      if (r.error) throw r.error;
+      var fila = (r.data && r.data.length) ? r.data[0] : null;
+      club = fila || null;
+      return club;
+    });
+  }
+
   function cargar() {
-    return cli.from('academy_data').select('data').eq('owner_id', usuario.id).maybeSingle()
-      .then(function (r) {
-        if (r.error) throw r.error;
-        if (r.data && r.data.data && Object.keys(r.data.data).length) {
-          datos = r.data.data;
-          return;
-        }
-        /* Primera vez en la nube: en vez de empezar de cero, se sube lo que
-           este navegador ya tenía. Así el trabajo hecho hasta hoy viaja con
-           el usuario en lugar de quedarse atrás. */
-        var previo = null;
-        try { previo = JSON.parse(localStorage.getItem(CACHE) || localStorage.getItem(LOCAL) || 'null'); } catch (e) {}
-        datos = previo;                       // si es null, el store siembra y se sube solo
-        if (datos) { subir(); }
-      });
+    if (!club) { datos = null; return Promise.resolve(); }
+    /* Las filas del club. Se piden por páginas porque Supabase corta en 1.000
+       por defecto y un club de 277 jugadores con su videoteca se pasa. */
+    var todas = [];
+    function pagina(desde) {
+      return cli.from('academy_docs')
+        .select('col,item,ord,data')
+        .eq('academy_id', club.academy_id)
+        .order('col').order('ord')
+        .range(desde, desde + 999)
+        .then(function (r) {
+          if (r.error) throw r.error;
+          var lote = r.data || [];
+          todas = todas.concat(lote);
+          if (lote.length === 1000) return pagina(desde + 1000);
+        });
+    }
+    return pagina(0).then(function () {
+      if (todas.length) {
+        datos = juntar(todas);
+        /* Se apunta lo que hay, para que la primera edición suba solo su fila
+           y no vuelva a mandar el club entero. */
+        ultimas = {};
+        partir(datos).forEach(function (f) {
+          ultimas[f.col + '|' + f.item] = { json: JSON.stringify(f.data), ord: f.ord, col: f.col, item: f.item };
+        });
+        return;
+      }
+      /* Club recién creado y vacío: se sube lo que este navegador ya tuviera,
+         para que el trabajo hecho hasta hoy viaje con la persona en vez de
+         quedarse atrás. Si no hay nada, el store siembra y se sube solo. */
+      var previo = null;
+      try { previo = JSON.parse(localStorage.getItem(CACHE) || localStorage.getItem(LOCAL) || 'null'); } catch (e) {}
+      datos = previo;
+      ultimas = null;
+      if (datos) subir();
+    });
   }
 
   /* ---------------- historial de versiones ----------------
@@ -29681,10 +29983,23 @@ SF.cloud = (function () {
   /* ---------------- pie de la barra lateral ---------------- */
   function pieHTML() {
     if (modoLocal) {
+      /* Un caso concreto merece su propio mensaje: la app está publicada, hay
+         cuenta, pero falta ejecutar el SQL del Paso 2 en Supabase. Decir
+         "sin conexión" ahí mandaría a mirar la red, que está perfecta. */
+      if (SF._faltaPaso2) {
+        return '<span class="sf-cuenta"><b>Falta un paso en el servidor</b>' +
+          '<span class="est">ejecuta database/paso2_multiusuario.sql en Supabase</span></span>';
+      }
       return '<span class="sf-cuenta"><b>Modo local</b><span class="est">sin conexión con la nube</span></span>';
     }
     if (!usuario) return '';
+    /* Con el club en la nube se dice DE QUÉ CLUB y CON QUÉ ROL. Antes solo
+       salía el correo, y con varias personas dentro «quién soy aquí» es la
+       primera pregunta que se hace al entrar. */
     return '<span class="sf-cuenta"><b>' + esc(usuario.email) + '</b>' +
+      (club ? '<span class="est">' + esc(club.nombre || '') +
+              (club.role ? ' · ' + esc((SF.rolDe ? (SF.rolDe(club.role) || {}).label : '') || club.role) : '') +
+              '</span>' : '') +
       '<span class="est" id="sf-cloud-est">' + esc(texto()) + '</span>' +
       '<button id="sf-salir">Cerrar sesión</button></span>';
   }
@@ -29723,7 +30038,11 @@ SF.cloud = (function () {
     bAlt.onclick = function () {
       registro = !registro; limpiar();
       iT.textContent = registro ? 'Crear cuenta' : 'Entrar';
-      iS.textContent = registro ? 'Se creará tu academia al entrar por primera vez.' : 'Tus datos, en la nube y en todos tus dispositivos.';
+      /* Antes decía "se creará tu academia al entrar por primera vez", y eso
+         dejó de ser verdad: ahora, después de crear la cuenta, se pregunta a
+         qué club perteneces. Prometer una academia propia a quien viene
+         invitado a la de otro es la forma más fácil de confundirle. */
+      iS.textContent = registro ? 'Después te preguntamos a qué club perteneces.' : 'Tus datos, en la nube y en todos tus dispositivos.';
       bOk.textContent = registro ? 'Crear cuenta' : 'Entrar';
       bAlt.textContent = registro ? 'Entrar' : 'Crear una';
       bAlt.previousSibling.textContent = registro ? '¿Ya tienes cuenta? ' : '¿No tienes cuenta? ';
@@ -29779,6 +30098,97 @@ SF.cloud = (function () {
     return m;
   }
 
+  /* ---------------- un paso más: entrar en un club ----------------
+     Quien se registra con su correo ya tiene cuenta, pero todavía no
+     pertenece a ningún club. Aquí se decide: o pega el código que le ha
+     pasado su director, o crea el suyo.
+
+     LLEVA SALIDA DE EMERGENCIA. Sin ella, alguien que se registra con el
+     correo equivocado se queda encerrado en esta pantalla para siempre: no
+     tiene código, y crear un club no es lo que quiere. */
+  function pasoMas(seguir) {
+    /* Usa el MISMO estilo que la pantalla de acceso (`sf-gate`) a propósito:
+       esto es el segundo paso de la misma puerta, y estrenar un diseño aquí
+       haría pensar que se ha ido a otro sitio. Además, cero CSS nuevo. */
+    var g = el('<div class="sf-gate"><div class="sf-gate-box">' +
+      '<div class="sf-gate-brand"><img src="' + SF.LOGO + '" alt=""><div>' +
+      '<h1>ScoutFlow Academy</h1><p>From Prospect to Player</p></div></div>' +
+      '<div class="sf-gate-card">' +
+      '<h2>Un paso más</h2>' +
+      '<p class="hint">Tu cuenta ya está creada. Ahora dinos a qué club perteneces.</p>' +
+      '<div class="sf-gate-msg" id="pm-m"></div>' +
+      /* El código va primero porque es el caso común: casi todo el mundo
+         entra invitado por su club, no funda uno. */
+      '<label for="pm-t">Me han dado un código</label>' +
+      '<input id="pm-t" placeholder="Por ejemplo: NMNGSBBG" autocapitalize="characters" spellcheck="false">' +
+      '<button class="btn btn-primary" id="pm-ok">Entrar en el club</button>' +
+      '<p class="sf-gate-alt" style="margin:14px 0 10px">o</p>' +
+      '<label for="pm-n">Soy el primero de mi club</label>' +
+      '<input id="pm-n" placeholder="Nombre del club">' +
+      '<button class="btn btn-light" id="pm-nuevo">Crear el club</button>' +
+      '<p class="sf-gate-alt">¿Te has equivocado de correo? ' +
+      '<button id="pm-salir">Salir y entrar con otro</button></p>' +
+      '</div>' +
+      '<p class="sf-gate-foot">Los datos se guardan en Frankfurt, dentro de la Unión Europea.</p>' +
+      '</div></div>');
+    document.body.appendChild(g);
+
+    var iM = g.querySelector('#pm-m'), iT = g.querySelector('#pm-t'), iN = g.querySelector('#pm-n');
+    var bOk = g.querySelector('#pm-ok'), bNue = g.querySelector('#pm-nuevo');
+
+    function fallo(t) { iM.textContent = t; iM.className = 'sf-gate-msg on mal'; }
+    function limpiar() { iM.className = 'sf-gate-msg'; }
+    function ocupado(b, si, t) { b.disabled = si; b.textContent = si ? 'Un momento…' : t; }
+
+    function dentro() {
+      g.remove();
+      cargarMiembro().then(cargar).then(function () { seguir(); fotoDelDia(); })
+        .catch(function (e) { console.error('[ScoutFlow]', e); location.reload(); });
+    }
+
+    bOk.onclick = function () {
+      var t = (iT.value || '').trim().toUpperCase();
+      if (!t) { fallo('Escribe el código que te han pasado.'); return; }
+      limpiar(); ocupado(bOk, true);
+      cli.rpc('app_aceptar', { p_token: t }).then(function (r) {
+        if (r.error) { ocupado(bOk, false, 'Entrar en el club'); fallo(traducir(r.error.message)); return; }
+        dentro();
+      });
+    };
+
+    bNue.onclick = function () {
+      var n = (iN.value || '').trim();
+      if (!n) { fallo('Ponle nombre a tu club.'); return; }
+      limpiar(); ocupado(bNue, true);
+      cli.rpc('app_crear_club', { p_nombre: n }).then(function (r) {
+        if (r.error) { ocupado(bNue, false, 'Crear el club'); fallo(traducir(r.error.message)); return; }
+        dentro();
+      });
+    };
+
+    /* SALIDA DE EMERGENCIA. Sin esto, quien se registra con el correo
+       equivocado se queda encerrado aquí: no tiene código y no quiere crear
+       un club. */
+    g.querySelector('#pm-salir').onclick = function () {
+      cli.auth.signOut().then(function () { location.reload(); });
+    };
+
+    iT.addEventListener('keydown', function (e) { if (e.key === 'Enter') bOk.click(); });
+    iN.addEventListener('keydown', function (e) { if (e.key === 'Enter') bNue.click(); });
+    iT.focus();
+  }
+
+  /* Invitar a alguien. Lo usa la pantalla de Permisos. Devuelve el código
+     que hay que pasarle a la persona. */
+  function invitar(correo, rol, staffId) {
+    if (!activa() || !club) return Promise.resolve({ ok: false, motivo: 'local' });
+    return cli.rpc('app_invitar', { p_correo: correo || '', p_role: rol || 'entrenador', p_staff_id: staffId || null })
+      .then(function (r) {
+        if (r.error) return { ok: false, motivo: 'error', detalle: traducir(r.error.message) };
+        return { ok: true, codigo: r.data };
+      });
+  }
+
   /* ---------------- arranque ---------------- */
   function arrancar(seguir) {
     if (!window.supabase || !window.supabase.createClient) {
@@ -29792,14 +30202,31 @@ SF.cloud = (function () {
       var ses = r.data && r.data.session;
       if (!ses) { puerta(seguir); return; }
       usuario = ses.user;
-      cargar().then(function () { seguir(); fotoDelDia(); }).catch(function (err) {
+      cargarMiembro().then(function (m) {
+        /* Con cuenta pero sin club: no se pinta la app, porque pintarla
+           significaría enseñar una academia vacía que no es la suya. */
+        if (!m) { pasoMas(seguir); return; }
+        return cargar().then(function () { seguir(); fotoDelDia(); });
+      }).catch(function (err) {
         console.error('[ScoutFlow] al cargar:', err);
+        /* Si las tablas del Paso 2 todavía no existen en el servidor, la app
+           no puede quedarse en blanco: se dice qué falta y se sigue en local,
+           que es mejor que una pantalla muerta sin explicación. */
+        if (/app_quien_soy|function|does not exist|schema cache/i.test(String(err && err.message))) {
+          modoLocal = true;
+          console.warn('[ScoutFlow] Falta ejecutar database/paso2_multiusuario.sql en Supabase.');
+          SF._faltaPaso2 = true;
+          seguir();
+          return;
+        }
         usuario = null; puerta(seguir);
       });
     });
   }
 
   return { arrancar: arrancar, activa: activa, leer: leer, escribir: escribir, pieHTML: pieHTML,
+           invitar: invitar, club: function () { return club; },
+           partir: partir, juntar: juntar,
            versiones: versiones, guardarVersion: guardarVersion, leerVersion: leerVersion,
            historialOk: function () { return historialOk; } };
 })();
