@@ -1443,6 +1443,73 @@ button.pf-ley:hover{filter:brightness(.96)}
 .plan-tot.es-mal{background:#FBEAEA;color:#8E2F2F}
 .plan-tot.es-corto{background:#FFF3E0;color:#8A5A12}
 .ej-pick{margin-top:10px;padding:12px;background:var(--bg);border-radius:10px}
+/* --- VÍDEO Y CORTES --- */
+.vguia{margin-bottom:14px}
+.vpasos{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:10px}
+.vpaso{display:flex;gap:10px;align-items:flex-start}
+.vpaso b{display:block;margin-bottom:2px}
+.vpaso .hint{margin:0}
+.vnum{flex:0 0 26px;width:26px;height:26px;border-radius:50%;background:var(--purple);color:#fff;
+  display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.vhonesto{margin-top:14px;padding:10px 12px;background:var(--bg);border-left:3px solid var(--purple);border-radius:0 8px 8px 0}
+.valta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.valta-2{grid-template-columns:repeat(4,1fr)}
+.valta+.valta{margin-top:10px}
+.valta+.valta+.btn{margin-top:12px}
+.vfiltros{margin:14px 0;gap:10px}
+/* Los select de la app son width:100% porque casi siempre viven en un .frow
+   de una columna. Aquí van en fila, así que hay que devolverles el ancho
+   automático o cada uno se come el renglón entero. */
+.vfiltros select{flex:0 0 auto;width:auto;min-width:170px}
+.vfiltros input{flex:1 1 220px;min-width:0;width:auto}
+.vsplit{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+.vmain{min-width:0}
+.vlado{min-width:0}
+.vcab{margin-bottom:10px;gap:10px;flex-wrap:wrap}
+.vitem{display:flex;gap:10px;padding:8px;border-radius:10px;cursor:pointer;border:1px solid transparent}
+.vitem:hover{background:var(--bg)}
+.vitem.on{background:var(--bg);border-color:var(--purple)}
+.vit-th{flex:0 0 78px;width:78px;height:50px;border-radius:6px;overflow:hidden;background:var(--line);
+  display:flex;align-items:center;justify-content:center}
+.vit-th img{width:100%;height:100%;object-fit:cover}
+.vit-b{min-width:0}
+.vit-t{margin:0;font-weight:600;font-size:13px;line-height:1.25;overflow:hidden;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.vit-m,.vit-c{margin:2px 0 0;font-size:11px;color:var(--ink-3)}
+.vmarca{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px}
+.vseg{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.vseg select{max-width:230px}
+.vdor{width:80px}
+.vsegav{margin:6px 0 0}
+.vcortes{margin-top:16px}
+.vchips{margin:8px 0 4px;gap:6px}
+.eq-chip.on{background:var(--purple);color:#fff;border-color:var(--purple)}
+.ctres{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px}
+.ctres-t{display:block;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.04em;color:var(--ink-3);margin-bottom:4px}
+.ctres textarea{width:100%}
+.ctres-v{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 2px}
+.ctres-v>span{display:block;background:var(--bg);border-radius:8px;padding:6px 8px;font-size:12px;min-width:0}
+.ctres-v b{display:block;font-size:10px;text-transform:uppercase;letter-spacing:.04em;
+  color:var(--ink-3);margin-bottom:2px;font-weight:700}
+.vtime{border:0;background:var(--purple);color:#fff;border-radius:6px;padding:2px 8px;font-weight:600;
+  font-size:12px;cursor:pointer;font-variant-numeric:tabular-nums}
+.vtime:hover{background:var(--purple-d)}
+.vnota{display:inline-block;margin-top:4px;color:var(--ink);font-size:13px}
+.vfirma{font-size:11px}
+.count-inline{font-weight:400;color:var(--ink-3);text-transform:none;letter-spacing:0}
+.vinf-bloque{margin-top:10px}
+.vinf-bloque li{margin-bottom:4px}
+@media(max-width:900px){
+  .vsplit{grid-template-columns:1fr}
+  .vlado{order:-1}
+  .vpasos{grid-template-columns:1fr}
+  .valta,.valta-2{grid-template-columns:1fr}
+  .vseg select{max-width:100%}
+  .vseg{width:100%}
+  .vseg select{flex:1}
+  .ctres,.ctres-v{grid-template-columns:1fr}
+}
 .ej-pick input{margin-bottom:8px}
 .ej-pick-res{max-height:38vh;overflow:auto}
 
@@ -2812,6 +2879,148 @@ SF.videoInfo = function (url) {
   return { fuente: 'Enlace', embed: null, miniatura: null };
 };
 
+/* ===================== VÍDEO: LA VIDEOTECA Y LOS CORTES =====================
+
+   QUÉ ES ESTO Y QUÉ NO ES. Conviene dejarlo escrito aquí arriba porque la
+   tentación de convertirlo en otra cosa es fuerte.
+
+   Esto es una VIDEOTECA con CORTES. El club cataloga su metraje -partidos,
+   entrenamientos, recortes- y quien entiende de baloncesto marca los minutos
+   que importan y escribe por qué importan. Eso es trabajo humano, y es el 90%
+   de lo que un entrenador hace de verdad con un vídeo.
+
+   NO es análisis automático de vídeo. Un modelo de lenguaje no ve el partido:
+   el vídeo se reproduce dentro de un iframe de YouTube, sus píxeles no salen
+   de ahí, y aunque salieran no se le mandan a nadie. Por eso aquí no hay
+   "pace rating", ni "nota táctica sobre 100", ni biomecánica. Una cifra con
+   un decimal transmite que alguien la ha medido, y sobre un chaval de quince
+   años eso no es un adorno de pantalla: es una decisión tomada con un número
+   falso.
+
+   Lo que la IA SÍ hace está en api/video.js: lee los cortes que ha escrito el
+   cuerpo técnico y la ficha deportiva, y ordena lo que ya sabe el club. Eso
+   es real, es útil, y se puede defender delante de una familia.
+
+   EL CORTE ES LA UNIDAD. Un vídeo sin cortes es un enlace; con cortes es una
+   herramienta. Y el corte es lo que se vincula a un jugador: por eso un
+   partido entero puede tocar a doce fichas sin duplicarse doce veces. */
+
+SF.VIDEO_TIPOS = {
+  partido:       { label: 'Partido',        color: 'purple' },
+  recorte:       { label: 'Recorte',        color: 'blue'   },
+  entrenamiento: { label: 'Entrenamiento',  color: 'green'  },
+  sistema:       { label: 'Sistema o jugada', color: 'gray' },
+  individual:    { label: 'Individual',     color: 'warn'   }
+};
+
+/* Etiquetas de un corte. Cerradas a propósito: con texto libre, en dos meses
+   hay "contraataque", "Contra-ataque" y "transicion" y no se puede filtrar
+   por ninguna. Son las que un cuerpo técnico usa al ver un partido. */
+/* Los cuartos. Sirven para filtrar -"enséñame todo lo del último cuarto"- y
+   porque el cansancio explica la mitad de los errores del final. */
+SF.CORTE_CUARTOS = ['Q1', 'Q2', 'Q3', 'Q4', 'Prórroga'];
+
+/* Un corte es un acierto o algo corregible. Dos valores y no cinco: con una
+   escala de 1 a 5 nadie usa el 2 ni el 4, y lo que hace falta saber es si esto
+   se le enseña para repetirlo o para cambiarlo. */
+SF.CORTE_SIGNOS = { bien: 'Acierto', mejora: 'Corregible', neutro: 'Para ver' };
+
+SF.CORTE_ETIQUETAS = [
+  'Ataque posicional', 'Transición', 'Contraataque', 'Bloqueo directo',
+  'Defensa individual', 'Defensa zonal', 'Rebote', 'Saque de banda o fondo',
+  'Tiro', 'Pérdida', 'Acierto', 'Error corregible', 'Actitud'
+];
+
+/* Segundos -> 1:07:04 o 3:02. Se usa en todas partes: en el botón del corte,
+   en la lista y en el texto que se le manda a la IA. */
+SF.videoTiempo = function (seg) {
+  seg = Math.max(0, Math.floor(+seg || 0));
+  var h = Math.floor(seg / 3600), m = Math.floor((seg % 3600) / 60), s = seg % 60;
+  var dd = function (n) { return (n < 10 ? '0' : '') + n; };
+  return h ? (h + ':' + dd(m) + ':' + dd(s)) : (m + ':' + dd(s));
+};
+
+/* Y al revés: lo que escribe una persona -"3:02", "1:07:04", "182", "3m2s"-
+   en segundos. Devuelve null si no hay forma de entenderlo, que no es lo
+   mismo que cero: cero es el principio del vídeo. */
+SF.videoSegundos = function (txt) {
+  txt = String(txt == null ? '' : txt).trim().toLowerCase();
+  if (!txt) return null;
+  var hms = txt.match(/^(\d{1,2}):(\d{1,2})(?::(\d{1,2}))?$/);
+  if (hms) {
+    return hms[3] !== undefined
+      ? (+hms[1] * 3600 + (+hms[2]) * 60 + (+hms[3]))
+      : ((+hms[1]) * 60 + (+hms[2]));
+  }
+  var letras = txt.match(/^(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?\s*(?:(\d+)\s*s)?$/);
+  if (letras && (letras[1] || letras[2] || letras[3])) {
+    return (+(letras[1] || 0)) * 3600 + (+(letras[2] || 0)) * 60 + (+(letras[3] || 0));
+  }
+  if (/^\d+$/.test(txt)) return +txt;
+  return null;
+};
+
+/* El enlace de YouTube que muchos pegan ya trae el minuto dentro
+   (?t=114, &start=114, #t=1m54s). Aprovecharlo ahorra explicarlo. */
+SF.videoDesdeURL = function (url) {
+  var m = String(url || '').match(/[?&#]t(?:ime_continue)?=([0-9hms]+)/i)
+       || String(url || '').match(/[?&]start=(\d+)/i);
+  return m ? SF.videoSegundos(m[1]) : null;
+};
+
+/* El src del iframe, con el minuto de arranque si se pide.
+   youtube-nocookie: no planta cookies de publicidad a un menor por abrir un
+   partido. enablejsapi hace falta para poder preguntarle por qué segundo va,
+   que es lo que permite marcar un corte sin escribir el minuto a mano. */
+SF.videoEmbed = function (url, seg, autoplay) {
+  var inf = SF.videoInfo(url);
+  if (!inf || !inf.embed) return null;
+  var q = [];
+  if (inf.fuente === 'YouTube') {
+    q.push('enablejsapi=1', 'rel=0', 'modestbranding=1');
+    if (typeof location !== 'undefined' && location.origin && location.origin.indexOf('http') === 0) {
+      q.push('origin=' + encodeURIComponent(location.origin));
+    }
+  }
+  if (seg > 0) q.push('start=' + Math.floor(seg));
+  if (autoplay) q.push('autoplay=1');
+  return inf.embed + (q.length ? '?' + q.join('&') : '');
+};
+
+/* El enlace para abrir fuera, en el minuto del corte. */
+SF.videoEnlaceEn = function (url, seg) {
+  var inf = SF.videoInfo(url);
+  if (!inf) return url;
+  if (inf.fuente === 'YouTube') return 'https://www.youtube.com/watch?v=' + inf.id + (seg > 0 ? '&t=' + Math.floor(seg) : '');
+  if (inf.fuente === 'Vimeo') return 'https://vimeo.com/' + inf.id + (seg > 0 ? '#t=' + Math.floor(seg) + 's' : '');
+  return url;
+};
+
+/* Los tres campos de un corte, si los hay. Se pinta igual en la pantalla de
+   Vídeo y en la ficha del jugador: es la misma información y no tiene por qué
+   verse de dos formas distintas según por dónde entres. */
+SF.corteTres = function (c) {
+  return [['Con balón', c.con_balon], ['Sin balón', c.sin_balon], ['Resultado', c.resultado]]
+    .filter(function (x) { return x[1]; });
+};
+
+/* Los cortes de un jugador, vengan del vídeo que vengan, ordenados por fecha
+   del partido. Es lo que se pinta en su ficha: para el entrenador, sus cortes
+   son suyos aunque el partido sea del equipo. */
+SF.cortesDe = function (playerId) {
+  var out = [];
+  (SF.store.videoteca() || []).forEach(function (v) {
+    (v.cortes || []).forEach(function (c) {
+      if (c.player_id === playerId) out.push({ corte: c, video: v });
+    });
+  });
+  out.sort(function (a, b) {
+    return String(b.video.fecha || '').localeCompare(String(a.video.fecha || '')) ||
+      ((+a.corte.t || 0) - (+b.corte.t || 0));
+  });
+  return out;
+};
+
 /* ===================== CRECIMIENTO Y EDAD RELATIVA =====================
 
    Dos cosas distintas que en formación se confunden constantemente:
@@ -3758,12 +3967,12 @@ SF.rolesOrdenados = function () {
 SF.ROLES = {
   director: {
     label: 'Director',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'tramites', 'tienda', 'licencias', 'informes', 'family', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'adjuntos', 'comunicados', 'importar', 'importar-datos', 'captacion', 'documentos', 'tramites', 'tienda', 'licencias', 'informes', 'video', 'family', 'finanzas', 'economia', 'sueldos', 'presupuesto', 'permisos', 'mis-avisos', 'config'],
     tabs: 'all', canSeeScore: true, canSeeFinance: true, canSeeNotes: true, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canManageFinance: true, canSetAvailability: true, canSeeMedical: true, canAskCita: true, canStore: true, segments: 'all', canCreatePlayers: true, canSeeSalaries: true
   },
   dt_general: {
     label: 'Dirección Técnica General',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'sueldos', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'comunicados', 'importar-datos', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'video', 'economia', 'sueldos', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canEditPhysical: true, canAskCita: true, canStore: true, segments: 'all', staff: true, canCreatePlayers: true, canSeeSalaries: true
   },
@@ -3772,7 +3981,7 @@ SF.ROLES = {
     /* "Mi equipo" el primero: el preparador físico tambien pasa lista de SUS
        sesiones, y tiene que aterrizar donde estan sus grupos, no en un panel
        general del club. */
-    nav: ['mi-equipo', 'inicio', 'jugadores', 'equipos', 'informes', 'economia', 'mis-avisos', 'mi-ficha'],
+    nav: ['mi-equipo', 'inicio', 'jugadores', 'equipos', 'informes', 'video', 'economia', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false,
     canEvaluate: true, evalGroups: ['Física'], canEditPhysical: true,
@@ -3800,7 +4009,7 @@ SF.ROLES = {
      no gestiona personas ni cobra a nadie. */
   coord_pf: {
     label: 'Coordinación de Preparación Física',
-    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'informes', 'economia', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'staff', 'informes', 'video', 'economia', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false,
     canEvaluate: true, evalGroups: ['Física'], canEditPhysical: true,
@@ -3810,31 +4019,31 @@ SF.ROLES = {
   },
   dt_femenino: {
     label: 'Dirección Técnica Femenino',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'video', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['femenino'], canCreatePlayers: true
   },
   dt_masculino: {
     label: 'Dirección Técnica Masculino',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'video', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['masculino'], canCreatePlayers: true
   },
   dt_escuelas: {
     label: 'Dirección Técnica Escuelas',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'video', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['escuelas'], canCreatePlayers: true
   },
   dt_minis: {
     label: 'Dirección Técnica Minis',
-    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'jugadores', 'equipos', 'comunicados', 'captacion', 'documentos', 'tramites', 'tienda', 'informes', 'video', 'economia', 'family', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: true, canAskCita: true, segments:['minis'], canCreatePlayers: true
   },
   scout: {
     label: 'Scout',
-    nav: ['inicio', 'agenda', 'jugadores', 'importar', 'captacion', 'documentos', 'economia', 'mis-avisos', 'mi-ficha'],
+    nav: ['inicio', 'agenda', 'jugadores', 'importar', 'captacion', 'documentos', 'economia', 'mis-avisos', 'mi-ficha', 'video'],
     tabs: ['perfil', 'deportivo', 'trayectoria', 'academico', 'documentos', 'videos', 'captacion', 'seguimiento'],
     canSeeScore: true, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false,
     /* Ve SU cartera, no el club entero. Antes le salían las 277 fichas del
@@ -3847,7 +4056,7 @@ SF.ROLES = {
   },
   entrenador: {
     label: 'Entrenador',
-    nav: ['mi-equipo', 'jugadores', 'equipos', 'informes', 'economia', 'mis-avisos', 'mi-ficha'],
+    nav: ['mi-equipo', 'jugadores', 'equipos', 'informes', 'video', 'economia', 'mis-avisos', 'mi-ficha'],
     tabs: ['perfil', 'deportivo', 'videos', 'seguimiento', 'informes', 'equipacion'],
     canSeeScore: false, canSeeFinance: false, canSeeNotes: false, canEvaluate: true, canManageTeams: false, canAskCita: true, team_scope: true, segments: 'all', staff: true
   },
@@ -5123,7 +5332,7 @@ SF.SECCION_LABEL = {
   calendario: 'Calendario', horarios: 'Cuadrantes', sesiones: 'Sesiones', importar: 'Importar',
   'importar-datos': 'Datos de partido', captacion: 'Captación', documentos: 'Documentos',
   licencias: 'Licencias', tramites: 'Fichas e inscripciones', tienda: 'Tienda',
-  informes: 'Informes', family: 'Family', finanzas: 'Finanzas',
+  informes: 'Informes', video: 'Vídeo y cortes', family: 'Family', finanzas: 'Finanzas',
   presupuesto: 'Presupuesto', economia: 'Economía', sueldos: 'Sueldos', permisos: 'Permisos',
   config: 'Configuración', 'mi-equipo': 'Mi equipo', comunicados: 'Comunicados', staff: 'Staff',
   adjuntos: 'Personal adjunto',
@@ -7334,6 +7543,10 @@ SF.store = (function () {
       d._planes_v1 = true;
       write(d);
     }
+    /* La videoteca empieza vacía a propósito: no se siembra metraje de
+       ejemplo. Un partido falso en la videoteca de un club real es basura que
+       alguien tiene que borrar, y peor: enseña un corte que nadie marcó. */
+    if (!d.videoteca) { d.videoteca = []; write(d); }
     return d;
   }
 
@@ -7490,6 +7703,73 @@ SF.store = (function () {
     sueldoRemove: function (id) {
       var d = db();
       d.sueldos = (d.sueldos || []).filter(function (x) { return x.id !== id; });
+      save(d);
+    },
+
+    /* ---------------- VIDEOTECA ----------------
+       El metraje del club. Los vídeos de la ficha de un jugador (p.videos)
+       son otra cosa y siguen donde estaban: aquello es lo que manda una
+       familia -sus highlights-, esto es lo que graba y cataloga el club. */
+    videoteca: function () { return db().videoteca || []; },
+    videoGet: function (id) {
+      return (db().videoteca || []).filter(function (x) { return x.id === id; })[0] || null;
+    },
+    /* Los que puede ver esta persona. Un entrenador ve el metraje de SUS
+       equipos y el que el club ha marcado como del club; no el del resto de
+       equipos, igual que no ve sus fichas. */
+    videotecaVisible: function (r, misTeamIds) {
+      misTeamIds = misTeamIds || [];
+      var todo = (r && (r.segments === 'all' || (r.nav || []).indexOf('equipos') >= 0 && r.tabs === 'all'));
+      return this.videoteca().filter(function (v) {
+        if (todo) return true;
+        if (!v.team_id) return true;               // metraje general del club
+        return misTeamIds.indexOf(v.team_id) >= 0;
+      });
+    },
+    videoSave: function (datos, quien) {
+      var d = db(); d.videoteca = d.videoteca || [];
+      var x = datos.id ? d.videoteca.filter(function (y) { return y.id === datos.id; })[0] : null;
+      if (!x) {
+        x = { id: 'vt' + Date.now() + Math.floor(Math.random() * 1000),
+              creado: new Date().toISOString(),
+              por: (quien || {}).name || '', por_id: (quien || {}).staff_id || null,
+              cortes: [] };
+        d.videoteca.push(x);
+      }
+      ['titulo', 'url', 'tipo', 'fecha', 'rival', 'competicion', 'team_id', 'notas'].forEach(function (k) {
+        if (datos[k] !== undefined) x[k] = datos[k];
+      });
+      save(d); return x;
+    },
+    videoQuitar: function (id) {
+      var d = db();
+      d.videoteca = (d.videoteca || []).filter(function (x) { return x.id !== id; });
+      save(d);
+    },
+    /* Un corte. Se guarda con QUIÉN lo marcó y CUÁNDO: dentro de seis meses,
+       una nota sin autor no se puede preguntar a nadie. */
+    corteSave: function (videoId, datos, quien) {
+      var d = db(), v = (d.videoteca || []).filter(function (x) { return x.id === videoId; })[0];
+      if (!v) return null;
+      v.cortes = v.cortes || [];
+      var c = datos.id ? v.cortes.filter(function (y) { return y.id === datos.id; })[0] : null;
+      if (!c) {
+        c = { id: 'ct' + Date.now() + Math.floor(Math.random() * 1000),
+              at: new Date().toISOString(), por: (quien || {}).name || '' };
+        v.cortes.push(c);
+      }
+      ['t', 'titulo', 'nota', 'player_id', 'dorsal', 'etiqueta',
+       'cuarto', 'signo', 'con_balon', 'sin_balon', 'resultado'].forEach(function (k) {
+        if (datos[k] !== undefined) c[k] = datos[k];
+      });
+      c.t = Math.max(0, Math.floor(+c.t || 0));
+      v.cortes.sort(function (a, b) { return (+a.t || 0) - (+b.t || 0); });
+      save(d); return c;
+    },
+    corteQuitar: function (videoId, corteId) {
+      var d = db(), v = (d.videoteca || []).filter(function (x) { return x.id === videoId; })[0];
+      if (!v) return;
+      v.cortes = (v.cortes || []).filter(function (c) { return c.id !== corteId; });
       save(d);
     },
 
@@ -11467,6 +11747,18 @@ window.SF = window.SF || {};
       bSc.onclick = function () { SF._openTab = 'deportivo'; SF.router.render(); };
       tags.appendChild(bSc);
     }
+    /* SUS CORTES, DESDE LA CABECERA. Un corte marcado en un partido tiene que
+       poder encontrarse desde la ficha sin acordarse de en qué pestaña estaba:
+       se dice cuántos hay y se entra de un clic. */
+    (function () {
+      var nc = SF.cortesDe(p.id).length;
+      if (!nc) return;
+      var bV = el('<button class="tag-lnk"><span class="tag tag-info">' + ico('camera') + ' ' +
+        nc + (nc === 1 ? ' corte' : ' cortes') + '</span></button>');
+      bV.title = 'Ver sus cortes de partido, con el minuto y la nota de quien lo marcó';
+      bV.onclick = function () { SF._openTab = 'videos'; SF.router.render(); };
+      tags.appendChild(bV);
+    })();
     tags.appendChild(el('<span class="tag tag-gray">' + esc(nat || '—') + '</span>'));
     view.appendChild(fhead);
 
@@ -12408,6 +12700,65 @@ window.SF = window.SF || {};
         var vids = (p.videos || []).slice().sort(function (a, b) { return (b.date || b.added_at || '').localeCompare(a.date || a.added_at || ''); });
         var puedeVid = SF.store.role() !== 'padre' && SF.store.role() !== 'jugador';
 
+        /* SUS CORTES, LO PRIMERO. Son de partidos del club y los ha marcado
+           su cuerpo técnico: para un entrenador valen más que un highlight
+           que mandó la familia. Van arriba por eso.
+           El corte vive en la videoteca y NO se copia aquí: un partido toca a
+           doce fichas y copiarlo sería tener doce versiones de la misma nota,
+           que en un mes dicen cosas distintas. */
+        var misCortes = SF.cortesDe(p.id);
+        if (misCortes.length) {
+          var cc = el('<div style="margin-bottom:18px"></div>');
+          cc.appendChild(el('<p class="sec-label">Cortes de partido <span class="count-inline">' +
+            misCortes.length + '</span></p>'));
+          var porVideo = {};
+          misCortes.forEach(function (x) {
+            (porVideo[x.video.id] = porVideo[x.video.id] || { v: x.video, cs: [] }).cs.push(x.corte);
+          });
+          Object.keys(porVideo).forEach(function (vid) {
+            var g = porVideo[vid], tp = SF.VIDEO_TIPOS[g.v.tipo] || { label: g.v.tipo || '—', color: 'gray' };
+            var cab = el('<div class="mini-row mr-wrap"><span><b>' + esc(g.v.titulo || 'Vídeo') + '</b> ' +
+              '<span class="tag tag-' + tp.color + '">' + esc(tp.label) + '</span>' +
+              (g.v.fecha ? ' <span class="hint">' + fmtDate(g.v.fecha) + '</span>' : '') +
+              (g.v.rival ? ' <span class="hint">· ' + esc(g.v.rival) + '</span>' : '') +
+              '</span><span class="row-actions"></span></div>');
+            if (SF.router.puede && SF.router.puede('video')) {
+              var bIr = el('<button class="lnk">abrir en Vídeo</button>');
+              bIr.onclick = function () { SF._videoAbierto = g.v.id; location.hash = '#/video'; };
+              cab.querySelector('.row-actions').appendChild(bIr);
+            }
+            cc.appendChild(cab);
+            var ml = el('<div class="mini-list"></div>');
+            g.cs.forEach(function (c) {
+              var row = el('<div class="mini-row mr-wrap vcorte"><span>' +
+                '<button class="vtime">' + SF.videoTiempo(c.t) + '</button> ' +
+                (c.cuarto ? '<span class="tag tag-gray">' + esc(c.cuarto) + '</span> ' : '') +
+                esc(c.titulo || 'Corte') +
+                (c.signo ? ' <span class="tag tag-' + (c.signo === 'bien' ? 'green' : c.signo === 'mejora' ? 'warn' : 'gray') +
+                  '">' + esc(SF.CORTE_SIGNOS[c.signo] || '') + '</span>' : '') +
+                (c.etiqueta ? ' <span class="tag tag-gray">' + esc(c.etiqueta) + '</span>' : '') +
+                corteTresHTML(c) +
+                (c.nota ? '<span class="vnota">' + esc(c.nota) + '</span>' : '') +
+                '<br><span class="hint vfirma">' + esc(c.por || '—') +
+                (c.at ? ' · ' + fmtDate(c.at.slice(0, 10)) : '') + '</span>' +
+                '</span><span class="row-actions"></span></div>');
+              /* Desde la ficha se abre en pestaña nueva en el minuto exacto:
+                 aquí no hay reproductor al que pedirle que salte. */
+              /* Dos formas de verlo, y las dos hacen falta: el minuto abre
+                 YouTube en ese segundo (rápido, sin salir de la ficha), y
+                 "abrir en Vídeo" lleva al reproductor del club con TODOS los
+                 cortes del partido al lado, que es donde se trabaja. */
+              row.querySelector('.vtime').onclick = function () {
+                window.open(SF.videoEnlaceEn(g.v.url, c.t), '_blank', 'noopener');
+              };
+              ml.appendChild(row);
+            });
+            cc.appendChild(ml);
+          });
+          body.appendChild(cc);
+          body.appendChild(el('<p class="sec-label">Vídeos de su ficha</p>'));
+        }
+
         if (!vids.length) {
           body.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('camera') + '</div>' +
             '<h3>Sin vídeos todavía</h3><p>Pega el enlace de YouTube, Vimeo o Google Drive. No hace falta subir el archivo.</p></div>'));
@@ -12794,6 +13145,95 @@ window.SF = window.SF || {};
     }
     paint();
   };
+
+  /* El informe de un vídeo. Le manda a api/video.js los cortes -el texto que
+     ha escrito una persona- y nada más: ni la URL del partido, ni la ficha
+     completa, ni el nombre de la familia. Lo que sale del club se compone
+     aquí campo a campo, en positivo, igual que en analizarIA. */
+  function informeVideoIA(v) {
+    var cortes = (v.cortes || []).slice().sort(function (a, b) { return (+a.t || 0) - (+b.t || 0); });
+    if (cortes.length < 2) { U.toast('Hacen falta al menos dos cortes para que haya algo que ordenar'); return; }
+
+    var w = el('<div></div>');
+    w.appendChild(el('<div class="row-c" style="align-items:center;margin-bottom:10px">' +
+      '<span class="tag tag-purple">' + cortes.length + ' cortes</span>' +
+      '<span class="hint">' + esc(v.titulo || 'Vídeo') + '</span></div>'));
+    var zona = el('<div><p class="hint">Leyendo los cortes…</p></div>');
+    w.appendChild(zona);
+    var foot = el('<div class="modal-actions"><button class="btn btn-primary">Cerrar</button></div>');
+    foot.children[0].onclick = U.closeModal; w.appendChild(foot);
+    U.modal('Informe de ' + (v.titulo || 'este vídeo'), w);
+
+    /* De cada corte sale el minuto, el título, la etiqueta, la nota y -si lo
+       tiene- el NOMBRE del jugador. El nombre va porque un informe que dice
+       "el jugador 1" no lo lee nadie; no va su fecha de nacimiento, ni su
+       contacto, ni nada de su ficha. */
+    var payload = {
+      titulo: v.titulo || '', tipo: (SF.VIDEO_TIPOS[v.tipo] || {}).label || v.tipo || '',
+      fecha: v.fecha || '', rival: v.rival || '', competicion: v.competicion || '',
+      equipo: (SF.store.teamGet(v.team_id) || {}).name || '',
+      cortes: cortes.map(function (c) {
+        var pj = c.player_id ? SF.store.get(c.player_id) : null;
+        return { tiempo: SF.videoTiempo(c.t), titulo: c.titulo || '', etiqueta: c.etiqueta || '',
+                 cuarto: c.cuarto || '', signo: SF.CORTE_SIGNOS[c.signo] || '',
+                 con_balon: c.con_balon || '', sin_balon: c.sin_balon || '', resultado: c.resultado || '',
+                 nota: c.nota || '', jugador: pj ? pj.full_name : '', dorsal: c.dorsal || '' };
+      })
+    };
+    /* Si todos los cortes son del mismo jugador, se dice: cambia el informe
+       de "el equipo hizo" a "este chaval hizo", que es otra conversación. */
+    var unicos = {}; payload.cortes.forEach(function (c) { if (c.jugador) unicos[c.jugador] = 1; });
+    var nombres = Object.keys(unicos);
+    if (nombres.length === 1) payload.jugador = nombres[0];
+
+    function pinta(inf, modelo) {
+      zona.innerHTML = '';
+      zona.appendChild(el('<p>' + esc(inf.resumen || '') + '</p>'));
+      [['repetido', 'Lo que se repite'], ['bien', 'Lo que salió bien'],
+       ['trabajar', 'Para trabajar esta semana'], ['revisar', 'Volver a ver con él']].forEach(function (b) {
+        var arr = inf[b[0]] || [];
+        if (!arr.length) return;
+        var bl = el('<div class="vinf-bloque"><p class="sec-label">' + b[1] + '</p></div>');
+        var ul = el('<ul></ul>');
+        arr.forEach(function (x) { ul.appendChild(el('<li>' + esc(x) + '</li>')); });
+        bl.appendChild(ul); zona.appendChild(bl);
+      });
+      zona.appendChild(el('<p class="hint vhonesto">Lo ha escrito una <b>IA</b> leyendo ' + cortes.length +
+        ' cortes que marcó el cuerpo técnico' + (modelo ? ' (' + esc(modelo) + ')' : '') + '. ' +
+        '<b>No ha visto el vídeo</b>: ordena lo que ya sabíais, no descubre nada nuevo. ' +
+        'Del club solo han salido los minutos y las notas de los cortes. Revísalo antes de usarlo.</p>'));
+    }
+
+    fetch('/api/video', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
+    }).then(function (r) { return r.json(); }).then(function (d) {
+      if (d && d.ok) return pinta(d.informe, d.modelo);
+      zona.innerHTML = '';
+      var motivo = d && d.motivo;
+      if (motivo === 'sin_clave') {
+        zona.appendChild(el('<div class="empty-panel"><p><b>La IA no está activada todavía.</b><br>' +
+          'Se activa en Vercel → Settings → Environment Variables con <b>GEMINI_API_KEY</b> ' +
+          '(Google, tiene capa gratuita), <b>ANTHROPIC_API_KEY</b> o <b>OPENAI_API_KEY</b>. ' +
+          'La app usa la que encuentre.</p></div>'));
+      } else {
+        zona.appendChild(el('<div class="empty-panel"><p>No se ha podido escribir el informe' +
+          (d && d.detalle ? ': ' + esc(d.detalle) : '.') + '<br>Los cortes siguen guardados.</p></div>'));
+      }
+      /* Aunque la IA no conteste, el trabajo hecho vale: se enseña el guion
+         de los cortes, que es lo que un entrenador se lleva a la pista. */
+      var res = el('<div class="vinf-bloque"><p class="sec-label">Tus cortes, en orden</p></div>');
+      var ul = el('<ul></ul>');
+      cortes.forEach(function (c) {
+        var pj = c.player_id ? SF.store.get(c.player_id) : null;
+        ul.appendChild(el('<li><b>' + SF.videoTiempo(c.t) + '</b> · ' + esc(c.titulo || 'Corte') +
+          (pj ? ' — ' + esc(pj.full_name) : '') + (c.nota ? '<br><span class="hint">' + esc(c.nota) + '</span>' : '') + '</li>'));
+      });
+      res.appendChild(ul); zona.appendChild(res);
+    }).catch(function () {
+      zona.innerHTML = '<div class="empty-panel"><p>No hay conexión con el servidor. ' +
+        'Los cortes están guardados igual.</p></div>';
+    });
+  }
 
   /* "Analizar con IA". Con clave configurada llama a un modelo de verdad; sin
      ella cae a un informe por reglas y lo dice. */
@@ -25880,6 +26320,575 @@ window.SF = window.SF || {};
          qué saber que existe la importación de actas.
        · Si a un rol le queda una sola pestaña, no se pinta la barra: para él
          eso no es una elección, es una pantalla. */
+  /* ===================== VÍDEO Y CORTES =====================
+     La pantalla de trabajo con el metraje del club.
+
+     TRES DECISIONES QUE EXPLICAN LA PANTALLA:
+
+     1. EL CORTE SE MARCA CON EL VÍDEO CORRIENDO. Pedirle a alguien que
+        escriba "1:07:04" mientras ve un partido es pedirle que no lo use. Se
+        le pregunta al reproductor por qué segundo va. Para eso hace falta la
+        IFrame API de YouTube; si no carga -sin red, o el club la bloquea- el
+        minuto se puede escribir a mano y todo lo demás sigue funcionando.
+
+     2. MODO SEGUIMIENTO. Ver un partido entero para fichar a UN chaval es el
+        caso más común en captación. Eliges jugador y dorsal una vez, y cada
+        corte que marcas cae solo en su ficha. Sin eso son cuatro clics por
+        jugada y nadie marca más de tres.
+
+     3. LA IA ORDENA, NO MIRA. Lee los cortes que ha escrito una persona y la
+        ficha deportiva. No ve el vídeo, y la pantalla lo dice donde se pulsa,
+        no en una nota al pie. */
+
+  /* El reproductor. Una sola instancia viva: dos iframes de YouTube sonando a
+     la vez en la misma pantalla es un fallo que se oye antes de verse. */
+  var YTApi = { estado: 'no', cola: [] };
+  function cargaYT(cb) {
+    if (YTApi.estado === 'si') return cb(true);
+    if (YTApi.estado === 'fallo') return cb(false);
+    YTApi.cola.push(cb);
+    if (YTApi.estado === 'cargando') return;
+    YTApi.estado = 'cargando';
+    var fin = function (ok) {
+      YTApi.estado = ok ? 'si' : 'fallo';
+      YTApi.cola.splice(0).forEach(function (f) { f(ok); });
+    };
+    if (window.YT && window.YT.Player) return fin(true);
+    var t = setTimeout(function () { fin(false); }, 6000);
+    window.onYouTubeIframeAPIReady = function () { clearTimeout(t); fin(true); };
+    var sc = document.createElement('script');
+    sc.src = 'https://www.youtube.com/iframe_api';
+    sc.onerror = function () { clearTimeout(t); fin(false); };
+    document.head.appendChild(sc);
+  }
+
+  /* Envuelve el iframe y esconde si hay API o no: quien llama pide el segundo
+     actual y recibe un número o null, y con null se pregunta a la persona. */
+  function Reproductor(caja, url, alArrancar) {
+    var self = this, inf = SF.videoInfo(url) || {};
+    this.url = url; this.yt = null; this.esYT = inf.fuente === 'YouTube';
+    caja.innerHTML = '';
+    var src = SF.videoEmbed(url, SF.videoDesdeURL(url) || 0, false);
+    if (!src) {
+      caja.appendChild(el('<div class="empty-panel"><p>Este enlace no se puede reproducir aquí. ' +
+        'Funciona con YouTube y Vimeo; con Google Drive u otro enlace, se abre fuera.</p></div>'));
+      this.roto = true; return;
+    }
+    var marco = el('<div class="vid-frame"><div id="ytslot"></div></div>');
+    caja.appendChild(marco);
+    if (!this.esYT) {
+      marco.innerHTML = '<iframe src="' + esc(src) + '" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+      if (alArrancar) alArrancar(false);
+      return;
+    }
+    cargaYT(function (ok) {
+      if (!document.body.contains(marco)) return;
+      if (!ok) {
+        marco.innerHTML = '<iframe src="' + esc(src) + '" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        if (alArrancar) alArrancar(false);
+        return;
+      }
+      try {
+        self.yt = new window.YT.Player(marco.querySelector('#ytslot'), {
+          videoId: inf.id, host: 'https://www.youtube-nocookie.com',
+          playerVars: { rel: 0, modestbranding: 1, start: SF.videoDesdeURL(url) || 0 },
+          events: { onReady: function () { if (alArrancar) alArrancar(true); } }
+        });
+      } catch (e) {
+        marco.innerHTML = '<iframe src="' + esc(src) + '" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe>';
+        if (alArrancar) alArrancar(false);
+      }
+    });
+  }
+  Reproductor.prototype.segundo = function () {
+    try { if (this.yt && this.yt.getCurrentTime) return Math.floor(this.yt.getCurrentTime()); } catch (e) {}
+    return null;
+  };
+  Reproductor.prototype.saltar = function (seg) {
+    try {
+      if (this.yt && this.yt.seekTo) { this.yt.seekTo(seg, true); this.yt.playVideo(); return true; }
+    } catch (e) {}
+    return false;
+  };
+  Reproductor.prototype.pausa = function () {
+    try { if (this.yt && this.yt.pauseVideo) this.yt.pauseVideo(); } catch (e) {}
+  };
+
+  function corteTresHTML(c) {
+    var t = SF.corteTres(c);
+    if (!t.length) return '';
+    return '<span class="ctres-v">' + t.map(function (x) {
+      return '<span><b>' + esc(x[0]) + '</b>' + esc(x[1]) + '</span>';
+    }).join('') + '</span>';
+  }
+
+  pages.video = function (view) {
+    var r = role();
+    var yo = SF.store.staffMe();
+    /* Quién firma los cortes. Si quien entra no tiene ficha de staff -un
+       director que no se ha dado de alta a sí mismo- se firma con el nombre
+       del rol: peor que un nombre, pero infinitamente mejor que en blanco. */
+    var me = { name: (yo && yo.full_name) || SF.store.currentUser().name, staff_id: yo ? yo.id : null };
+    var misEq = misEquipos(yo).map(function (t) { return t.id; });
+    var puedeEditar = r.segments === 'all' || (r.nav || []).indexOf('video') >= 0;
+    var lista = SF.store.videotecaVisible(r, misEq);
+
+    view.innerHTML = head('Vídeo y cortes',
+      'El metraje del club, minutado. Marca lo que importa de un partido y queda en la ficha del jugador.');
+
+    /* ---- LA GUÍA. Se pliega sola cuando ya hay metraje: quien lleva veinte
+       vídeos no necesita que le expliquen qué es un corte, y un cartel que no
+       se puede quitar acaba siendo parte del ruido. ---- */
+    var primeraVez = !lista.length;
+    var guia = el('<div class="card vguia"></div>');
+    var gcab = el('<div class="row-b"><p class="sec-label" style="margin:0">Cómo funciona esto</p></div>');
+    var gtog = el('<button class="lnk">' + (primeraVez ? 'ocultar' : 'ver los 3 pasos') + '</button>');
+    gcab.appendChild(gtog); guia.appendChild(gcab);
+    var gcuerpo = el('<div style="display:' + (primeraVez ? '' : 'none') + '">' +
+      '<div class="vpasos">' +
+      '<div class="vpaso"><span class="vnum">1</span><div><b>Trae el vídeo</b>' +
+        '<p class="hint">Pega el enlace de YouTube o Vimeo del partido. No se sube ningún archivo ni ocupa sitio: ' +
+        'el vídeo se queda donde está y el club solo guarda el enlace.</p></div></div>' +
+      '<div class="vpaso"><span class="vnum">2</span><div><b>Marca lo que importa</b>' +
+        '<p class="hint">Con el vídeo corriendo, pulsa <b>Marcar corte</b> en la jugada. Coge el minuto solo. ' +
+        'Le pones un título, a qué jugador es y qué se ve. Eso es un corte.</p></div></div>' +
+      '<div class="vpaso"><span class="vnum">3</span><div><b>Queda en su ficha</b>' +
+        '<p class="hint">Cada corte aparece en la pestaña Vídeos del jugador, y desde ahí se salta al minuto exacto. ' +
+        'Cuando tengas varios, la IA te los ordena en un informe.</p></div></div>' +
+      '</div>');
+    guia.appendChild(gcuerpo);
+    /* ESTO NO SE PLIEGA CON LA GUÍA, a propósito.
+       Estaba dentro del acordeón y se escondía en cuanto había un vídeo, que
+       es exactamente cuando empieza a importar: quien lleva veinte cortes es
+       quien va a pulsar el informe. Lo que la herramienta NO hace no puede
+       depender de que alguien despliegue un panel. */
+    guia.appendChild(el('<p class="hint vhonesto"><b>Lo que la IA hace y lo que no.</b> Lee <b>los cortes que has ' +
+      'escrito tú</b> y la ficha deportiva del jugador, y con eso redacta un informe: lo que se repite, en qué ' +
+      'insistir, el trabajo de la semana. <b>No ve el vídeo</b> —nadie puede analizar las imágenes de un YouTube ' +
+      'incrustado— así que aquí no verás notas sobre 100 ni estadísticas de posesión: serían inventadas, y sobre ' +
+      'un chaval de quince años eso no es un adorno de pantalla.</p>'));
+    gtog.onclick = function () {
+      var abierto = gcuerpo.style.display !== 'none';
+      gcuerpo.style.display = abierto ? 'none' : '';
+      gtog.textContent = abierto ? 'ver los 3 pasos' : 'ocultar';
+    };
+    view.appendChild(guia);
+
+    /* ---- Traer un vídeo ---- */
+    if (puedeEditar) {
+      var alta = el('<div class="card"><p class="sec-label">Traer un vídeo</p>' +
+        '<p class="hint">Pega el enlace y ponle nombre. Si el enlace ya lleva un minuto dentro (?t=114), se respeta.</p></div>');
+      var fa = el('<div class="valta">' +
+        '<input id="vu" placeholder="https://www.youtube.com/watch?v=…">' +
+        '<input id="vt" placeholder="Título: Jornada 4 · CBJA vs Real Madrid">' +
+        '</div>');
+      var fa2 = el('<div class="valta valta-2">' +
+        '<select id="vtipo">' + Object.keys(SF.VIDEO_TIPOS).map(function (k) {
+          return '<option value="' + k + '">' + SF.VIDEO_TIPOS[k].label + '</option>'; }).join('') + '</select>' +
+        '<input id="vf" type="date" value="' + SF.hoyISO() + '">' +
+        '<select id="veq"><option value="">— Sin equipo concreto —</option>' +
+          SF.store.teams().map(function (t) { return '<option value="' + t.id + '">' + esc(t.name) + '</option>'; }).join('') +
+        '</select>' +
+        '<input id="vr" placeholder="Rival (opcional)">' +
+        '</div>');
+      var bAlta = el('<button class="btn btn-primary">' + ico('plus') + 'Añadir a la videoteca</button>');
+      bAlta.onclick = function () {
+        var u = fa.querySelector('#vu').value.trim();
+        if (!u) { U.toast('Pega el enlace del vídeo'); return; }
+        var inf = SF.videoInfo(u);
+        if (!inf || !inf.embed) {
+          if (!confirm('Ese enlace no se puede reproducir dentro de ScoutFlow (funciona YouTube y Vimeo).\n\n' +
+            'Se guardará, pero habrá que abrirlo fuera y no se podrán marcar cortes. ¿Lo añado igual?')) return;
+        }
+        var t = fa.querySelector('#vt').value.trim();
+        var v = SF.store.videoSave({
+          url: u, titulo: t || 'Vídeo sin título', tipo: fa2.querySelector('#vtipo').value,
+          fecha: fa2.querySelector('#vf').value, team_id: fa2.querySelector('#veq').value,
+          rival: fa2.querySelector('#vr').value.trim()
+        }, me);
+        U.toast('Vídeo añadido. Ábrelo y marca el primer corte.');
+        SF._videoAbierto = v.id;
+        SF.router.render();
+      };
+      alta.appendChild(fa); alta.appendChild(fa2); alta.appendChild(bAlta);
+      view.appendChild(alta);
+    }
+
+    if (!lista.length) {
+      view.appendChild(el('<div class="empty-panel"><div class="em-ic">' + ico('camera') + '</div>' +
+        '<h3>La videoteca está vacía</h3><p>' +
+        (puedeEditar ? 'Pega arriba el enlace de un partido y empieza por ahí. Con un vídeo y tres cortes ya se ve para qué sirve.'
+                     : 'Todavía no hay metraje para tus equipos.') +
+        '</p></div>'));
+      return;
+    }
+
+    /* ---- Filtros: los mismos de siempre, por tipo y por equipo ---- */
+    var filtro = { tipo: '', equipo: '', texto: '' };
+    var barra = el('<div class="row-c vfiltros"></div>');
+    var fTipo = el('<select><option value="">Todos los tipos</option>' +
+      Object.keys(SF.VIDEO_TIPOS).map(function (k) {
+        return '<option value="' + k + '">' + SF.VIDEO_TIPOS[k].label + '</option>'; }).join('') + '</select>');
+    var eqs = {}; lista.forEach(function (v) { if (v.team_id) eqs[v.team_id] = 1; });
+    var fEq = el('<select><option value="">Todos los equipos</option>' +
+      Object.keys(eqs).map(function (id) {
+        return '<option value="' + id + '">' + esc((SF.store.teamGet(id) || {}).name || id) + '</option>'; }).join('') + '</select>');
+    var fTxt = el('<input placeholder="Buscar por título, rival o competición…">');
+    barra.appendChild(fTipo); barra.appendChild(fEq); barra.appendChild(fTxt);
+    view.appendChild(barra);
+
+    var cuerpo = el('<div class="vsplit"></div>');
+    var izq = el('<div class="vmain"></div>');
+    var der = el('<div class="vlado"></div>');
+    cuerpo.appendChild(izq); cuerpo.appendChild(der);
+    view.appendChild(cuerpo);
+
+    var abierto = SF._videoAbierto || (lista[0] && lista[0].id);
+    SF._videoAbierto = null;
+    var repro = null, seguir = { player_id: '', dorsal: '' }, hayApi = false, ultimoCuarto = '';
+    var fCorte = { cuarto: '', etiqueta: '' };
+
+    function filtrada() {
+      var q = SF.norm(filtro.texto).trim();
+      return lista.filter(function (v) {
+        if (filtro.tipo && v.tipo !== filtro.tipo) return false;
+        if (filtro.equipo && v.team_id !== filtro.equipo) return false;
+        if (q) {
+          var hay = SF.norm([v.titulo, v.rival, v.competicion,
+            (SF.store.teamGet(v.team_id) || {}).name].filter(Boolean).join(' '));
+          if (hay.indexOf(q) < 0) return false;
+        }
+        return true;
+      });
+    }
+
+    fTipo.onchange = function () { filtro.tipo = fTipo.value; pintaLado(); };
+    fEq.onchange = function () { filtro.equipo = fEq.value; pintaLado(); };
+    var tmr = null;
+    fTxt.oninput = function () { clearTimeout(tmr); tmr = setTimeout(function () { filtro.texto = fTxt.value; pintaLado(); }, 200); };
+
+    /* ---- La videoteca, a la derecha ---- */
+    function pintaLado() {
+      der.innerHTML = '';
+      var fl = filtrada();
+      der.appendChild(el('<p class="sec-label">Videoteca <span class="count-inline">' + fl.length +
+        ' de ' + lista.length + '</span></p>'));
+      if (!fl.length) { der.appendChild(el('<p class="hint">Nada con esos filtros.</p>')); return; }
+      fl.forEach(function (v) {
+        var inf = SF.videoInfo(v.url) || {};
+        var tp = SF.VIDEO_TIPOS[v.tipo] || { label: v.tipo || '—', color: 'gray' };
+        var nC = (v.cortes || []).length;
+        var card = el('<div class="vitem' + (v.id === abierto ? ' on' : '') + '">' +
+          '<div class="vit-th">' + (inf.miniatura ? '<img src="' + esc(inf.miniatura) + '" alt="">'
+            : '<span class="vid-src">' + esc(inf.fuente || 'Enlace') + '</span>') + '</div>' +
+          '<div class="vit-b"><p class="vit-t">' + esc(v.titulo || 'Sin título') + '</p>' +
+          '<p class="vit-m"><span class="tag tag-' + tp.color + '">' + esc(tp.label) + '</span> ' +
+          (v.fecha ? fmtDate(v.fecha) : '') + (v.rival ? ' · ' + esc(v.rival) : '') + '</p>' +
+          '<p class="vit-c">' + (nC ? nC + (nC === 1 ? ' corte' : ' cortes') : 'sin cortes todavía') + '</p></div></div>');
+        card.onclick = function () { abierto = v.id; pintaLado(); pintaMain(); };
+        der.appendChild(card);
+      });
+    }
+
+    /* ---- El reproductor y los cortes, a la izquierda ---- */
+    function pintaMain() {
+      izq.innerHTML = '';
+      var v = SF.store.videoGet(abierto);
+      if (!v) { izq.appendChild(el('<p class="hint">Elige un vídeo de la videoteca.</p>')); return; }
+      var inf = SF.videoInfo(v.url) || {};
+      var tp = SF.VIDEO_TIPOS[v.tipo] || { label: v.tipo || '—', color: 'gray' };
+
+      var cab = el('<div class="row-b vcab"><div><h3 style="margin:0">' + esc(v.titulo || 'Sin título') + '</h3>' +
+        '<p class="hint"><span class="tag tag-' + tp.color + '">' + esc(tp.label) + '</span> ' +
+        (v.fecha ? fmtDate(v.fecha) : '') + (v.rival ? ' · ' + esc(v.rival) : '') +
+        (v.team_id ? ' · ' + esc((SF.store.teamGet(v.team_id) || {}).name || '') : '') +
+        ' · ' + esc(inf.fuente || '') + (v.por ? ' · lo trajo ' + esc(v.por) : '') + '</p></div></div>');
+      var acc = el('<div class="row-c"></div>');
+      var bFuera = el('<a class="btn btn-light btn-sm" target="_blank" rel="noopener noreferrer" href="' +
+        esc(SF.videoEnlaceEn(v.url, 0)) + '">' + ico('arrow') + 'Abrir fuera</a>');
+      acc.appendChild(bFuera);
+      if (puedeEditar) {
+        var bEd = el('<button class="btn btn-light btn-sm">' + ico('edit') + 'Editar</button>');
+        bEd.onclick = function () { editaVideo(v); };
+        var bDel = el('<button class="btn btn-light btn-sm">' + ico('trash') + '</button>');
+        bDel.onclick = function () {
+          var n = (v.cortes || []).length;
+          if (!confirm('¿Quitar "' + (v.titulo || 'este vídeo') + '" de la videoteca?' +
+            (n ? '\n\nSe pierden sus ' + n + (n === 1 ? ' corte' : ' cortes') + ' y desaparecen de las fichas.' : ''))) return;
+          SF.store.videoQuitar(v.id); abierto = null; U.toast('Vídeo quitado'); SF.router.render();
+        };
+        acc.appendChild(bEd); acc.appendChild(bDel);
+      }
+      cab.appendChild(acc);
+      izq.appendChild(cab);
+
+      var caja = el('<div></div>'); izq.appendChild(caja);
+      repro = new Reproductor(caja, v.url, function (conApi) {
+        hayApi = conApi;
+        var av = izq.querySelector('.vapi');
+        if (av) av.style.display = conApi ? 'none' : '';
+      });
+
+      if (!puedeEditar) { pintaCortes(v); return; }
+
+      /* --- La barra de marcar --- */
+      var barraM = el('<div class="vmarca"></div>');
+      var bMarcar = el('<button class="btn btn-primary">' + ico('plus') + 'Marcar corte aquí</button>');
+      bMarcar.onclick = function () {
+        var seg = repro ? repro.segundo() : null;
+        if (repro) repro.pausa();
+        nuevoCorte(v, seg);
+      };
+      barraM.appendChild(bMarcar);
+
+      /* Modo seguimiento: la idea buena de "seguir a un jugador" hecha por
+         quien ve el partido. Eliges una vez y dejas de elegir. */
+      var segCaja = el('<div class="vseg"></div>');
+      var jugOpts = '<option value="">— Marcar sin jugador fijo —</option>' +
+        scopedPlayers().slice().sort(function (a, b) { return (a.full_name || '').localeCompare(b.full_name || ''); })
+          .map(function (p) {
+            return '<option value="' + p.id + '"' + (seguir.player_id === p.id ? ' selected' : '') + '>' +
+              esc(p.full_name) + (p.dorsal ? ' · #' + esc(p.dorsal) : '') + '</option>'; }).join('');
+      var selJ = el('<select title="Todo lo que marques se le asigna a este jugador">' + jugOpts + '</select>');
+      var inpD = el('<input class="vdor" placeholder="Dorsal" value="' + esc(seguir.dorsal) + '">');
+      selJ.onchange = function () {
+        seguir.player_id = selJ.value;
+        var pj = seguir.player_id ? SF.store.get(seguir.player_id) : null;
+        if (pj && pj.dorsal && !inpD.value) inpD.value = pj.dorsal;
+        seguir.dorsal = inpD.value;
+        pintaSegAviso();
+      };
+      inpD.oninput = function () { seguir.dorsal = inpD.value; };
+      segCaja.appendChild(el('<span class="hint">Siguiendo a:</span>'));
+      segCaja.appendChild(selJ); segCaja.appendChild(inpD);
+      barraM.appendChild(segCaja);
+      izq.appendChild(barraM);
+
+      var segAviso = el('<p class="hint vsegav"></p>');
+      izq.appendChild(segAviso);
+      function pintaSegAviso() {
+        var pj = seguir.player_id ? SF.store.get(seguir.player_id) : null;
+        segAviso.innerHTML = pj
+          ? 'Cada corte que marques se guarda en la ficha de <b>' + esc(pj.full_name) + '</b> sin preguntarte. ' +
+            'Para dejar de seguirle, vuelve a «marcar sin jugador fijo».'
+          : 'Elige un jugador si vas a ver el partido siguiéndole a él: te ahorra elegirlo en cada corte.';
+      }
+      pintaSegAviso();
+
+      izq.appendChild(el('<p class="hint vapi" style="display:none">El reproductor avanzado no ha cargado ' +
+        '(puede ser la red del club). Se puede seguir marcando cortes, pero habrá que escribir el minuto a mano.</p>'));
+
+      pintaCortes(v);
+    }
+
+    /* ---- La lista de cortes + el informe ---- */
+    function pintaCortes(v) {
+      var vieja = izq.querySelector('.vcortes'); if (vieja) vieja.remove();
+      var cont = el('<div class="vcortes"></div>');
+      var cortes = (v.cortes || []).slice().sort(function (a, b) { return (+a.t || 0) - (+b.t || 0); });
+
+      /* Filtros de los cortes. Con doce jugadas de un partido, "enséñame lo
+         del último cuarto" es la pregunta que se hace de verdad. */
+      var visibles = cortes.filter(function (c) {
+        if (fCorte.cuarto && (c.cuarto || '') !== fCorte.cuarto) return false;
+        if (fCorte.etiqueta && (c.etiqueta || '') !== fCorte.etiqueta) return false;
+        return true;
+      });
+      var cab = el('<div class="row-b"><p class="sec-label" style="margin:0">Cortes <span class="count-inline">' +
+        (visibles.length === cortes.length ? cortes.length : visibles.length + ' de ' + cortes.length) +
+        '</span></p></div>');
+      if (cortes.length >= 2) {
+        var bIA = el('<button class="btn btn-light btn-sm">' + ico('ai') + 'Informe con IA</button>');
+        bIA.onclick = function () { informeVideoIA(v); };
+        cab.appendChild(bIA);
+      }
+      cont.appendChild(cab);
+
+      if (cortes.length > 2) {
+        var chips = el('<div class="row-c vchips"></div>');
+        var cus = {}; cortes.forEach(function (c) { if (c.cuarto) cus[c.cuarto] = (cus[c.cuarto] || 0) + 1; });
+        var ets = {}; cortes.forEach(function (c) { if (c.etiqueta) ets[c.etiqueta] = (ets[c.etiqueta] || 0) + 1; });
+        function chip(txt, activo, alPulsar) {
+          var b = el('<button class="eq-chip eq-chip-sm' + (activo ? ' on' : '') + '" type="button">' + esc(txt) + '</button>');
+          b.onclick = alPulsar; chips.appendChild(b);
+        }
+        if (Object.keys(cus).length || Object.keys(ets).length) {
+          chip('Todos', !fCorte.cuarto && !fCorte.etiqueta, function () {
+            fCorte.cuarto = ''; fCorte.etiqueta = ''; pintaCortes(v); });
+          SF.CORTE_CUARTOS.forEach(function (q) {
+            if (!cus[q]) return;
+            chip(q + ' · ' + cus[q], fCorte.cuarto === q, function () {
+              fCorte.cuarto = (fCorte.cuarto === q ? '' : q); pintaCortes(v); });
+          });
+          Object.keys(ets).sort().forEach(function (e) {
+            chip(e + ' · ' + ets[e], fCorte.etiqueta === e, function () {
+              fCorte.etiqueta = (fCorte.etiqueta === e ? '' : e); pintaCortes(v); });
+          });
+          cont.appendChild(chips);
+        }
+      }
+
+      if (!cortes.length) {
+        cont.appendChild(el('<div class="empty-panel"><p><b>Ningún corte todavía.</b><br>' +
+          'Dale al play, y cuando pase algo que quieras enseñar —una buena decisión, un error que se repite, ' +
+          'un bloqueo bien leído— pulsa <b>Marcar corte aquí</b>. No hace falta que sea perfecto: ' +
+          'el minuto se puede corregir después.</p></div>'));
+      }
+      if (cortes.length && !visibles.length) {
+        cont.appendChild(el('<p class="hint">Ningún corte con ese filtro.</p>'));
+      }
+      visibles.forEach(function (c) {
+        var pj = c.player_id ? SF.store.get(c.player_id) : null;
+        var row = el('<div class="mini-row mr-wrap vcorte">' +
+          '<span><button class="vtime">' + SF.videoTiempo(c.t) + '</button> ' +
+          (c.cuarto ? '<span class="tag tag-gray">' + esc(c.cuarto) + '</span> ' : '') +
+          '<b>' + esc(c.titulo || 'Corte') + '</b>' +
+          (c.signo ? ' <span class="tag tag-' + (c.signo === 'bien' ? 'green' : c.signo === 'mejora' ? 'warn' : 'gray') +
+            '">' + esc(SF.CORTE_SIGNOS[c.signo] || '') + '</span>' : '') +
+          (c.etiqueta ? ' <span class="tag tag-gray">' + esc(c.etiqueta) + '</span>' : '') +
+          (pj ? ' · <span class="hint">' + esc(pj.full_name) + (c.dorsal ? ' #' + esc(c.dorsal) : '') + '</span>' : '') +
+          corteTresHTML(c) +
+          (c.nota ? '<span class="vnota">' + esc(c.nota) + '</span>' : '') +
+          '<br><span class="hint vfirma">' + esc(c.por || '—') +
+          (c.at ? ' · ' + fmtDate(c.at.slice(0, 10)) : '') + '</span></span>' +
+          '<span class="row-actions"></span></div>');
+        row.querySelector('.vtime').onclick = function () {
+          if (repro && repro.saltar(c.t)) return;
+          window.open(SF.videoEnlaceEn(v.url, c.t), '_blank', 'noopener');
+        };
+        var ac = row.querySelector('.row-actions');
+        if (puedeEditar) {
+          var be = el('<button class="lnk">editar</button>');
+          be.onclick = function () { nuevoCorte(v, c.t, c); };
+          var bx = el('<button class="lnk-del">' + ico('x') + '</button>');
+          bx.onclick = function () {
+            if (!confirm('¿Quitar este corte?')) return;
+            SF.store.corteQuitar(v.id, c.id);
+            pintaCortes(SF.store.videoGet(v.id)); pintaLado();
+            U.toast('Corte quitado');
+          };
+          ac.appendChild(be); ac.appendChild(bx);
+        }
+        cont.appendChild(row);
+      });
+      izq.appendChild(cont);
+    }
+
+    /* ---- Crear o editar un corte ---- */
+    function nuevoCorte(v, seg, corte) {
+      corte = corte || null;
+      var tIni = corte ? corte.t : (seg == null ? null : seg);
+      var pjFijo = corte ? corte.player_id : seguir.player_id;
+      var dorFijo = corte ? (corte.dorsal || '') : seguir.dorsal;
+
+      var jugOpts = '<option value="">— Sin jugador concreto —</option>' +
+        scopedPlayers().slice().sort(function (a, b) { return (a.full_name || '').localeCompare(b.full_name || ''); })
+          .map(function (p) {
+            return '<option value="' + p.id + '"' + (pjFijo === p.id ? ' selected' : '') + '>' +
+              esc(p.full_name) + '</option>'; }).join('');
+      var etOpts = '<option value="">— Sin etiqueta —</option>' + SF.CORTE_ETIQUETAS.map(function (e) {
+        return '<option' + (corte && corte.etiqueta === e ? ' selected' : '') + '>' + esc(e) + '</option>'; }).join('');
+      /* El cuarto se hereda del último corte marcado: en un partido se va en
+         orden, así que acertar la primera vez ahorra elegirlo siempre. */
+      var cuDef = corte ? (corte.cuarto || '') : (ultimoCuarto || '');
+      var cuOpts = '<option value="">— Sin cuarto —</option>' + SF.CORTE_CUARTOS.map(function (q) {
+        return '<option' + (cuDef === q ? ' selected' : '') + '>' + esc(q) + '</option>'; }).join('');
+      var sgOpts = '<option value="">— Sin marcar —</option>' + Object.keys(SF.CORTE_SIGNOS).map(function (k) {
+        return '<option value="' + k + '"' + (corte && corte.signo === k ? ' selected' : '') + '>' +
+          esc(SF.CORTE_SIGNOS[k]) + '</option>'; }).join('');
+
+      var f = el('<div class="form-grid">' +
+        '<div class="frow"><label>Minuto del vídeo</label>' +
+          '<input id="ct" value="' + (tIni == null ? '' : SF.videoTiempo(tIni)) + '" placeholder="1:07:04">' +
+          '<p class="hint">' + (tIni == null
+            ? 'El reproductor no ha podido decirme por dónde vas: escríbelo como <b>minutos:segundos</b>.'
+            : 'Cogido del reproductor. Se puede corregir.') + '</p></div>' +
+        '<div class="frow"><label>Qué pasa aquí</label>' +
+          '<input id="cn" value="' + esc(corte ? (corte.titulo || '') : '') + '" placeholder="Bloqueo directo, lee bien la ayuda"></div>' +
+        '<div class="frow"><label>Jugador</label><select id="cp">' + jugOpts + '</select></div>' +
+        '<div class="frow"><label>Dorsal</label><input id="cd" value="' + esc(dorFijo || '') + '" placeholder="4"></div>' +
+        '<div class="frow"><label>Etiqueta</label><select id="ce">' + etOpts + '</select></div>' +
+        '<div class="frow"><label>Cuarto</label><select id="cq">' + cuOpts + '</select></div>' +
+        '<div class="frow"><label>¿Qué es?</label><select id="cs">' + sgOpts + '</select>' +
+          '<p class="hint">Si se lo enseñas para repetirlo o para cambiarlo.</p></div>' +
+        /* LOS TRES CAMPOS. Es la mejor idea de las que se vieron por ahí, y es
+           buena por un motivo que no tiene que ver con la IA: a un entrenador
+           con la casilla "sin balón" delante se le ocurre mirar el movimiento
+           sin balón. Una caja de texto vacía no le pregunta nada. */
+        '<div class="frow" style="grid-column:1/-1"><label>Lo que pasa, por partes <span class="hint">(opcional)</span></label>' +
+          '<div class="ctres">' +
+          '<div><span class="ctres-t">Con balón</span><textarea id="c1" rows="2" placeholder="Qué hace cuando lo tiene.">' +
+            esc(corte ? (corte.con_balon || '') : '') + '</textarea></div>' +
+          '<div><span class="ctres-t">Sin balón</span><textarea id="c2" rows="2" placeholder="Cómo se mueve, cómo defiende, qué lee.">' +
+            esc(corte ? (corte.sin_balon || '') : '') + '</textarea></div>' +
+          '<div><span class="ctres-t">Resultado</span><textarea id="c3" rows="2" placeholder="En qué acabó la jugada.">' +
+            esc(corte ? (corte.resultado || '') : '') + '</textarea></div>' +
+          '</div>' +
+          '<p class="hint">No hace falta rellenar los tres. Están para que no se te olvide mirar el movimiento ' +
+          '<b>sin balón</b>, que es lo que más se pasa por alto en formación.</p></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Nota para el jugador o el cuerpo técnico</label>' +
+          '<textarea id="cx" rows="2" placeholder="Qué hay que ver, y qué haría falta la próxima vez.">' +
+          esc(corte ? (corte.nota || '') : '') + '</textarea>' +
+          '<p class="hint">Esto es lo que luego lee la IA para escribir el informe, y lo que el chaval entiende ' +
+          'dentro de tres semanas. Una frase concreta vale más que cinco genéricas.</p></div>' +
+        '</div>');
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+        '<button class="btn btn-primary">' + (corte ? 'Guardar' : 'Añadir corte') + '</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        var t = SF.videoSegundos(f.querySelector('#ct').value);
+        if (t == null) { U.toast('Pon el minuto, por ejemplo 12:30'); return; }
+        var tit = f.querySelector('#cn').value.trim();
+        if (!tit) { U.toast('Ponle un título al corte: en tres semanas «Corte 4» no dice nada'); return; }
+        ultimoCuarto = f.querySelector('#cq').value;
+        SF.store.corteSave(v.id, {
+          id: corte ? corte.id : undefined, t: t, titulo: tit,
+          player_id: f.querySelector('#cp').value, dorsal: f.querySelector('#cd').value.trim(),
+          etiqueta: f.querySelector('#ce').value, cuarto: ultimoCuarto,
+          signo: f.querySelector('#cs').value,
+          con_balon: f.querySelector('#c1').value.trim(),
+          sin_balon: f.querySelector('#c2').value.trim(),
+          resultado: f.querySelector('#c3').value.trim(),
+          nota: f.querySelector('#cx').value.trim()
+        }, me);
+        U.closeModal();
+        var pj = f.querySelector('#cp').value ? SF.store.get(f.querySelector('#cp').value) : null;
+        U.toast(pj ? 'Corte guardado en la ficha de ' + pj.full_name : 'Corte guardado');
+        pintaCortes(SF.store.videoGet(v.id)); pintaLado();
+      };
+      var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
+      U.modal(corte ? 'Editar corte' : 'Marcar corte', w);
+    }
+
+    function editaVideo(v) {
+      var f = el('<div class="form-grid">' +
+        '<div class="frow" style="grid-column:1/-1"><label>Enlace</label><input id="eu" value="' + esc(v.url) + '"></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Título</label><input id="et" value="' + esc(v.titulo || '') + '"></div>' +
+        '<div class="frow"><label>Tipo</label><select id="ep">' + Object.keys(SF.VIDEO_TIPOS).map(function (k) {
+          return '<option value="' + k + '"' + (v.tipo === k ? ' selected' : '') + '>' + SF.VIDEO_TIPOS[k].label + '</option>'; }).join('') + '</select></div>' +
+        '<div class="frow"><label>Fecha</label><input id="ef" type="date" value="' + esc(v.fecha || '') + '"></div>' +
+        '<div class="frow"><label>Equipo</label><select id="ee"><option value="">— Sin equipo concreto —</option>' +
+          SF.store.teams().map(function (t) { return '<option value="' + t.id + '"' + (v.team_id === t.id ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') +
+          '</select></div>' +
+        '<div class="frow"><label>Rival</label><input id="er" value="' + esc(v.rival || '') + '"></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Competición</label><input id="ec" value="' + esc(v.competicion || '') + '" placeholder="Liga Cadete FBM"></div>' +
+        '</div>');
+      var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
+      foot.children[0].onclick = U.closeModal;
+      foot.children[1].onclick = function () {
+        SF.store.videoSave({ id: v.id, url: f.querySelector('#eu').value.trim(),
+          titulo: f.querySelector('#et').value.trim(), tipo: f.querySelector('#ep').value,
+          fecha: f.querySelector('#ef').value, team_id: f.querySelector('#ee').value,
+          rival: f.querySelector('#er').value.trim(), competicion: f.querySelector('#ec').value.trim() }, me);
+        U.closeModal(); U.toast('Vídeo guardado'); SF._videoAbierto = v.id; SF.router.render();
+      };
+      var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
+      U.modal('Editar vídeo', w);
+    }
+
+    pintaLado(); pintaMain();
+  };
+
   SF.SECCIONES = [
     { host: 'finanzas', titulo: 'Finanzas',
       sub: 'Lo que entra de las familias y lo que estaba previsto para la temporada.',
@@ -26013,7 +27022,7 @@ SF.router = (function () {
     ['importar', 'Importar', 'ai'],
     ['captacion', 'Captación', 'target'], ['documentos', 'Documentos', 'file'],
     ['tramites', 'Fichas e inscripciones', 'check'], ['tienda', 'Tienda', 'grid'],
-    ['informes', 'Informes', 'chart'],
+    ['informes', 'Informes', 'chart'], ['video', 'Vídeo y cortes', 'camera'],
     ['family', 'Family', 'family'], ['finanzas', 'Finanzas', 'card'], ['economia', 'Economía', 'coins'],
     ['sueldos', 'Sueldos', 'coins'], ['permisos', 'Permisos', 'shield'],
     ['config', 'Configuración', 'cog'],
@@ -26038,7 +27047,7 @@ SF.router = (function () {
   var NAV_GRUPOS = [
     { id: 'dia',      label: '',                keys: ['inicio', 'agenda', 'mi-equipo', 'jugadores', 'equipos', 'horarios', 'calendario', 'sesiones'] },
     { id: 'captacion',label: 'Captación',       keys: ['captacion', 'importar'] },
-    { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'documentos', 'tramites', 'tienda'] },
+    { id: 'segui',    label: 'Seguimiento',     keys: ['informes', 'video', 'documentos', 'tramites', 'tienda'] },
     { id: 'personas', label: 'Personas',        keys: ['staff', 'adjuntos', 'family', 'comunicados'] },
     { id: 'dinero',   label: 'Dinero',          keys: ['finanzas', 'economia', 'sueldos'] },
     { id: 'ajustes',  label: 'Ajustes',         keys: ['permisos', 'config'] },
@@ -26066,7 +27075,8 @@ SF.router = (function () {
     adjuntos: 'adjuntos',
     comunicados: 'comunicados', 'importar-datos': 'sec-importar', 'mis-avisos': 'mis-avisos',
     buscar: 'buscar', presupuesto: 'sec-finanzas', licencias: 'sec-documentos',
-    tramites: 'tramites', tienda: 'tienda', inscripcion: 'inscripcion'
+    tramites: 'tramites', tienda: 'tienda', inscripcion: 'inscripcion',
+    video: 'video'
   };
   // a qué item de nav corresponde resaltar
   var NAV_OF = { jugador: 'jugadores', equipo: 'equipos', 'portal-family': 'family', 'staff-ficha': 'staff',
