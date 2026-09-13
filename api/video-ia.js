@@ -44,8 +44,29 @@ function seg(v) {
   return n;
 }
 
-function esYouTube(url) {
-  return /^https:\/\/(www\.|m\.)?(youtube\.com\/(watch\?v=|shorts\/|embed\/)|youtu\.be\/)/i.test(String(url || ''));
+/* LA URL, LIMPIA. Esto costó un error en producción y merece quedar escrito.
+   Gemini devolvía:
+       "Unsupported MIME type: text/html; charset=utf-8" · INVALID_ARGUMENT
+   ...que no dice nada hasta que se entiende qué pasó: al no reconocer la URL
+   como YouTube, Google intentó DESCARGARLA como si fuera un archivo suelto y
+   recibió una página web.
+
+   ¿Por qué no la reconocía? Porque se le mandaba tal cual la había pegado el
+   club, y la de un partido suele venir con cosas detrás: `&t=114s` del minuto,
+   `&list=` de una lista, `?si=` de un enlace compartido desde el móvil. Con
+   eso el patrón de YouTube falla.
+
+   Así que aquí se extrae el ID de vídeo -once caracteres- y se reconstruye la
+   URL canónica. Lo que pegue el club da igual; lo que sale de aquí siempre
+   tiene la misma forma. */
+function idYouTube(url) {
+  var m = String(url || '').match(
+    /(?:youtube\.com\/(?:watch\?(?:[^#]*&)?v=|embed\/|shorts\/|live\/|v\/)|youtu\.be\/)([\w-]{11})/i);
+  return m ? m[1] : null;
+}
+function urlCanonica(url) {
+  var id = idYouTube(url);
+  return id ? 'https://www.youtube.com/watch?v=' + id : null;
 }
 
 /* Las reglas van en el system prompt Y repetidas en el user prompt, a
@@ -67,6 +88,12 @@ const REGLAS = [
   '3. No identifiques a nadie por su cara ni por su nombre. Si te dan un',
   '   dorsal, úsalo solo si LO VES en la camiseta; si no lo ves, habla del',
   '   jugador por su posición en la pista ("el base con camiseta clara").',
+  '3b. Te pueden dar pistas del club: el color de la equipación, el del rival,',
+  '   dónde está la cámara o hacia qué canasta se ataca. ÚSALAS PARA MIRAR,',
+  '   no como hechos dados: si la pista dice "camiseta roja" y en el tramo que',
+  '   ves no hay nadie de rojo, eso es lo que tienes que contestar. Fíjate en',
+  '   el color de la equipación antes que en nada: es lo único que a esta',
+  '   resolución distingue a un equipo del otro con fiabilidad.',
   '4. Son menores. Nada de juicios sobre su futuro, su techo ni comparaciones',
   '   con jugadores profesionales. Describe la jugada, no al chaval.',
   '5. Español de España, sobrio, frases cortas. Vocabulario de baloncesto de',
@@ -140,8 +167,8 @@ export default async function handler(req, res) {
   if (!key) return res.status(200).json({ ok: false, motivo: 'sin_gemini' });
 
   const b = req.body || {};
-  const url = String(b.url || '').trim();
-  if (!esYouTube(url)) return res.status(200).json({ ok: false, motivo: 'no_youtube' });
+  const url = urlCanonica(b.url);
+  if (!url) return res.status(200).json({ ok: false, motivo: 'no_youtube' });
 
   const modo = (b.modo === 'propuesta') ? 'propuesta' : 'corte';
   let desde = seg(b.desde);
@@ -154,10 +181,22 @@ export default async function handler(req, res) {
      una continuación de bloqueo directo se ve entera. */
   const fps = modo === 'corte' ? 2 : 1;
 
+  /* LAS PISTAS. A uno o dos fotogramas por segundo, y con un plano general
+     desde la grada, la diferencia entre "el chaval de rojo con el 4" y "un
+     jugador" es enorme. Estos datos los escribe el club UNA VEZ al dar de alta
+     el vídeo, no en cada corte: son del partido, no de la jugada.
+
+     Y se dicen como pistas para MIRAR, no como hechos: si el modelo no ve el
+     dorsal, tiene que decirlo, no dárselo por bueno porque se lo hemos puesto
+     en el prompt. Esa es la diferencia entre ayudarle a mirar y decirle lo que
+     tiene que encontrar. */
   const pistas = [];
+  if (b.equipacion) pistas.push('EQUIPACIÓN DE NUESTRO EQUIPO: ' + limpia(b.equipacion, 140) +
+    '. Es lo que hay que mirar para saber quiénes son los nuestros.');
+  if (b.equipacion_rival) pistas.push('Equipación del rival: ' + limpia(b.equipacion_rival, 140) + '.');
   if (b.dorsal) pistas.push('El jugador que interesa lleva el dorsal ' + limpia(b.dorsal, 6) +
-    '. Úsalo SOLO si lo ves en la camiseta.');
-  if (b.equipacion) pistas.push('Equipación del equipo propio: ' + limpia(b.equipacion, 80) + '.');
+    '. Búscalo, pero úsalo SOLO si lo ves de verdad en la camiseta; si no lo distingues, dilo.');
+  if (b.contexto) pistas.push('Contexto del vídeo que da el club: ' + limpia(b.contexto, 600));
   if (b.categoria) pistas.push('Categoría: ' + limpia(b.categoria, 60) + '. Es formación, no profesional.');
 
   const instruccion = modo === 'corte'
@@ -217,6 +256,12 @@ export default async function handler(req, res) {
        para proteger a los chavales, y Google solo acepta públicos. Merece un
        motivo propio porque la solución es distinta y no es un fallo de nadie. */
     if (/not.*public|private|unlisted|PERMISSION_DENIED|FAILED_PRECONDITION|cannot access/i.test(cuerpo)) {
+      return res.status(200).json({ ok: false, motivo: 'video_no_publico', detalle: cuerpo.slice(0, 200) });
+    }
+    /* Si aun con la URL canónica Google contesta que el MIME es text/html, es
+       que no ha podido acceder al vídeo: casi siempre porque no es público.
+       Se dice eso y no el error crudo, que no le sirve a nadie. */
+    if (/Unsupported MIME type|text\/html/i.test(cuerpo)) {
       return res.status(200).json({ ok: false, motivo: 'video_no_publico', detalle: cuerpo.slice(0, 200) });
     }
     if (/quota|RESOURCE_EXHAUSTED|rate/i.test(cuerpo)) {
