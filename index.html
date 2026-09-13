@@ -1444,6 +1444,25 @@ button.pf-ley:hover{filter:brightness(.96)}
 .plan-tot.es-corto{background:#FFF3E0;color:#8A5A12}
 .ej-pick{margin-top:10px;padding:12px;background:var(--bg);border-radius:10px}
 /* --- VÍDEO Y CORTES --- */
+/* LA CABECERA DEL MÓDULO. Un panel de color separa "el módulo" de "lo que hay
+   dentro" antes de que nadie lea el título, y las tres cifras contestan
+   "¿cuánto hay aquí?" sin contar tarjetas. */
+.vhero{background:linear-gradient(135deg,var(--purple) 0%,var(--purple-d) 100%);
+  color:#fff;border-radius:var(--r-lg);padding:20px 22px;margin-bottom:16px;
+  display:flex;gap:20px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.vhero-t h2{margin:0 0 4px;font-size:24px;letter-spacing:-.01em}
+.vhero-t p{margin:0;opacity:.85;font-size:13px;max-width:62ch;line-height:1.45}
+.vhero-n{display:flex;gap:10px;flex-wrap:wrap}
+.vhero-acc{display:flex;gap:8px;flex-wrap:wrap}
+.vhero-b{display:inline-flex;align-items:center;gap:6px;border:0;cursor:pointer;
+  background:#fff;color:var(--purple-d);border-radius:10px;padding:10px 16px;
+  font-size:13px;font-weight:600;white-space:nowrap}
+.vhero-b:hover{background:var(--bg)}
+.vhero-b svg{width:16px;height:16px}
+.vhero-n>div{background:rgba(255,255,255,.14);border-radius:10px;padding:8px 14px;text-align:center;min-width:74px}
+.vhero-n b{display:block;font-size:20px;line-height:1.1}
+.vhero-n span{font-size:11px;opacity:.85;text-transform:uppercase;letter-spacing:.04em}
+
 .vguia{margin-bottom:14px}
 .vpasos{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:10px}
 .vpaso{display:flex;gap:10px;align-items:flex-start}
@@ -1469,8 +1488,10 @@ button.pf-ley:hover{filter:brightness(.96)}
 .vitem{display:flex;gap:10px;padding:8px;border-radius:10px;cursor:pointer;border:1px solid transparent}
 .vitem:hover{background:var(--bg)}
 .vitem.on{background:var(--bg);border-color:var(--purple)}
-.vit-th{flex:0 0 78px;width:78px;height:50px;border-radius:6px;overflow:hidden;background:var(--line);
-  display:flex;align-items:center;justify-content:center}
+.vit-th{position:relative;flex:0 0 92px;width:92px;height:58px;border-radius:8px;overflow:hidden;
+  background:var(--line);display:flex;align-items:center;justify-content:center}
+.vit-n{position:absolute;right:3px;bottom:3px;background:rgba(23,19,42,.88);color:#fff;
+  border-radius:5px;padding:0 5px;font-size:10px;font-weight:700}
 .vit-th img{width:100%;height:100%;object-fit:cover}
 .vit-b{min-width:0}
 .vit-t{margin:0;font-weight:600;font-size:13px;line-height:1.25;overflow:hidden;
@@ -1482,6 +1503,55 @@ button.pf-ley:hover{filter:brightness(.96)}
 .vdor{width:80px}
 .vsegav{margin:6px 0 0}
 .vcortes{margin-top:16px}
+/* LA TIRA DE MARCAS, pegada al reproductor. Es lo que más se usa: "ponme el
+   27:00". Scroll horizontal y no wrap, para que no empuje la lista hacia
+   abajo cuando hay quince cortes. */
+.vtira{display:flex;align-items:center;gap:10px;margin-top:8px;
+  background:var(--sidebar);border-radius:10px;padding:8px 10px}
+.vtira-l{flex:0 0 auto;font-size:10px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.06em;color:var(--sb-ink-2)}
+.vtira-c{display:flex;gap:6px;overflow-x:auto;scrollbar-width:thin;padding-bottom:2px}
+.vtira-b{flex:0 0 auto;display:flex;align-items:center;gap:6px;border:0;cursor:pointer;
+  background:rgba(255,255,255,.08);color:var(--sb-ink);border-radius:8px;padding:5px 9px;
+  font-size:12px;max-width:230px;white-space:nowrap}
+.vtira-b:hover{background:var(--purple);color:#fff}
+.vtira-b b{font-variant-numeric:tabular-nums;color:#fff}
+.vtira-b i{font-style:normal;font-size:10px;opacity:.7}
+.vtira-b span{overflow:hidden;text-overflow:ellipsis}
+
+/* LOS CORTES, EN TARJETA Y A DOS COLUMNAS. En fila de lado a lado el ojo cruza
+   toda la pantalla para leer una frase; en tarjeta se lee de un vistazo y
+   caben el doble en el mismo alto. */
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:12px;margin-top:10px}
+.vcard{background:var(--surface);border:1px solid var(--line);border-left:3px solid var(--line-2);
+  border-radius:var(--r);padding:12px 14px;min-width:0}
+.vcard-ok{border-left-color:var(--ok)}
+.vcard-warn{border-left-color:var(--warn)}
+.vcard-h{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-bottom:6px}
+.vcard-sp{flex:1}
+.vcard-q{font-size:11px;font-weight:700;color:var(--ink-3)}
+.vcard-et{background:var(--bg);border-radius:6px;padding:2px 7px;font-size:11px;color:var(--ink-2)}
+.vcard-t{margin:0 0 6px;font-weight:600;line-height:1.3}
+.vcard-f{display:flex;align-items:center;justify-content:space-between;gap:8px;
+  margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.vcard-f .row-actions{margin:0;flex:0 0 auto}
+.vcard .ctres-v{grid-template-columns:1fr 1fr 1fr;gap:6px}
+.vcard .ctres-v>span{padding:5px 7px;font-size:11px}
+.vcard .vnota{display:block;margin:8px 0 0}
+.jpick{position:relative;min-width:230px;flex:1}
+.jpick-in{width:100%}
+.jpick-sel{display:flex;align-items:center;gap:8px;justify-content:space-between;
+  background:var(--bg);border:1px solid var(--line-2);border-radius:10px;padding:8px 10px;font-size:13px}
+.jpick-sel .hint{font-size:11px}
+.jpick-res{position:absolute;z-index:30;left:0;right:0;top:100%;margin-top:4px;background:var(--surface);
+  border:1px solid var(--line-2);border-radius:10px;box-shadow:0 10px 28px rgba(31,36,48,.14);
+  max-height:min(46vh,300px);overflow:auto;padding:4px}
+.jpick-it{display:block;width:100%;text-align:left;border:0;background:none;cursor:pointer;
+  padding:7px 9px;border-radius:8px;font-size:13px;color:var(--ink)}
+.jpick-it:hover{background:var(--bg)}
+.jpick-it .hint{display:block;font-size:11px;margin-top:1px}
+.jpick-d{display:inline-block;background:var(--purple);color:#fff;border-radius:5px;
+  padding:0 5px;font-size:11px;font-weight:700;margin-left:4px}
 .vchips{margin:8px 0 4px;gap:6px}
 .eq-chip.on{background:var(--purple);color:#fff;border-color:var(--purple)}
 .ctres{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px}
@@ -1509,6 +1579,15 @@ button.pf-ley:hover{filter:brightness(.96)}
   .vseg{width:100%}
   .vseg select{flex:1}
   .ctres,.ctres-v{grid-template-columns:1fr}
+  .jpick{width:100%;min-width:0}
+  .vgrid{grid-template-columns:1fr}
+  .vhero{padding:16px;gap:14px}
+  .vhero-t h2{font-size:20px}
+  .vhero-n{width:100%}
+  .vhero-n>div{flex:1}
+  /* En móvil los tres campos en columna dentro de la tarjeta se hacen muy
+     altos: en tira de tres, cortos, se sigue leyendo y no se pierde el corte. */
+  .vcard .ctres-v{grid-template-columns:1fr;gap:4px}
 }
 .ej-pick input{margin-bottom:8px}
 .ej-pick-res{max-height:38vh;overflow:auto}
@@ -1710,6 +1789,17 @@ SF.CONSENTIMIENTOS = [
     texto: 'Autorizo que se publiquen fotografías y vídeos en los que aparezca, en las redes sociales del club, su web y notas de prensa, siempre en el contexto de la actividad deportiva.',
     obligatorio: false,
     nota: 'Se puede decir que NO y seguir adelante sin ningún problema. Si dice que no, el club no publicará su imagen.' },
+  /* ANÁLISIS DE VÍDEO CON IA. Consentimiento PROPIO y no el de imagen, aunque
+     tenga pinta de lo mismo. El de imagen cubre PUBLICAR una foto; este cubre
+     MANDAR imágenes del chaval a una empresa de fuera para que las procese.
+     Son finalidades distintas, y el RGPD no deja reutilizar un consentimiento
+     para una finalidad que la familia no tenía delante cuando firmó.
+     Se dice CON QUIÉN, porque "con IA" no informa de nada. */
+  { k: 'ia_video', titulo: 'Análisis de vídeo con inteligencia artificial',
+    texto: 'Autorizo que los vídeos de partidos y entrenamientos en los que aparezca se analicen con herramientas de inteligencia artificial para uso deportivo interno del club. Para ello, fragmentos del vídeo se envían a un proveedor externo (Google) que los procesa y devuelve una descripción de lo que ocurre.',
+    obligatorio: false,
+    nota: 'Se puede decir que NO sin ninguna consecuencia: seguirá entrenando, jugando y teniendo sus informes igual. Si dice que no, el club no enviará sus vídeos a ningún analizador automático. El club nunca envía datos personales, ni económicos, ni de salud.' },
+
   { k: 'salidas', titulo: 'Desplazamientos y salidas',
     texto: 'Autorizo su participación en desplazamientos, torneos y actividades organizadas por el club fuera de las instalaciones habituales.',
     obligatorio: false },
@@ -1717,6 +1807,29 @@ SF.CONSENTIMIENTOS = [
     texto: 'Autorizo al club a solicitar atención médica urgente si fuera necesario y no se pudiera contactar con la familia en ese momento.',
     obligatorio: false }
 ];
+
+/* ¿SE PUEDE MANDAR VÍDEO DE ESTE JUGADOR A UN ANALIZADOR DE FUERA?
+   Una sola función, para que no haya dos criterios en dos pantallas.
+
+   El silencio NO es un sí. Si nadie ha contestado, la respuesta es que no:
+   un consentimiento no dado no es un consentimiento. Y por eso devuelve
+   también POR QUÉ, para poder decirlo en pantalla en vez de dejar un botón
+   gris sin explicación, que es la forma más rápida de que alguien piense que
+   la app está rota. */
+SF.puedeIAVideo = function (p) {
+  if (!p) return { ok: false, motivo: 'sin_jugador', texto: 'No hay jugador al que asociar el análisis.' };
+  var c = (p.consents || {});
+  if (c.ia_video === true) return { ok: true };
+  if (c.ia_video === false) {
+    return { ok: false, motivo: 'denegado',
+      texto: 'La familia de ' + (p.first_name || p.full_name) + ' ha dicho que NO al análisis de vídeo con IA. ' +
+             'Se puede marcar el corte a mano, como siempre.' };
+  }
+  return { ok: false, motivo: 'sin_responder',
+    texto: 'Nadie ha contestado todavía a la autorización de análisis con IA de ' +
+           (p.first_name || p.full_name) + '. Sin respuesta no se envía nada: el silencio no es un sí. ' +
+           'Se pide desde su Portal Family.' };
+};
 
 /* En España, a partir de los 14 años el menor puede consentir por sí mismo
    el tratamiento de sus datos; por debajo, firman los padres o tutores. */
@@ -21446,6 +21559,11 @@ window.SF = window.SF || {};
       { k: 'imagen_publica', label: 'Uso de imagen',
         desc: 'El club puede publicar imágenes y vídeos donde aparezca ' + esc(p.first_name || p.full_name) +
               ' en su página web, sus redes sociales y en medios de comunicación, para difundir la actividad deportiva del club.' },
+      { k: 'ia_video', label: 'Análisis de vídeo con inteligencia artificial',
+        desc: 'El club puede analizar con inteligencia artificial los vídeos de partidos donde aparece ' +
+              esc(p.first_name || p.full_name) + ', para preparar mejor los entrenamientos. Para eso, trozos del vídeo ' +
+              'se envían a una empresa de fuera (Google), que los procesa y devuelve una descripción de la jugada. ' +
+              'No se envían sus datos personales, ni médicos, ni económicos.' },
       { k: 'comunicaciones', label: 'Comunicaciones del club',
         desc: 'Recibir avisos de entrenamientos, horarios, partidos y convocatorias.' }
     ].forEach(function (c) {
@@ -22258,6 +22376,10 @@ window.SF = window.SF || {};
       [
         { k: 'imagen_publica', label: 'Uso de imagen',
           desc: 'El club puede publicar imágenes y vídeos donde aparezcas en su web, sus redes y en medios, para difundir la actividad deportiva.' },
+        { k: 'ia_video', label: 'Análisis de vídeo con inteligencia artificial',
+          desc: 'El club puede analizar con inteligencia artificial los vídeos de partidos donde apareces, para preparar los entrenamientos. ' +
+                'Trozos del vídeo se envían a una empresa de fuera (Google), que los procesa y devuelve una descripción de la jugada. ' +
+                'No se envían tus datos personales, ni médicos, ni económicos.' },
         { k: 'comunicaciones', label: 'Comunicaciones del club',
           desc: 'Recibir avisos de entrenamientos, horarios, partidos y convocatorias.' }
       ].forEach(function (c) {
@@ -26414,6 +26536,271 @@ window.SF = window.SF || {};
     try { if (this.yt && this.yt.pauseVideo) this.yt.pauseVideo(); } catch (e) {}
   };
 
+  /* LA IA MIRA EL TRAMO. Rellena un BORRADOR de los tres campos del corte y
+     lo firma la persona. No guarda nada por su cuenta: escribe en las
+     casillas del formulario que ya está abierto, y quien lo tiene delante lo
+     corrige o lo tira.
+
+     VA EN UN PANEL EN LÍNEA, no en un modal. U.modal() cierra el anterior, así
+     que pedir confirmación en una ventana nueva TIRABA el formulario del corte
+     a medio rellenar y luego escribía el borrador en un formulario que ya no
+     estaba en pantalla. Lo encontró una prueba, no un usuario.
+
+     Tres puertas antes de que salga un solo fotograma del club:
+       1. El vídeo tiene que ser de YouTube (Gemini no acepta otra cosa).
+       2. El corte tiene que tener un jugador asignado. Sin jugador no hay
+          consentimiento que comprobar, así que no se manda.
+       3. Ese jugador tiene que tener el SÍ de su familia al análisis con IA.
+          El silencio no vale.
+     Y una cuarta que no es una puerta pero casi: se enseña qué se va a mandar
+     ANTES de mandarlo. */
+  function iaMiraCorte(v, seg, jugadorId, dorsal, alRellenar, panel) {
+    var inf = SF.videoInfo(v.url) || {};
+    function di(html) { panel.innerHTML = html; panel.style.display = ''; }
+
+    if (inf.fuente !== 'YouTube') {
+      di('<p class="hint">Esto solo funciona con vídeos de YouTube: es el único sitio del que ' +
+         'Google puede leer un vídeo por su enlace.</p>');
+      return;
+    }
+    var pj = jugadorId ? SF.store.get(jugadorId) : null;
+    if (!pj) {
+      di('<p class="hint"><b>Elige primero a qué jugador es el corte.</b><br>Sin jugador no hay ' +
+         'autorización que comprobar, así que no se manda nada.</p>');
+      return;
+    }
+    var permiso = SF.puedeIAVideo(pj);
+    if (!permiso.ok) {
+      di('<p class="sec-label">' + (permiso.motivo === 'denegado' ? 'No autorizado' : 'Falta la autorización') +
+         '</p><p class="hint">' + esc(permiso.texto) + '</p>');
+      return;
+    }
+
+    /* El tramo: un poco antes de la marca, porque una jugada empieza antes de
+       que uno se acuerde de pulsar el botón. */
+    var desde = Math.max(0, (+seg || 0) - 12), hasta = (+seg || 0) + 28;
+    var eqCat = (SF.store.teamGet(v.team_id) || {}).category || '';
+
+    /* QUÉ SALE DEL CLUB, dicho antes y no después. Es poco, y por eso se puede
+       enseñar entero: un enlace público, dos marcas de tiempo y un dorsal. */
+    panel.innerHTML = '';
+    panel.style.display = '';
+    panel.appendChild(el('<p class="sec-label">Que la IA mire esta jugada</p>'));
+    panel.appendChild(el('<p class="hint">Se le pedirá a la <b>IA de Google (Gemini)</b> que mire <b>' +
+      (hasta - desde) + ' segundos</b> —del ' + SF.videoTiempo(desde) + ' al ' + SF.videoTiempo(hasta) +
+      '— y describa lo que ve.</p>'));
+    var ml = el('<div class="mini-list"></div>');
+    [['El enlace del vídeo', 'público en YouTube'],
+     ['El tramo', SF.videoTiempo(desde) + ' – ' + SF.videoTiempo(hasta)],
+     ['El dorsal', dorsal ? '#' + dorsal : '— no se manda —'],
+     ['La categoría', eqCat || '— no se manda —']
+    ].forEach(function (x) {
+      ml.appendChild(el('<div class="mini-row"><span>' + esc(x[0]) + '</span><span class="hint">' + esc(x[1]) + '</span></div>'));
+    });
+    panel.appendChild(ml);
+    panel.appendChild(el('<p class="hint">No sale su nombre, ni su ficha, ni nada de su familia. ' +
+      'La familia de <b>' + esc(pj.full_name) + '</b> autorizó este análisis.</p>'));
+    panel.appendChild(el('<p class="hint vhonesto"><b>Lo que va a devolver, y lo que no.</b> Describe la jugada y ' +
+      'dice lo que no consigue distinguir. <b>No da notas, ni porcentajes, ni mediciones</b>: mira unos pocos ' +
+      'fotogramas por segundo y cualquier cifra sería inventada. Lo que escriba es un <b>borrador</b>: ' +
+      'cae en las casillas y lo firmas tú.</p>'));
+
+    var zona = el('<div></div>'); panel.appendChild(zona);
+    var acc = el('<div class="row-c"></div>');
+    var bGo = el('<button class="btn btn-primary btn-sm" type="button">' + ico('ai') + 'Sí, que lo mire</button>');
+    var bNo = el('<button class="btn btn-light btn-sm" type="button">Ahora no</button>');
+    bNo.onclick = function () { panel.style.display = 'none'; panel.innerHTML = ''; };
+    bGo.onclick = function () {
+      bGo.disabled = true;
+      zona.innerHTML = '<p class="hint">Mirando el vídeo… esto tarda unos segundos.</p>';
+      fetch('/api/video-ia', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: v.url, desde: desde, hasta: hasta, modo: 'corte',
+          dorsal: dorsal || '', categoria: eqCat })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        bGo.disabled = false;
+        if (d && d.ok) {
+          panel.style.display = 'none'; panel.innerHTML = '';
+          alRellenar(d.corte, d.modelo);
+          return;
+        }
+        zona.innerHTML = '';
+        zona.appendChild(el('<p class="hint">' + esc(motivoIA(d)) + '</p>'));
+      }).catch(function () {
+        bGo.disabled = false;
+        zona.innerHTML = '<p class="hint">No hay conexión con el servidor.</p>';
+      });
+    };
+    acc.appendChild(bGo); acc.appendChild(bNo);
+    panel.appendChild(acc);
+  }
+
+  /* LA PASADA: la IA se recorre un tramo largo y PROPONE momentos. No crea
+     ningún corte: devuelve candidatos con su minuto, y la persona acepta los
+     que valen. La diferencia importa — un corte creado por una máquina que
+     nadie ha visto es ruido en la ficha de un chaval. */
+  function iaProponeCortes(v, alAceptar) {
+    var inf = SF.videoInfo(v.url) || {};
+    if (inf.fuente !== 'YouTube') { U.toast('Esto solo funciona con vídeos de YouTube'); return; }
+
+    var w = el('<div></div>');
+    w.appendChild(el('<p class="hint">La IA se recorre un tramo del vídeo y te propone momentos. ' +
+      '<b>No crea ningún corte</b>: tú eliges cuáles valen, y los que aceptes se guardan a tu nombre.</p>'));
+    var f = el('<div class="form-grid">' +
+      '<div class="frow"><label>Desde el minuto</label><input id="pd" value="0:00"></div>' +
+      '<div class="frow"><label>Hasta el minuto</label><input id="ph" value="10:00"></div>' +
+      '</div>');
+    w.appendChild(f);
+    w.appendChild(el('<p class="hint">Tramos de diez minutos van bien. Un partido entero de golpe es caro, ' +
+      'lento y devuelve un resumen que nadie puede comprobar.</p>'));
+    w.appendChild(el('<p class="hint vhonesto">Esto <b>no identifica a nadie</b>: como aquí no hay un jugador ' +
+      'concreto al que comprobarle la autorización, la IA describe jugadas sin poner nombres. ' +
+      'Al aceptar un momento, le asignas tú el jugador.</p>'));
+    var zona = el('<div></div>'); w.appendChild(zona);
+
+    var foot = el('<div class="modal-actions"><button class="btn">Cerrar</button>' +
+      '<button class="btn btn-primary">' + ico('ai') + 'Buscar momentos</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var d0 = SF.videoSegundos(f.querySelector('#pd').value);
+      var h0 = SF.videoSegundos(f.querySelector('#ph').value);
+      if (d0 == null || h0 == null || h0 <= d0) { U.toast('Revisa los minutos: el final va después del principio'); return; }
+      if (h0 - d0 > 1800) { U.toast('Máximo media hora de una vez'); return; }
+      foot.children[1].disabled = true;
+      zona.innerHTML = '<p class="hint">Mirando el vídeo… un tramo largo puede tardar un minuto.</p>';
+      fetch('/api/video-ia', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: v.url, desde: d0, hasta: h0, modo: 'propuesta',
+          categoria: (SF.store.teamGet(v.team_id) || {}).category || '' })
+      }).then(function (r) { return r.json(); }).then(function (d) {
+        foot.children[1].disabled = false;
+        zona.innerHTML = '';
+        if (!d || !d.ok) { zona.appendChild(el('<div class="empty-panel"><p>' + esc(motivoIA(d)) + '</p></div>')); return; }
+        if (!d.momentos.length) {
+          zona.appendChild(el('<div class="empty-panel"><p>No ha encontrado nada que merezca enseñarse en ese tramo.</p></div>'));
+          return;
+        }
+        zona.appendChild(el('<p class="sec-label">Propuestas <span class="count-inline">' + d.momentos.length + '</span></p>'));
+        var ml = el('<div class="mini-list"></div>');
+        d.momentos.forEach(function (m) {
+          var t = SF.videoSegundos(m.t);
+          var row = el('<div class="mini-row mr-wrap"><span>' +
+            '<b>' + esc(m.t) + '</b> · ' + esc(m.titulo) +
+            (m.etiqueta ? ' <span class="tag tag-gray">' + esc(m.etiqueta) + '</span>' : '') +
+            (m.por_que ? '<br><span class="hint">' + esc(m.por_que) + '</span>' : '') +
+            '</span><span class="row-actions"></span></div>');
+          var b = el('<button class="lnk">marcar este</button>');
+          b.onclick = function () {
+            U.closeModal();
+            alAceptar(t == null ? 0 : t, { titulo: m.titulo, etiqueta: m.etiqueta });
+          };
+          row.querySelector('.row-actions').appendChild(b);
+          ml.appendChild(row);
+        });
+        zona.appendChild(ml);
+        if (d.no_visible) zona.appendChild(el('<p class="hint">La IA avisa: ' + esc(d.no_visible) + '</p>'));
+        zona.appendChild(el('<p class="hint">Pulsa <b>marcar este</b> y se abre el corte con el minuto puesto, ' +
+          'para que le pongas jugador y lo revises.</p>'));
+      }).catch(function () {
+        foot.children[1].disabled = false;
+        zona.innerHTML = '<div class="empty-panel"><p>No hay conexión con el servidor.</p></div>';
+      });
+    };
+    w.appendChild(foot);
+    U.modal('Que la IA proponga momentos', w);
+  }
+
+  function motivoIA(d) {
+    var m = d && d.motivo;
+    if (m === 'sin_gemini') return 'Esto necesita una clave de Google (GEMINI_API_KEY) en Vercel. ' +
+      'Claude y OpenAI no sirven aquí: son los únicos que no aceptan un enlace de YouTube.';
+    if (m === 'video_no_publico') return 'Google no puede abrir este vídeo. Casi seguro está como «no listado» ' +
+      'o privado en YouTube: aunque el enlace funcione en tu navegador, la API solo acepta vídeos públicos. ' +
+      'Es una limitación suya, no un fallo del club — y tener los vídeos de menores sin listar es lo correcto.';
+    if (m === 'cuota') return 'Se ha agotado la cuota de análisis de vídeo por hoy. Vuelve mañana o revisa el plan de Google.';
+    if (m === 'no_youtube') return 'Solo funciona con vídeos de YouTube.';
+    if (m === 'respuesta_rara') return 'La IA ha contestado algo que no se entiende. Prueba otra vez.';
+    return 'No se ha podido analizar' + (d && d.detalle ? ': ' + d.detalle : '.');
+  }
+
+  /* BUSCAR UN JUGADOR ESCRIBIENDO, no bajando por una lista de 277.
+     Un desplegable con el club entero es incómodo hasta agrupado: para llegar
+     a Pablo hay que pasar por Adriana, Aitana y Alba. Aquí se escribe y se
+     filtra, con el MISMO motor que el buscador de la app (SF.filtraJugadores),
+     así que también entiende «sin equipo», el número de ficha o el año.
+
+     Guarda el id en un <input hidden> con el mismo id de siempre, para que lo
+     demás no se entere del cambio. */
+  function pickJugador(opts) {
+    opts = opts || {};
+    var elegido = opts.valor || null;
+    var caja = el('<div class="jpick"></div>');
+    var hid = el('<input type="hidden"' + (opts.id ? ' id="' + opts.id + '"' : '') + ' value="' + esc(elegido || '') + '">');
+    var inp = el('<input class="jpick-in" placeholder="' + esc(opts.placeholder || 'Escribe un nombre, dorsal o año…') + '">');
+    var chip = el('<div class="jpick-sel" style="display:none"></div>');
+    var lista = el('<div class="jpick-res" style="display:none"></div>');
+    caja.appendChild(hid); caja.appendChild(chip); caja.appendChild(inp); caja.appendChild(lista);
+
+    function pinta() {
+      var p = elegido ? SF.store.get(elegido) : null;
+      if (p) {
+        chip.style.display = ''; inp.style.display = 'none'; lista.style.display = 'none';
+        chip.innerHTML = '';
+        var eq = p.team_id ? (SF.store.teamGet(p.team_id) || {}).name : 'sin equipo';
+        chip.appendChild(el('<span><b>' + esc(p.full_name) + '</b>' +
+          (p.dorsal ? ' · #' + esc(p.dorsal) : '') +
+          ' <span class="hint">' + esc(eq) + '</span></span>'));
+        var bx = el('<button class="lnk" type="button">cambiar</button>');
+        bx.onclick = function () { elegido = null; hid.value = ''; inp.value = ''; pinta(); inp.focus();
+          if (opts.alCambiar) opts.alCambiar(null); };
+        chip.appendChild(bx);
+      } else {
+        chip.style.display = 'none'; inp.style.display = '';
+      }
+    }
+
+    function resultados() {
+      var q = inp.value.trim();
+      var todos = scopedPlayers();
+      var rows;
+      if (!q) {
+        /* Sin escribir nada, los del equipo de este vídeo: es lo que se busca
+           nueve de cada diez veces, y ahorra teclear. */
+        rows = opts.teamId ? todos.filter(function (p) { return p.team_id === opts.teamId; }) : [];
+        if (!rows.length) { lista.style.display = 'none'; return; }
+      } else {
+        rows = SF.filtraJugadores(todos, q, role()).rows;
+      }
+      rows = rows.slice(0, 8);
+      lista.innerHTML = '';
+      if (!rows.length) {
+        lista.appendChild(el('<p class="hint" style="margin:6px 8px">Ningún jugador con eso.</p>'));
+      }
+      rows.forEach(function (p) {
+        var eq = p.team_id ? (SF.store.teamGet(p.team_id) || {}).name : 'sin equipo';
+        var it = el('<button class="jpick-it" type="button"><b>' + esc(p.full_name) + '</b>' +
+          (p.dorsal ? ' <span class="jpick-d">#' + esc(p.dorsal) + '</span>' : '') +
+          '<span class="hint">' + (p.birth_year ? p.birth_year + ' · ' : '') + esc(eq) + '</span></button>');
+        it.onclick = function () {
+          elegido = p.id; hid.value = p.id; lista.style.display = 'none'; pinta();
+          if (opts.alCambiar) opts.alCambiar(p);
+        };
+        lista.appendChild(it);
+      });
+      lista.style.display = '';
+    }
+
+    var tmr = null;
+    inp.oninput = function () { clearTimeout(tmr); tmr = setTimeout(resultados, 160); };
+    inp.onfocus = resultados;
+    /* Al salir del campo se cierra, pero con un respiro: si se cierra en el
+       mismo instante, el clic en un resultado no llega a dispararse. */
+    inp.onblur = function () { setTimeout(function () { lista.style.display = 'none'; }, 180); };
+    pinta();
+    return { el: caja, valor: function () { return hid.value; },
+             fija: function (id) { elegido = id || null; hid.value = elegido || ''; pinta(); } };
+  }
+
   function corteTresHTML(c) {
     var t = SF.corteTres(c);
     if (!t.length) return '';
@@ -26433,8 +26820,27 @@ window.SF = window.SF || {};
     var puedeEditar = r.segments === 'all' || (r.nav || []).indexOf('video') >= 0;
     var lista = SF.store.videotecaVisible(r, misEq);
 
-    view.innerHTML = head('Vídeo y cortes',
-      'El metraje del club, minutado. Marca lo que importa de un partido y queda en la ficha del jugador.');
+    /* LA CABECERA. Es la cara del módulo y tiene que decir tres cosas de un
+       vistazo: qué es esto, cuánto hay dentro, y qué puedes hacer ahora.
+       Va en morado porque es el color de la casa, no porque quede bonito: un
+       panel de color aquí separa "el módulo" de "el contenido del módulo", y
+       eso se lee antes que cualquier título. */
+    view.innerHTML = '';
+    var nCortes = lista.reduce(function (a, v) { return a + ((v.cortes || []).length); }, 0);
+    var hero = el('<div class="vhero"></div>');
+    var hIzq = el('<div class="vhero-t"><h2>Vídeo y cortes</h2>' +
+      '<p>El metraje del club, minutado. Marca lo que importa de un partido y queda en la ficha del jugador.</p></div>');
+    var hCifras = el('<div class="vhero-n"></div>');
+    [[lista.length, lista.length === 1 ? 'vídeo' : 'vídeos'],
+     [nCortes, nCortes === 1 ? 'corte' : 'cortes'],
+     [lista.filter(function (v) { return v.tipo === 'partido'; }).length, 'partidos']
+    ].forEach(function (x) {
+      hCifras.appendChild(el('<div><b>' + x[0] + '</b><span>' + esc(x[1]) + '</span></div>'));
+    });
+    hero.appendChild(hIzq); hero.appendChild(hCifras);
+    view.appendChild(hero);
+    var heroAcc = el('<div class="vhero-acc"></div>');
+    hCifras.parentNode.insertBefore(heroAcc, null);
 
     /* ---- LA GUÍA. Se pliega sola cuando ya hay metraje: quien lleva veinte
        vídeos no necesita que le expliquen qué es un corte, y un cartel que no
@@ -26476,8 +26882,22 @@ window.SF = window.SF || {};
 
     /* ---- Traer un vídeo ---- */
     if (puedeEditar) {
-      var alta = el('<div class="card"><p class="sec-label">Traer un vídeo</p>' +
+      /* PLEGADO SI YA HAY METRAJE. Un formulario de alta abierto empuja el
+         reproductor media pantalla hacia abajo, y traer un vídeo se hace una
+         vez por partido mientras que verlo se hace veinte. Con la videoteca
+         vacía se abre solo, porque entonces es lo único que hay que hacer. */
+      var alta = el('<div class="card"' + (lista.length ? ' style="display:none"' : '') +
+        '><p class="sec-label">Traer un vídeo</p>' +
         '<p class="hint">Pega el enlace y ponle nombre. Si el enlace ya lleva un minuto dentro (?t=114), se respeta.</p></div>');
+      if (lista.length) {
+        var bAbre = el('<button class="vhero-b">' + ico('plus') + 'Traer un vídeo</button>');
+        bAbre.onclick = function () {
+          var ab = alta.style.display !== 'none';
+          alta.style.display = ab ? 'none' : '';
+          if (!ab) { alta.scrollIntoView({ block: 'nearest' }); alta.querySelector('#vu').focus(); }
+        };
+        heroAcc.appendChild(bAbre);
+      }
       var fa = el('<div class="valta">' +
         '<input id="vu" placeholder="https://www.youtube.com/watch?v=…">' +
         '<input id="vt" placeholder="Título: Jornada 4 · CBJA vs Real Madrid">' +
@@ -26573,18 +26993,36 @@ window.SF = window.SF || {};
       var fl = filtrada();
       der.appendChild(el('<p class="sec-label">Videoteca <span class="count-inline">' + fl.length +
         ' de ' + lista.length + '</span></p>'));
+      /* Los tipos, pulsables. Los mismos que el desplegable de arriba, pero a
+         un clic: cuando hay quince vídeos, "enséñame solo los partidos" es lo
+         primero que se hace, y bajar a un select para eso sobra. */
+      var tipos = {}; lista.forEach(function (v) { if (v.tipo) tipos[v.tipo] = (tipos[v.tipo] || 0) + 1; });
+      if (Object.keys(tipos).length > 1) {
+        var ch = el('<div class="row-c vchips" style="margin:0 0 10px"></div>');
+        var bT = el('<button class="eq-chip eq-chip-sm' + (!filtro.tipo ? ' on' : '') + '" type="button">Todos</button>');
+        bT.onclick = function () { filtro.tipo = ''; fTipo.value = ''; pintaLado(); };
+        ch.appendChild(bT);
+        Object.keys(tipos).forEach(function (k) {
+          var b = el('<button class="eq-chip eq-chip-sm' + (filtro.tipo === k ? ' on' : '') + '" type="button">' +
+            esc((SF.VIDEO_TIPOS[k] || {}).label || k) + ' · ' + tipos[k] + '</button>');
+          b.onclick = function () { filtro.tipo = (filtro.tipo === k ? '' : k); fTipo.value = filtro.tipo; pintaLado(); };
+          ch.appendChild(b);
+        });
+        der.appendChild(ch);
+      }
       if (!fl.length) { der.appendChild(el('<p class="hint">Nada con esos filtros.</p>')); return; }
       fl.forEach(function (v) {
         var inf = SF.videoInfo(v.url) || {};
         var tp = SF.VIDEO_TIPOS[v.tipo] || { label: v.tipo || '—', color: 'gray' };
         var nC = (v.cortes || []).length;
         var card = el('<div class="vitem' + (v.id === abierto ? ' on' : '') + '">' +
-          '<div class="vit-th">' + (inf.miniatura ? '<img src="' + esc(inf.miniatura) + '" alt="">'
-            : '<span class="vid-src">' + esc(inf.fuente || 'Enlace') + '</span>') + '</div>' +
+          '<div class="vit-th">' + (inf.miniatura ? '<img src="' + esc(inf.miniatura) + '" alt="" loading="lazy">'
+            : '<span class="vid-src">' + esc(inf.fuente || 'Enlace') + '</span>') +
+            (nC ? '<span class="vit-n">' + nC + '</span>' : '') + '</div>' +
           '<div class="vit-b"><p class="vit-t">' + esc(v.titulo || 'Sin título') + '</p>' +
           '<p class="vit-m"><span class="tag tag-' + tp.color + '">' + esc(tp.label) + '</span> ' +
           (v.fecha ? fmtDate(v.fecha) : '') + (v.rival ? ' · ' + esc(v.rival) : '') + '</p>' +
-          '<p class="vit-c">' + (nC ? nC + (nC === 1 ? ' corte' : ' cortes') : 'sin cortes todavía') + '</p></div></div>');
+          '<p class="vit-c">' + (nC ? nC + (nC === 1 ? ' corte marcado' : ' cortes marcados') : 'sin cortes todavía') + '</p></div></div>');
         card.onclick = function () { abierto = v.id; pintaLado(); pintaMain(); };
         der.appendChild(card);
       });
@@ -26623,6 +27061,11 @@ window.SF = window.SF || {};
       izq.appendChild(cab);
 
       var caja = el('<div></div>'); izq.appendChild(caja);
+      /* SALTAR A CORTE, pegado al vídeo y no al final de la pantalla.
+         Es lo que más se usa -"ponme el 27:00"- y tenerlo que buscar en una
+         lista de abajo es perder el tiempo con el partido parado. Va aquí,
+         entre el reproductor y los botones, porque pertenece al vídeo. */
+      izq.appendChild(el('<div class="vtira-slot"></div>'));
       repro = new Reproductor(caja, v.url, function (conApi) {
         hayApi = conApi;
         var av = izq.querySelector('.vapi');
@@ -26641,26 +27084,36 @@ window.SF = window.SF || {};
       };
       barraM.appendChild(bMarcar);
 
+      /* La pasada de la IA, al lado del botón de marcar a mano: son las dos
+         formas de llenar la lista y no hay motivo para esconder una. */
+      if ((SF.videoInfo(v.url) || {}).fuente === 'YouTube') {
+        var bProp = el('<button class="btn btn-light">' + ico('ai') + 'Que la IA proponga</button>');
+        bProp.onclick = function () {
+          iaProponeCortes(v, function (t, datos) {
+            if (repro) repro.saltar(t);
+            nuevoCorte(v, t, null, datos);
+          });
+        };
+        barraM.appendChild(bProp);
+      }
+
       /* Modo seguimiento: la idea buena de "seguir a un jugador" hecha por
          quien ve el partido. Eliges una vez y dejas de elegir. */
       var segCaja = el('<div class="vseg"></div>');
-      var jugOpts = '<option value="">— Marcar sin jugador fijo —</option>' +
-        scopedPlayers().slice().sort(function (a, b) { return (a.full_name || '').localeCompare(b.full_name || ''); })
-          .map(function (p) {
-            return '<option value="' + p.id + '"' + (seguir.player_id === p.id ? ' selected' : '') + '>' +
-              esc(p.full_name) + (p.dorsal ? ' · #' + esc(p.dorsal) : '') + '</option>'; }).join('');
-      var selJ = el('<select title="Todo lo que marques se le asigna a este jugador">' + jugOpts + '</select>');
       var inpD = el('<input class="vdor" placeholder="Dorsal" value="' + esc(seguir.dorsal) + '">');
-      selJ.onchange = function () {
-        seguir.player_id = selJ.value;
-        var pj = seguir.player_id ? SF.store.get(seguir.player_id) : null;
-        if (pj && pj.dorsal && !inpD.value) inpD.value = pj.dorsal;
-        seguir.dorsal = inpD.value;
-        pintaSegAviso();
-      };
+      var pickS = pickJugador({
+        teamId: v.team_id, valor: seguir.player_id,
+        placeholder: 'Sigue a un jugador: escribe su nombre…',
+        alCambiar: function (pj) {
+          seguir.player_id = pj ? pj.id : '';
+          if (pj && pj.dorsal && !inpD.value) inpD.value = pj.dorsal;
+          seguir.dorsal = inpD.value;
+          pintaSegAviso();
+        }
+      });
       inpD.oninput = function () { seguir.dorsal = inpD.value; };
       segCaja.appendChild(el('<span class="hint">Siguiendo a:</span>'));
-      segCaja.appendChild(selJ); segCaja.appendChild(inpD);
+      segCaja.appendChild(pickS.el); segCaja.appendChild(inpD);
       barraM.appendChild(segCaja);
       izq.appendChild(barraM);
 
@@ -26681,8 +27134,34 @@ window.SF = window.SF || {};
       pintaCortes(v);
     }
 
+    /* La tira de marcas. Vive aquí y no dentro de pintaCortes porque está
+       encima del reproductor y no debajo de él. */
+    function pintaTira(v) {
+      var slot = izq.querySelector('.vtira-slot');
+      if (!slot) return;
+      slot.innerHTML = '';
+      var cortes = (v.cortes || []).slice().sort(function (a, b) { return (+a.t || 0) - (+b.t || 0); });
+      if (!cortes.length) return;
+      var tira = el('<div class="vtira"><span class="vtira-l">Saltar a corte</span></div>');
+      var car = el('<div class="vtira-c"></div>');
+      cortes.forEach(function (c) {
+        var b = el('<button class="vtira-b" type="button" title="' + esc(c.titulo || '') + '">' +
+          '<b>' + SF.videoTiempo(c.t) + '</b>' +
+          (c.cuarto ? '<i>' + esc(c.cuarto) + '</i>' : '') +
+          '<span>' + esc((c.titulo || 'Corte').slice(0, 34)) + '</span></button>');
+        b.onclick = function () {
+          if (repro && repro.saltar(c.t)) { U.toast('Saltando a ' + SF.videoTiempo(c.t)); return; }
+          window.open(SF.videoEnlaceEn(v.url, c.t), '_blank', 'noopener');
+        };
+        car.appendChild(b);
+      });
+      tira.appendChild(car);
+      slot.appendChild(tira);
+    }
+
     /* ---- La lista de cortes + el informe ---- */
     function pintaCortes(v) {
+      pintaTira(v);
       var vieja = izq.querySelector('.vcortes'); if (vieja) vieja.remove();
       var cont = el('<div class="vcortes"></div>');
       var cortes = (v.cortes || []).slice().sort(function (a, b) { return (+a.t || 0) - (+b.t || 0); });
@@ -26737,26 +27216,38 @@ window.SF = window.SF || {};
       if (cortes.length && !visibles.length) {
         cont.appendChild(el('<p class="hint">Ningún corte con ese filtro.</p>'));
       }
+      /* EN TARJETAS Y A DOS COLUMNAS. Un corte tiene título, tres campos y una
+         nota: en una fila de lado a lado el ojo tiene que recorrer toda la
+         pantalla para leer una frase. En tarjeta se lee de un vistazo y caben
+         el doble en el mismo alto, que con doce jugadas de un partido es la
+         diferencia entre verlas y hacer scroll. */
+      var rejilla = el('<div class="vgrid"></div>');
       visibles.forEach(function (c) {
         var pj = c.player_id ? SF.store.get(c.player_id) : null;
-        var row = el('<div class="mini-row mr-wrap vcorte">' +
-          '<span><button class="vtime">' + SF.videoTiempo(c.t) + '</button> ' +
-          (c.cuarto ? '<span class="tag tag-gray">' + esc(c.cuarto) + '</span> ' : '') +
-          '<b>' + esc(c.titulo || 'Corte') + '</b>' +
-          (c.signo ? ' <span class="tag tag-' + (c.signo === 'bien' ? 'green' : c.signo === 'mejora' ? 'warn' : 'gray') +
-            '">' + esc(SF.CORTE_SIGNOS[c.signo] || '') + '</span>' : '') +
-          (c.etiqueta ? ' <span class="tag tag-gray">' + esc(c.etiqueta) + '</span>' : '') +
-          (pj ? ' · <span class="hint">' + esc(pj.full_name) + (c.dorsal ? ' #' + esc(c.dorsal) : '') + '</span>' : '') +
+        var sc = c.signo === 'bien' ? 'ok' : c.signo === 'mejora' ? 'warn' : '';
+        var card = el('<div class="vcorte vcard' + (sc ? ' vcard-' + sc : '') + '">' +
+          '<div class="vcard-h">' +
+            '<button class="vtime">' + SF.videoTiempo(c.t) + '</button>' +
+            (c.etiqueta ? '<span class="vcard-et">' + esc(c.etiqueta) + '</span>' : '') +
+            (c.signo ? '<span class="tag tag-' + (c.signo === 'bien' ? 'green' : c.signo === 'mejora' ? 'warn' : 'gray') +
+              '">' + esc(SF.CORTE_SIGNOS[c.signo] || '') + '</span>' : '') +
+            '<span class="vcard-sp"></span>' +
+            (c.cuarto ? '<span class="vcard-q">' + esc(c.cuarto) + '</span>' : '') +
+          '</div>' +
+          '<p class="vcard-t">' + esc(c.titulo || 'Corte') + '</p>' +
           corteTresHTML(c) +
-          (c.nota ? '<span class="vnota">' + esc(c.nota) + '</span>' : '') +
-          '<br><span class="hint vfirma">' + esc(c.por || '—') +
-          (c.at ? ' · ' + fmtDate(c.at.slice(0, 10)) : '') + '</span></span>' +
-          '<span class="row-actions"></span></div>');
-        row.querySelector('.vtime').onclick = function () {
-          if (repro && repro.saltar(c.t)) return;
+          (c.nota ? '<p class="vnota">' + esc(c.nota) + '</p>' : '') +
+          '<div class="vcard-f">' +
+            '<span class="hint vfirma">' + (pj ? '<b>' + esc(pj.full_name) + '</b>' +
+              (c.dorsal ? ' #' + esc(c.dorsal) : '') + ' · ' : '') + esc(c.por || '—') +
+              (c.at ? ' · ' + fmtDate(c.at.slice(0, 10)) : '') + '</span>' +
+            '<span class="row-actions"></span>' +
+          '</div></div>');
+        card.querySelector('.vtime').onclick = function () {
+          if (repro && repro.saltar(c.t)) { U.toast('Saltando a ' + SF.videoTiempo(c.t)); return; }
           window.open(SF.videoEnlaceEn(v.url, c.t), '_blank', 'noopener');
         };
-        var ac = row.querySelector('.row-actions');
+        var ac = card.querySelector('.row-actions');
         if (puedeEditar) {
           var be = el('<button class="lnk">editar</button>');
           be.onclick = function () { nuevoCorte(v, c.t, c); };
@@ -26769,25 +27260,22 @@ window.SF = window.SF || {};
           };
           ac.appendChild(be); ac.appendChild(bx);
         }
-        cont.appendChild(row);
+        rejilla.appendChild(card);
       });
+      cont.appendChild(rejilla);
       izq.appendChild(cont);
     }
 
     /* ---- Crear o editar un corte ---- */
-    function nuevoCorte(v, seg, corte) {
-      corte = corte || null;
+    function nuevoCorte(v, seg, corte, propuesta) {
+      corte = corte || null; propuesta = propuesta || null;
       var tIni = corte ? corte.t : (seg == null ? null : seg);
       var pjFijo = corte ? corte.player_id : seguir.player_id;
       var dorFijo = corte ? (corte.dorsal || '') : seguir.dorsal;
 
-      var jugOpts = '<option value="">— Sin jugador concreto —</option>' +
-        scopedPlayers().slice().sort(function (a, b) { return (a.full_name || '').localeCompare(b.full_name || ''); })
-          .map(function (p) {
-            return '<option value="' + p.id + '"' + (pjFijo === p.id ? ' selected' : '') + '>' +
-              esc(p.full_name) + '</option>'; }).join('');
+      var etSel = corte ? corte.etiqueta : (propuesta ? propuesta.etiqueta : '');
       var etOpts = '<option value="">— Sin etiqueta —</option>' + SF.CORTE_ETIQUETAS.map(function (e) {
-        return '<option' + (corte && corte.etiqueta === e ? ' selected' : '') + '>' + esc(e) + '</option>'; }).join('');
+        return '<option' + (SF.norm(etSel || '') === SF.norm(e) ? ' selected' : '') + '>' + esc(e) + '</option>'; }).join('');
       /* El cuarto se hereda del último corte marcado: en un partido se va en
          orden, así que acertar la primera vez ahorra elegirlo siempre. */
       var cuDef = corte ? (corte.cuarto || '') : (ultimoCuarto || '');
@@ -26804,8 +27292,11 @@ window.SF = window.SF || {};
             ? 'El reproductor no ha podido decirme por dónde vas: escríbelo como <b>minutos:segundos</b>.'
             : 'Cogido del reproductor. Se puede corregir.') + '</p></div>' +
         '<div class="frow"><label>Qué pasa aquí</label>' +
-          '<input id="cn" value="' + esc(corte ? (corte.titulo || '') : '') + '" placeholder="Bloqueo directo, lee bien la ayuda"></div>' +
-        '<div class="frow"><label>Jugador</label><select id="cp">' + jugOpts + '</select></div>' +
+          '<input id="cn" value="' + esc(corte ? (corte.titulo || '') : (propuesta ? propuesta.titulo || '' : '')) +
+          '" placeholder="Bloqueo directo, lee bien la ayuda"></div>' +
+        '<div class="frow"><label>Jugador</label><div id="cpslot"></div>' +
+          '<p class="hint">Escribe y busca entre <b>todas</b> las fichas del club: las de captación ' +
+          'y las que da de alta el club. Sin escribir nada te propone las de este equipo.</p></div>' +
         '<div class="frow"><label>Dorsal</label><input id="cd" value="' + esc(dorFijo || '') + '" placeholder="4"></div>' +
         '<div class="frow"><label>Etiqueta</label><select id="ce">' + etOpts + '</select></div>' +
         '<div class="frow"><label>Cuarto</label><select id="cq">' + cuOpts + '</select></div>' +
@@ -26832,6 +27323,54 @@ window.SF = window.SF || {};
           '<p class="hint">Esto es lo que luego lee la IA para escribir el informe, y lo que el chaval entiende ' +
           'dentro de tres semanas. Una frase concreta vale más que cinco genéricas.</p></div>' +
         '</div>');
+      /* El botón de la IA va DENTRO del formulario, no en la lista: aquí es
+         donde ya has dicho de qué jugador es y en qué minuto, que es
+         justamente lo que hace falta para pedirlo. */
+      var iaFila = el('<div class="row-c" style="margin-top:6px"></div>');
+      var bIA = el('<button class="btn btn-light btn-sm" type="button">' + ico('ai') + 'Que lo mire la IA</button>');
+      var iaNota = el('<span class="hint"></span>');
+      var iaPanel = el('<div class="ej-pick" style="display:none"></div>');
+      bIA.onclick = function () {
+        var t0 = SF.videoSegundos(f.querySelector('#ct').value);
+        if (t0 == null) { U.toast('Pon primero el minuto'); return; }
+        iaMiraCorte(v, t0, f.querySelector('#cp').value, f.querySelector('#cd').value.trim(),
+          function (c2, modelo) {
+            /* Se rellena lo que esté VACÍO y no se pisa lo escrito a mano:
+               quien ha tecleado una frase no quiere que se la borre una
+               máquina. Lo que ya estaba puesto, se queda. */
+            function pon(sel, val) {
+              var n = f.querySelector(sel);
+              if (n && val && !n.value.trim()) n.value = val;
+            }
+            pon('#cn', c2.titulo); pon('#c1', c2.con_balon);
+            pon('#c2', c2.sin_balon); pon('#c3', c2.resultado);
+            var se = f.querySelector('#ce');
+            if (se && c2.etiqueta && !se.value) {
+              for (var i = 0; i < se.options.length; i++) {
+                if (SF.norm(se.options[i].text) === SF.norm(c2.etiqueta)) { se.selectedIndex = i; break; }
+              }
+            }
+            var conf = { alta: 'tag-green', media: 'tag-warn', baja: 'tag-danger' }[c2.confianza] || 'tag-gray';
+            iaNota.innerHTML = '<span class="tag ' + conf + '">borrador de IA · confianza ' + esc(c2.confianza) + '</span> ' +
+              'Revísalo y corrígelo: al guardar queda firmado con <b>tu</b> nombre.' +
+              (c2.no_visible ? '<br>La IA dice que no ha podido distinguir: ' + esc(c2.no_visible) : '');
+            U.toast('Borrador puesto. Revísalo antes de guardar.');
+          }, iaPanel);
+      };
+      iaFila.appendChild(bIA); iaFila.appendChild(iaNota);
+
+      /* El dorsal de su ficha, si no se ha escrito otro. En un partido el
+         dorsal puede ser distinto al de la ficha -equipación prestada, un
+         mancomunado-, así que se propone y no se impone. */
+      var pickC = pickJugador({
+        teamId: v.team_id, valor: pjFijo, id: 'cp',
+        alCambiar: function (np) {
+          var nd = f.querySelector('#cd');
+          if (np && np.dorsal && !nd.value.trim()) nd.value = np.dorsal;
+        }
+      });
+      f.querySelector('#cpslot').appendChild(pickC.el);
+
       var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
         '<button class="btn btn-primary">' + (corte ? 'Guardar' : 'Añadir corte') + '</button></div>');
       foot.children[0].onclick = U.closeModal;
@@ -26856,7 +27395,7 @@ window.SF = window.SF || {};
         U.toast(pj ? 'Corte guardado en la ficha de ' + pj.full_name : 'Corte guardado');
         pintaCortes(SF.store.videoGet(v.id)); pintaLado();
       };
-      var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
+      var w = el('<div></div>'); w.appendChild(f); w.appendChild(iaFila); w.appendChild(iaPanel); w.appendChild(foot);
       U.modal(corte ? 'Editar corte' : 'Marcar corte', w);
     }
 
