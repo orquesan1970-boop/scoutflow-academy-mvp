@@ -1474,6 +1474,10 @@ button.pf-ley:hover{filter:brightness(.96)}
 .valta{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .valta-2{grid-template-columns:repeat(4,1fr)}
 .valta+.valta{margin-top:10px}
+.vreco{margin-top:14px;padding:12px;background:var(--bg);border-radius:10px}
+.vreco .sec-label{margin:0 0 8px}
+.vreco textarea{width:100%;margin-top:10px}
+.vreco .hint{margin:8px 0 0}
 .valta+.valta+.btn{margin-top:12px}
 .vfiltros{margin:14px 0;gap:10px}
 /* Los select de la app son width:100% porque casi siempre viven en un .frow
@@ -7849,7 +7853,8 @@ SF.store = (function () {
               cortes: [] };
         d.videoteca.push(x);
       }
-      ['titulo', 'url', 'tipo', 'fecha', 'rival', 'competicion', 'team_id', 'notas'].forEach(function (k) {
+      ['titulo', 'url', 'tipo', 'fecha', 'rival', 'competicion', 'team_id', 'notas',
+       'equipacion', 'equipacion_rival', 'contexto'].forEach(function (k) {
         if (datos[k] !== undefined) x[k] = datos[k];
       });
       save(d); return x;
@@ -26593,13 +26598,30 @@ window.SF = window.SF || {};
     [['El enlace del vídeo', 'público en YouTube'],
      ['El tramo', SF.videoTiempo(desde) + ' – ' + SF.videoTiempo(hasta)],
      ['El dorsal', dorsal ? '#' + dorsal : '— no se manda —'],
+     ['Nuestra equipación', v.equipacion || '— sin indicar —'],
+     ['La del rival', v.equipacion_rival || '— sin indicar —'],
+     ['Otros detalles', v.contexto ? v.contexto.slice(0, 70) + (v.contexto.length > 70 ? '…' : '') : '— sin indicar —'],
      ['La categoría', eqCat || '— no se manda —']
     ].forEach(function (x) {
-      ml.appendChild(el('<div class="mini-row"><span>' + esc(x[0]) + '</span><span class="hint">' + esc(x[1]) + '</span></div>'));
+      ml.appendChild(el('<div class="mini-row mr-wrap"><span>' + esc(x[0]) + '</span><span class="hint">' + esc(x[1]) + '</span></div>'));
     });
     panel.appendChild(ml);
     panel.appendChild(el('<p class="hint">No sale su nombre, ni su ficha, ni nada de su familia. ' +
       'La familia de <b>' + esc(pj.full_name) + '</b> autorizó este análisis.</p>'));
+
+    /* SIN EL COLOR DE LA EQUIPACIÓN, la IA acierta mucho menos, y conviene
+       decirlo AQUÍ y no después de un informe flojo: desde la grada y a dos
+       fotogramas por segundo, el color de la camiseta es lo único que separa
+       a un equipo del otro. Se avisa y se ofrece arreglarlo de un clic. */
+    if (!v.equipacion) {
+      var av = el('<p class="hint vhonesto"><b>No has dicho de qué color vais.</b> ' +
+        'Con eso puesto, la IA puede decir «el 4 de rojo»; sin eso, «un jugador» —o peor, ' +
+        'puede fijarse en el 4 del rival. Se pone una vez por vídeo. </p>');
+      var bEd = el('<button class="lnk" type="button">Ponerlo ahora</button>');
+      bEd.onclick = function () { U.closeModal(); editaVideo(v); };
+      av.appendChild(bEd);
+      panel.appendChild(av);
+    }
     panel.appendChild(el('<p class="hint vhonesto"><b>Lo que va a devolver, y lo que no.</b> Describe la jugada y ' +
       'dice lo que no consigue distinguir. <b>No da notas, ni porcentajes, ni mediciones</b>: mira unos pocos ' +
       'fotogramas por segundo y cualquier cifra sería inventada. Lo que escriba es un <b>borrador</b>: ' +
@@ -26616,7 +26638,9 @@ window.SF = window.SF || {};
       fetch('/api/video-ia', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: v.url, desde: desde, hasta: hasta, modo: 'corte',
-          dorsal: dorsal || '', categoria: eqCat })
+          dorsal: dorsal || '', categoria: eqCat,
+          equipacion: v.equipacion || '', equipacion_rival: v.equipacion_rival || '',
+          contexto: v.contexto || '' })
       }).then(function (r) { return r.json(); }).then(function (d) {
         bGo.disabled = false;
         if (d && d.ok) {
@@ -26656,6 +26680,13 @@ window.SF = window.SF || {};
     w.appendChild(el('<p class="hint vhonesto">Esto <b>no identifica a nadie</b>: como aquí no hay un jugador ' +
       'concreto al que comprobarle la autorización, la IA describe jugadas sin poner nombres. ' +
       'Al aceptar un momento, le asignas tú el jugador.</p>'));
+    if (v.equipacion) {
+      w.appendChild(el('<p class="hint">Sabe que vais de <b>' + esc(v.equipacion) + '</b>' +
+        (v.equipacion_rival ? ' y el rival de <b>' + esc(v.equipacion_rival) + '</b>' : '') + '.</p>'));
+    } else {
+      w.appendChild(el('<p class="hint">No has dicho de qué color vais, así que la IA no puede distinguir ' +
+        'vuestras jugadas de las del rival. Se pone en <b>Editar</b>, una vez por vídeo.</p>'));
+    }
     var zona = el('<div></div>'); w.appendChild(zona);
 
     var foot = el('<div class="modal-actions"><button class="btn">Cerrar</button>' +
@@ -26671,7 +26702,9 @@ window.SF = window.SF || {};
       fetch('/api/video-ia', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: v.url, desde: d0, hasta: h0, modo: 'propuesta',
-          categoria: (SF.store.teamGet(v.team_id) || {}).category || '' })
+          categoria: (SF.store.teamGet(v.team_id) || {}).category || '',
+          equipacion: v.equipacion || '', equipacion_rival: v.equipacion_rival || '',
+          contexto: v.contexto || '' })
       }).then(function (r) { return r.json(); }).then(function (d) {
         foot.children[1].disabled = false;
         zona.innerHTML = '';
@@ -26911,6 +26944,23 @@ window.SF = window.SF || {};
         '</select>' +
         '<input id="vr" placeholder="Rival (opcional)">' +
         '</div>');
+      /* CÓMO SE RECONOCE A LOS NUESTROS. Se rellena UNA VEZ por vídeo, no en
+         cada corte: el color de la camiseta es del partido, no de la jugada.
+         Y es lo que más sube el acierto de la IA, porque a un fotograma por
+         segundo y desde la grada, el color de la equipación es lo único que
+         distingue a un equipo del otro con fiabilidad. */
+      var fa3 = el('<div class="vreco">' +
+        '<p class="sec-label">Cómo se reconoce al equipo en el vídeo <span class="hint">' +
+        '(para la IA, opcional)</span></p>' +
+        '<div class="valta">' +
+        '<input id="vek" placeholder="Nuestra equipación: camiseta roja, pantalón negro">' +
+        '<input id="verk" placeholder="La del rival: camiseta azul">' +
+        '</div>' +
+        '<textarea id="vctx" rows="2" placeholder="Otros detalles: cámara fija en la grada del fondo, ' +
+        'atacamos a la canasta de la derecha en la primera parte, el 4 juega con manguito…"></textarea>' +
+        '<p class="hint">Esto no lo ve nadie del club: se le pasa a la IA cuando le pides que mire una jugada, ' +
+        'y es lo que le permite decir «el 4 de rojo» en vez de «un jugador». Se puede rellenar después, ' +
+        'en <b>Editar</b>.</p></div>');
       var bAlta = el('<button class="btn btn-primary">' + ico('plus') + 'Añadir a la videoteca</button>');
       bAlta.onclick = function () {
         var u = fa.querySelector('#vu').value.trim();
@@ -26924,13 +26974,16 @@ window.SF = window.SF || {};
         var v = SF.store.videoSave({
           url: u, titulo: t || 'Vídeo sin título', tipo: fa2.querySelector('#vtipo').value,
           fecha: fa2.querySelector('#vf').value, team_id: fa2.querySelector('#veq').value,
-          rival: fa2.querySelector('#vr').value.trim()
+          rival: fa2.querySelector('#vr').value.trim(),
+          equipacion: fa3.querySelector('#vek').value.trim(),
+          equipacion_rival: fa3.querySelector('#verk').value.trim(),
+          contexto: fa3.querySelector('#vctx').value.trim()
         }, me);
         U.toast('Vídeo añadido. Ábrelo y marca el primer corte.');
         SF._videoAbierto = v.id;
         SF.router.render();
       };
-      alta.appendChild(fa); alta.appendChild(fa2); alta.appendChild(bAlta);
+      alta.appendChild(fa); alta.appendChild(fa2); alta.appendChild(fa3); alta.appendChild(bAlta);
       view.appendChild(alta);
     }
 
@@ -27411,6 +27464,18 @@ window.SF = window.SF || {};
           '</select></div>' +
         '<div class="frow"><label>Rival</label><input id="er" value="' + esc(v.rival || '') + '"></div>' +
         '<div class="frow" style="grid-column:1/-1"><label>Competición</label><input id="ec" value="' + esc(v.competicion || '') + '" placeholder="Liga Cadete FBM"></div>' +
+        '<div class="frow" style="grid-column:1/-1"><p class="sec-label" style="margin:8px 0 0">' +
+          'Cómo se reconoce al equipo en el vídeo <span class="hint">(para la IA)</span></p></div>' +
+        '<div class="frow"><label>Nuestra equipación</label>' +
+          '<input id="ek" value="' + esc(v.equipacion || '') + '" placeholder="Camiseta roja, pantalón negro"></div>' +
+        '<div class="frow"><label>La del rival</label>' +
+          '<input id="erk" value="' + esc(v.equipacion_rival || '') + '" placeholder="Camiseta azul"></div>' +
+        '<div class="frow" style="grid-column:1/-1"><label>Otros detalles</label>' +
+          '<textarea id="ectx" rows="3" placeholder="Cámara fija en la grada del fondo, atacamos a la derecha en la primera parte, el 4 juega con manguito…">' +
+          esc(v.contexto || '') + '</textarea>' +
+          '<p class="hint">Cuanto más concreto, mejor mira la IA. A un fotograma por segundo y desde la grada, ' +
+          'el <b>color de la equipación</b> es lo único que distingue a un equipo del otro con fiabilidad: ' +
+          'sin eso, «el 4» puede ser el 4 del rival.</p></div>' +
         '</div>');
       var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button><button class="btn btn-primary">Guardar</button></div>');
       foot.children[0].onclick = U.closeModal;
@@ -27418,7 +27483,10 @@ window.SF = window.SF || {};
         SF.store.videoSave({ id: v.id, url: f.querySelector('#eu').value.trim(),
           titulo: f.querySelector('#et').value.trim(), tipo: f.querySelector('#ep').value,
           fecha: f.querySelector('#ef').value, team_id: f.querySelector('#ee').value,
-          rival: f.querySelector('#er').value.trim(), competicion: f.querySelector('#ec').value.trim() }, me);
+          rival: f.querySelector('#er').value.trim(), competicion: f.querySelector('#ec').value.trim(),
+          equipacion: f.querySelector('#ek').value.trim(),
+          equipacion_rival: f.querySelector('#erk').value.trim(),
+          contexto: f.querySelector('#ectx').value.trim() }, me);
         U.closeModal(); U.toast('Vídeo guardado'); SF._videoAbierto = v.id; SF.router.render();
       };
       var w = el('<div></div>'); w.appendChild(f); w.appendChild(foot);
