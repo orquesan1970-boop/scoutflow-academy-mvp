@@ -1475,6 +1475,24 @@ button.pf-ley:hover{filter:brightness(.96)}
 .valta-2{grid-template-columns:repeat(4,1fr)}
 .valta+.valta{margin-top:10px}
 .vreco{margin-top:14px;padding:12px;background:var(--bg);border-radius:10px}
+/* --- El diálogo de "que la IA busque". Tiene que leerse como una hoja de
+   encargo, no como un formulario: primero qué quieres, luego dónde, y por
+   último los datos del vídeo que solo se tocan una vez. --- */
+.iap-t{margin:16px 0 8px;font-size:12px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.05em;color:var(--ink-2);display:flex;align-items:center;gap:8px}
+.iap>.iap-t:first-child{margin-top:0}
+.iap-q{width:100%;font-size:14px}
+.iap-ej{margin-top:8px;gap:6px}
+.iap-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.iap-2 label,.iap-l{display:block;font-size:12px;color:var(--ink-2)}
+.iap-2 label input,.iap-l input,.iap-l textarea{width:100%;margin-top:4px}
+.iap-l{margin-top:10px}
+.iap-mas{margin-left:auto;font-size:12px;text-transform:none;letter-spacing:0}
+.iap-reco{padding:12px;background:var(--bg);border-radius:10px}
+.iap-reco .hint{margin:10px 0 0}
+.vtime-s{display:inline-block;background:var(--purple);color:#fff;border-radius:6px;
+  padding:1px 7px;font-size:12px;font-variant-numeric:tabular-nums}
+@media(max-width:640px){ .iap-2{grid-template-columns:1fr} }
 .vreco .sec-label{margin:0 0 8px}
 .vreco textarea{width:100%;margin-top:10px}
 .vreco .hint{margin:8px 0 0}
@@ -26560,6 +26578,7 @@ window.SF = window.SF || {};
      Y una cuarta que no es una puerta pero casi: se enseña qué se va a mandar
      ANTES de mandarlo. */
   function iaMiraCorte(v, seg, jugadorId, dorsal, alRellenar, panel) {
+    var me = quienFirma();
     var inf = SF.videoInfo(v.url) || {};
     function di(html) { panel.innerHTML = html; panel.style.display = ''; }
 
@@ -26598,9 +26617,7 @@ window.SF = window.SF || {};
     [['El enlace del vídeo', 'público en YouTube'],
      ['El tramo', SF.videoTiempo(desde) + ' – ' + SF.videoTiempo(hasta)],
      ['El dorsal', dorsal ? '#' + dorsal : '— no se manda —'],
-     ['Nuestra equipación', v.equipacion || '— sin indicar —'],
-     ['La del rival', v.equipacion_rival || '— sin indicar —'],
-     ['Otros detalles', v.contexto ? v.contexto.slice(0, 70) + (v.contexto.length > 70 ? '…' : '') : '— sin indicar —'],
+     ['Las pistas de abajo', 'equipación y en qué fijarse'],
      ['La categoría', eqCat || '— no se manda —']
     ].forEach(function (x) {
       ml.appendChild(el('<div class="mini-row mr-wrap"><span>' + esc(x[0]) + '</span><span class="hint">' + esc(x[1]) + '</span></div>'));
@@ -26609,19 +26626,24 @@ window.SF = window.SF || {};
     panel.appendChild(el('<p class="hint">No sale su nombre, ni su ficha, ni nada de su familia. ' +
       'La familia de <b>' + esc(pj.full_name) + '</b> autorizó este análisis.</p>'));
 
-    /* SIN EL COLOR DE LA EQUIPACIÓN, la IA acierta mucho menos, y conviene
-       decirlo AQUÍ y no después de un informe flojo: desde la grada y a dos
-       fotogramas por segundo, el color de la camiseta es lo único que separa
-       a un equipo del otro. Se avisa y se ofrece arreglarlo de un clic. */
-    if (!v.equipacion) {
-      var av = el('<p class="hint vhonesto"><b>No has dicho de qué color vais.</b> ' +
-        'Con eso puesto, la IA puede decir «el 4 de rojo»; sin eso, «un jugador» —o peor, ' +
-        'puede fijarse en el 4 del rival. Se pone una vez por vídeo. </p>');
-      var bEd = el('<button class="lnk" type="button">Ponerlo ahora</button>');
-      bEd.onclick = function () { U.closeModal(); editaVideo(v); };
-      av.appendChild(bEd);
-      panel.appendChild(av);
-    }
+    /* QUÉ MIRAR, escrito aquí mismo.
+       Antes esto era un aviso que decía "te falta el color de la equipación,
+       ponlo en Editar". Mandar a alguien a otra pantalla a arreglar lo que le
+       acabas de señalar es la forma más rápida de que no lo arregle nunca:
+       cierra el formulario del corte que estaba rellenando, y vuelve sin
+       saber dónde estaba. Se escribe donde hace falta y se guarda solo. */
+    var extra = el('<div class="iap-reco" style="margin-top:10px">' +
+      (v.equipacion ? '' :
+        '<p class="hint" style="margin-top:0"><b>No has dicho de qué color vais.</b> Con eso, la IA ' +
+        'puede decir «el 4 de rojo»; sin eso puede fijarse en el 4 del rival. Se rellena una vez por vídeo.</p>') +
+      '<div class="iap-2">' +
+      '<label>Nuestra equipación<input id="cek" value="' + esc(v.equipacion || '') + '" placeholder="Camiseta roja, pantalón negro"></label>' +
+      '<label>La del rival<input id="cerk" value="' + esc(v.equipacion_rival || '') + '" placeholder="Camiseta azul"></label>' +
+      '</div>' +
+      '<label class="iap-l">En qué se tiene que fijar <span class="hint">(solo para esta jugada)</span>' +
+      '<input id="cbusca" placeholder="Mira sobre todo cómo defiende el bloqueo y si cierra el rebote."></label>' +
+      '</div>');
+    panel.appendChild(extra);
     panel.appendChild(el('<p class="hint vhonesto"><b>Lo que va a devolver, y lo que no.</b> Describe la jugada y ' +
       'dice lo que no consigue distinguir. <b>No da notas, ni porcentajes, ni mediciones</b>: mira unos pocos ' +
       'fotogramas por segundo y cualquier cifra sería inventada. Lo que escriba es un <b>borrador</b>: ' +
@@ -26635,11 +26657,19 @@ window.SF = window.SF || {};
     bGo.onclick = function () {
       bGo.disabled = true;
       zona.innerHTML = '<p class="hint">Mirando el vídeo… esto tarda unos segundos.</p>';
+      /* Lo escrito se guarda en el vídeo antes de preguntar: la próxima vez ya
+         está puesto. Lo de "en qué fijarse" NO se guarda: es de esta jugada. */
+      var ek = extra.querySelector('#cek').value.trim();
+      var erk = extra.querySelector('#cerk').value.trim();
+      if (ek !== (v.equipacion || '') || erk !== (v.equipacion_rival || '')) {
+        SF.store.videoSave({ id: v.id, equipacion: ek, equipacion_rival: erk }, me);
+      }
       fetch('/api/video-ia', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: v.url, desde: desde, hasta: hasta, modo: 'corte',
           dorsal: dorsal || '', categoria: eqCat,
-          equipacion: v.equipacion || '', equipacion_rival: v.equipacion_rival || '',
+          busca: extra.querySelector('#cbusca').value.trim(),
+          equipacion: ek, equipacion_rival: erk,
           contexto: v.contexto || '' })
       }).then(function (r) { return r.json(); }).then(function (d) {
         bGo.disabled = false;
@@ -26663,30 +26693,89 @@ window.SF = window.SF || {};
      ningún corte: devuelve candidatos con su minuto, y la persona acepta los
      que valen. La diferencia importa — un corte creado por una máquina que
      nadie ha visto es ruido en la ficha de un chaval. */
+  /* Quién firma lo que se guarde desde aquí. Estas dos funciones viven fuera
+     de pages.video, así que no heredan su `me`: se construye igual. */
+  function quienFirma() {
+    var yo = SF.store.staffMe();
+    return { name: (yo && yo.full_name) || SF.store.currentUser().name, staff_id: yo ? yo.id : null };
+  }
+
   function iaProponeCortes(v, alAceptar) {
+    var me = quienFirma();
     var inf = SF.videoInfo(v.url) || {};
     if (inf.fuente !== 'YouTube') { U.toast('Esto solo funciona con vídeos de YouTube'); return; }
 
-    var w = el('<div></div>');
-    w.appendChild(el('<p class="hint">La IA se recorre un tramo del vídeo y te propone momentos. ' +
-      '<b>No crea ningún corte</b>: tú eliges cuáles valen, y los que aceptes se guardan a tu nombre.</p>'));
-    var f = el('<div class="form-grid">' +
-      '<div class="frow"><label>Desde el minuto</label><input id="pd" value="0:00"></div>' +
-      '<div class="frow"><label>Hasta el minuto</label><input id="ph" value="10:00"></div>' +
+    var w = el('<div class="iap"></div>');
+
+    /* 1. EL ENCARGO. Es lo primero porque es lo que la persona tiene en la
+       cabeza cuando abre esto: "quiero ver los rebotes del 4". Sin esto la IA
+       devuelve lo que le parece, que casi nunca es lo que hacía falta.
+       Va con ejemplos pulsables porque nadie sabe qué se le puede pedir a una
+       IA hasta que ve tres ejemplos. */
+    /* ESTO NO SE QUITA. Se perdió al rediseñar el diálogo y lo cazó una prueba:
+       es la frase que distingue "una IA que te ayuda a mirar" de "una IA que
+       llena la ficha de un chaval con cosas que nadie ha visto". */
+    w.appendChild(el('<p class="hint" style="margin-top:0">La IA se recorre el tramo que le digas y te propone ' +
+      'momentos. <b>No crea ningún corte</b>: tú eliges cuáles valen, y los que aceptes se guardan a tu nombre.</p>'));
+    w.appendChild(el('<p class="iap-t">¿Qué quieres que busque?</p>'));
+    var qta = el('<textarea class="iap-q" rows="2" placeholder="Sigue al dorsal 4 y enséñame todo lo que haga con y sin balón."></textarea>');
+    if (SF._iaBusca) qta.value = SF._iaBusca;
+    w.appendChild(qta);
+    var ej = el('<div class="row-c iap-ej"></div>');
+    [['Seguir a un jugador', 'Sigue al dorsal ' + (SF._iaDorsal || '4') + ' y enséñame todo lo que haga, con y sin balón.'],
+     ['Bloqueos directos', 'Busca todos los bloqueos directos: quién lo pone, cómo lo lee el que bota y cómo defiende el rival.'],
+     ['Rebote', 'Busca las acciones de rebote, sobre todo los cierres defensivos que no se hacen.'],
+     ['Transiciones', 'Busca las transiciones: contraataques a favor y balances defensivos tras pérdida.'],
+     ['Lo que se pueda enseñar', 'Todo lo que merezca la pena enseñar a un equipo de formación, bueno o corregible.']
+    ].forEach(function (x) {
+      var b2 = el('<button class="eq-chip eq-chip-sm" type="button">' + esc(x[0]) + '</button>');
+      b2.onclick = function () { qta.value = x[1]; qta.focus(); };
+      ej.appendChild(b2);
+    });
+    w.appendChild(ej);
+
+    /* 2. EL TRAMO. */
+    w.appendChild(el('<p class="iap-t">¿De qué parte del vídeo?</p>'));
+    var f = el('<div class="iap-2">' +
+      '<label>Desde el minuto<input id="pd" value="0:00"></label>' +
+      '<label>Hasta el minuto<input id="ph" value="10:00"></label>' +
       '</div>');
     w.appendChild(f);
     w.appendChild(el('<p class="hint">Tramos de diez minutos van bien. Un partido entero de golpe es caro, ' +
       'lento y devuelve un resumen que nadie puede comprobar.</p>'));
-    w.appendChild(el('<p class="hint vhonesto">Esto <b>no identifica a nadie</b>: como aquí no hay un jugador ' +
-      'concreto al que comprobarle la autorización, la IA describe jugadas sin poner nombres. ' +
-      'Al aceptar un momento, le asignas tú el jugador.</p>'));
-    if (v.equipacion) {
-      w.appendChild(el('<p class="hint">Sabe que vais de <b>' + esc(v.equipacion) + '</b>' +
-        (v.equipacion_rival ? ' y el rival de <b>' + esc(v.equipacion_rival) + '</b>' : '') + '.</p>'));
-    } else {
-      w.appendChild(el('<p class="hint">No has dicho de qué color vais, así que la IA no puede distinguir ' +
-        'vuestras jugadas de las del rival. Se pone en <b>Editar</b>, una vez por vídeo.</p>'));
-    }
+
+    /* 3. CÓMO RECONOCER AL EQUIPO, EDITABLE AQUÍ MISMO.
+       Estaba solo en el alta y en Editar, así que un vídeo dado de alta antes
+       no lo tenía y el aviso mandaba a otra pantalla a buscarlo. Decirle a
+       alguien "te falta esto" y no dejarle escribirlo donde está es un fallo
+       de diseño, no un detalle: se escribe aquí y se guarda en el vídeo. */
+    var abierto = !v.equipacion;
+    w.appendChild(el('<p class="iap-t">Cómo reconocer a los tuyos' +
+      (v.equipacion ? ' <span class="tag tag-green">puesto</span>' : ' <span class="tag tag-warn">sin poner</span>') +
+      '</p>'));
+    var reco = el('<div class="iap-reco"' + (abierto ? '' : ' style="display:none"') + '>' +
+      '<div class="iap-2">' +
+      '<label>Nuestra equipación<input id="pek" value="' + esc(v.equipacion || '') + '" placeholder="Camiseta roja, pantalón negro"></label>' +
+      '<label>La del rival<input id="perk" value="' + esc(v.equipacion_rival || '') + '" placeholder="Camiseta azul"></label>' +
+      '</div>' +
+      '<label class="iap-l">Otros detalles<textarea id="pctx" rows="2" placeholder="Cámara fija en la grada del fondo. Atacamos a la derecha en la primera parte.">' +
+      esc(v.contexto || '') + '</textarea></label>' +
+      '<p class="hint">Sin el color de la equipación, la IA no puede separar vuestras jugadas de las del rival: ' +
+      'a un par de fotogramas por segundo es lo único que distingue a un equipo del otro. ' +
+      'Se guarda en el vídeo, así que esto se rellena una sola vez.</p></div>');
+    var bReco = el('<button class="lnk iap-mas" type="button">' + (abierto ? 'ocultar' : 'cambiar') + '</button>');
+    bReco.onclick = function () {
+      var ab = reco.style.display !== 'none';
+      reco.style.display = ab ? 'none' : '';
+      bReco.textContent = ab ? 'cambiar' : 'ocultar';
+    };
+    w.lastChild.appendChild(bReco);
+    w.appendChild(reco);
+
+    w.appendChild(el('<p class="hint vhonesto">Esto <b>no identifica a nadie</b>: aquí no hay un jugador ' +
+      'concreto al que comprobarle la autorización, así que la IA describe jugadas sin poner nombres. ' +
+      'Al aceptar un momento, le asignas tú el jugador — y ahí sí se comprueba su permiso.</p>'));
+
     var zona = el('<div></div>'); w.appendChild(zona);
 
     var foot = el('<div class="modal-actions"><button class="btn">Cerrar</button>' +
@@ -26697,37 +26786,50 @@ window.SF = window.SF || {};
       var h0 = SF.videoSegundos(f.querySelector('#ph').value);
       if (d0 == null || h0 == null || h0 <= d0) { U.toast('Revisa los minutos: el final va después del principio'); return; }
       if (h0 - d0 > 1800) { U.toast('Máximo media hora de una vez'); return; }
+
+      /* Lo que se escriba aquí se GUARDA en el vídeo antes de buscar: la
+         próxima vez ya está puesto y no hay que volver a escribirlo. */
+      var ek = reco.querySelector('#pek').value.trim();
+      var erk = reco.querySelector('#perk').value.trim();
+      var ctx = reco.querySelector('#pctx').value.trim();
+      if (ek !== (v.equipacion || '') || erk !== (v.equipacion_rival || '') || ctx !== (v.contexto || '')) {
+        SF.store.videoSave({ id: v.id, equipacion: ek, equipacion_rival: erk, contexto: ctx }, me);
+        v = SF.store.videoGet(v.id);
+      }
+      SF._iaBusca = qta.value.trim();
+
       foot.children[1].disabled = true;
       zona.innerHTML = '<p class="hint">Mirando el vídeo… un tramo largo puede tardar un minuto.</p>';
       fetch('/api/video-ia', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: v.url, desde: d0, hasta: h0, modo: 'propuesta',
+          busca: SF._iaBusca,
           categoria: (SF.store.teamGet(v.team_id) || {}).category || '',
-          equipacion: v.equipacion || '', equipacion_rival: v.equipacion_rival || '',
-          contexto: v.contexto || '' })
+          equipacion: ek, equipacion_rival: erk, contexto: ctx })
       }).then(function (r) { return r.json(); }).then(function (d) {
         foot.children[1].disabled = false;
         zona.innerHTML = '';
-        if (!d || !d.ok) { zona.appendChild(el('<div class="empty-panel"><p>' + esc(motivoIA(d)) + '</p></div>')); return; }
+        if (!d || !d.ok) { zona.appendChild(el('<p class="hint">' + esc(motivoIA(d)) + '</p>')); return; }
         if (!d.momentos.length) {
-          zona.appendChild(el('<div class="empty-panel"><p>No ha encontrado nada que merezca enseñarse en ese tramo.</p></div>'));
+          zona.appendChild(el('<p class="hint">No ha encontrado nada que encaje con lo que le has pedido en ese tramo.' +
+            (d.no_visible ? '<br>Dice: ' + esc(d.no_visible) : '') + '</p>'));
           return;
         }
-        zona.appendChild(el('<p class="sec-label">Propuestas <span class="count-inline">' + d.momentos.length + '</span></p>'));
+        zona.appendChild(el('<p class="iap-t">Propuestas <span class="count-inline">' + d.momentos.length + '</span></p>'));
         var ml = el('<div class="mini-list"></div>');
         d.momentos.forEach(function (m) {
           var t = SF.videoSegundos(m.t);
           var row = el('<div class="mini-row mr-wrap"><span>' +
-            '<b>' + esc(m.t) + '</b> · ' + esc(m.titulo) +
+            '<b class="vtime-s">' + esc(m.t) + '</b> ' + esc(m.titulo) +
             (m.etiqueta ? ' <span class="tag tag-gray">' + esc(m.etiqueta) + '</span>' : '') +
             (m.por_que ? '<br><span class="hint">' + esc(m.por_que) + '</span>' : '') +
             '</span><span class="row-actions"></span></div>');
-          var b = el('<button class="lnk">marcar este</button>');
-          b.onclick = function () {
+          var b3 = el('<button class="lnk">marcar este</button>');
+          b3.onclick = function () {
             U.closeModal();
             alAceptar(t == null ? 0 : t, { titulo: m.titulo, etiqueta: m.etiqueta });
           };
-          row.querySelector('.row-actions').appendChild(b);
+          row.querySelector('.row-actions').appendChild(b3);
           ml.appendChild(row);
         });
         zona.appendChild(ml);
@@ -26736,11 +26838,11 @@ window.SF = window.SF || {};
           'para que le pongas jugador y lo revises.</p>'));
       }).catch(function () {
         foot.children[1].disabled = false;
-        zona.innerHTML = '<div class="empty-panel"><p>No hay conexión con el servidor.</p></div>';
+        zona.innerHTML = '<p class="hint">No hay conexión con el servidor.</p>';
       });
     };
     w.appendChild(foot);
-    U.modal('Que la IA proponga momentos', w);
+    U.modal('Que la IA busque en el vídeo', w);
   }
 
   function motivoIA(d) {
