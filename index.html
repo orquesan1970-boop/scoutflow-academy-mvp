@@ -1565,6 +1565,31 @@ button.pf-ley:hover{filter:brightness(.96)}
 .iap-chip:hover{border-color:var(--st-purple);color:var(--st-ink)}
 .iap-chip.on{background:var(--st-purple);border-color:var(--st-purple);color:#14102A}
 .iap-chip-min{font-variant-numeric:tabular-nums;padding:5px 12px}
+/* El tercer botón de la barra: importar se hace una vez por partido, marcar
+   veinte, así que pesa menos que los otros dos sin llegar a esconderse. */
+.vstudio .vmarca .btn-fantasma-claro{background:transparent;color:var(--st-ink-2);
+  border:1px solid var(--st-line);font-weight:600}
+.vstudio .vmarca .btn-fantasma-claro:hover{background:var(--st-2);color:var(--st-ink);
+  border-color:var(--st-purple)}
+
+/* EL MAPEO: sus categorías contra las nuestras. Una fila por categoría, con
+   cuántas veces aparece, porque eso es lo que dice cuáles merece emparejar:
+   la que sale 40 veces sí, la que sale una puede quedarse tal cual. */
+.imp-mapa{display:flex;flex-direction:column;gap:7px;margin:10px 0 4px;
+  max-height:260px;overflow-y:auto;padding-right:4px}
+.imp-fila{display:flex;align-items:center;gap:9px}
+.imp-de{flex:1;min-width:0;font-size:13px;color:var(--st-ink);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.imp-de i{font-style:normal;font-size:11px;color:var(--st-ink-2);
+  background:var(--st-2);border-radius:99px;padding:1px 7px;margin-left:5px;
+  font-variant-numeric:tabular-nums}
+.imp-fl{color:var(--st-ink-2);flex:0 0 auto}
+.imp-fila select{flex:0 0 auto;width:190px;max-width:45%}
+@media (max-width:600px){
+  .imp-fila{flex-wrap:wrap}
+  .imp-fila select{width:100%;max-width:100%}
+  .imp-fl{display:none}
+}
 
 /* EL TRAMO. Los minutos con cifras de ancho fijo -si no, cambiar de 9:58 a
    10:01 mueve el campo entero- y al lado lo que va a pasar al pulsar. */
@@ -27303,6 +27328,306 @@ window.SF = window.SF || {};
     return { name: (yo && yo.full_name) || SF.store.currentUser().name, staff_id: yo ? yo.id : null };
   }
 
+  /* =====================================================================
+     TRAER UN PARTIDO YA ETIQUETADO (Nacsport, Hudl Instat, Sportscode)
+     ---------------------------------------------------------------------
+     POR QUÉ ESTO Y NO OTRA COSA.
+
+     Los entrenadores de formación en España ya etiquetan partidos, y lo
+     hacen con Nacsport: un panel de botones de colores, en directo, desde
+     el portátil o la tablet. Compitiendo con eso perderíamos, y además no
+     haría falta: Nacsport es muy bueno en lo suyo.
+
+     Donde Nacsport es malo es en LO QUE PASA DESPUÉS. Las etiquetas se
+     quedan en el proyecto de un portátil: no llegan a la ficha del jugador,
+     ni al resto del cuerpo técnico, ni a la temporada que viene. Ahí es
+     donde ScoutFlow tiene sitio: ser donde aterrizan.
+
+     EL XML ES EL IDIOMA COMÚN del sector -Nacsport y Sportscode se pasan el
+     trabajo así- y su estructura encaja casi campo a campo con un corte:
+
+         <instance>
+           <ID>1</ID>
+           <start>124.5</start>  <end>134.5</end>
+           <code>PICK AND ROLL LATERAL</code>
+           <label><group>Jugador</group><text>16</text></label>
+         </instance>
+
+     start -> el minuto del corte · code -> la etiqueta · label -> el jugador.
+
+     LO DIFÍCIL NO ES LEER EL ARCHIVO, ES EL MAPEO: que "16" sepa que es tu
+     base y que "PICK AND ROLL LATERAL" caiga en tu etiqueta de siempre. Eso
+     se pregunta UNA VEZ y se guarda por club, reutilizando el mismo sistema
+     de alias que ya aprende los nombres de las actas de la federación. La
+     segunda importación es un clic. */
+
+  /* Lee las dos cosas que exportan estas herramientas y devuelve siempre la
+     misma forma: una lista de {t, fin, code, quien}. Que el resto del
+     importador no tenga que saber de dónde vino el archivo. */
+  function leeEtiquetas(txt) {
+    txt = String(txt || '').trim();
+    if (!txt) return { filas: [], formato: null };
+
+    /* --- XML (Nacsport, Sportscode, Hudl) --- */
+    if (txt.charAt(0) === '<') {
+      var doc;
+      try { doc = new DOMParser().parseFromString(txt, 'text/xml'); }
+      catch (e) { return { filas: [], formato: 'xml', error: 'El archivo XML no se puede leer.' }; }
+      if (doc.querySelector('parsererror')) {
+        return { filas: [], formato: 'xml', error: 'El archivo XML está mal formado. Vuelve a exportarlo desde tu programa.' };
+      }
+      var inst = doc.getElementsByTagName('instance');
+      var filas = [];
+      for (var i = 0; i < inst.length; i++) {
+        var n = inst[i];
+        function t1(tag) {
+          var e2 = n.getElementsByTagName(tag)[0];
+          return e2 ? String(e2.textContent || '').trim() : '';
+        }
+        var ini = parseFloat(t1('start'));
+        if (isNaN(ini)) continue;
+        var fin = parseFloat(t1('end'));
+        /* Las etiquetas sueltas (<label>) traen el dorsal, el resultado o el
+           cuarto según cómo lo tenga montado cada entrenador. Se recogen
+           todas y luego se decide cuál es cuál: aquí no se adivina. */
+        var labs = [], ls = n.getElementsByTagName('label');
+        for (var j = 0; j < ls.length; j++) {
+          var g = ls[j].getElementsByTagName('group')[0];
+          var x = ls[j].getElementsByTagName('text')[0];
+          var val = x ? String(x.textContent || '').trim() : String(ls[j].textContent || '').trim();
+          if (val) labs.push({ grupo: g ? String(g.textContent || '').trim() : '', valor: val });
+        }
+        filas.push({ t: Math.max(0, Math.round(ini)), fin: isNaN(fin) ? null : Math.round(fin),
+                     code: t1('code'), labels: labs });
+      }
+      return { filas: filas, formato: 'xml' };
+    }
+
+    /* --- CSV / Excel pegado (Instat, o el propio Nacsport a hoja) --- */
+    var csv = parseCSV(txt);
+    if (!csv.rows.length) return { filas: [], formato: 'csv' };
+    function col() {
+      for (var a = 0; a < arguments.length; a++) {
+        var i2 = csv.head.indexOf(arguments[a]);
+        if (i2 >= 0) return i2;
+      }
+      return -1;
+    }
+    var iT = col('start', 'inicio', 'tiempo', 'time', 'minuto', 'min');
+    var iF2 = col('end', 'fin', 'final');
+    var iC = col('code', 'categoria', 'categoría', 'accion', 'acción', 'tipo', 'evento');
+    var iJ = col('jugador', 'player', 'dorsal', 'numero', 'número', 'label');
+    if (iT < 0 || iC < 0) {
+      return { filas: [], formato: 'csv',
+        error: 'A la tabla le falta alguna columna. Hacen falta al menos el minuto ' +
+               '(start, inicio, tiempo o minuto) y la categoría (code, categoría, acción o evento).' };
+    }
+    var out = [];
+    csv.rows.forEach(function (r) {
+      /* El minuto puede venir en segundos ("124.5") o como "2:04". */
+      var crudo = String(r[iT] || '').trim();
+      var seg = /:/.test(crudo) ? SF.videoSegundos(crudo) : Math.round(parseFloat(crudo));
+      if (seg == null || isNaN(seg)) return;
+      var cf = iF2 >= 0 ? String(r[iF2] || '').trim() : '';
+      var segF = cf ? (/:/.test(cf) ? SF.videoSegundos(cf) : Math.round(parseFloat(cf))) : null;
+      out.push({ t: Math.max(0, seg), fin: (segF == null || isNaN(segF)) ? null : segF,
+                 code: String(r[iC] || '').trim(),
+                 labels: iJ >= 0 && r[iJ] ? [{ grupo: '', valor: String(r[iJ]).trim() }] : [] });
+    });
+    return { filas: out, formato: 'csv' };
+  }
+
+  /* De las etiquetas sueltas de una fila, cuál parece el jugador.
+     Un dorsal es un número corto, o algo como "J16" / "#7". Si no hay nada
+     que lo parezca, se devuelve vacío en vez de inventarse uno: un corte con
+     el jugador equivocado es peor que un corte sin jugador. */
+  function dorsalDe(fila) {
+    var cand = (fila.labels || []).filter(function (l) {
+      return /jugador|player|dorsal|numero|número|nº/i.test(l.grupo || '');
+    });
+    var lista = cand.length ? cand : (fila.labels || []);
+    for (var i = 0; i < lista.length; i++) {
+      var m = String(lista[i].valor).match(/^[#Jj]?\s*(\d{1,2})$/);
+      if (m) return m[1];
+    }
+    return '';
+  }
+
+  /* La pantalla de traer las etiquetas. Tres pasos y ninguno oculto:
+       1. pegar o abrir el archivo;
+       2. REVISAR el mapeo -sus categorías y sus dorsales contra los tuyos-;
+       3. crear los cortes.
+     El paso 2 es el que importa, y por eso no se puede saltar: importar a
+     ciegas mete cincuenta cortes mal atribuidos en las fichas de chavales, y
+     deshacer eso a mano es peor que no haber importado. */
+  function importaEtiquetas(v, alTerminar) {
+    var me = quienFirma();
+    var w = el('<div class="iap"></div>');
+
+    w.appendChild(el('<div class="iap-ctx"><span class="iap-ctx-ic">' + ico('upload') + '</span>' +
+      '<span><b>' + esc(v.titulo || 'Sin título') + '</b>' +
+      '<span class="iap-ctx-s">Las etiquetas se añadirán como cortes de este vídeo</span></span></div>'));
+
+    w.appendChild(el('<p class="hint" style="margin-top:0">Si ya has etiquetado el partido en <b>Nacsport</b>, ' +
+      '<b>Hudl Instat</b> o <b>Sportscode</b>, no hay que repetir el trabajo: exporta el ' +
+      '<b>XML</b> (o la tabla en CSV) y cada etiqueta se convierte en un corte, con su minuto.</p>'));
+
+    var tools = el('<div class="row-c" style="gap:8px;margin-bottom:9px"></div>');
+    var fileW = el('<label class="btn btn-fantasma btn-sm" style="cursor:pointer">' + ico('upload') +
+      'Abrir archivo<input type="file" accept=".xml,.csv,.txt,text/xml,text/csv" style="display:none"></label>');
+    tools.appendChild(fileW);
+    w.appendChild(tools);
+
+    var ta = el('<textarea class="iap-q" rows="3" placeholder="…o pega aquí el contenido del XML o de la tabla."></textarea>');
+    w.appendChild(ta);
+    fileW.querySelector('input').onchange = function (e) {
+      var fl = e.target.files[0]; if (!fl) return;
+      var r = new FileReader();
+      r.onload = function () { ta.value = r.result; revisa(); };
+      r.readAsText(fl);
+    };
+
+    var zona = el('<div></div>'); w.appendChild(zona);
+    var foot = el('<div class="modal-actions iap-foot"><button class="btn btn-fantasma">Cerrar</button>' +
+      '<button class="btn btn-ia-solido" disabled>Crear los cortes</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    w.appendChild(foot);
+
+    var listo = null;     // lo que se creará al pulsar
+
+    function revisa() {
+      zona.innerHTML = '';
+      listo = null;
+      foot.children[1].disabled = true;
+      var txt = ta.value.trim(); if (!txt) return;
+
+      var r = leeEtiquetas(txt);
+      if (r.error) { zona.appendChild(el('<div class="iap-aviso"><b>' + ico('alert') + ' No se ha podido leer</b>' + esc(r.error) + '</div>')); return; }
+      if (!r.filas.length) {
+        zona.appendChild(el('<div class="iap-aviso"><b>' + ico('alert') + ' Ahí no hay etiquetas</b>' +
+          'No he encontrado ninguna acción con minuto. Si es un XML, tiene que traer etiquetas ' +
+          '<b>&lt;instance&gt;</b>; si es una tabla, una columna de minuto y otra de categoría.</div>'));
+        return;
+      }
+
+      /* --- Las categorías de ELLOS, contra las de la app --- */
+      var cats = {};
+      r.filas.forEach(function (x) { if (x.code) cats[x.code] = (cats[x.code] || 0) + 1; });
+      var nombres = Object.keys(cats).sort(function (a, b) { return cats[b] - cats[a]; });
+      var mapaCat = SF.store.importAliases();
+
+      zona.appendChild(el('<p class="iap-t">' + r.filas.length + ' etiquetas · ' + nombres.length +
+        ' categorías <span class="tag tag-gray">' + (r.formato === 'xml' ? 'XML' : 'tabla') + '</span></p>'));
+
+      zona.appendChild(el('<p class="hint">Empareja <b>sus</b> categorías con <b>las tuyas</b>. Lo que dejes en ' +
+        '«tal cual» se guarda con el nombre que trae. Esto se recuerda: la próxima importación ya viene puesta.</p>'));
+
+      var tabla = el('<div class="imp-mapa"></div>');
+      var eleccion = {};
+      nombres.forEach(function (nom) {
+        var clave = 'cat|' + SF.norm(nom);
+        var guardado = mapaCat[clave] || '';
+        eleccion[nom] = guardado;
+        var fila = el('<div class="imp-fila"><span class="imp-de">' + esc(nom) +
+          ' <i>' + cats[nom] + '</i></span><span class="imp-fl">→</span></div>');
+        var sel = el('<select><option value="">— tal cual —</option>' +
+          SF.CORTE_ETIQUETAS.map(function (et) {
+            return '<option value="' + esc(et) + '"' + (guardado === et ? ' selected' : '') + '>' + esc(et) + '</option>';
+          }).join('') + '</select>');
+        sel.onchange = function () { eleccion[nom] = sel.value; };
+        fila.appendChild(sel);
+        tabla.appendChild(fila);
+      });
+      zona.appendChild(tabla);
+
+      /* --- Los jugadores --- */
+      var conDorsal = r.filas.filter(function (x) { return dorsalDe(x); }).length;
+      var equipo = v.team_id ? SF.store.teamGet(v.team_id) : null;
+      var plantilla = v.team_id ? SF.store.players().filter(function (p) { return p.team_id === v.team_id; }) : [];
+
+      if (conDorsal) {
+        var sinSitio = [];
+        var dors = {};
+        r.filas.forEach(function (x) { var d = dorsalDe(x); if (d) dors[d] = (dors[d] || 0) + 1; });
+        Object.keys(dors).forEach(function (d) {
+          if (!plantilla.filter(function (p) { return String(p.dorsal || '') === d; })[0]) sinSitio.push(d);
+        });
+        if (!v.team_id) {
+          zona.appendChild(el('<div class="iap-aviso"><b>' + ico('alert') + ' Este vídeo no tiene equipo</b>' +
+            'Las etiquetas traen dorsales, pero sin saber de qué equipo es el partido no se puede saber ' +
+            'quién es el 7. Los cortes se crearán <b>sin jugador</b>, con el dorsal apuntado, y se les puede ' +
+            'poner nombre luego. Para que entren solos, ponle equipo al vídeo en «Editar».</div>'));
+        } else if (sinSitio.length) {
+          zona.appendChild(el('<div class="iap-aviso"><b>' + ico('alert') + ' Dorsales que no están en ' + esc(equipo.name) + '</b>' +
+            'El ' + sinSitio.slice(0, 8).join(', el ') + '. Esos cortes se crean <b>sin jugador</b> y con el dorsal ' +
+            'apuntado: prefiero dejarlos sin nombre a colgárselos al chaval equivocado.</div>'));
+        } else {
+          zona.appendChild(el('<p class="hint iap-guardadas">' + ico('check') +
+            ' <b>Todos los dorsales encajan con ' + esc(equipo.name) + '.</b> ' +
+            'Cada corte irá a la ficha de su jugador.</p>'));
+        }
+      } else {
+        zona.appendChild(el('<p class="hint">Las etiquetas no traen dorsal, así que los cortes se crearán ' +
+          'sin jugador. Se les puede poner después, uno a uno o siguiendo a un jugador.</p>'));
+      }
+
+      /* --- Una muestra, para que se vea lo que va a entrar --- */
+      zona.appendChild(el('<p class="iap-t">Así quedarán los primeros</p>'));
+      var muestra = el('<div class="mini-list"></div>');
+      r.filas.slice(0, 4).forEach(function (x) {
+        var d = dorsalDe(x);
+        var pj = (v.team_id && d) ? plantilla.filter(function (p) { return String(p.dorsal || '') === d; })[0] : null;
+        muestra.appendChild(el('<div class="mini-row prop-row"><span>' +
+          '<b class="vtime-s">' + SF.videoTiempo(x.t) + '</b> ' + esc(x.code || 'Sin categoría') +
+          (pj ? ' <span class="tag tag-green">' + esc(pj.full_name) + '</span>'
+              : (d ? ' <span class="tag tag-gray">dorsal ' + esc(d) + '</span>' : '')) +
+          '</span></div>'));
+      });
+      zona.appendChild(muestra);
+      if (r.filas.length > 4) zona.appendChild(el('<p class="hint">…y ' + (r.filas.length - 4) + ' más.</p>'));
+
+      listo = { filas: r.filas, eleccion: eleccion, plantilla: plantilla };
+      foot.children[1].disabled = false;
+      foot.children[1].textContent = 'Crear ' + r.filas.length + (r.filas.length === 1 ? ' corte' : ' cortes');
+    }
+
+    ta.addEventListener('input', revisa);
+
+    foot.children[1].onclick = function () {
+      if (!listo) return;
+      var n = 0, conJugador = 0;
+      listo.filas.forEach(function (x) {
+        var d = dorsalDe(x);
+        var pj = (v.team_id && d) ? listo.plantilla.filter(function (p) { return String(p.dorsal || '') === d; })[0] : null;
+        if (pj) conJugador++;
+        SF.store.corteSave(v.id, {
+          t: x.t,
+          titulo: x.code || 'Etiqueta importada',
+          etiqueta: listo.eleccion[x.code] || '',
+          player_id: pj ? pj.id : '',
+          dorsal: d || '',
+          /* QUEDA ESCRITO DE DÓNDE VIENE. Dentro de tres meses, "¿esto lo
+             marcó alguien o vino de un archivo?" es una pregunta que se hace,
+             y sin esta nota no tiene respuesta. */
+          nota: 'Importado de un partido ya etiquetado' +
+                (x.fin != null && x.fin > x.t ? ' · duraba ' + (x.fin - x.t) + ' s' : '') +
+                (x.labels && x.labels.length ? ' · ' + x.labels.map(function (l) { return l.valor; }).join(', ') : '')
+        }, me);
+        n++;
+      });
+      /* El mapeo se aprende: la próxima vez ya viene puesto. */
+      Object.keys(listo.eleccion).forEach(function (nom) {
+        if (listo.eleccion[nom]) SF.store.importAliasSet('cat|' + SF.norm(nom), listo.eleccion[nom]);
+      });
+      U.closeModal();
+      U.toast(n + ' cortes creados' + (conJugador ? ' · ' + conJugador + ' fueron a una ficha' : ''));
+      if (alTerminar) alTerminar();
+    };
+
+    var back = U.modal('Traer un partido ya etiquetado', w);
+    back.querySelector('.modal').classList.add('modal-estudio');
+  }
+
   /* LA LISTA DE PROPUESTAS, en un solo sitio.
      Se pinta igual dentro del panel de la IA y en la pantalla de Video, y por
      eso vive aqui: dos listas parecidas en dos sitios acaban siendo dos
@@ -28096,6 +28421,18 @@ window.SF = window.SF || {};
         };
         barraM.appendChild(bProp);
       }
+
+      /* TRAER UN PARTIDO YA ETIQUETADO. Va aquí, al lado de marcar a mano y
+         de la IA, porque son las TRES formas de llenar la lista de cortes y
+         esconder una sería obligar a repetir trabajo ya hecho: un entrenador
+         que ya etiquetó el partido en Nacsport no tiene por qué volver a
+         marcarlo aquí jugada a jugada. */
+      var bImp = el('<button class="btn btn-light btn-fantasma-claro">' + ico('upload') + 'Traer etiquetas</button>');
+      bImp.title = 'Desde Nacsport, Hudl Instat o Sportscode (XML o CSV)';
+      bImp.onclick = function () {
+        importaEtiquetas(v, function () { pintaCortes(SF.store.videoGet(v.id)); pintaLado(); });
+      };
+      barraM.appendChild(bImp);
 
       /* Modo seguimiento: la idea buena de "seguir a un jugador" hecha por
          quien ve el partido. Eliges una vez y dejas de elegir. */
