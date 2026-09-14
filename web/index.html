@@ -332,8 +332,8 @@ img,svg{display:block;max-width:100%}
     <div class="board__grid">
       <div class="stat">
         <p class="stat__label">Ficha del jugador</p>
-        <p class="stat__num">13<i>pestañas</i></p>
-        <p class="stat__foot">Del perfil a las notas internas, pasando por trayectoria, documentos y finanzas.</p>
+        <p class="stat__num">14<i>pestañas</i></p>
+        <p class="stat__foot">Del perfil a las notas internas, pasando por trayectoria, vídeos, documentos y finanzas.</p>
       </div>
       <div class="stat">
         <p class="stat__label">Evaluación deportiva</p>
@@ -347,8 +347,8 @@ img,svg{display:block;max-width:100%}
       </div>
       <div class="stat">
         <p class="stat__label">Roles</p>
-        <p class="stat__num">16<i>perfiles</i></p>
-        <p class="stat__foot">Cada uno ve lo suyo: dirección, técnica, administración, familia y jugador.</p>
+        <p class="stat__num">17<i>perfiles</i></p>
+        <p class="stat__foot">Cada uno ve lo suyo, y lo decide el servidor: dirección, técnica, preparación física, administración, familia y jugador.</p>
       </div>
     </div>
     <p class="board__note">Construido con un club de formación de verdad, no en un despacho.</p>
@@ -381,7 +381,7 @@ img,svg{display:block;max-width:100%}
 <section class="edge" id="diferencial">
   <div class="wrap">
     <p class="eyebrow eyebrow--chalk">Por qué nosotros</p>
-    <h2 class="h2" style="margin-top:12px;max-width:18ch">Seis cosas que no hace ningún otro</h2>
+    <h2 class="h2" style="margin-top:12px;max-width:18ch">Ocho cosas que no hace ningún otro</h2>
     <p class="edge__lede">
       Software de gestión deportiva hay mucho. Esto es lo que encontrarás aquí y no en los demás,
       porque nace de un club de formación y no de un catálogo de funcionalidades.
@@ -448,6 +448,33 @@ img,svg{display:block;max-width:100%}
           En la inscripción, cada autorización se contesta <b>sí o no</b>, y queda firmada con nombre y fecha.
           La de imagen <b>se puede contestar que no</b> y aun así completar la inscripción: si la condicionas,
           ese consentimiento deja de ser libre y no vale. Es un error muy común y sale caro.
+        </p>
+      </div>
+
+      <div class="ed">
+        <p class="ed__n">07 — Vídeo</p>
+        <h3>La IA mira el partido, y dice lo que no ve</h3>
+        <p>
+          Pegas el enlace del partido y le pides lo que quieras buscar —«sigue al 4», «los bloqueos
+          directos»—. <b>La IA mira el vídeo de verdad</b> y te propone los momentos, con su minuto.
+          Tú eliges cuáles valen y quedan en la ficha del jugador.
+          Y lo que más importa: <b>no te da números</b>. Ni valoraciones sobre 100 ni estadísticas de
+          posesión, porque desde la grada y a dos fotogramas por segundo serían inventadas. Cuando no
+          distingue un dorsal, lo dice. Sobre un chaval de quince años, eso no es un detalle.
+        </p>
+      </div>
+
+      <div class="ed">
+        <p class="ed__n">08 — Si ya usas Nacsport</p>
+        <h3>No repitas el trabajo hecho</h3>
+        <p>
+          Si tu entrenador ya etiqueta los partidos en <b>Nacsport</b>, <b>Hudl Instat</b> o
+          <b>Sportscode</b>, no le pedimos que lo vuelva a hacer aquí: exporta el XML y cada etiqueta
+          entra como un corte, con su minuto y su jugador. Emparejas sus categorías con las tuyas una
+          vez y la próxima vez es un clic.
+          No competimos con esas herramientas: <b>son buenas etiquetando</b>. Lo que no hacen es que
+          ese trabajo llegue a la ficha del chaval, al resto del cuerpo técnico y a la temporada
+          siguiente.
         </p>
       </div>
     </div>
@@ -623,6 +650,33 @@ img,svg{display:block;max-width:100%}
         <div class="ui__foot"><span class="mini">Solo ve a su hijo</span><span class="mini">Notificación del club</span></div>
       </div>
     </article>
+
+    <!-- · Vídeo y cortes -->
+    <article class="mod">
+      <div class="mod__copy">
+        <div class="mod__tag"><i></i><span>Vídeo</span></div>
+        <h3>El partido, minutado</h3>
+        <p>Pegas el enlace de YouTube y marcas las jugadas que importan mientras lo ves. Cada corte
+          queda en la ficha de su jugador, y desde ahí se salta al minuto exacto. La IA puede mirar el
+          vídeo y proponerte momentos, pero el que decide eres tú.</p>
+        <ul>
+          <li>No se sube ningún archivo: el vídeo se queda donde está</li>
+          <li>La IA propone; una persona pone el nombre y responde de ello</li>
+          <li>Nada de valoraciones sobre 100 ni estadísticas inventadas</li>
+          <li>Si ya etiquetas en Nacsport, se importa el XML y no repites trabajo</li>
+        </ul>
+      </div>
+      <div class="ui">
+        <div class="ui__bar"><h4>Jornada 4 · vs Real Madrid B</h4><span class="mini">Cadete A</span></div>
+        <div class="ui__body">
+          <div class="uirow"><span><b>01:54 · Pick &amp; roll central</b><span class="sub">Marcos R. · dorsal 4</span></span><span class="chip chip--ok">Acierto</span></div>
+          <div class="uirow"><span><b>03:45 · Defensa 1c1 y robo</b><span class="sub">Marcos R. · dorsal 4</span></span><span class="chip chip--ok">Acierto</span></div>
+          <div class="uirow"><span><b>05:50 · Repliegue lento</b><span class="sub">Iker M. · dorsal 9</span></span><span class="chip chip--wait">A trabajar</span></div>
+          <div class="uirow"><span><b>07:25 · Propuesta de la IA</b><span class="sub">Ataque al closeout · sin jugador todavía</span></span><span class="chip chip--wait">Por revisar</span></div>
+        </div>
+        <div class="ui__foot"><span class="mini">La IA avisa: no distingue los dorsales del fondo</span><span class="mini">4 cortes</span></div>
+      </div>
+    </article>
   </div>
 </section>
 
@@ -676,8 +730,10 @@ img,svg{display:block;max-width:100%}
     <div class="road__grid rise d2">
       <div class="rd">
         <p class="rd__s">En construcción</p>
-        <h4>Acceso con usuario</h4>
-        <p>Cada persona con su correo y su contraseña, y los permisos comprobados en el servidor.</p>
+        <h4>Permisos comprobados en el servidor</h4>
+        <p>Cada persona ya entra con su correo y su contraseña, y su rol lo decide el club, no una
+          opción de la pantalla. Lo que falta es la última capa: hoy quién ve qué se decide en la
+          aplicación, y queremos que lo decida también la base de datos.</p>
       </div>
       <div class="rd">
         <p class="rd__s">Siguiente</p>
@@ -760,6 +816,24 @@ img,svg{display:block;max-width:100%}
       <details class="qa">
         <summary>¿Y quién mete todos los datos?</summary>
         <div class="qa__a">La pregunta que más nos hacen, y la más justa. Se empieza por lo mínimo: nombre, fecha y equipo. Lo demás se rellena cuando hace falta. Además, la <b>inscripción</b> hace que la ficha nazca completa sin que nadie teclee nada, y puedes <b>pegar un WhatsApp</b> y que la app saque los datos sola.</div>
+      </details>
+
+      <details class="qa">
+        <summary>¿La IA decide cosas sobre mi hijo?</summary>
+        <div class="qa__a">No, y está construido para que no pueda. La IA <b>describe y propone</b>: mira un
+          tramo del partido y te sugiere momentos, o resume los cortes que ha escrito tu cuerpo técnico.
+          <b>Quien decide es siempre una persona</b>, y queda su nombre. Además no produce números
+          —ni valoraciones sobre 100 ni estadísticas—, porque desde la grada serían inventados, y un
+          número inventado sobre un chaval de quince años acaba en una conversación con su familia.
+          Sin el permiso del jugador o de su familia, el botón de analizar vídeo ni se activa.</div>
+      </details>
+
+      <details class="qa">
+        <summary>¿Puede entrar todo mi cuerpo técnico?</summary>
+        <div class="qa__a">Sí. Cada persona entra con su correo y su contraseña, y ve <b>el mismo club</b>,
+          no una copia. Se invita con un código que le pasas tú. Lo importante: <b>el rol lo decide el
+          club, no la persona</b> — un entrenador no puede darse permisos de dirección. Y cada uno ve
+          lo que le toca: el entrenador sus equipos, la familia solo a su hijo.</div>
       </details>
 
       <details class="qa">
