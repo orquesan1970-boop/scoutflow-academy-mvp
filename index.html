@@ -2056,6 +2056,81 @@ table.alm td.alm-na{color:#CFCDD8;background:#FBFBFD}
 .sf-cuenta button{background:none;border:0;color:inherit;font-family:inherit;font-size:11.5px;cursor:pointer;text-decoration:underline;padding:0;opacity:.8}
 @media(max-width:980px){.sf-cuenta{display:none}}
 
+
+/* --- Pizarra de ejercicios y pasos (20/09/2026) --- */
+:root{--sf-pista:#FBF3E4;--sf-linea:#A08C69;--sf-zona:#EFE3F7;--sf-aro:#C2560C;
+  --sf-rojo:#C62828;--sf-naranja:#D9600B;--sf-ficha-txt:#FFFFFF}
+.sf-piz{width:100%;height:auto;display:block;border:1px solid var(--line-2);
+  border-radius:10px;font-family:inherit;background:var(--sf-pista)}
+.ej-pasos{display:grid;gap:10px;margin-top:10px}
+.ej-paso{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:14px;
+  align-items:start;border:1px solid var(--line);border-radius:12px;padding:12px}
+.ej-paso .pnum{display:block;font-size:11px;font-weight:700;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--purple)}
+.ej-paso p{margin:5px 0 8px;font-size:13.5px;line-height:1.5}
+.ej-paso .pclave{border-left:3px solid var(--purple);padding-left:9px;font-size:12.5px;
+  color:var(--ink-2);line-height:1.45}
+.ej-leyenda{display:flex;flex-wrap:wrap;gap:6px 14px;margin:10px 0 2px;font-size:12px;color:var(--ink-2)}
+.ej-leyenda span{display:inline-flex;align-items:center;gap:6px}
+.ej-leyenda svg{width:42px;height:19px;flex:0 0 auto;border:0;background:none}
+.ej-esc{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}
+.ej-esc button{font-family:inherit;font-size:12.5px;cursor:pointer;background:var(--surface);
+  color:var(--ink-2);border:1px solid var(--line-2);border-radius:8px;padding:6px 10px;text-align:left}
+.ej-esc button.on{background:#EDE9FE;border-color:var(--purple);color:var(--purple);font-weight:600}
+.ej-esc button.on:after{content:' · estás aquí';font-weight:400;font-size:11.5px}
+.ej-barra{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
+/* La regla global pone width:100% a todo input y select, y eso apilaba los
+   tres controles en tres lineas: justo la pared que veniamos a quitar. */
+.ej-barra .ej-busca{flex:1 1 200px;width:auto;min-width:0}
+.ej-barra select{flex:0 1 210px;width:auto;min-width:0}
+@media (max-width:560px){.ej-barra .ej-busca{flex:1 1 100%}.ej-barra select{flex:1 1 calc(50% - 4px)}}
+.ej-fam{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.ej-fam .ej-top b{font-size:15px}
+.ej-peld{display:grid;gap:6px;margin-top:10px}
+.ej-peld button{display:grid;grid-template-columns:22px minmax(0,1fr);gap:2px 10px;
+  align-items:center;font-family:inherit;text-align:left;cursor:pointer;
+  background:var(--bg);border:1px solid var(--line-2);border-radius:9px;padding:8px 10px;color:var(--ink)}
+.ej-peld button:hover{border-color:var(--purple);background:#F4F1FE}
+.ej-peld .pe-n{grid-row:1/3;width:22px;height:22px;border-radius:50%;background:var(--purple);
+  color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.ej-peld .pe-t{font-size:13.5px;font-weight:600;line-height:1.25}
+.ej-peld .pe-e{font-size:11.5px;color:var(--ink-3);line-height:1.25}
+.ej-carps{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:12px}
+.ej-carp{display:flex;flex-direction:column;gap:6px;text-align:left;font-family:inherit;color:var(--ink);
+  cursor:pointer;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:15px 17px}
+.ej-carp:hover{border-color:var(--purple)}
+.ec-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+.ec-top b{font-size:15.5px;font-weight:600;line-height:1.25}
+.ec-top i{flex-shrink:0;font-style:normal;font-size:12px;font-weight:600;color:var(--purple);
+  background:#EDE9FE;border-radius:6px;padding:3px 8px}
+.ec-d{font-size:12.5px;color:var(--ink-2);line-height:1.45}
+.ej-sec{display:flex;align-items:center;gap:10px;margin:18px 0 9px}
+.ej-sec span{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.6px;color:var(--ink-3)}
+.ej-sec i{font-style:normal;font-size:12px;color:var(--ink-3)}
+.ej-sec hr{flex:1;border:0;border-top:1px solid var(--line);margin:0}
+.ej-lista{display:grid;gap:7px}
+.ej-fila{display:grid;grid-template-columns:minmax(0,1fr) 150px 110px 46px 26px;gap:12px;align-items:center;
+  text-align:left;font-family:inherit;color:var(--ink);cursor:pointer;background:var(--surface);
+  border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.ej-fila:hover{border-color:var(--purple)}
+.ef-t{display:flex;flex-direction:column;gap:2px;min-width:0}
+.ef-t b{font-size:14.5px;font-weight:600;line-height:1.3}
+.ef-t span{font-size:12.5px;color:var(--ink-2);line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ef-t .ef-c{font-size:11.5px;color:var(--purple);margin-top:2px}
+.ef-e{font-size:12px;font-weight:600;color:var(--ok-ink);background:var(--ok-bg);
+  border-radius:6px;padding:3px 8px;justify-self:start;white-space:nowrap}
+.ef-m{font-size:12.5px;color:var(--ink-2);white-space:nowrap}
+.ef-p{display:flex;justify-content:flex-end;color:#D3D0E0}
+.ef-p.on{color:var(--purple)}
+.ef-p svg{width:17px;height:17px}
+@media (max-width:820px){
+  .ej-fila{grid-template-columns:minmax(0,1fr) 26px;gap:8px}
+  .ej-fila .ef-e,.ej-fila .ef-m{display:none}
+}
+.ej-notodavia{margin:10px 0 0;padding:9px 12px;background:var(--warn-bg);color:var(--warn-ink);
+  border-radius:10px;font-size:13px;line-height:1.45}
+@media (max-width:720px){.ej-paso{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -3283,6 +3358,331 @@ SF.EJ_NIVELES = [
 /* Las partes de una sesion. Sirven para que un plan se lea de un vistazo y
    para poder decir "este equipo dedica el 40 % del tiempo a defensa". */
 SF.EJ_MOMENTOS = ['Calentamiento', 'Parte principal', 'Competición', 'Vuelta a la calma'];
+/* --- CLASIFICACION DE LA BIBLIOTECA (20/09/2026) ---------------------------
+   Tres ejes nuevos. El cuarto -el momento de la sesion- ya existia arriba.
+
+   La ETAPA es un RANGO, nunca una categoria suelta. Si cada ejercicio
+   perteneciera a una sola edad, cien ejercicios entre siete categorias serian
+   catorce por categoria: eso no es una biblioteca, es polvo repartido. Y una
+   rueda de tiro con reemplazo vale de alevin a junior.
+
+   Las etapas van alineadas con como esta organizado el club (dt_escuelas,
+   dt_minis) para no tener que traducir nada mentalmente. */
+SF.EJ_ETAPAS = [
+  { k: 1, label: 'Escuela',         edad: '6-9'   },
+  { k: 2, label: 'Mini',            edad: '10-11' },
+  { k: 3, label: 'Infantil',        edad: '12-13' },
+  { k: 4, label: 'Cadete',          edad: '14-15' },
+  { k: 5, label: 'Júnior y sénior', edad: '16+'   }
+];
+
+/* Cuantos son. Hasta ahora `jugadores` era texto libre ("8-16"), asi que NO se
+   podia filtrar, y es la primera pregunta de un martes: han venido nueve. */
+SF.EJ_FORMATOS = [
+  { k: 'individual', label: 'Individual' },
+  { k: 'parejas',    label: 'Parejas' },
+  { k: 'grupo',      label: 'Grupo pequeño' },
+  { k: 'equipo',     label: 'Equipo' }
+];
+
+/* Como se reparte la repeticion. No lo ofrece ninguna plataforma española, y
+   es lo que separa "se aprende hoy" de "sirve el domingo". */
+SF.EJ_PRACTICA = [
+  { k: 'bloque',    label: 'En bloque',
+    desc: 'La misma repetición muchas veces. Se aprende rápido y se olvida rápido.' },
+  { k: 'serie',     label: 'En serie',
+    desc: 'Varias versiones seguidas y en orden. El jugador sabe qué viene.' },
+  { k: 'aleatoria', label: 'Aleatoria',
+    desc: 'El contexto cambia sin avisar. Cuesta más y es lo que transfiere al partido.' }
+];
+
+SF.etapaDe = function (k) {
+  var e = (SF.EJ_ETAPAS || []).filter(function (x) { return x.k === +k; })[0];
+  return e || null;
+};
+
+/* "Mini a cadete", "Solo infantil", "Todas las edades". Se escribe una vez y
+   lo usan la tarjeta, la ficha y el filtro. */
+SF.etapaTexto = function (et) {
+  if (!et || !et.de) return '';
+  var a = SF.etapaDe(et.de), b = SF.etapaDe(et.a || et.de);
+  if (!a || !b) return '';
+  if (a.k === 1 && b.k === 5) return 'Todas las edades';
+  if (a.k === b.k) return a.label + ' · ' + a.edad;
+  return a.label + ' a ' + b.label.toLowerCase();
+};
+
+/* Un ejercicio ENTRA en la etapa pedida si su rango la SOLAPA, no si coincide.
+   Es justo lo que evita las siete bibliotecas pequeñas. */
+/* El nombre legible de una familia. Si el club se inventa una nueva desde el
+   formulario, se le pone un nombre decente solo: "bote-en-carrera" -> "Bote en
+   carrera". Asi no hace falta mantener un catalogo para poder usarlo. */
+SF.EJ_FAMILIAS = { 'pase-y-corte': 'Pase y corte' };
+SF.familiaLabel = function (k) {
+  if (!k) return '';
+  if (SF.EJ_FAMILIAS[k]) return SF.EJ_FAMILIAS[k];
+  var t = String(k).replace(/[-_]+/g, ' ').trim();
+  return t.charAt(0).toUpperCase() + t.slice(1);
+};
+
+SF.etapaEncaja = function (x, k) {
+  if (!k) return true;
+  var et = x && x.etapa;
+  if (!et || !et.de) return true;            // sin clasificar, sale siempre
+  return +k >= +et.de && +k <= +(et.a || et.de);
+};
+
+
+/* --- LAS CARPETAS DE LA BIBLIOTECA (20/09/2026) -----------------------------
+   Doce carpetas en tres bandas, TODAS a un solo clic. El 1x1 y el 5x5 suben a
+   carpeta propia porque un entrenador el martes no piensa "quiero situaciones
+   de juego, subcarpeta 3x3": piensa "hoy quiero un 3x3". Las bandas son solo
+   titulos que ordenan la vista; no se pliegan ni se pulsan, asi que no añaden
+   un clic.
+
+   Dentro de cada carpeta, SECCIONES con titulo en vez de botones de filtro:
+   se baja y se ve todo. Un boton esconde hasta que lo pulsas; un titulo no
+   esconde nada.
+
+   `objetivo` se mantiene en cada ejercicio para que el plan de sesion, los
+   informes y todo lo que ya existia sigan funcionando: la carpeta es una
+   forma nueva de ENTRAR, no un modelo nuevo. */
+SF.EJ_BANDAS = [
+  { k: 'fundamentos', label: 'Fundamentos' },
+  { k: 'situaciones', label: 'Situaciones de juego' },
+  { k: 'alrededor',   label: 'Alrededor del entrenamiento' }
+];
+
+SF.EJ_CARPETAS = [
+  { k: 'calentamiento', banda: 'fundamentos', objetivo: 'calentamiento',
+    label: 'Calentamiento y manejo de balón',
+    secciones: [['movilidad', 'Movilidad y activación'], ['manejo', 'Manejo sin bote'],
+                ['sitio', 'Bote en el sitio'], ['despl', 'Bote en desplazamiento'],
+                ['juegos', 'Juegos con bote']] },
+  { k: 'pase', banda: 'fundamentos', objetivo: 'tecnica',
+    label: 'Pase y recepción',
+    secciones: [['estatico', 'Parados'], ['carrera', 'En carrera'], ['trenzas', 'Trenzas'],
+                ['oposicion', 'Contra defensa'], ['poste', 'Al poste']] },
+  { k: 'tiro', banda: 'fundamentos', objetivo: 'tiro',
+    label: 'Tiro y finalización',
+    secciones: [['mecanica', 'Mecánica'], ['traspase', 'Tras pase'], ['trasbote', 'Tras bote'],
+                ['entradas', 'Entradas'], ['posteb', 'Juego de poste'], ['fatiga', 'Bajo fatiga']] },
+  { k: 'defensa', banda: 'fundamentos', objetivo: 'defensa',
+    label: 'Defensa y rebote',
+    secciones: [['postura', 'Postura y desplazamiento'], ['balon', 'Al jugador con balón'],
+                ['ayudas', 'Ayudas y lado débil'], ['rebote', 'Rebote']] },
+
+  { k: 's1c1', banda: 'situaciones', objetivo: 'juego', label: '1 contra 1',
+    secciones: [['conbalon', 'Con balón'], ['sinbalon', 'Sin balón'], ['defensivo', 'Defensivo']] },
+  { k: 's2c2', banda: 'situaciones', objetivo: 'juego', label: '2 contra 2',
+    secciones: [['bloqueo', 'Bloqueo directo'], ['cortar', 'Pasar y cortar'], ['poste2', 'Poste bajo']] },
+  { k: 's3c3', banda: 'situaciones', objetivo: 'ataque', label: '3 contra 3',
+    secciones: [['cortar3', 'Pasar y cortar'], ['sinbote', 'Sin bote'], ['libre3', 'Media pista']] },
+  { k: 's4c4', banda: 'situaciones', objetivo: 'ataque', label: '4 contra 4',
+    secciones: [['espacios', 'Espacios y reemplazos'], ['condicion4', 'Con condición']] },
+  { k: 's5c5', banda: 'situaciones', objetivo: 'juego', label: '5 contra 5',
+    secciones: [['condicion5', 'Con condición'], ['final', 'Final de partido'], ['libre5', 'Libre']] },
+  { k: 'superioridad', banda: 'situaciones', objetivo: 'transicion',
+    label: 'Superioridad numérica',
+    secciones: [['s2x1', '2 contra 1'], ['s3x2', '3 contra 2'], ['smas', '4 contra 3 y 5 contra 4'],
+                ['inferior', 'Defender en inferioridad']] },
+
+  { k: 'fisico', banda: 'alrededor', objetivo: 'fisico', label: 'Preparación física',
+    secciones: [['fuerza', 'Fuerza'], ['velocidad', 'Velocidad y agilidad'],
+                ['salto', 'Salto y aterrizaje'], ['prevencion', 'Prevención'],
+                ['reentreno', 'Vuelta a la actividad']] },
+  { k: 'vuelta', banda: 'alrededor', objetivo: 'vuelta', label: 'Vuelta a la calma',
+    secciones: [['cierre', 'Cierre del entrenamiento']] }
+];
+
+SF.carpetaDe = function (k) {
+  return (SF.EJ_CARPETAS || []).filter(function (c) { return c.k === k; })[0] || null;
+};
+SF.carpetaLabel = function (k) { var c = SF.carpetaDe(k); return c ? c.label : 'Sin carpeta'; };
+SF.formatoLabel = function (k) {
+  var o = (SF.EJ_FORMATOS || []).filter(function (x) { return x.k === k; })[0];
+  return o ? o.label : '—';
+};
+SF.seccionLabel = function (ck, sk) {
+  var c = SF.carpetaDe(ck); if (!c) return '';
+  var s = (c.secciones || []).filter(function (x) { return x[0] === sk; })[0];
+  return s ? s[1] : '';
+};
+/* Un ejercicio sin carpeta no se pierde: cae en la que corresponde a su
+   objetivo de siempre. Asi el club que ya tenia ejercicios escritos los
+   encuentra donde tiene sentido, sin tocarlos. */
+SF.carpetaPorObjetivo = function (obj) {
+  var c = (SF.EJ_CARPETAS || []).filter(function (x) { return x.objetivo === obj; })[0];
+  return c ? c.k : 'calentamiento';
+};
+
+/* --- LA PIZARRA -------------------------------------------------------------
+   Dibuja el esquema de un paso a partir de DATOS, no de una imagen subida.
+
+   Por que datos: un esquema ocupa menos de 1 KB y el mismo dibujo en PNG ronda
+   los 80; no hace falta subida de archivos (que todavia no existe); se puede
+   corregir despues sin volver a dibujar; imprime nitido; y el dia que haya un
+   editor de pizarra, esta misma funcion pinta lo que el editor produzca.
+
+   Coordenadas en METROS REALES de media pista, origen en el centro de la linea
+   de fondo y creciendo hacia el centro del campo. La canasta queda arriba.
+   Por eso los dibujos salen proporcionados sin ajustarlos a ojo.
+
+   Multi-deporte: las medidas viven en SF.PISTAS por deporte. Baloncesto es el
+   primero, no el unico. Si un deporte no esta, se dibuja su rectangulo y ya. */
+SF.PISTAS = {
+  baloncesto: {
+    ancho: 15, largo: 14, aro: [7.5, 1.575],
+    dibujo: function (add) {
+      add('rect', { x: 5.05, y: 0, width: 4.90, height: 5.80, fill: 'var(--sf-zona)' });
+      add('path', { d: 'M5.7,5.8 A1.8,1.8 0 0 0 9.3,5.8' });
+      add('path', { d: 'M5.7,5.8 A1.8,1.8 0 0 1 9.3,5.8', 'stroke-dasharray': '0.35 0.25' });
+      add('path', { d: 'M0.9,0 L0.9,2.99 A6.75,6.75 0 0 0 14.1,2.99 L14.1,0' });
+      add('path', { d: 'M6.25,1.575 A1.25,1.25 0 0 0 8.75,1.575', 'stroke-width': 0.05 });
+      add('line', { x1: 6.6, y1: 1.20, x2: 8.4, y2: 1.20, 'stroke-width': 0.10 });
+      add('circle', { cx: 7.5, cy: 1.575, r: 0.225, stroke: 'var(--sf-aro)', 'stroke-width': 0.09 });
+      add('line', { x1: 0, y1: 14, x2: 15, y2: 14 });
+      add('path', { d: 'M5.7,14 A1.8,1.8 0 0 1 9.3,14' });
+    }
+  }
+};
+
+SF.pizarra = (function () {
+  var NS = 'http://www.w3.org/2000/svg';
+
+  function n(tag, attrs, txt) {
+    var e = document.createElementNS(NS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    if (txt != null) e.textContent = txt;
+    return e;
+  }
+
+  function punta(svg, p0, p1, color) {
+    var dx = p1[0] - p0[0], dy = p1[1] - p0[1], h = Math.sqrt(dx * dx + dy * dy) || 1;
+    var ux = dx / h, uy = dy / h, s = 0.46, w = 0.19;
+    var bx = p1[0] - ux * s, by = p1[1] - uy * s;
+    svg.appendChild(n('polygon', {
+      points: p1[0] + ',' + p1[1] + ' ' + (bx - uy * w) + ',' + (by + ux * w) +
+              ' ' + (bx + uy * w) + ',' + (by - ux * w), fill: color }));
+  }
+
+  /* El bote se dibuja ondulado. Es la notacion de toda la vida y se reconoce
+     sin leyenda, que es de lo que se trata cuando lo miras desde la grada. */
+  function onda(pts) {
+    var out = [], paso = 0.30, amp = 0.17, rec = 0;
+    for (var i = 0; i < pts.length - 1; i++) {
+      var a = pts[i], b = pts[i + 1];
+      var dx = b[0] - a[0], dy = b[1] - a[1], len = Math.sqrt(dx * dx + dy * dy) || 1;
+      var ux = dx / len, uy = dy / len, k = Math.max(1, Math.round(len / paso));
+      for (var j = 0; j <= k; j++) {
+        var t = j / k, x = a[0] + dx * t, y = a[1] + dy * t;
+        var off = Math.sin((rec + len * t) / paso * Math.PI) * amp;
+        out.push([x - uy * off, y + ux * off]);
+      }
+      rec += len;
+    }
+    return out;
+  }
+
+  var COLOR = { pase: 'var(--sf-naranja)', corte: 'var(--purple)',
+                drible: 'var(--purple)', pantalla: 'var(--purple)',
+                defensa: 'var(--sf-rojo)' };
+
+  function movimiento(svg, m) {
+    if (!m || !m.pts || m.pts.length < 2) return;
+    var color = m.color || COLOR[m.tipo] || 'var(--purple)';
+    var pts = m.pts, dib = (m.tipo === 'drible') ? onda(pts) : pts;
+    var d = dib.map(function (p, i) { return (i ? 'L' : 'M') + p[0] + ',' + p[1]; }).join(' ');
+    var a = { d: d, fill: 'none', stroke: color, 'stroke-width': 0.12,
+              'stroke-linecap': 'round', 'stroke-linejoin': 'round' };
+    if (m.tipo === 'pase') a['stroke-dasharray'] = '0.55 0.34';
+    if (m.tipo === 'defensa') a['stroke-dasharray'] = '0.22 0.22';
+    svg.appendChild(n('path', a));
+    var u = pts.length;
+    if (m.tipo === 'pantalla') {
+      var dx = pts[u - 1][0] - pts[u - 2][0], dy = pts[u - 1][1] - pts[u - 2][1];
+      var h = Math.sqrt(dx * dx + dy * dy) || 1, ux = dx / h, uy = dy / h, w = 0.44;
+      svg.appendChild(n('line', { x1: pts[u - 1][0] - uy * w, y1: pts[u - 1][1] + ux * w,
+        x2: pts[u - 1][0] + uy * w, y2: pts[u - 1][1] - ux * w,
+        stroke: color, 'stroke-width': 0.12, 'stroke-linecap': 'round' }));
+    } else {
+      punta(svg, pts[u - 2], pts[u - 1], color);
+    }
+  }
+
+  function jugador(svg, j) {
+    if (!j || j.x == null || j.y == null) return;
+    var def = j.eq === 'defensa', et = String(j.n == null ? '' : j.n);
+    svg.appendChild(n('circle', { cx: j.x, cy: j.y, r: 0.50,
+      fill: def ? 'var(--sf-rojo)' : 'var(--purple)',
+      stroke: 'var(--sf-pista)', 'stroke-width': 0.08 }));
+    svg.appendChild(n('text', { x: j.x, y: j.y + 0.21, 'text-anchor': 'middle',
+      'font-family': 'inherit', 'font-size': et.length > 1 ? 0.52 : 0.64,
+      'font-weight': 700, fill: 'var(--sf-ficha-txt)' }, et));
+    if (j.balon) {
+      svg.appendChild(n('circle', { cx: j.x + 0.66, cy: j.y - 0.56, r: 0.28,
+        fill: 'var(--sf-aro)', stroke: 'var(--sf-pista)', 'stroke-width': 0.07 }));
+    }
+  }
+
+  function cono(svg, x, y) {
+    svg.appendChild(n('polygon', {
+      points: x + ',' + (y - 0.34) + ' ' + (x + 0.30) + ',' + (y + 0.22) +
+              ' ' + (x - 0.30) + ',' + (y + 0.22),
+      fill: 'none', stroke: 'var(--sf-linea)', 'stroke-width': 0.08,
+      'stroke-linejoin': 'round' }));
+  }
+
+  function cola(svg, x, y) {
+    for (var i = 0; i < 2; i++) {
+      svg.appendChild(n('circle', { cx: x, cy: y + i * 0.66, r: 0.32, fill: 'none',
+        stroke: 'var(--purple)', 'stroke-width': 0.08, opacity: 0.45 }));
+    }
+  }
+
+  /* Un punto fuera de la pista NO se dibuja donde sea: se avisa en consola y
+     se descarta. Un esquema mal escrito tiene que notarse al escribirlo, no
+     tres meses despues cuando alguien ve una ficha flotando fuera del campo. */
+  function dentro(p, w, l) {
+    return p && p.length === 2 && isFinite(p[0]) && isFinite(p[1]) &&
+      p[0] >= -1 && p[0] <= w + 1 && p[1] >= -1 && p[1] <= l + 1;
+  }
+
+  return function (esq, deporte) {
+    esq = esq || {};
+    var pista = SF.PISTAS[deporte || 'baloncesto'] || SF.PISTAS.baloncesto;
+    var W = pista.ancho, L = pista.largo;
+    var svg = n('svg', {
+      viewBox: '-0.6 -0.6 ' + (W + 1.2) + ' ' + (L + 1.2),
+      class: 'sf-piz', role: 'img',
+      'aria-label': esq.alt || 'Esquema del ejercicio en media pista'
+    });
+
+    var base = { fill: 'none', stroke: 'var(--sf-linea)', 'stroke-width': 0.06 };
+    function add(tag, a) {
+      var o = {}; for (var k in base) o[k] = base[k];
+      for (var j in a) o[j] = a[j];
+      svg.appendChild(n(tag, o));
+    }
+    add('rect', { x: 0, y: 0, width: W, height: L, fill: 'var(--sf-pista)' });
+    if (pista.dibujo) pista.dibujo(add);
+
+    (esq.conos || []).forEach(function (c) { if (dentro(c, W, L)) cono(svg, c[0], c[1]); });
+    (esq.colas || []).forEach(function (c) { if (dentro(c, W, L)) cola(svg, c[0], c[1]); });
+    (esq.mov || []).forEach(function (m) {
+      if (!m || !m.pts) return;
+      var malos = m.pts.filter(function (p) { return !dentro(p, W, L); });
+      if (malos.length) { try { console.warn('Esquema: movimiento fuera de la pista, descartado', m); } catch (e) {} return; }
+      movimiento(svg, m);
+    });
+    (esq.jug || []).forEach(function (j) {
+      if (!dentro([j && j.x, j && j.y], W, L)) { try { console.warn('Esquema: jugador fuera de la pista, descartado', j); } catch (e) {} return; }
+      jugador(svg, j);
+    });
+    return svg;
+  };
+})();
+
 
 /* Con lo que arranca la biblioteca. Son ejercicios de toda la vida, redactados
    aqui: nadie es dueño de un rondo ni de una rueda de tiro. No se copia ninguna
@@ -3333,6 +3733,566 @@ SF.EJERCICIOS_BASE = [
     descripcion: 'Series de dos tiros libres por jugador con la respiración ya baja, y estiramiento de cadena posterior, psoas y aductores.',
     claves: 'Es el momento de hablar del entrenamiento. Se cierra con una idea, no con un discurso.', autor: 'CBJA' }
 ];
+/* --- PRIMERA FAMILIA CON ESCALERA -------------------------------------------
+   Un contenido, tres peldaños: de mini a cadete. Lo que sube de un escalon al
+   siguiente NO es la dificultad fisica, es la CANTIDAD DE DECISION que se le
+   pide al jugador: ninguna, una, dos. Ese es el criterio para colocar
+   cualquier ejercicio nuevo en su sitio.
+
+   Y por eso cada escalon dice tambien lo que NO se enseña todavia. Sin eso, un
+   entrenador de mini ve la puerta atras en el escalon 3 y la mete donde no
+   toca. Es la mitad del valor pedagogico de una escalera. */
+SF.EJ_FAMILIA_PYC = (function () {
+  var BASE = [7.5, 8.0], ALA_D = [12.0, 5.3], ALA_I = [3.0, 5.3];
+  var COLAS3 = [[7.5, 9.7], [12.9, 6.5], [2.1, 6.5]];
+  var CONOS3 = [[7.5, 8.9], [12.7, 5.0], [2.3, 5.0]];
+  var COLAS2 = [[7.5, 9.7], [12.9, 6.5]];
+  var CONOS2 = [[7.5, 8.9], [12.7, 5.0]];
+  function a(n, p, b) { return { n: n, x: p[0], y: p[1], eq: 'ataque', balon: !!b }; }
+  function d(n, p) { return { n: n, x: p[0], y: p[1], eq: 'defensa' }; }
+
+  return [
+    { id: 'ejb11', nivel: 'club', deporte: 'baloncesto', objetivo: 'ataque', momento: 'Parte principal',
+      nombre: 'Pasa y ve', minutos: 8, jugadores: '4-8', material: 'Un balón y dos conos',
+      etapa: { de: 2, a: 2 }, formato: 'grupo', min_jug: 4, max_jug: 8,
+      practica: 'bloque', familia: 'pase-y-corte', escalon: 1,
+      descripcion: 'Dos filas y un aro. El que pasa corta a canasta y el ala se la devuelve SIEMPRE, en carrera, para terminar en bandeja. No hay defensa ni decisión: se busca una costumbre, no una lectura.',
+      claves: 'Pasar y salir sin frenar. Recibir con las dos manos. Bandeja con la mano de fuera.',
+      no_todavia: 'Nada de leer al defensor, nada de puerta atrás y nada de espacios de cinco. Aquí solo hay dos jugadores y un aro.',
+      autor: 'CBJA',
+      pasos: [
+        { texto: 'Una fila en el frontal y otra en el ala derecha. El balón empieza en el frontal. Con más de ocho jugadores se monta lo mismo en el otro aro.',
+          clave: 'Dos posiciones y nada que memorizar. Si hay que explicar dónde se pone cada uno, ya es demasiado para mini.',
+          esquema: { jug: [a('1', BASE, 1), a('2', ALA_D)], colas: COLAS2, conos: CONOS2, mov: [] } },
+        { texto: 'El 1 pasa al 2 y sale corriendo hacia canasta. No espera a ver qué pasa: pasa y va.',
+          clave: '«Pasa y ve» dicho en voz alta en cada repetición. La voz es lo que fija el hábito, no el silbato.',
+          esquema: { jug: [a('1', BASE), a('2', ALA_D, 1)], colas: COLAS2, conos: CONOS2,
+            mov: [{ tipo: 'pase', pts: [BASE, ALA_D] }] } },
+        { texto: 'El 2 se la devuelve siempre, en carrera, y el 1 termina en bandeja. Siempre: no hay opción de no dársela.',
+          clave: 'Si el corte no se premia, el chaval deja de cortar en tres repeticiones. Premiarlo siempre es lo que lo convierte en costumbre.',
+          esquema: { jug: [a('1', BASE), a('2', ALA_D, 1)], colas: COLAS2, conos: CONOS2,
+            mov: [{ tipo: 'corte', pts: [BASE, [8.8, 5.6], [8.8, 2.9]] },
+                  { tipo: 'pase', pts: [ALA_D, [10.2, 4.0], [9.1, 3.0]] }] } },
+        { texto: 'El 1 coge su rebote y se va a la cola del ala. El 2 pasa a la cola del frontal. Así todos hacen las dos cosas.',
+          clave: 'El cambio de fila va dentro del ejercicio, no en una explicación aparte. Si hay que pararlo para recolocar, se pierde la mitad del tiempo.',
+          esquema: { jug: [a('1', [8.8, 2.9]), a('2', ALA_D)], colas: COLAS2, conos: CONOS2,
+            mov: [{ tipo: 'corte', pts: [[8.8, 2.9], [11.0, 4.0], [12.9, 6.2]] },
+                  { tipo: 'corte', pts: [ALA_D, [10.0, 7.6], [7.7, 9.4]] }] } }
+      ] },
+
+    { id: 'ejb12', nivel: 'club', deporte: 'baloncesto', objetivo: 'ataque', momento: 'Parte principal',
+      nombre: 'Pasa y corta con defensa pasiva', minutos: 10, jugadores: '6-12', material: 'Un balón y tres conos',
+      etapa: { de: 2, a: 3 }, formato: 'grupo', min_jug: 6, max_jug: 12,
+      practica: 'serie', familia: 'pase-y-corte', escalon: 2,
+      descripcion: 'Tres posiciones y un defensor pasivo sobre el pasador. Con eso basta para que el corte tenga que buscar un ángulo y para que aparezca la primera decisión: ¿me llega o me voy?',
+      claves: 'El corte pasa por delante, no por detrás. Cambio de ritmo. El ala no bota: da o no da.',
+      no_todavia: 'La defensa no niega todavía. Negar obliga a leer y a cambiar de dirección, y eso es el escalón 3: si el defensor se adelanta aquí, el chaval aprende a frustrarse, no a cortar.',
+      autor: 'CBJA',
+      pasos: [
+        { texto: 'Frontal y dos alas, con 4,5 a 5 m entre ellos. X1 se coloca sobre el frontal, por detrás: acompaña, no roba.',
+          clave: 'Decirle a X1 en voz alta lo que puede hacer. Un defensor «pasivo» sin instrucción concreta acaba robando en la tercera repetición.',
+          esquema: { jug: [a('1', BASE, 1), a('2', ALA_D), a('3', ALA_I), d('X1', [7.5, 7.0])],
+            colas: COLAS3, conos: CONOS3, mov: [] } },
+        { texto: 'Pase tenso a la altura del pecho. X1 mantiene su posición entre el 1 y la canasta.',
+          clave: 'El pase por encima del defensor es el que roban en partido. Aquí no lo roban, pero se corrige igual.',
+          esquema: { jug: [a('1', BASE), a('2', ALA_D, 1), a('3', ALA_I), d('X1', [7.5, 7.0])],
+            colas: COLAS3, conos: CONOS3, mov: [{ tipo: 'pase', pts: [BASE, ALA_D] }] } },
+        { texto: 'El 1 corta buscando la línea de pase, cara al balón. Si le llega, finaliza en dos apoyos.',
+          clave: 'Aquí se corrige el ángulo, que es lo nuevo de este escalón: por delante de X1, no rodeándolo.',
+          esquema: { jug: [a('1', BASE), a('2', ALA_D, 1), a('3', ALA_I), d('X1', [7.5, 7.0])],
+            colas: COLAS3, conos: CONOS3, mov: [{ tipo: 'corte', pts: [BASE, [8.6, 5.6], [9.0, 3.0]] }] } },
+        { texto: 'Si el balón no sale en el primer segundo, el 1 no se queda esperando debajo del aro: sale por la línea de fondo al lado contrario.',
+          clave: 'Dos segundos en la zona y fuera. El cortador que se queda tapona el siguiente pase y arruina el espacio de todos.',
+          esquema: { jug: [a('1', [9.0, 3.0]), a('2', ALA_D, 1), a('3', ALA_I)],
+            colas: COLAS3, conos: CONOS3,
+            mov: [{ tipo: 'corte', pts: [[9.0, 3.0], [6.0, 0.9], [2.2, 1.4], [2.6, 4.3]] }] } },
+        { texto: 'El 3 sube a ocupar el frontal que ha quedado libre, el balón vuelve arriba y se repite hacia el otro lado.',
+          clave: 'Se reemplaza el hueco, no al compañero. Y se arranca con el pase, no después.',
+          esquema: { jug: [a('1', [2.6, 4.3]), a('2', ALA_D, 1), a('3', ALA_I)],
+            colas: COLAS3, conos: CONOS3,
+            mov: [{ tipo: 'corte', pts: [ALA_I, [5.2, 7.4], BASE] },
+                  { tipo: 'pase', pts: [ALA_D, [9.6, 7.2], [8.2, 8.0]] }] } }
+      ] },
+
+    { id: 'ejb13', nivel: 'club', deporte: 'baloncesto', objetivo: 'ataque', momento: 'Parte principal',
+      nombre: 'Pasa y corta con reemplazo', minutos: 12, jugadores: '6-12', material: 'Un balón y tres conos',
+      etapa: { de: 3, a: 5 }, formato: 'grupo', min_jug: 6, max_jug: 12,
+      practica: 'aleatoria', familia: 'pase-y-corte', escalon: 3,
+      descripcion: 'Ahora la defensa niega. El corte por delante deja de estar disponible y aparece la segunda decisión: cambiar de dirección e ir por debajo. Es el escalón donde el ejercicio deja de ser un gesto y pasa a ser una lectura.',
+      claves: 'Cambio de velocidad en el corte. Cara al balón y mano arriba. El reemplazo va al hueco y arranca con el pase.',
+      no_todavia: 'Sin bloqueo directo. Meterlo aquí mezcla dos contenidos y no se aprende ninguno: eso es otra familia.',
+      autor: 'CBJA',
+      pasos: [
+        { texto: 'Tres posiciones y tres colas. Los alas, en la prolongación del tiro libre y un paso por dentro del 6,75. El balón empieza en el frontal.',
+          clave: 'Si los alas se cierran hacia el centro, el corte no cabe. El cono no dice dónde ponerse de pie: dice a qué distancia.',
+          esquema: { jug: [a('1', BASE, 1), a('2', ALA_D), a('3', ALA_I)],
+            colas: COLAS3, conos: CONOS3, mov: [] } },
+        { texto: 'Pase tenso, a la altura del pecho y con el pie de salida. El que se hace por arriba y flojo es el que roban en partido.',
+          clave: 'El pasador no admira el pase. En cuanto el balón sale de sus manos, ya está cortando.',
+          esquema: { jug: [a('1', BASE), a('2', ALA_D, 1), a('3', ALA_I)],
+            colas: COLAS3, conos: CONOS3, mov: [{ tipo: 'pase', pts: [BASE, ALA_D] }] } },
+        { texto: 'El 1 corta a canasta por delante de su defensor, cara al balón. Si recibe en carrera, finaliza en dos apoyos y sin bote.',
+          clave: 'Dos pasos lentos y explotar. Un corte a velocidad constante no gana ventaja aunque el ángulo sea bueno.',
+          esquema: { jug: [a('1', BASE), a('2', ALA_D, 1), a('3', ALA_I), d('X1', [7.5, 7.0])],
+            colas: COLAS3, conos: CONOS3, mov: [{ tipo: 'corte', pts: [BASE, [8.6, 5.6], [9.0, 3.0]] }] } },
+        { texto: 'Cuando X1 se adelanta para negar la línea de pase, el corte por delante ya no existe. El 1 cambia de dirección y va por debajo, al lado contrario. El ala tiene un segundo para el pase, y va al suelo.',
+          clave: 'Esta es la decisión que da valor al ejercicio, y hay que provocarla: si la defensa nunca niega, el jugador nunca aprende a leer.',
+          esquema: { jug: [a('1', BASE), a('2', ALA_D, 1), a('3', ALA_I), d('X1', [8.7, 7.0])],
+            colas: COLAS3, conos: CONOS3,
+            mov: [{ tipo: 'corte', pts: [BASE, [8.4, 7.6], [6.8, 6.3], [6.5, 3.2]] },
+                  { tipo: 'pase', pts: [ALA_D, [9.6, 4.4], [6.9, 3.4]] }] } },
+        { texto: 'Si no recibe, el 1 sale por la línea de fondo al lado contrario y se coloca en la cola del ala izquierda. A la vez, el 3 reemplaza la posición de frontal.',
+          clave: 'Los dos movimientos son uno solo: el que se va deja el hueco y el que llega lo ocupa. Si el reemplazo espera, el ala se queda botando sin salida.',
+          esquema: { jug: [a('1', [9.0, 3.0]), a('2', ALA_D, 1), a('3', ALA_I)],
+            colas: COLAS3, conos: CONOS3,
+            mov: [{ tipo: 'corte', pts: [[9.0, 3.0], [6.0, 0.9], [2.2, 1.4], [2.6, 4.3]] },
+                  { tipo: 'corte', pts: [ALA_I, [5.2, 7.4], BASE] }] } },
+        { texto: 'El balón vuelve al nuevo frontal y el ejercicio arranca otra vez, ahora hacia la izquierda. Sin parar, hasta cumplir el tiempo.',
+          clave: 'Marcador obligatorio: cuántos cortes acaban en canasta en cuatro minutos. Sin cifra, esto se convierte en dar vueltas bien hechas.',
+          esquema: { jug: [a('3', BASE), a('2', ALA_D, 1), a('1', ALA_I)],
+            colas: COLAS3, conos: CONOS3, mov: [{ tipo: 'pase', pts: [ALA_D, BASE] }] } }
+      ] }
+  ];
+})();
+
+SF.EJERCICIOS_BASE = SF.EJERCICIOS_BASE.concat(SF.EJ_FAMILIA_PYC);
+
+/* --- EL CATALOGO DEL CLUB ---------------------------------------------------
+   Redactado aqui, con nuestras palabras. Nadie es dueño de un rondo ni de una
+   rueda de tiro, pero el TEXTO, los dibujos y la seleccion de una coleccion
+   ajena si estan protegidos, asi que no se copia ninguna: ni de una web, ni de
+   un libro, ni de lo que devuelva otra herramienta.
+
+   Cada uno lleva la edad como RECOMENDACION, no como puerta: el ejercicio no
+   se le esconde a nadie, y el entrenador lee y decide. Y donde hace falta,
+   lleva tambien lo que NO toca todavia, que es la otra mitad del consejo. */
+(function () {
+  var L = [];
+  /* id, carpeta, seccion, nombre, como se hace, claves, etapa de-a,
+     formato, min-max jugadores, minutos, material, practica, y lo que no toca */
+  function E(id, c, s, n, d, k, de, a, f, mn, mx, m, mat, p, nt) {
+    L.push({ id: id, nivel: 'club', deporte: 'baloncesto', autor: 'CBJA',
+      carpeta: c, seccion: s, nombre: n, descripcion: d, claves: k,
+      etapa: { de: de, a: a }, formato: f, min_jug: mn, max_jug: mx,
+      minutos: m, jugadores: mn + '-' + mx, material: mat, practica: p,
+      momento: c === 'calentamiento' ? 'Calentamiento' : (c === 'vuelta' ? 'Vuelta a la calma' :
+        (c === 's5c5' ? 'Competición' : 'Parte principal')),
+      objetivo: SF.carpetaDe(c) ? SF.carpetaDe(c).objetivo : 'tecnica',
+      no_todavia: nt || '' });
+  }
+
+  /* ---------- CALENTAMIENTO Y MANEJO ---------- */
+  E('ejc1','calentamiento','movilidad','Ida y vuelta con desplazamientos',
+    'Dos filas en la línea de fondo. Se cruza la pista con un desplazamiento distinto cada vez —talones, rodillas arriba, lateral, carioca— y se vuelve trotando suave.',
+    'Rango alto y ritmo bajo. Esto prepara la articulación, no es una carrera.',1,5,'equipo',8,18,8,'Ninguno','bloque');
+  E('ejc2','calentamiento','movilidad','Activación con balón por encima de la cabeza',
+    'Andando, el balón sube por encima de la cabeza y baja por delante del pecho, abriendo hombros. Se añaden giros de tronco en las dos últimas idas.',
+    'Los codos no se cierran. Si duele el hombro, se para: activar no es estirar a la fuerza.',1,5,'equipo',6,18,5,'Un balón por jugador','bloque');
+  E('ejc3','calentamiento','movilidad','Tobillos y caderas antes de saltar',
+    'Saltos suaves en el sitio, a un pie y a dos, y apertura de cadera en el sitio. Tres series cortas antes de cualquier ejercicio con salto.',
+    'Se aterriza con la rodilla mirando al pie, nunca hacia dentro. Es el gesto que más lesiones evita.',2,5,'equipo',6,18,5,'Ninguno','bloque');
+  E('ejc4','calentamiento','manejo','Círculos alrededor del cuerpo',
+    'Sin botar, el balón da vueltas alrededor de la cabeza, la cintura y las rodillas. Al silbato se cambia el sentido del giro.',
+    'La vista al frente. Es un ejercicio de manos, no de mirar el balón.',1,3,'individual',1,20,5,'Un balón por jugador','bloque');
+  E('ejc5','calentamiento','manejo','El ocho entre las piernas',
+    'De pie y con las rodillas flexionadas, el balón dibuja un ocho entre las piernas sin botar. Primero despacio y mirando, después sin mirar.',
+    'Cuanto más bajo el centro de gravedad, más fácil sale. Si se estira, se pierde el balón.',1,4,'individual',1,20,6,'Un balón por jugador','bloque');
+  E('ejc6','calentamiento','manejo','Traspaso por detrás de la espalda, parado',
+    'Sin bote, el balón pasa de una mano a otra por detrás de la espalda, con el cuerpo quieto. Veinte a cada lado.',
+    'Lo mueve la muñeca, no el hombro. Si gira el tronco, en partido se lee a un metro.',2,4,'individual',1,20,5,'Un balón por jugador','bloque');
+  E('ejc8','calentamiento','sitio','Bote alterno, uno alto y otro bajo',
+    'Con dos balones, uno se bota a la altura de la cintura y el otro a la altura de la rodilla, alternando. Series de 30 segundos con 15 de descanso.',
+    'Las dos manos tienen que ir a su aire. En cuanto se igualan, se para y se reinicia la serie.',3,5,'individual',1,12,8,'Dos balones por jugador','bloque');
+  E('ejc9','calentamiento','sitio','Bote sentado y tumbado',
+    'Sentado en el suelo, se bota a un lado y a otro del cuerpo sin perder el balón; después tumbado boca arriba, botando lateralmente.',
+    'Sin el impulso de las piernas solo queda la muñeca, que es justo lo que se está trabajando.',1,3,'individual',1,20,5,'Un balón por jugador','bloque');
+  E('ejc10','calentamiento','despl','Zigzag con cambio en cada cono',
+    'Se cruza la pista botando y cambiando de mano en cada cono. Primero por delante, después entre las piernas, después por detrás.',
+    'El cambio se hace bajo y pegado al cono. Un cambio alto y lejos es un balón robado.',2,5,'grupo',4,14,8,'Seis conos y un balón por jugador','serie');
+  E('ejc11','calentamiento','despl','Líneas a máxima velocidad',
+    'De fondo a fondo lo más rápido posible, cambiando de mano en cada línea del campo. Cuatro idas con descanso completo entre ellas.',
+    'A esta velocidad el bote se escapa: el balón va por delante del cuerpo, no al lado.',2,5,'grupo',4,16,6,'Un balón por jugador','serie');
+  E('ejc12','calentamiento','juegos','Pilla-pilla con bote',
+    'El clásico juego de perseguir dentro de media pista, con la condición de que todos botan todo el rato. Quien pierde el balón, la queda.',
+    'Aquí no se corrige técnica: se corrige que miren el balón. El que mira abajo, es pillado.',1,3,'equipo',6,16,6,'Un balón por jugador','aleatoria');
+  E('ejc13','calentamiento','juegos','El espejo por parejas',
+    'Uno bota y hace cambios libres; el de enfrente copia lo que ve, en espejo. Se cambia el que manda cada 30 segundos.',
+    'Copiar obliga a mirar al compañero, no al balón. Ese es el objetivo escondido del juego.',1,4,'parejas',2,20,6,'Un balón por jugador','aleatoria');
+
+  /* ---------- PASE Y RECEPCIÓN ---------- */
+  E('ejc14','pase','estatico','Pecho y picado por parejas',
+    'Parejas a cinco metros. Diez pases de pecho, diez picados y diez por encima de la cabeza, sin que el balón toque el suelo entre medias.',
+    'El pase sale con un paso hacia el compañero. Un pase sin pie no llega tenso.',1,3,'parejas',2,20,6,'Un balón por pareja','bloque');
+  E('ejc15','pase','estatico','Dos balones a la vez',
+    'En parejas, uno pasa de pecho y el otro picado, los dos a la vez y sin parar. Al minuto se cambian los papeles.',
+    'Si se miran las manos del compañero en vez del balón propio, choca. Se mira al centro.',3,5,'parejas',2,16,6,'Dos balones por pareja','serie');
+  E('ejc16','pase','estatico','Pase contra la pared a una mano',
+    'De frente a la pared, a dos metros, treinta pases seguidos con una sola mano sin dejar caer el balón. Después con la otra.',
+    'Se pasa desde la oreja, no desde el pecho. Es el gesto del pase largo en miniatura.',2,4,'individual',1,12,5,'Un balón y una pared','bloque');
+  E('ejc17','pase','carrera','Cruzar la pista sin botar',
+    'Dos jugadores cruzan la pista en paralelo pasándose el balón. No se puede botar y no se puede parar.',
+    'El pase va por delante del compañero, al sitio donde va a estar, no donde está.',1,4,'parejas',2,16,8,'Un balón por pareja','serie');
+  E('ejc18','pase','carrera','Pase al espacio',
+    'Uno arranca en velocidad desde el medio campo y el pasador tiene que ponerle el balón por delante para que lo coja sin frenar.',
+    'Si el receptor tiene que frenar para cogerlo, el pase ha sido malo aunque lo haya cogido.',2,5,'parejas',2,14,8,'Un balón','serie');
+  E('ejc19','pase','trenzas','Trenza de tres',
+    'Tres jugadores cruzan la pista pasándose el balón y corriendo siempre por detrás de quien recibe. Se acaba con entrada.',
+    'Se pasa y se corre por detrás, no por delante. Cruzar por delante corta la carrera del compañero.',2,5,'grupo',6,15,10,'Un balón cada tres','serie');
+  E('ejc20','pase','trenzas','Trenza de cinco',
+    'La misma idea repartida en cinco calles, para que el campo se use entero y aparezcan pases más largos.',
+    'Aquí se trabaja la amplitud: el que no abre su calle deja el campo estrecho para todos.',4,5,'equipo',10,15,10,'Un balón','serie',
+    'En mini no. Con cinco calles el ejercicio se convierte en correr sin entender por qué.');
+  E('ejc21','pase','oposicion','Dos contra uno sin botar',
+    'Dos atacantes estáticos se pasan el balón y un defensor intenta robarlo. No se puede botar ni dar más de dos pasos.',
+    'El pase bueno no es el más fuerte: es el que cambia de altura respecto a las manos del defensor.',2,5,'grupo',3,12,8,'Un balón','aleatoria');
+  E('ejc22','pase','oposicion','Pase tras finta',
+    'Con un defensor delante, se finta el pase a un lado para abrir la línea contraria y se pasa por ahí.',
+    'La finta se hace con el balón y los ojos, no solo con la cabeza. Y dura menos de un segundo.',3,5,'parejas',3,12,8,'Un balón','serie');
+  E('ejc23','pase','oposicion','Salir de la presión de dos',
+    'Dos defensores cierran al que tiene el balón en una esquina. Tiene que pivotar, protegerlo y sacarlo con un solo pase.',
+    'Primero se protege el balón, después se busca al compañero. Al revés se pierde.',4,5,'grupo',4,12,10,'Un balón','aleatoria',
+    'Antes de infantil no: la doble en la esquina necesita entender antes qué es una línea de pase.');
+  E('ejc24','pase','poste','Pase al poste rodeando el brazo',
+    'El interior pide con el brazo lejos del defensor y el exterior tiene que meterle el balón por el lado libre, picado o a la altura del pecho.',
+    'El pase entra por donde el poste pide, no por donde el pasador quiere.',3,5,'parejas',4,12,10,'Un balón','serie');
+  E('ejc25','pase','poste','Devolución del poste al exterior',
+    'El balón entra al poste, la defensa ayuda y el interior lo devuelve fuera para tiro. Se repite desde las dos alas.',
+    'El interior mira fuera ANTES de recibir. Si mira después, la ayuda ya ha vuelto.',4,5,'grupo',4,12,10,'Un balón','serie');
+  console.log && (SF.EJ_CATALOGO_A = L);
+  SF.EJ_CATALOGO = L;
+})();
+(function () {
+  var L = SF.EJ_CATALOGO;
+  function E(id, c, s, n, d, k, de, a, f, mn, mx, m, mat, p, nt) {
+    L.push({ id: id, nivel: 'club', deporte: 'baloncesto', autor: 'CBJA',
+      carpeta: c, seccion: s, nombre: n, descripcion: d, claves: k,
+      etapa: { de: de, a: a }, formato: f, min_jug: mn, max_jug: mx,
+      minutos: m, jugadores: mn + '-' + mx, material: mat, practica: p,
+      momento: c === 'calentamiento' ? 'Calentamiento' : (c === 'vuelta' ? 'Vuelta a la calma' :
+        (c === 's5c5' ? 'Competición' : 'Parte principal')),
+      objetivo: SF.carpetaDe(c) ? SF.carpetaDe(c).objetivo : 'tecnica',
+      no_todavia: nt || '' });
+  }
+
+  /* ---------- TIRO Y FINALIZACIÓN ---------- */
+  E('ejc26','tiro','mecanica','Tiro a una mano bajo el aro',
+    'A un metro del aro y sin mano de apoyo, se tira solo con la mano buena. El codo debajo del balón, la muñeca suelta y la pelota entra sin tocar el aro. Diez seguidas antes de retroceder un paso.',
+    'Si el balón sale girando de lado, el codo está abierto. Se corrige ahí, no más lejos.',1,3,'individual',1,16,8,'Un balón por jugador','bloque');
+  E('ejc27','tiro','mecanica','Llegar con los pies ya puestos',
+    'El jugador se mueve sin balón por el perímetro y recibe de un pasador fijo. Tiene que llegar con los pies orientados al aro ANTES de que el balón le llegue a las manos.',
+    'Los pies se preparan mientras el balón viaja. Si se cuadra después de recibir, ya ha perdido el tiro.',2,5,'parejas',2,14,10,'Un balón por pareja','serie');
+  E('ejc28','tiro','mecanica','Tiro de rodillas',
+    'De rodillas en el suelo, a tres metros del aro, se tira usando solo tren superior. Quita las piernas de la ecuación para aislar el brazo.',
+    'Sin piernas no se puede empujar: o el gesto es limpio o el balón no llega. Por eso funciona.',2,4,'individual',1,12,6,'Un balón por jugador','bloque');
+  E('ejc29','tiro','traspase','Recibir y armar sin bote',
+    'Dos filas: una pasa desde el centro y la otra recibe en el perímetro y tira sin meter el balón al suelo. Se rota al puesto de pase tras cada tiro.',
+    'Un bote antes de tirar es medio segundo que la defensa aprovecha. Aquí ese bote está prohibido.',2,5,'grupo',6,14,10,'Dos balones','serie');
+  E('ejc30','tiro','traspase','Cinco posiciones, cinco aciertos',
+    'Se tira desde las dos esquinas, los dos cuarenta y cinco y el frontal. No se pasa de posición hasta meter el número acordado. El pasador recoge el rebote.',
+    'Contar en voz alta cambia el ejercicio: mete presión sin necesidad de defensa.',2,5,'parejas',4,12,12,'Dos balones','serie');
+  E('ejc31','tiro','trasbote','Frenar en dos tiempos y elevarse',
+    'Dos botes en velocidad hacia un cono, parada en dos tiempos, equilibrio y tiro. Se hace desde los dos lados y con las dos manos de bote.',
+    'La parada tiene que dejar el cuerpo quieto. Si el tiro sale cayendo hacia delante, la parada fue mala.',3,5,'grupo',4,12,12,'Conos y dos balones','serie');
+  E('ejc32','tiro','trasbote','Paso atrás para ganar espacio',
+    'Se ataca el aro con dos botes, se frena y se da un paso largo hacia atrás para separarse del defensor, y se tira con el cuerpo ya equilibrado.',
+    'El paso atrás no es saltar hacia atrás. Si se salta, el tiro sale corto siempre.',4,5,'parejas',2,12,10,'Un balón','serie',
+    'Antes de cadete no. Sin fuerza suficiente el paso atrás enseña a tirar desequilibrado, y ese vicio cuesta años de quitar.');
+  E('ejc33','tiro','entradas','Entrada por los dos lados',
+    'Rueda clásica desde las dos alas: bote, dos apoyos y finalización con la mano de fuera. Se alterna el lado cada vuelta y se obliga a usar la mano mala.',
+    'La mano de fuera protege el balón del defensor. Entrar con la de dentro es regalar el tapón.',1,4,'grupo',6,16,10,'Dos balones','bloque');
+  E('ejc34','tiro','entradas','Finalizar al lado contrario del tablero',
+    'Se entra por un lado y se termina por el otro, pasando por debajo del aro y usando el tablero desde el lado opuesto.',
+    'El balón se protege con el cuerpo mientras se cruza. Es la finalización que salva cuando llega la ayuda.',2,4,'grupo',6,14,10,'Dos balones','serie');
+  E('ejc35','tiro','entradas','Finalización bombeada sobre el defensor alto',
+    'Con un compañero haciendo de interior alto y con los brazos arriba, se entra y se suelta el balón alto y blando antes de llegar a él.',
+    'Se suelta antes de lo que parece. El que espera a estar debajo, ya está tapado.',3,5,'parejas',4,12,10,'Un balón','serie');
+  E('ejc36','tiro','entradas','Entrada con paso cambiado',
+    'Se finaliza batiendo con el pie del mismo lado que la mano de tiro, para romper el ritmo de dos tiempos que la defensa espera.',
+    'Es un recurso, no la forma normal de entrar. Se enseña cuando la entrada de siempre ya está limpia.',4,5,'grupo',4,12,8,'Dos balones','serie');
+  E('ejc37','tiro','posteb','Gancho alterno bajo el aro',
+    'Pegado al aro y sin botar, se anota un gancho por un lado, se coge el propio rebote en el aire, se pivota y se anota por el otro. Diez seguidas sin que el balón toque el suelo.',
+    'Los pies mandan: si no se pivota, el segundo gancho sale forzado. Se hace despacio antes que rápido.',2,5,'individual',1,12,8,'Un balón por jugador','bloque');
+  E('ejc38','tiro','posteb','Recibir de espaldas y girar',
+    'El interior recibe de espaldas al aro en el poste bajo, siente al defensor con el antebrazo y gira hacia el lado libre para finalizar.',
+    'Primero se siente al defensor, después se decide. Girar sin saber dónde está es girar a ciegas.',3,5,'parejas',4,12,12,'Un balón','serie');
+  E('ejc39','tiro','fatiga','Sprint y tiro inmediato',
+    'Sprint de banda a banda y tiro nada más llegar, sin descanso. Cinco repeticiones seguidas contando aciertos, y se compara con los aciertos en frío.',
+    'La diferencia entre tirar fresco y tirar cansado es el dato del ejercicio. Se dice en voz alta.',3,5,'grupo',4,14,10,'Dos balones','aleatoria');
+
+  /* ---------- DEFENSA Y REBOTE ---------- */
+  E('ejc40','defensa','postura','Desplazamiento lateral por la zona',
+    'Se cruza la zona de lado a lado en postura defensiva, sin cruzar los pies y sin subir la cadera. Ida y vuelta, cuatro series.',
+    'Si los pies se juntan, el jugador ya no puede reaccionar. Se para el ejercicio y se repite.',1,5,'equipo',6,18,6,'Ninguno','bloque');
+  E('ejc41','defensa','postura','Sprint y frenada ante el tirador',
+    'El defensor arranca desde la zona hacia un atacante situado en el triple, y frena con pasos cortos llegando con las manos arriba, sin saltar.',
+    'Se llega frenando, no llegando. El que llega lanzado se come la finta y la entrada.',3,5,'parejas',2,14,10,'Un balón','serie');
+  E('ejc42','defensa','postura','Paso de caída cuando te desbordan',
+    'El atacante pasa al lado del defensor y este tiene que abrir la cadera y recuperar la posición con un paso de caída, sin correr de frente.',
+    'Es el movimiento que separa defender de perseguir. Se practica lento hasta que sale solo.',3,5,'parejas',2,14,8,'Ninguno','serie');
+  E('ejc43','defensa','balon','Zigzag negando el centro',
+    'El atacante bota en zigzag al setenta por ciento y el defensor le obliga a ir siempre hacia la banda, nunca al centro del campo.',
+    'El defensor gana cuando el atacante llega al fondo por la banda. Que le pase por el centro es perder, aunque no anote.',2,5,'parejas',2,16,10,'Un balón por pareja','serie');
+  E('ejc44','defensa','balon','Presionar al que ha agotado el bote',
+    'El atacante bota dos veces y para. Desde ese momento el defensor se le echa encima con las manos altas para cerrarle las líneas de pase.',
+    'En cuanto para el bote, el defensor sube un metro. Ese metro es el que provoca el pase malo.',3,5,'parejas',2,14,8,'Un balón','serie');
+  E('ejc45','defensa','balon','Manos rápidas sin falta',
+    'El defensor intenta tocar el balón del atacante que bota parado, solo con la mano de abajo y sin agarrar ni golpear el brazo.',
+    'De abajo arriba. La mano que va de arriba abajo es falta siempre, la pite o no la pite el árbitro.',2,4,'parejas',2,16,6,'Un balón por pareja','bloque');
+  E('ejc46','defensa','ayudas','Ayuda al centro y recuperación',
+    'El defensor ayuda a parar una penetración por el centro y recupera a su par, que ha reemplazado a la esquina. Se repite hasta que la recuperación llega antes que el pase.',
+    'Se ayuda con los dos pies dentro de la zona y se vuelve corriendo. Ayudar a medias es no ayudar.',3,5,'grupo',4,12,12,'Un balón','serie');
+  E('ejc47','defensa','ayudas','Ayuda desde el lado débil',
+    'Con el balón en un lado, el defensor del lado contrario se mete a tapar la entrada y vuelve en cuanto el balón cambia de lado.',
+    'Se ve el balón y a su par a la vez. El que pierde de vista uno de los dos, llega tarde al siguiente.',4,5,'grupo',6,12,12,'Un balón','aleatoria',
+    'En mini no: el lado débil exige ver dos cosas a la vez, y antes hay que saber defender una.');
+  E('ejc48','defensa','ayudas','Superar el bloqueo por arriba o por abajo',
+    'Con un cono o un compañero quieto haciendo de bloqueo, el defensor practica pasar por delante o por detrás según lo que se le pida en voz alta.',
+    'Se decide antes de llegar al bloqueo y se dice en voz alta. El que calla, deja un tiro libre de marca.',4,5,'grupo',4,12,10,'Conos o un compañero','serie');
+  E('ejc49','defensa','rebote','Cerrar el rebote por parejas',
+    'El entrenador tira, y atacante y defensor pelean la posición: el defensor busca el contacto y saca al atacante del área; el atacante intenta rodearle.',
+    'Primero se busca al hombre, después el balón. El que mira el aro pierde la posición.',2,5,'parejas',4,16,10,'Un balón','bloque');
+  E('ejc50','defensa','rebote','Fintar para ir al rebote ofensivo',
+    'El atacante finta hacia un lado para que el defensor abra la cadera y se va por el contrario a buscar el rebote.',
+    'La finta es corta y con los pies. Una finta larga da tiempo a recolocarse.',3,5,'parejas',4,14,8,'Un balón','serie');
+  E('ejc51','defensa','rebote','Rebote a tres',
+    'Uno tira desde el perímetro y dos pelean el rebote sin posiciones asignadas. Quien lo coge, finaliza; quien no, defiende.',
+    'Aquí no hay a quién cerrar: gana el que salta con las dos manos y cae con equilibrio.',3,5,'grupo',3,12,10,'Un balón','aleatoria');
+})();
+(function () {
+  var L = SF.EJ_CATALOGO;
+  function E(id, c, s, n, d, k, de, a, f, mn, mx, m, mat, p, nt) {
+    L.push({ id: id, nivel: 'club', deporte: 'baloncesto', autor: 'CBJA',
+      carpeta: c, seccion: s, nombre: n, descripcion: d, claves: k,
+      etapa: { de: de, a: a }, formato: f, min_jug: mn, max_jug: mx,
+      minutos: m, jugadores: mn + '-' + mx, material: mat, practica: p,
+      momento: c === 's5c5' ? 'Competición' : 'Parte principal',
+      objetivo: SF.carpetaDe(c) ? SF.carpetaDe(c).objetivo : 'juego',
+      no_todavia: nt || '' });
+  }
+
+  /* ---------- 1 CONTRA 1 ---------- */
+  E('ejc52','s1c1','conbalon','Uno contra uno con tres botes',
+    'Desde el triple, el atacante tiene tres botes como máximo para finalizar. Si no tira en ese tiempo, pierde la posesión.',
+    'El límite obliga a decidir pronto. Sin límite, el 1x1 se convierte en botar hasta que sale algo.',2,5,'parejas',2,12,10,'Un balón','aleatoria');
+  E('ejc53','s1c1','conbalon','Uno contra uno de espaldas',
+    'El atacante recibe de espaldas al aro en el poste, con el defensor detrás. Dos botes como mucho y finalización.',
+    'Se gana la posición antes de recibir, no después. El que recibe lejos ya ha perdido.',3,5,'parejas',2,12,10,'Un balón','serie');
+  E('ejc54','s1c1','conbalon','Uno contra uno desde el bote de llegada',
+    'El atacante llega botando desde medio campo y ataca sin parar. El defensor le espera en el triple.',
+    'La ventaja está en la velocidad de llegada; si frena para pensar, la pierde.',3,5,'parejas',2,12,10,'Un balón','aleatoria');
+  E('ejc55','s1c1','sinbalon','Ganar la posición para recibir',
+    'Un pasador fijo y un atacante que solo puede recibir si se desmarca. El defensor niega la línea de pase. Se cuenta cuántas veces recibe en un minuto.',
+    'Se gana con el primer paso y con el cuerpo, no corriendo más. Cambio de ritmo y contacto legal.',3,5,'grupo',3,12,10,'Un balón','serie');
+  E('ejc56','s1c1','sinbalon','Recibir cortando y finalizar',
+    'El atacante corta desde el perímetro hacia el aro, recibe en carrera y termina sin bote.',
+    'La mano de pedir va arriba y el cuerpo va cara al balón. De espaldas no se recibe.',2,5,'grupo',3,12,10,'Un balón','serie');
+  E('ejc57','s1c1','defensivo','Entregar, rodear y defender',
+    'El atacante le da el balón al defensor, corre a rodear un cono y vuelve a defenderle. Empieza en desventaja a propósito.',
+    'Llegar tarde y frenar bien es mejor que llegar rápido y pasarse. Se premia la frenada.',3,5,'parejas',2,12,10,'Un cono y un balón','aleatoria');
+  E('ejc58','s1c1','defensivo','Uno contra uno a un solo lado',
+    'El defensor obliga al atacante a atacar siempre por el mismo lado, el que se acuerde antes de empezar.',
+    'Se defiende con los pies y el cuerpo, no con las manos. La mano solo molesta la visión.',3,5,'parejas',2,12,10,'Un balón','serie');
+  E('ejc59','s1c1','defensivo','Defender el poste bajo',
+    'El defensor trabaja en tres cuartos por delante para que el balón no entre al poste, con el brazo en la línea de pase.',
+    'Se defiende antes de que el balón entre. Cuando ya está dentro, la pelea está medio perdida.',4,5,'parejas',3,12,10,'Un balón','serie',
+    'No antes de cadete: negar el poste exige una fuerza y una lectura de anticipación que no hay antes.');
+
+  /* ---------- 2 CONTRA 2 ---------- */
+  E('ejc60','s2c2','bloqueo','Bloqueo directo lateral',
+    'Dos contra dos en la banda con bloqueo directo. El bloqueador elige entre continuar hacia el aro o abrirse al tiro, según lo que haga su defensor.',
+    'El bloqueo se pone quieto y con los pies anclados. Un bloqueo en movimiento es falta y no ayuda a nadie.',4,5,'grupo',4,12,15,'Un balón','aleatoria');
+  E('ejc61','s2c2','bloqueo','Bloqueo directo central',
+    'El mismo dos contra dos pero en el frontal, donde el que lleva el balón tiene los dos lados disponibles y tiene que leer cuál.',
+    'Se lee al defensor del bloqueador, no al propio. Es lo que casi nadie mira al principio.',4,5,'grupo',4,12,15,'Un balón','aleatoria');
+  E('ejc62','s2c2','bloqueo','Cambiar o pasar: hablarlo antes',
+    'Los dos defensores tienen que decir en voz alta qué van a hacer ANTES de que llegue el bloqueo. Si no hablan, la posesión se da por perdida aunque defiendan bien.',
+    'El silencio es el error, no el cambio mal hecho. Se corrige premiando la voz.',4,5,'grupo',4,12,12,'Un balón','serie');
+  E('ejc63','s2c2','cortar','Dos contra dos sin bote',
+    'Prohibido botar: la única forma de avanzar es pasar y moverse. Cuatro pases mínimos antes de tirar.',
+    'Sin bote, el que pasa y se queda quieto se nota enseguida. Ese es el objetivo escondido.',2,5,'grupo',4,12,12,'Un balón','serie');
+  E('ejc64','s2c2','cortar','Dos contra dos con pasador neutral',
+    'Un pasador fijo fuera que juega con quien ataque. Da una salida y obliga a la defensa a no dormirse en el lado del balón.',
+    'El comodín no bota ni tira: solo devuelve. Si juega, el ejercicio se convierte en un tres contra dos.',3,5,'grupo',5,12,12,'Un balón','aleatoria');
+  E('ejc65','s2c2','poste2','Exterior e interior',
+    'Un exterior y un interior con sus defensores. El balón tiene que entrar al poste al menos una vez antes de tirar.',
+    'Cuando entra el balón dentro, el de fuera se mueve. Quedarse mirando es el error de siempre.',4,5,'grupo',4,12,12,'Un balón','serie');
+  E('ejc66','s2c2','poste2','Mano a mano y continuación',
+    'El exterior entrega el balón en mano al compañero que pasa rozándole, y continúa hacia el aro.',
+    'La entrega es en mano, no un pase corto. Y el que entrega sale de inmediato, no se queda a mirar.',4,5,'grupo',4,12,12,'Un balón','serie');
+
+  /* ---------- 3 CONTRA 3 ---------- */
+  E('ejc67','s3c3','sinbote','Tres contra tres sin bote',
+    'Media pista, prohibido botar. Solo se avanza pasando, cortando y ocupando el hueco que deja el que corta.',
+    'Es el mejor ejercicio que hay para que se muevan sin balón, porque no queda otra.',2,5,'grupo',6,12,12,'Un balón','serie');
+  E('ejc68','s3c3','libre3','Tres contra tres con comodín',
+    'Un jugador extra juega siempre con quien tiene la posesión, así que el ataque siempre va con uno más.',
+    'El comodín no tira: reparte. Si tira, el ejercicio deja de trabajar la ventaja.',3,5,'grupo',7,12,12,'Un balón','aleatoria');
+  E('ejc69','s3c3','libre3','Tres contra tres a cinco pases',
+    'No se puede tirar hasta haber dado cinco pases válidos dentro de la misma posesión.',
+    'La regla se explica una vez y no se negocia durante el juego.',2,5,'grupo',6,12,12,'Un balón','serie');
+  E('ejc70','s3c3','libre3','Tres contra tres con entrada obligatoria al poste',
+    'Solo vale la canasta si antes el balón ha entrado a un jugador dentro de la zona y ha vuelto a salir.',
+    'Obliga a mirar dentro antes de tirar de fuera, que es el hábito que cuesta crear.',4,5,'grupo',6,12,12,'Un balón','aleatoria');
+
+  /* ---------- 4 CONTRA 4 ---------- */
+  E('ejc71','s4c4','espacios','Cuatro abiertos y ocupar el hueco',
+    'Cuatro contra cuatro sin interior fijo, con la única norma de que el hueco que deja un corte tiene que ocuparlo alguien antes de tres segundos.',
+    'Si nadie rellena, se para el juego y se señala el hueco vacío. Verlo una vez vale más que explicarlo tres.',4,5,'equipo',8,12,15,'Un balón y petos','aleatoria');
+  E('ejc72','s4c4','espacios','Cortar y reemplazar obligatorio',
+    'Cada pase obliga al pasador a cortar, y a alguien a ocupar su sitio. Si el pasador se queda quieto, la posesión se pierde.',
+    'Es el concepto de pasar y cortar llevado a cuatro jugadores: el mismo contenido, más gente que coordinar.',4,5,'equipo',8,12,15,'Un balón y petos','serie');
+  E('ejc73','s4c4','condicion4','Cuatro contra cuatro a cinco pases',
+    'Cinco pases antes de poder tirar. Los pases de vuelta al mismo jugador no cuentan.',
+    'La coletilla de «no vale devolver» es la que hace que el ejercicio funcione de verdad.',3,5,'equipo',8,12,12,'Un balón y petos','serie');
+  E('ejc74','s4c4','condicion4','Canasta doble tras robo',
+    'Todo lo que se anote en los seis segundos siguientes a un robo vale doble.',
+    'Premia correr después de robar, que es el momento en que más fácil es anotar y el que más se desaprovecha.',3,5,'equipo',8,12,12,'Un balón y petos','aleatoria');
+  E('ejc75','s4c4','condicion4','Desde saque de banda',
+    'Cada posesión empieza con un saque de banda en campo de ataque, con cinco segundos para sacar.',
+    'El saque es la situación que más se repite en partido y la que menos se entrena.',4,5,'equipo',8,12,12,'Un balón y petos','serie');
+
+  /* ---------- 5 CONTRA 5 ---------- */
+  E('ejc76','s5c5','condicion5','Triples que valen cuatro',
+    'Partido normal cambiando solo la puntuación del tiro exterior, para ver qué le pasa a la ocupación del campo.',
+    'La puntuación cambia el comportamiento más que cualquier charla. Se nota en dos minutos.',4,5,'equipo',10,14,15,'Un balón y petos','aleatoria');
+  E('ejc77','s5c5','final','Últimos diez segundos',
+    'Quedan diez segundos, un equipo pierde de dos y saca de banda en campo de ataque. Se juega, se para y se repite con los papeles cambiados.',
+    'Se juega de verdad, con faltas y con reloj. Ensayarlo sin tensión no sirve para el domingo.',4,5,'equipo',10,14,12,'Un balón, petos y cronómetro','aleatoria');
+  E('ejc78','s5c5','final','Final con faltas y tiros libres',
+    'Situación de dos minutos con el marcador ajustado y las faltas contadas, para que aparezca la decisión de hacer falta o no.',
+    'Hacer falta también se entrena: cuándo, a quién y cómo hacerla sin arriesgar el tiro de tres.',5,5,'equipo',10,14,15,'Un balón, petos y cronómetro','aleatoria',
+    'Solo júnior y sénior. Antes, gestionar faltas intencionadas no aporta nada al desarrollo del jugador.');
+  E('ejc79','s5c5','libre5','Cinco contra cinco arbitrado',
+    'Partido normal con el entrenador arbitrando de verdad, pitando lo que pitaría un árbitro y explicando lo que haga falta.',
+    'Si nunca se les pita nada, el domingo se enfadan con el árbitro. Aquí se aprende a jugar con decisiones en contra.',3,5,'equipo',10,14,15,'Un balón, petos y silbato','aleatoria');
+  E('ejc80','s5c5','libre5','Rey de la pista',
+    'Quien anota se queda en pista y entra un equipo nuevo a atacarle. El que falla sale.',
+    'Mete competición sin necesidad de marcador. Cuidado con los equipos que se quedan mucho rato fuera.',3,5,'equipo',12,18,15,'Un balón y petos','aleatoria');
+
+  /* ---------- SUPERIORIDAD NUMÉRICA ---------- */
+  E('ejc81','superioridad','s2x1','Dos contra uno en transición',
+    'Rebote y salida rápida de dos atacantes contra un defensor que ya está colocado. Hay que finalizar antes de que llegue la ayuda.',
+    'Se ataca al defensor, no al aro. Si nadie le obliga a decidir, el 2x1 no existe.',2,5,'grupo',6,15,10,'Un balón','aleatoria');
+  E('ejc82','superioridad','s2x1','Dos contra uno en oleadas',
+    'Salen dos contra uno; el que tira se queda defendiendo y entran dos nuevos por el otro lado. Sin parar.',
+    'El ejercicio no descansa: la fatiga es parte de lo que se entrena.',3,5,'equipo',9,18,12,'Un balón','aleatoria');
+  E('ejc83','superioridad','s3x2','Tres contra dos con vuelta',
+    'Tres atacan contra dos. El que tira se queda a defender con uno de los dos anteriores, y salen tres nuevos hacia el otro aro.',
+    'Correr los carriles y decidir antes del tiro libre. Llegar los tres juntos por el centro no es contraataque.',3,5,'equipo',10,15,12,'Un balón','aleatoria');
+  E('ejc84','superioridad','smas','Cuatro contra tres desde rebote',
+    'La defensa coge el rebote y sale cuatro contra tres. Los tres defensores tienen que cubrir primero la canasta y después el balón.',
+    'La ventaja dura tres segundos. Si el ataque la administra, la pierde.',4,5,'equipo',8,16,12,'Un balón y petos','aleatoria');
+  E('ejc85','superioridad','smas','Cinco contra cuatro en media pista',
+    'Ataque con uno más contra una defensa que tiene que rotar constantemente para tapar al libre.',
+    'La defensa gana tiempo rotando pronto; el ataque gana moviendo el balón más rápido de lo que rota la defensa.',4,5,'equipo',9,14,12,'Un balón y petos','aleatoria');
+  E('ejc86','superioridad','inferior','Defender el dos contra uno',
+    'El mismo dos contra uno, pero puntuando al defensor: gana si consigue que fallen, que se pasen el tiempo o que pierdan el balón.',
+    'El defensor no puede pararlo todo: tiene que elegir qué quita y temporizar hasta que llegue la ayuda. Es el ejercicio más difícil de los dos.',3,5,'grupo',6,15,10,'Un balón','aleatoria');
+})();
+(function () {
+  var L = SF.EJ_CATALOGO;
+  function E(id, c, s, n, d, k, de, a, f, mn, mx, m, mat, p, nt) {
+    L.push({ id: id, nivel: 'club', deporte: 'baloncesto', autor: 'CBJA',
+      carpeta: c, seccion: s, nombre: n, descripcion: d, claves: k,
+      etapa: { de: de, a: a }, formato: f, min_jug: mn, max_jug: mx,
+      minutos: m, jugadores: mn + '-' + mx, material: mat, practica: p,
+      momento: c === 'vuelta' ? 'Vuelta a la calma' : 'Parte principal',
+      objetivo: SF.carpetaDe(c) ? SF.carpetaDe(c).objetivo : 'fisico',
+      no_todavia: nt || '' });
+  }
+
+  /* ---------- PREPARACIÓN FÍSICA ----------
+     La llena el preparador, no el entrenador de pista. Y la edad aquí no es un
+     consejo suave: la fuerza con carga y los saltos repetidos tienen un suelo
+     de edad que no se salta porque el chaval parezca fuerte. */
+  E('ejc87','fisico','fuerza','Empujes y tracciones con goma',
+    'Por parejas, con goma elástica: empuje horizontal, remo, y apertura de hombro. Tres series de doce por ejercicio con descanso completo.',
+    'Se para al jugador en cuanto pierde la postura. Doce bien valen más que veinte mal.',3,5,'parejas',4,16,15,'Gomas elásticas','bloque');
+  E('ejc88','fisico','fuerza','Sentadilla y zancada con el propio peso',
+    'Sentadilla a caja, zancada adelante y puente de glúteo, en circuito de tres estaciones. Dos vueltas con dos minutos entre ellas.',
+    'La rodilla sigue la dirección del pie. Si se mete hacia dentro, se baja menos hasta que se corrija.',3,5,'equipo',6,16,15,'Bancos o cajones bajos','bloque');
+  E('ejc89','fisico','velocidad','Salidas cortas desde distintas posiciones',
+    'Sprints de cinco metros arrancando de pie, sentado, de espaldas y tumbado. Seis salidas con descanso completo entre cada una.',
+    'Es velocidad, no resistencia: si no se descansa entero, se está entrenando otra cosa.',2,5,'equipo',6,16,10,'Conos','bloque');
+  E('ejc90','fisico','velocidad','Agilidad con balón al final',
+    'Recorrido de coordinación entre conos y, al salir, recepción y finalización. El gesto técnico llega cuando los pies ya están cansados.',
+    'Lo que se mira es la técnica al final, no el tiempo del recorrido.',2,5,'grupo',6,14,12,'Conos y un balón','serie');
+  E('ejc91','fisico','salto','Aprender a caer',
+    'Salto vertical desde un cajón bajo y aterrizaje a dos pies, absorbiendo con tobillo, rodilla y cadera, y aguantando la posición dos segundos.',
+    'El ejercicio es la caída, no el salto. Se cuenta un aterrizaje bueno cuando no hay ruido.',3,5,'equipo',6,16,10,'Cajones bajos','bloque');
+  E('ejc92','fisico','salto','Salto a cajón con control',
+    'Saltos a un cajón bajo, subiendo con las dos piernas y bajando andando, nunca saltando hacia abajo.',
+    'Se baja andando siempre. Bajar saltando es donde se rompen los tobillos, no al subir.',4,5,'equipo',6,16,12,'Cajones bajos','bloque',
+    'No antes de cadete con volumen alto: el salto repetido en un cuerpo que está creciendo es la vía rápida a una rodilla dolorida.');
+  E('ejc93','fisico','prevencion','Tobillo y propiocepción',
+    'Apoyo a una pierna con los ojos abiertos y después cerrados, sobre suelo firme y sobre una superficie inestable. Treinta segundos por pierna, tres series.',
+    'Se hace descalzo si el suelo lo permite. Y las dos piernas por igual, aunque solo duela una.',2,5,'individual',1,16,10,'Bosu o colchoneta','bloque');
+  E('ejc94','fisico','prevencion','Isquiotibiales, trabajo excéntrico',
+    'Con el compañero sujetando los tobillos, descenso lento desde la posición de rodillas, frenando todo lo posible antes de apoyar las manos.',
+    'Lo que protege es la bajada lenta. Dejarse caer no entrena nada.',4,5,'parejas',4,16,10,'Colchonetas','bloque',
+    'No antes de cadete. Es un trabajo exigente que pide una base de fuerza que en infantil todavía no está.');
+  E('ejc95','fisico','reentreno','Vuelta a la actividad: carrera progresiva',
+    'Carrera continua suave con cambios de dirección amplios que se van cerrando sesión a sesión, según lo que indique el fisioterapeuta.',
+    'La progresión la marca el fisio, no las ganas del jugador ni el calendario de partidos.',3,5,'individual',1,4,15,'Conos','serie');
+  E('ejc96','fisico','reentreno','Vuelta a la actividad: gesto sin oposición',
+    'Tiro, entrada y bote a intensidad controlada y sin nadie enfrente, antes de volver a entrenar con el grupo.',
+    'El último paso antes del contacto. Saltárselo es como volver a lesionarse en dos semanas.',3,5,'individual',1,4,12,'Un balón','serie');
+
+  /* ---------- VUELTA A LA CALMA ---------- */
+  E('ejc97','vuelta','cierre','Estiramiento guiado',
+    'Cadena posterior, psoas y aductores, con la respiración ya baja. Cada posición treinta segundos, sin rebotes.',
+    'Se estira sin dolor. Si tira, se afloja: el estiramiento forzado en frío no gana nada.',1,5,'equipo',6,18,8,'Colchonetas','bloque');
+  E('ejc98','vuelta','cierre','Una idea y a casa',
+    'En círculo, dos minutos: qué se ha trabajado hoy y qué se espera en la próxima sesión. Una idea, no un discurso.',
+    'Es el mejor momento para decir algo que se recuerde. Si se alarga, no se recuerda nada.',1,5,'equipo',6,18,4,'Ninguno','bloque');
+})();
+
+/* Los trece que ya existían entran en su carpeta. Se hace por id y en una
+   tabla a la vista, porque es criterio deportivo y el criterio se discute. */
+(function () {
+  var EN = {
+    ejb1:  ['calentamiento', 'movilidad'], ejb2: ['calentamiento', 'sitio'],
+    ejb3:  ['tiro', 'traspase'],           ejb4: ['superioridad', 'smas'],
+    ejb5:  ['s2c2', 'bloqueo'],            ejb6: ['superioridad', 's3x2'],
+    ejb7:  ['s5c5', 'condicion5'],         ejb8: ['tiro', 'entradas'],
+    ejb9:  ['fisico', 'fuerza'],           ejb10: ['vuelta', 'cierre'],
+    ejb11: ['s3c3', 'cortar3'],            ejb12: ['s3c3', 'cortar3'],
+    ejb13: ['s3c3', 'cortar3']
+  };
+  SF.EJERCICIOS_BASE.forEach(function (x) {
+    var p = EN[x.id]; if (!p) return;
+    if (x.carpeta == null) x.carpeta = p[0];
+    if (x.seccion == null) x.seccion = p[1];
+  });
+  SF.EJERCICIOS_BASE = SF.EJERCICIOS_BASE.concat(SF.EJ_CATALOGO);
+})();
+
+
+/* Los diez de siempre, ahora clasificados. Se hace aqui y no a mano ejercicio
+   a ejercicio para que la tabla se lea de un vistazo y sea facil discutirla:
+   es criterio deportivo, y el criterio se revisa.
+   El circuito de fuerza arranca en cadete a proposito: autocarga con salto a
+   cajon no es contenido de mini. */
+(function () {
+  var CLAS = {
+    ejb1:  { etapa: { de: 1, a: 5 }, formato: 'equipo', min_jug: 8,  max_jug: 16, practica: 'bloque' },
+    ejb2:  { etapa: { de: 2, a: 4 }, formato: 'individual', min_jug: 4, max_jug: 12, practica: 'bloque' },
+    ejb3:  { etapa: { de: 2, a: 5 }, formato: 'grupo',  min_jug: 6,  max_jug: 12, practica: 'serie' },
+    ejb4:  { etapa: { de: 3, a: 5 }, formato: 'grupo',  min_jug: 6,  max_jug: 8,  practica: 'aleatoria' },
+    ejb5:  { etapa: { de: 4, a: 5 }, formato: 'grupo',  min_jug: 4,  max_jug: 12, practica: 'serie' },
+    ejb6:  { etapa: { de: 3, a: 5 }, formato: 'equipo', min_jug: 10, max_jug: 15, practica: 'aleatoria' },
+    ejb7:  { etapa: { de: 3, a: 5 }, formato: 'equipo', min_jug: 10, max_jug: 12, practica: 'aleatoria' },
+    ejb8:  { etapa: { de: 2, a: 4 }, formato: 'grupo',  min_jug: 6,  max_jug: 14, practica: 'serie' },
+    ejb9:  { etapa: { de: 4, a: 5 }, formato: 'equipo', min_jug: 6,  max_jug: 16, practica: 'bloque' },
+    ejb10: { etapa: { de: 2, a: 5 }, formato: 'equipo', min_jug: 8,  max_jug: 16, practica: 'bloque' }
+  };
+  SF.EJ_CLASIF_BASE = CLAS;
+  SF.EJERCICIOS_BASE.forEach(function (x) {
+    var c = CLAS[x.id]; if (!c) return;
+    for (var k in c) if (x[k] == null) x[k] = c[k];
+  });
+})();
+
 
 SF.VIDEO_TYPES = ['Highlights', 'Partido completo', 'Entrenamiento', 'Prueba física', 'Otro'];
 
@@ -7961,6 +8921,38 @@ SF.store = (function () {
     if (!d._dir_v1) {
       fusionar(d, faltanEn(d, seed()));
       d._dir_v1 = true;
+      write(d);
+    }
+    /* La biblioteca pasa a estar clasificada: etapa (como RANGO), formato,
+       tipo de practica y, en los que la tienen, la familia y su escalon.
+       Es ADITIVA a proposito: no pisa nada de lo que haya escrito el club,
+       solo rellena lo que falta y añade los ejercicios de fabrica que no
+       esten. Un ejercicio sin clasificar sigue saliendo en todas las
+       busquedas; no desaparece de la vista de nadie. */
+    if (!d._ejclas_v1) {
+      d.ejercicios = d.ejercicios || [];
+      var tengoEj = {};
+      d.ejercicios.forEach(function (x) { if (x && x.id) tengoEj[x.id] = x; });
+      (SF.EJERCICIOS_BASE || []).forEach(function (base) {
+        var mio = tengoEj[base.id];
+        if (!mio) { d.ejercicios.push(JSON.parse(JSON.stringify(base))); return; }
+        ['etapa', 'formato', 'min_jug', 'max_jug', 'practica', 'familia', 'escalon',
+         'no_todavia', 'pasos', 'carpeta', 'seccion'].forEach(function (k) {
+          if (mio[k] == null && base[k] != null) mio[k] = JSON.parse(JSON.stringify(base[k]));
+        });
+      });
+      d._ejclas_v1 = true;
+      write(d);
+    }
+    /* Un ejercicio que el club escribió antes de que existieran las carpetas
+       no se queda fuera de la estantería: cae en la que corresponde a su
+       objetivo de siempre. Es una suposición, y por eso se puede cambiar
+       desde la ficha. */
+    if (!d._ejcarp_v1) {
+      (d.ejercicios || []).forEach(function (x) {
+        if (!x.carpeta) x.carpeta = SF.carpetaPorObjetivo(x.objetivo);
+      });
+      d._ejcarp_v1 = true;
       write(d);
     }
     /* Los planes de pago. Antes estaban escritos en el codigo; aqui pasan a
@@ -17098,45 +18090,261 @@ window.SF = window.SF || {};
       body.appendChild(barra);
     }
 
-    var f = SF._ejFiltro = SF._ejFiltro || { obj: '', q: '' };
-    var chips = el('<div class="row-c eq-filtros" style="margin-bottom:10px"></div>');
-    [['', 'Todos']].concat((SF.EJ_OBJETIVOS || []).map(function (o) { return [o.k, o.label]; }))
-      .forEach(function (o) {
-        var n = o[0] ? lista.filter(function (x) { return x.objetivo === o[0]; }).length : lista.length;
-        if (o[0] && !n) return;                 // un filtro que no filtra nada, sobra
-        var b = el('<button class="eq-chip eq-chip-sm' + (f.obj === o[0] ? ' on' : '') + '">' +
-          esc(o[1]) + ' <span class="hint">' + n + '</span></button>');
-        b.onclick = function () { f.obj = o[0]; SF.router.render(); };
-        chips.appendChild(b);
-      });
-    body.appendChild(chips);
+    /* --- La biblioteca por carpetas (20/09/2026, v3) -------------------------
+       Doce carpetas en tres bandas, todas a un clic. Dentro de una carpeta,
+       SECCIONES con título en vez de botones: se baja y se ve todo. Un botón
+       esconde hasta que lo pulsas; un título no esconde nada.
 
-    var vis = lista.filter(function (x) { return !f.obj || x.objetivo === f.obj; })
-      .sort(function (a, b) { return (a.nombre || '').localeCompare(b.nombre || ''); });
+       Una carpeta vacía NO se pinta: una estantería con huecos se ve peor que
+       una lista corta, y según el club escribe van apareciendo solas. */
+    var f = SF._ejFiltro = SF._ejFiltro || { obj: '', q: '', et: '' };
+    if (f.et == null) f.et = '';
+    if (f.q == null) f.q = '';
+    var carpAbierta = SF._ejCarpeta || null;
+    if (carpAbierta && !SF.carpetaDe(carpAbierta)) carpAbierta = SF._ejCarpeta = null;
 
-    if (!vis.length) {
-      body.appendChild(el('<div class="empty-panel"><p>No hay ejercicios con ese objetivo.</p></div>'));
+    var q = (f.q || '').trim().toLowerCase();
+    function pasa(x) {
+      if (!SF.etapaEncaja(x, f.et)) return false;
+      if (q && ((x.nombre || '') + ' ' + (x.descripcion || '')).toLowerCase().indexOf(q) < 0) return false;
+      return true;
+    }
+    var deCarpeta = function (k) {
+      return lista.filter(function (x) { return (x.carpeta || SF.carpetaPorObjetivo(x.objetivo)) === k; });
+    };
+
+    /* La barra: buscar y la edad del equipo. Dos controles, una línea. */
+    var barraF = el('<div class="ej-barra">' +
+      '<input id="ejq" class="ej-busca" placeholder="' +
+      (carpAbierta ? 'Buscar en ' + esc(SF.carpetaLabel(carpAbierta)) : 'Buscar en todas las carpetas') +
+      '" value="' + esc(f.q) + '">' +
+      '<select id="eje"><option value="">Edad · todas</option>' +
+      (SF.EJ_ETAPAS || []).map(function (e) {
+        return '<option value="' + e.k + '"' + (String(f.et) === String(e.k) ? ' selected' : '') + '>' +
+          esc(e.label + ' · ' + e.edad) + '</option>';
+      }).join('') + '</select></div>');
+    body.appendChild(barraF);
+    var inQ = barraF.querySelector('#ejq'), tQ = null;
+    inQ.oninput = function () {
+      clearTimeout(tQ);
+      tQ = setTimeout(function () {
+        f.q = inQ.value; SF.router.render();
+        var i2 = document.querySelector('#ejq');
+        if (i2) { i2.focus(); i2.setSelectionRange(i2.value.length, i2.value.length); }
+      }, 250);
+    };
+    barraF.querySelector('#eje').onchange = function () { f.et = this.value; SF.router.render(); };
+
+    /* Pinta una fila de ejercicio. La misma en la carpeta y en los resultados
+       de búsqueda, para que se reconozca igual en los dos sitios. */
+    function fila(x, conCarpeta) {
+      var pasos = (x.pasos || []).length;
+      var r = el('<button class="ej-fila">' +
+        '<span class="ef-t"><b>' + esc(x.nombre) + '</b>' +
+        (x.descripcion ? '<span>' + esc(x.descripcion) + '</span>' : '') +
+        (conCarpeta ? '<span class="ef-c">' + esc(SF.carpetaLabel(x.carpeta)) + '</span>' : '') + '</span>' +
+        '<span class="ef-e">' + esc(SF.etapaTexto(x.etapa) || 'Sin edad') + '</span>' +
+        '<span class="ef-m">' + esc(SF.formatoLabel(x.formato)) + '</span>' +
+        '<span class="ef-m">' + (x.minutos || '—') + '′</span>' +
+        '<span class="ef-p' + (pasos ? ' on' : '') + '">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" ' +
+        'stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="' +
+        (pasos ? pasos + ' pasos con esquema' : 'Sin esquema') + '">' +
+        '<rect x="3" y="4" width="18" height="16" rx="2"></rect><path d="M3 10h18M9 4v16"></path>' +
+        '</svg></span>' +
+        '</button>');
+      r.onclick = function () { modalVerEjercicio(x, quien, misEq, mando, puede); };
+      return r;
+    }
+
+    /* ---------- Buscando: se cruzan todas las carpetas ---------- */
+    if (q) {
+      var enc = lista.filter(pasa);
+      body.appendChild(el('<p class="hint" style="margin-bottom:10px">' +
+        (enc.length === 1 ? 'Un ejercicio' : enc.length + ' ejercicios') +
+        ' con «' + esc(f.q) + '»' + (carpAbierta ? ', en todas las carpetas' : '') + '.</p>'));
+      if (!enc.length) {
+        body.appendChild(el('<div class="empty-panel"><p>Nada con ese texto.</p>' +
+          '<p class="hint">Prueba con una palabra suelta, o quita la edad: un ejercicio sirve casi siempre para más de una.</p></div>'));
+        return;
+      }
+      var lb = el('<div class="ej-lista"></div>');
+      enc.sort(function (a2, b2) { return (a2.nombre || '').localeCompare(b2.nombre || ''); })
+        .forEach(function (x) { lb.appendChild(fila(x, true)); });
+      body.appendChild(lb);
       return;
     }
 
-    var rej = el('<div class="ej-rej"></div>');
-    vis.forEach(function (x) {
-      var niv = (SF.EJ_NIVELES || []).filter(function (n) { return n.k === (x.nivel || 'club'); })[0];
-      var card = el('<button class="ej-card"><div class="ej-top">' +
-        '<b>' + esc(x.nombre) + '</b>' +
-        '<span class="tag ' + (x.nivel === 'personal' ? 'tag-gray' : (x.nivel === 'equipo' ? 'tag-warn' : 'tag-purple')) + '">' +
-        esc(niv ? niv.label : 'Del club') + '</span></div>' +
-        '<span class="ej-meta">' + esc(objetivoLabel(x.objetivo)) + ' · ' + (x.minutos || '—') + '′' +
-        (x.jugadores ? ' · ' + esc(x.jugadores) + ' jugadores' : '') + '</span>' +
-        (x.descripcion ? '<span class="ej-desc">' + esc(x.descripcion) + '</span>' : '') +
-        '</button>');
-      card.onclick = function () { modalEjercicio(x, quien, misEq, mando, !puede); };
-      rej.appendChild(card);
+    /* ---------- Una carpeta abierta ---------- */
+    if (carpAbierta) {
+      var C = SF.carpetaDe(carpAbierta);
+      var dentro = deCarpeta(carpAbierta).filter(pasa);
+
+      var volver = el('<button class="lnk" style="margin-bottom:8px">← Todas las carpetas</button>');
+      volver.onclick = function () { SF._ejCarpeta = null; SF.router.render(); };
+      body.insertBefore(volver, barraF);
+
+      var conEsq = dentro.filter(function (x) { return (x.pasos || []).length; }).length;
+      body.appendChild(el('<p class="sec-label" style="margin-top:4px">' + esc(C.label) + '</p>'));
+      body.appendChild(el('<p class="hint" style="margin:-4px 0 12px">' +
+        (dentro.length === 1 ? 'Un ejercicio' : dentro.length + ' ejercicios') +
+        (conEsq ? ' · ' + conEsq + ' con esquema paso a paso' : '') +
+        (f.et ? ' · filtrado por ' + esc((SF.etapaDe(f.et) || {}).label || '') : '') + '</p>'));
+
+      if (!dentro.length) {
+        body.appendChild(el('<div class="empty-panel"><p>Aquí no hay nada para esa edad.</p>' +
+          '<p class="hint">Quita el filtro de edad y verás lo que tiene la carpeta.</p></div>'));
+        return;
+      }
+
+      (C.secciones || []).forEach(function (sec) {
+        var items = dentro.filter(function (x) { return x.seccion === sec[0]; });
+        if (!items.length) return;               // una sección vacía no se pinta
+        body.appendChild(el('<div class="ej-sec"><span>' + esc(sec[1]) + '</span>' +
+          '<i>' + items.length + '</i><hr></div>'));
+        var ls = el('<div class="ej-lista"></div>');
+        items.sort(function (a2, b2) { return (a2.nombre || '').localeCompare(b2.nombre || ''); })
+          .forEach(function (x) { ls.appendChild(fila(x, false)); });
+        body.appendChild(ls);
+      });
+
+      var sueltos2 = dentro.filter(function (x) {
+        return !(C.secciones || []).some(function (s2) { return s2[0] === x.seccion; });
+      });
+      if (sueltos2.length) {
+        body.appendChild(el('<div class="ej-sec"><span>Sin sección</span><i>' + sueltos2.length + '</i><hr></div>'));
+        var lx = el('<div class="ej-lista"></div>');
+        sueltos2.forEach(function (x) { lx.appendChild(fila(x, false)); });
+        body.appendChild(lx);
+      }
+      return;
+    }
+
+    /* ---------- La estantería: doce carpetas en tres bandas ---------- */
+    var hayAlgo = false;
+    (SF.EJ_BANDAS || []).forEach(function (banda) {
+      var carps = (SF.EJ_CARPETAS || []).filter(function (c) { return c.banda === banda.k; })
+        .map(function (c) { return { c: c, n: deCarpeta(c.k).filter(pasa).length }; })
+        .filter(function (o) { return o.n > 0; });      // carpeta vacía: no se pinta
+      if (!carps.length) return;
+      hayAlgo = true;
+      body.appendChild(el('<div class="ej-sec"><span>' + esc(banda.label) + '</span><hr></div>'));
+      var rej = el('<div class="ej-carps"></div>');
+      carps.forEach(function (o) {
+        var dentroTxt = (o.c.secciones || []).map(function (s2) { return s2[1]; }).join(' · ');
+        var card = el('<button class="ej-carp"><span class="ec-top"><b>' + esc(o.c.label) + '</b>' +
+          '<i>' + o.n + '</i></span>' +
+          '<span class="ec-d">' + esc(dentroTxt) + '</span></button>');
+        card.onclick = function () { SF._ejCarpeta = o.c.k; SF.router.render(); };
+        rej.appendChild(card);
+      });
+      body.appendChild(rej);
     });
-    body.appendChild(rej);
-    body.appendChild(el('<p class="hint" style="margin-top:12px">Los ejercicios <b>del club</b> son la metodología: ' +
+
+    if (!hayAlgo) {
+      body.appendChild(el('<div class="empty-panel"><p>No hay ejercicios para esa edad.</p>' +
+        '<p class="hint">Quita el filtro y verás la biblioteca entera.</p></div>'));
+      return;
+    }
+
+    body.appendChild(el('<p class="hint" style="margin-top:14px">Los ejercicios <b>del club</b> son la metodología: ' +
       'los ve todo el mundo y los publica la dirección técnica. Los <b>del equipo</b> se quedan en su cuerpo técnico, ' +
-      'y los <b>míos</b> son tu cuaderno: no los ve nadie más, tampoco tu director.</p>'));
+      'y los <b>míos</b> son tu cuaderno: no los ve nadie más, tampoco tu director. ' +
+      'Una carpeta sin ejercicios no se pinta.</p>'));
+  }
+
+  /* Leyenda de la pizarra. Va en HTML plano y no dentro de SF.pizarra porque
+     no es pista: son cuatro marcas sueltas. Morado el ataque, rojo la defensa,
+     naranja el balon y el pase. Es la notacion de toda la vida. */
+  function leyendaPiz() {
+    return '<div class="ej-leyenda">' +
+      '<span><svg viewBox="0 0 22 20" aria-hidden="true"><circle cx="11" cy="10" r="8" fill="var(--purple)"></circle>' +
+      '<text x="11" y="14" text-anchor="middle" font-size="10" font-weight="700" fill="#fff">1</text></svg>Ataque</span>' +
+      '<span><svg viewBox="0 0 22 20" aria-hidden="true"><circle cx="11" cy="10" r="8" fill="var(--sf-rojo)"></circle>' +
+      '<text x="11" y="14" text-anchor="middle" font-size="9" font-weight="700" fill="#fff">X</text></svg>Defensa</span>' +
+      '<span><svg viewBox="0 0 22 20" aria-hidden="true"><circle cx="11" cy="10" r="6" fill="var(--sf-aro)"></circle></svg>Balón</span>' +
+      '<span><svg viewBox="0 0 46 20" aria-hidden="true"><line x1="2" y1="10" x2="36" y2="10" stroke="var(--sf-naranja)" stroke-width="2.4" stroke-dasharray="5 3"></line>' +
+      '<polygon points="44,10 34,6 34,14" fill="var(--sf-naranja)"></polygon></svg>Pase</span>' +
+      '<span><svg viewBox="0 0 46 20" aria-hidden="true"><line x1="2" y1="10" x2="36" y2="10" stroke="var(--purple)" stroke-width="2.4"></line>' +
+      '<polygon points="44,10 34,6 34,14" fill="var(--purple)"></polygon></svg>Desplazamiento</span>' +
+      '</div>';
+  }
+
+  /* La ficha del ejercicio: lo que se lee antes de entrenar. Antes, quien
+     podia planificar abria directamente el formulario de edicion y no veia
+     nunca los pasos. Con esquemas eso no tiene sentido: primero se lee, y
+     editar es un boton. */
+  function modalVerEjercicio(x, quien, misEq, mando, puede) {
+    var box = el('<div></div>');
+    var meta = [objetivoLabel(x.objetivo), (x.minutos || '—') + '′'];
+    if (SF.etapaTexto(x.etapa)) meta.push(SF.etapaTexto(x.etapa));
+    if (x.jugadores) meta.push(x.jugadores + ' jugadores');
+    if (x.material) meta.push(x.material);
+    var pr = (SF.EJ_PRACTICA || []).filter(function (p) { return p.k === x.practica; })[0];
+    if (pr) meta.push('práctica ' + pr.label.toLowerCase());
+    box.appendChild(el('<p class="hint">' + esc(meta.join(' · ')) + '</p>'));
+
+    /* La escalera de la familia: de donde viene y a donde va. Es lo que
+       convierte una lista de ejercicios en un metodo. */
+    if (x.familia) {
+      var hermanos = SF.store.ejercicios().filter(function (e) { return e.familia === x.familia; })
+        .sort(function (a2, b2) { return (a2.escalon || 0) - (b2.escalon || 0); });
+      if (hermanos.length > 1) {
+        box.appendChild(el('<p class="sec-label" style="margin-top:12px">La escalera de este contenido</p>'));
+        var esc2 = el('<div class="ej-esc"></div>');
+        hermanos.forEach(function (h) {
+          var b = el('<button' + (h.id === x.id ? ' class="on"' : '') + '>Escalón ' + (h.escalon || '?') +
+            ' · ' + esc(h.nombre) + (SF.etapaTexto(h.etapa) ? ' <span class="hint">' + esc(SF.etapaTexto(h.etapa)) + '</span>' : '') + '</button>');
+          if (h.id !== x.id) b.onclick = function () { modalVerEjercicio(h, quien, misEq, mando, puede); };
+          esc2.appendChild(b);
+        });
+        box.appendChild(esc2);
+      }
+    }
+
+    if (x.descripcion) box.appendChild(el('<p class="bz-body">' + esc(x.descripcion) + '</p>'));
+    if (x.claves) box.appendChild(el('<div class="dispo-nota"><b>Claves:</b> ' + esc(x.claves) + '</div>'));
+
+    /* Lo que NO se enseña todavia. Es la mitad del valor de una escalera: sin
+       esto, un entrenador de mini mete lo que ha visto en el escalon de
+       cadete y el chaval aprende a frustrarse, no a jugar. */
+    if (x.no_todavia) {
+      box.appendChild(el('<div class="ej-notodavia">' +
+        '<b>Lo que no se enseña todavía:</b> ' + esc(x.no_todavia) + '</div>'));
+    }
+
+    var pasos = x.pasos || [];
+    if (pasos.length) {
+      box.appendChild(el('<p class="sec-label" style="margin-top:14px">Paso a paso</p>'));
+      box.appendChild(el(leyendaPiz()));
+      var cont = el('<div class="ej-pasos"></div>');
+      pasos.forEach(function (p, i) {
+        var fila = el('<div class="ej-paso"></div>');
+        var izq = el('<div></div>');
+        var esq = p.esquema || {};
+        esq.alt = 'Paso ' + (i + 1) + ': ' + (p.texto || '');
+        try { izq.appendChild(SF.pizarra(esq, x.deporte)); }
+        catch (e) { izq.appendChild(el('<p class="hint">No se ha podido dibujar este paso.</p>')); }
+        var der = el('<div><span class="pnum">Paso ' + (i + 1) + ' de ' + pasos.length + '</span>' +
+          '<p>' + esc(p.texto || '') + '</p>' +
+          (p.clave ? '<div class="pclave">' + esc(p.clave) + '</div>' : '') + '</div>');
+        fila.appendChild(izq); fila.appendChild(der);
+        cont.appendChild(fila);
+      });
+      box.appendChild(cont);
+    }
+
+    var f0 = el('<div class="modal-actions"></div>');
+    if (puede) {
+      var bE = el('<button class="btn">Editar</button>');
+      bE.onclick = function () { modalEjercicio(x, quien, misEq, mando); };
+      f0.appendChild(bE);
+    }
+    var bX = el('<button class="btn btn-primary">Cerrar</button>');
+    bX.onclick = U.closeModal;
+    f0.appendChild(bX);
+    box.appendChild(f0);
+    U.modal(x.nombre, box);
   }
 
   function modalEjercicio(x, quien, misEq, mando, soloLeer) {
@@ -17158,6 +18366,16 @@ window.SF = window.SF || {};
     }
 
     function sel(v, val) { return String(v) === String(val) ? ' selected' : ''; }
+    /* Las familias que ya usa el club, para no inventarse una nueva por una
+       tilde. Escribir "pase-y-corte" y "pase y corte" parte la escalera en dos
+       y nadie se entera hasta que faltan peldaños. */
+    function datalistFamilias() {
+      var vistas = {};
+      SF.store.ejercicios().forEach(function (e) { if (e.familia) vistas[e.familia] = 1; });
+      return '<datalist id="sf-familias">' + Object.keys(vistas).sort().map(function (f2) {
+        return '<option value="' + esc(f2) + '"></option>';
+      }).join('') + '</datalist>';
+    }
     box.appendChild(el('<div class="form-grid">' +
       '<div class="frow" style="grid-column:1/-1"><label>Nombre</label>' +
       '<input id="en" value="' + esc(x.nombre || '') + '" placeholder="Rueda de tiro con pase y reemplazo"></div>' +
@@ -17171,6 +18389,28 @@ window.SF = window.SF || {};
       }).join('') + '</select></div>' +
       '<div class="frow"><label>Minutos</label><input id="ed" type="number" min="1" max="120" value="' + (x.minutos || 10) + '"></div>' +
       '<div class="frow"><label>Jugadores</label><input id="ej" value="' + esc(x.jugadores || '') + '" placeholder="8-16"></div>' +
+      /* La etapa va de A a B, nunca una sola: un ejercicio bueno sirve para
+         mas de una edad, y encerrarlo en una lo esconde a los demas. */
+      '<div class="frow"><label>Edad desde</label><select id="ea1">' +
+      (SF.EJ_ETAPAS || []).map(function (e) {
+        return '<option value="' + e.k + '"' + sel(e.k, (x.etapa || {}).de || 1) + '>' + esc(e.label + ' · ' + e.edad) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="frow"><label>hasta</label><select id="ea2">' +
+      (SF.EJ_ETAPAS || []).map(function (e) {
+        return '<option value="' + e.k + '"' + sel(e.k, (x.etapa || {}).a || (x.etapa || {}).de || 5) + '>' + esc(e.label + ' · ' + e.edad) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="frow"><label>Cuántos son</label><select id="ef">' +
+      (SF.EJ_FORMATOS || []).map(function (o) {
+        return '<option value="' + o.k + '"' + sel(o.k, x.formato || 'grupo') + '>' + esc(o.label) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="frow"><label>Cómo se reparte <span class="hint">la misma repetición o el contexto cambiando</span></label><select id="ep">' +
+      (SF.EJ_PRACTICA || []).map(function (o) {
+        return '<option value="' + o.k + '"' + sel(o.k, x.practica || 'serie') + '>' + esc(o.label) + '</option>';
+      }).join('') + '</select></div>' +
+      '<div class="frow"><label>Familia <span class="hint">el contenido, no el ejercicio</span></label>' +
+      '<input id="efa" list="sf-familias" value="' + esc(x.familia || '') + '" placeholder="pase-y-corte"></div>' +
+      '<div class="frow"><label>Escalón <span class="hint">1 es el más sencillo</span></label>' +
+      '<input id="ees" type="number" min="1" max="9" value="' + (x.escalon || '') + '"></div>' +
       '<div class="frow" style="grid-column:1/-1"><label>Material</label>' +
       '<input id="em2" value="' + esc(x.material || '') + '" placeholder="Conos, dos balones, petos"></div>' +
       '<div class="frow" style="grid-column:1/-1"><label>Cómo se hace</label>' +
@@ -17178,7 +18418,10 @@ window.SF = window.SF || {};
       '<div class="frow" style="grid-column:1/-1"><label>Claves ' +
       '<span class="hint">lo que hay que corregir; es lo que de verdad distingue un ejercicio de otro</span></label>' +
       '<textarea id="ec" rows="2">' + esc(x.claves || '') + '</textarea></div>' +
-      '</div>'));
+      '<div class="frow" style="grid-column:1/-1"><label>Lo que no se enseña todavía ' +
+      '<span class="hint">la otra mitad de una escalera: qué NO toca en esta edad</span></label>' +
+      '<textarea id="ent" rows="2">' + esc(x.no_todavia || '') + '</textarea></div>' +
+      '</div>' + datalistFamilias()));
 
     /* Quién lo va a ver. Publicar como "del club" es decir que eso es la
        metodología, y eso no lo puede decir cualquiera. */
@@ -17219,7 +18462,18 @@ window.SF = window.SF || {};
         jugadores: box.querySelector('#ej').value.trim(), material: box.querySelector('#em2').value.trim(),
         descripcion: box.querySelector('#ex').value.trim(), claves: box.querySelector('#ec').value.trim(),
         nivel: selN.value, team_id: selN.value === 'equipo' ? selE.value : null,
-        deporte: x.deporte || (SF.store.academy ? (SF.store.academy().sport || 'baloncesto') : 'baloncesto')
+        deporte: x.deporte || (SF.store.academy ? (SF.store.academy().sport || 'baloncesto') : 'baloncesto'),
+        etapa: { de: +box.querySelector('#ea1').value || 1,
+                 a: Math.max(+box.querySelector('#ea1').value || 1, +box.querySelector('#ea2').value || 5) },
+        formato: box.querySelector('#ef').value,
+        practica: box.querySelector('#ep').value,
+        familia: box.querySelector('#efa').value.trim() || null,
+        escalon: +box.querySelector('#ees').value || null,
+        no_todavia: box.querySelector('#ent').value.trim(),
+        /* `ejercicioSet` reemplaza el objeto entero, asi que lo que el
+           formulario NO pregunta hay que arrastrarlo a mano. Sin esto, editar
+           el nombre de un ejercicio le borraba los pasos y los esquemas. */
+        min_jug: x.min_jug, max_jug: x.max_jug, pasos: x.pasos || null, autor: x.autor
       }, quien);
       U.closeModal(); U.toast(nuevo ? 'Ejercicio añadido' : 'Guardado'); SF.router.render();
     };
