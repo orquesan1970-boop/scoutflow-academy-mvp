@@ -3516,6 +3516,28 @@ SF.carpetaPorObjetivo = function (obj) {
   return c ? c.k : 'calentamiento';
 };
 
+/* --- LOS PASOS DE UN EJERCICIO ----------------------------------------------
+   El club guarda su copia de cada ejercicio en su propio almacen. Cuando aqui
+   se dibujan esquemas NUEVOS para un ejercicio de fabrica, esa copia ya
+   existe y se quedaria sin dibujo para siempre: la migracion que la rellena
+   solo corre una vez.
+
+   Asi que los pasos se leen con respaldo: si la copia del club no tiene, se
+   usan los de fabrica. El club manda siempre que haya escrito algo; y un
+   dibujo nuevo llega a todo el mundo sin inventar una migracion cada vez.   */
+SF._pasosBase = null;
+SF.pasosDe = function (x) {
+  if (!x) return [];
+  if ((x.pasos || []).length) return x.pasos;
+  if (!SF._pasosBase) {
+    SF._pasosBase = {};
+    (SF.EJERCICIOS_BASE || []).forEach(function (b) {
+      if ((b.pasos || []).length) SF._pasosBase[b.id] = b.pasos;
+    });
+  }
+  return SF._pasosBase[x.id] || [];
+};
+
 /* --- LA PIZARRA -------------------------------------------------------------
    Dibuja el esquema de un paso a partir de DATOS, no de una imagen subida.
 
@@ -10117,6 +10139,23 @@ SF.store = (function () {
        no se queda fuera de la estantería: cae en la que corresponde a su
        objetivo de siempre. Es una suposición, y por eso se puede cambiar
        desde la ficha. */
+    /* Los dibujos del paso a paso llegaron despues de que muchos clubes ya
+       tuvieran su copia de los ejercicios de fabrica, y `_ejclas_v1` solo
+       corre una vez. Esta rellena SOLO `pasos`, y SOLO donde no hay ninguno:
+       si el club escribio los suyos, no se tocan. Se puede repetir sin dano. */
+    if (!d._ejesq_v2) {
+      var baseEsq = {};
+      (SF.EJERCICIOS_BASE || []).forEach(function (b) {
+        if ((b.pasos || []).length) baseEsq[b.id] = b.pasos;
+      });
+      (d.ejercicios || []).forEach(function (x) {
+        if (x && baseEsq[x.id] && !(x.pasos || []).length) {
+          x.pasos = JSON.parse(JSON.stringify(baseEsq[x.id]));
+        }
+      });
+      d._ejesq_v2 = true;
+      write(d);
+    }
     if (!d._ejcarp_v1) {
       (d.ejercicios || []).forEach(function (x) {
         if (!x.carpeta) x.carpeta = SF.carpetaPorObjetivo(x.objetivo);
@@ -19307,7 +19346,7 @@ window.SF = window.SF || {};
     /* Pinta una fila de ejercicio. La misma en la carpeta y en los resultados
        de búsqueda, para que se reconozca igual en los dos sitios. */
     function fila(x, conCarpeta) {
-      var pasos = (x.pasos || []).length;
+      var pasos = SF.pasosDe(x).length;
       var r = el('<button class="ej-fila">' +
         '<span class="ef-t"><b>' + esc(x.nombre) + '</b>' +
         (x.descripcion ? '<span>' + esc(x.descripcion) + '</span>' : '') +
@@ -19353,7 +19392,7 @@ window.SF = window.SF || {};
       volver.onclick = function () { SF._ejCarpeta = null; SF.router.render(); };
       body.insertBefore(volver, barraF);
 
-      var conEsq = dentro.filter(function (x) { return (x.pasos || []).length; }).length;
+      var conEsq = dentro.filter(function (x) { return SF.pasosDe(x).length; }).length;
       body.appendChild(el('<p class="sec-label" style="margin-top:4px">' + esc(C.label) + '</p>'));
       body.appendChild(el('<p class="hint" style="margin:-4px 0 12px">' +
         (dentro.length === 1 ? 'Un ejercicio' : dentro.length + ' ejercicios') +
@@ -19482,7 +19521,7 @@ window.SF = window.SF || {};
         '<b>Lo que no se enseña todavía:</b> ' + esc(x.no_todavia) + '</div>'));
     }
 
-    var pasos = x.pasos || [];
+    var pasos = SF.pasosDe(x);
     if (pasos.length) {
       box.appendChild(el('<p class="sec-label" style="margin-top:14px">Paso a paso</p>'));
       box.appendChild(el(leyendaPiz()));
