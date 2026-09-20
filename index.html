@@ -2079,6 +2079,60 @@ table.alm td.alm-na{color:#CFCDD8;background:#FBFBFD}
 .ej-esc button.on{background:#EDE9FE;border-color:var(--purple);color:var(--purple);font-weight:600}
 .ej-esc button.on:after{content:' · estás aquí';font-weight:400;font-size:11.5px}
 .ej-barra{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center}
+/* Las edades del formulario: casillas, no un "desde/hasta". Un rango obliga a
+   marcar de corrido, y hay ejercicios que valen para mini y para cadete pero
+   no para infantil. La regla global pone width:100% a todo input, asi que la
+   casilla necesita su width:auto o rompe la fila. */
+/* Importar una hoja. La propuesta se lee como una lista de fichas, no como un
+   formulario: lo que se hace aqui es decidir cual entra, no rellenar campos. */
+.imp textarea{width:100%;margin-top:8px}
+.imp-entrada{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:6px}
+.imp-entrada input[type=file]{display:none}
+.imp-aviso{margin:10px 0 0;font-size:13px;line-height:1.5}
+.imp-aviso.ama{background:var(--warn-bg);color:var(--warn-ink);padding:9px 12px;border-radius:9px}
+.imp-aviso.mal{background:var(--danger-bg);color:var(--danger-ink);padding:9px 12px;border-radius:9px}
+.imp-lista{margin-top:12px;display:grid;gap:8px}
+.imp-ej{border:1px solid var(--line);border-radius:11px;padding:11px 13px;background:var(--surface)}
+.imp-cab{display:flex;gap:9px;align-items:flex-start;cursor:pointer;font-size:14.5px}
+.imp-cab input{width:auto;margin:3px 0 0;accent-color:var(--purple)}
+.imp-meta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:8px 0 0}
+.imp-meta select{width:auto;flex:1 1 200px;min-width:0}
+.imp-meta input{width:80px}
+.imp-desc{margin:8px 0 0;font-size:13px;line-height:1.5;color:var(--muted)}
+.imp-clave{margin:6px 0 0;font-size:12.5px;border-left:3px solid var(--purple);padding-left:9px}
+.imp-dudoso{margin:8px 0 0;font-size:12.5px;background:var(--warn-bg);color:var(--warn-ink);
+  padding:7px 10px;border-radius:8px}
+/* El editor de pizarra. La pista manda en el ancho: es lo unico que hay que
+   ver bien, y en el movil ocupa todo. */
+.piz-ed{display:block}
+.piz-herr{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.piz-h{border:1px solid var(--line);background:var(--surface);border-radius:999px;
+  padding:7px 13px;font-size:12.5px;cursor:pointer;font-weight:600;color:var(--ink)}
+.piz-h:hover{border-color:var(--purple)}
+.piz-h.on{background:var(--purple);border-color:var(--purple);color:#fff}
+.piz-ayuda{margin:0 0 10px;font-size:12.5px;color:var(--muted);min-height:18px}
+.piz-lienzo{max-width:420px;margin:0 auto;touch-action:none;cursor:crosshair;
+  border-radius:12px;overflow:hidden}
+.piz-lienzo svg{display:block;width:100%;height:auto}
+.piz-sel{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin:10px 0 4px;min-height:34px}
+.piz-sel .btn{padding:6px 12px;font-size:12.5px}
+.piz-n{width:56px;text-align:center;font-weight:700}
+.piz-pasos{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 4px;align-items:center;
+  border-top:1px solid var(--line);padding-top:10px}
+.piz-p{min-width:34px;height:34px;border:1px solid var(--line);background:var(--surface);
+  border-radius:9px;font-weight:700;cursor:pointer;font-size:13px;color:var(--ink);padding:0 10px}
+.piz-p.on{background:var(--purple);border-color:var(--purple);color:#fff}
+.piz-mas,.piz-menos{font-weight:600;font-size:12.5px;color:var(--muted)}
+.piz-txt label{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
+@media (max-width:560px){.piz-lienzo{max-width:100%}.piz-h{padding:8px 12px}}
+.ej-edades{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.edad-chip{display:inline-flex;align-items:center;gap:7px;cursor:pointer;
+  border:1px solid var(--line);border-radius:999px;padding:6px 13px;
+  background:var(--surface);font-size:13px;user-select:none}
+.edad-chip input{width:auto;min-width:0;margin:0;accent-color:var(--purple)}
+.edad-chip.on{background:#EFEBFF;border-color:var(--purple);color:var(--purple-dk);font-weight:600}
+.edad-chip small{opacity:.65;font-weight:400}
+.ej-edades .lnk{margin-left:2px}
 /* La regla global pone width:100% a todo input y select, y eso apilaba los
    tres controles en tres lineas: justo la pared que veniamos a quitar. */
 .ej-barra .ej-busca{flex:1 1 200px;width:auto;min-width:0}
@@ -3403,13 +3457,30 @@ SF.etapaDe = function (k) {
 
 /* "Mini a cadete", "Solo infantil", "Todas las edades". Se escribe una vez y
    lo usan la tarjeta, la ficha y el filtro. */
+/* Las etapas de un ejercicio, ya como lista. Se guarda un rango `{de, a}`
+   porque es lo que entiende todo lo escrito hasta hoy, y ademas `fuera` con
+   los huecos: un ejercicio puede valer para mini y para cadete y no para
+   infantil, y un rango a secas no sabe decir eso. Sin `fuera` (todo lo
+   anterior) se comporta exactamente igual que antes. */
+SF.etapasDe = function (et) {
+  if (!et || !et.de) return [];
+  var de = +et.de, a = +(et.a || et.de), fuera = et.fuera || [], out = [];
+  for (var k = de; k <= a; k++) if (fuera.indexOf(k) < 0) out.push(k);
+  return out;
+};
+
 SF.etapaTexto = function (et) {
-  if (!et || !et.de) return '';
-  var a = SF.etapaDe(et.de), b = SF.etapaDe(et.a || et.de);
-  if (!a || !b) return '';
-  if (a.k === 1 && b.k === 5) return 'Todas las edades';
-  if (a.k === b.k) return a.label + ' · ' + a.edad;
-  return a.label + ' a ' + b.label.toLowerCase();
+  var ks = SF.etapasDe(et);
+  if (!ks.length) return '';
+  if (ks.length === 5) return 'Todas las edades';
+  var seguido = ks[ks.length - 1] - ks[0] + 1 === ks.length;
+  var lab = function (k) { var e = SF.etapaDe(k); return e ? e.label : ''; };
+  if (ks.length === 1) { var u = SF.etapaDe(ks[0]); return u ? u.label + ' · ' + u.edad : ''; }
+  if (seguido) return lab(ks[0]) + ' a ' + lab(ks[ks.length - 1]).toLowerCase();
+  /* Con huecos se nombran una a una: "Mini y cadete" dice la verdad,
+     "mini a cadete" se la inventaria. */
+  var nombres = ks.map(lab);
+  return nombres.slice(0, -1).join(', ') + ' y ' + nombres[nombres.length - 1].toLowerCase();
 };
 
 /* Un ejercicio ENTRA en la etapa pedida si su rango la SOLAPA, no si coincide.
@@ -3429,7 +3500,7 @@ SF.etapaEncaja = function (x, k) {
   if (!k) return true;
   var et = x && x.etapa;
   if (!et || !et.de) return true;            // sin clasificar, sale siempre
-  return +k >= +et.de && +k <= +(et.a || et.de);
+  return SF.etapasDe(et).indexOf(+k) >= 0;
 };
 
 
@@ -11607,10 +11678,30 @@ SF.store = (function () {
           autor: (quien || {}).name || '', autor_id: (quien || {}).staff_id || null };
         d.ejercicios.push(x);
       }
+      /* ESTA LISTA ES LO QUE SE GUARDA. Lo que no este aqui, el formulario lo
+         pregunta y el almacen lo tira: la clasificacion entera (edad, carpeta,
+         formato, practica, familia, escalon) se perdia en silencio al pulsar
+         Guardar. Cualquier campo nuevo del formulario hay que añadirlo aqui.
+
+         `pasos` se queda FUERA a proposito: los dibujos no se editan en ese
+         formulario, y dejarlos fuera es justo lo que impide que guardar un
+         cambio de nombre se los lleve por delante. */
       ['nombre', 'objetivo', 'momento', 'minutos', 'jugadores', 'material',
-       'descripcion', 'claves', 'nivel', 'team_id', 'deporte'].forEach(function (k) {
+       'descripcion', 'claves', 'nivel', 'team_id', 'deporte',
+       'etapa', 'formato', 'practica', 'familia', 'escalon', 'no_todavia',
+       'carpeta', 'seccion', 'min_jug', 'max_jug'].forEach(function (k) {
         if (datos[k] !== undefined) x[k] = datos[k];
       });
+      save(d); return x;
+    },
+    /* Los dibujos se guardan por su puerta, no por `ejercicioSet`: ahi estan
+       fuera de la lista a proposito, para que guardar un cambio de nombre no
+       pueda llevarselos. Una lista vacia los quita; es la unica forma. */
+    ejercicioPasos: function (id, pasos) {
+      var d = db(); d.ejercicios = this.ejercicios();
+      var x = d.ejercicios.filter(function (y) { return y.id === id; })[0];
+      if (!x) return null;
+      x.pasos = (pasos || []).length ? JSON.parse(JSON.stringify(pasos)) : [];
       save(d); return x;
     },
     ejercicioQuitar: function (id) {
@@ -19295,6 +19386,11 @@ window.SF = window.SF || {};
       var bN = el('<button class="btn btn-primary btn-sm">' + ico('plus') + 'Nuevo ejercicio</button>');
       bN.onclick = function () { modalEjercicio(null, quien, misEq, mando); };
       barra.appendChild(bN);
+      /* La hoja que el entrenador YA tiene escrita vale mas que cualquier
+         catalogo de fabrica: es su metodologia. Entra por aqui. */
+      var bI = el('<button class="btn btn-sm">Importar una hoja</button>');
+      bI.onclick = function () { importarHojas(quien, misEq, mando); };
+      barra.appendChild(bI);
       body.appendChild(barra);
     }
 
@@ -19529,7 +19625,10 @@ window.SF = window.SF || {};
       pasos.forEach(function (p, i) {
         var fila = el('<div class="ej-paso"></div>');
         var izq = el('<div></div>');
-        var esq = p.esquema || {};
+        /* OJO: una copia. Poner `alt` sobre `p.esquema` escribia en el dato
+           del ejercicio, y ese texto acababa guardado dentro del esquema. */
+        var esq = {}, esq0 = p.esquema || {};
+        for (var q in esq0) esq[q] = esq0[q];
         esq.alt = 'Paso ' + (i + 1) + ': ' + (p.texto || '');
         try { izq.appendChild(SF.pizarra(esq, x.deporte)); }
         catch (e) { izq.appendChild(el('<p class="hint">No se ha podido dibujar este paso.</p>')); }
@@ -19547,12 +19646,531 @@ window.SF = window.SF || {};
       var bE = el('<button class="btn">Editar</button>');
       bE.onclick = function () { modalEjercicio(x, quien, misEq, mando); };
       f0.appendChild(bE);
+      /* El dibujo tiene boton propio y no vive dentro del formulario: son dos
+         trabajos distintos. Se escribe el ejercicio una vez y se dibuja otro
+         dia, con la pista delante. */
+      var bP = el('<button class="btn">' + (pasos.length ? 'Cambiar los dibujos' : 'Dibujar el paso a paso') + '</button>');
+      bP.onclick = function () { editorPizarra(x, quien, misEq, mando, puede); };
+      f0.appendChild(bP);
     }
     var bX = el('<button class="btn btn-primary">Cerrar</button>');
     bX.onclick = U.closeModal;
     f0.appendChild(bX);
     box.appendChild(f0);
     U.modal(x.nombre, box);
+  }
+
+  /* --- EL EDITOR DE PIZARRA (20/09/2026) -------------------------------------
+     Colocar las fichas arrastrando y trazar los movimientos a base de toques.
+     Produce EXACTAMENTE el mismo dato que ya pinta `SF.pizarra` —metros reales
+     de media pista—, asi que lo dibujado aqui y lo escrito a mano son la misma
+     cosa y se ven igual en la ficha, en el movil y al imprimir.
+
+     Tres decisiones que valen mas que el codigo:
+     - El paso nuevo NACE COPIADO del anterior. Un paso a paso es la misma
+       gente moviendose: empezar cada paso con la pista vacia obligaba a
+       recolocar a cinco jugadores cada vez.
+     - Nada se guarda hasta pulsar Guardar. Se puede trastear sin miedo.
+     - Un punto fuera de la pista no se acepta; se pega al borde. Es mas
+       honesto que aceptarlo y que `SF.pizarra` lo descarte luego en silencio. */
+  function editorPizarra(x, quien, misEq, mando, puede) {
+    var W = 15, L = 14;
+    var pista = (SF.PISTAS && SF.PISTAS[x.deporte || 'baloncesto']) || (SF.PISTAS || {}).baloncesto;
+    if (pista) { W = pista.ancho; L = pista.largo; }
+
+    /* Copia de trabajo: si se cancela, no ha pasado nada. */
+    var pasos = JSON.parse(JSON.stringify(SF.pasosDe(x) || []));
+    if (!pasos.length) pasos = [{ texto: '', clave: '', esquema: { jug: [], mov: [] } }];
+    var iPaso = 0, modo = null, sel = null, trazo = null, arrastre = null, pendiente = false;
+
+    function paso() { return pasos[iPaso]; }
+    function esq() {
+      var p = paso();
+      p.esquema = p.esquema || {};
+      p.esquema.jug = p.esquema.jug || [];
+      p.esquema.mov = p.esquema.mov || [];
+      return p.esquema;
+    }
+
+    var box = el('<div class="piz-ed"></div>');
+
+    /* --- la barra de herramientas --- */
+    var HERR = [
+      { k: 'atacante', t: 'Atacante', cls: 'h-at' },
+      { k: 'defensa', t: 'Defensor', cls: 'h-df' },
+      { k: 'cono', t: 'Cono', cls: 'h-co' },
+      { k: 'mov:pase', t: 'Pase', cls: 'h-pa' },
+      { k: 'mov:drible', t: 'Bote', cls: 'h-bo' },
+      { k: 'mov:corte', t: 'Desplazamiento', cls: 'h-de' },
+      { k: 'mov:pantalla', t: 'Bloqueo', cls: 'h-bl' },
+      { k: 'mov:defensa', t: 'Ayuda defensiva', cls: 'h-ay' }
+    ];
+    var barra = el('<div class="piz-herr"></div>');
+    HERR.forEach(function (h) {
+      var b = el('<button type="button" class="piz-h ' + h.cls + '">' + esc(h.t) + '</button>');
+      b.onclick = function () {
+        cerrarTrazo();
+        modo = (modo === h.k) ? null : h.k;
+        sel = null; pinta();
+      };
+      b.dataset.k = h.k;
+      barra.appendChild(b);
+    });
+    box.appendChild(barra);
+
+    var ayuda = el('<p class="piz-ayuda"></p>');
+    box.appendChild(ayuda);
+
+    /* --- la pista --- */
+    var wrap = el('<div class="piz-lienzo"></div>');
+    box.appendChild(wrap);
+
+    /* --- lo seleccionado --- */
+    var panel = el('<div class="piz-sel"></div>');
+    box.appendChild(panel);
+
+    /* --- los pasos --- */
+    var tiras = el('<div class="piz-pasos"></div>');
+    box.appendChild(tiras);
+
+    var campos = el('<div class="piz-txt">' +
+      '<label>Qué pasa en este paso</label><textarea id="pzt" rows="2"></textarea>' +
+      '<label>La clave <span class="hint">lo que hay que corregir, no lo que se ve</span></label>' +
+      '<textarea id="pzc" rows="2"></textarea></div>');
+    box.appendChild(campos);
+    campos.querySelector('#pzt').oninput = function () { paso().texto = this.value; };
+    campos.querySelector('#pzc').oninput = function () { paso().clave = this.value; };
+
+    /* ---------------- dibujar ---------------- */
+    function limita(v, max) { return Math.max(0, Math.min(max, Math.round(v * 10) / 10)); }
+
+    function aMetros(ev) {
+      var svg = wrap.querySelector('svg');
+      if (!svg || !svg.getScreenCTM) return null;
+      var m = svg.getScreenCTM(); if (!m) return null;
+      var pt = svg.createSVGPoint(); pt.x = ev.clientX; pt.y = ev.clientY;
+      var p = pt.matrixTransform(m.inverse());
+      return [limita(p.x, W), limita(p.y, L)];
+    }
+
+    function cercano(p) {
+      var e = esq(), mejor = null, d2 = 0.62 * 0.62;
+      (e.jug || []).forEach(function (j, i) {
+        var dx = j.x - p[0], dy = j.y - p[1], d = dx * dx + dy * dy;
+        if (d <= d2) { d2 = d; mejor = { tipo: 'jug', i: i }; }
+      });
+      (e.conos || []).forEach(function (c, i) {
+        var dx = c[0] - p[0], dy = c[1] - p[1], d = dx * dx + dy * dy;
+        if (d <= d2) { d2 = d; mejor = { tipo: 'cono', i: i }; }
+      });
+      return mejor;
+    }
+
+    function siguienteN(eq) {
+      var e = esq(), usados = {};
+      (e.jug || []).forEach(function (j) { if (j.eq === eq) usados[String(j.n)] = 1; });
+      for (var i = 1; i <= 9; i++) {
+        var n = eq === 'defensa' ? 'X' + i : String(i);
+        if (!usados[n]) return n;
+      }
+      return eq === 'defensa' ? 'X' : '?';
+    }
+
+    function cerrarTrazo() {
+      if (trazo && trazo.pts.length >= 2) esq().mov.push(trazo);
+      trazo = null;
+    }
+
+    function onDown(ev) {
+      var p = aMetros(ev); if (!p) return;
+      if (modo && modo.indexOf('mov:') === 0) {
+        if (!trazo) trazo = { tipo: modo.slice(4), pts: [p] };
+        else trazo.pts.push(p);
+        pinta(); return;
+      }
+      if (modo === 'atacante' || modo === 'defensa') {
+        esq().jug.push({ n: siguienteN(modo === 'defensa' ? 'defensa' : 'ataque'),
+          x: p[0], y: p[1], eq: modo === 'defensa' ? 'defensa' : 'ataque' });
+        sel = { tipo: 'jug', i: esq().jug.length - 1 };
+        modo = null; pinta(); return;
+      }
+      if (modo === 'cono') {
+        esq().conos = esq().conos || [];
+        esq().conos.push(p);
+        sel = { tipo: 'cono', i: esq().conos.length - 1 };
+        modo = null; pinta(); return;
+      }
+      var h = cercano(p);
+      sel = h;
+      if (h) {
+        arrastre = h;
+        try { wrap.setPointerCapture(ev.pointerId); } catch (e) {}
+      }
+      pinta();
+    }
+
+    function onMove(ev) {
+      if (!arrastre) return;
+      var p = aMetros(ev); if (!p) return;
+      if (arrastre.tipo === 'jug') { var j = esq().jug[arrastre.i]; if (j) { j.x = p[0]; j.y = p[1]; } }
+      else { var c = esq().conos[arrastre.i]; if (c) { c[0] = p[0]; c[1] = p[1]; } }
+      if (!pendiente) {
+        pendiente = true;
+        requestAnimationFrame(function () { pendiente = false; pinta(); });
+      }
+    }
+    function onUp(ev) {
+      if (arrastre) { try { wrap.releasePointerCapture(ev.pointerId); } catch (e) {} }
+      arrastre = null;
+    }
+    wrap.addEventListener('pointerdown', onDown);
+    wrap.addEventListener('pointermove', onMove);
+    wrap.addEventListener('pointerup', onUp);
+    wrap.addEventListener('pointercancel', onUp);
+
+    /* ---------------- pintar ---------------- */
+    var AYUDA = {
+      'atacante': 'Toca la pista donde quieras poner al atacante.',
+      'defensa': 'Toca la pista donde quieras poner al defensor.',
+      'cono': 'Toca la pista donde quieras poner el cono.',
+      'mov:pase': 'Toca de dónde sale el pase y luego dónde llega. Con más toques, se dobla.',
+      'mov:drible': 'Toca el recorrido del bote, punto a punto. Se dibuja ondulado.',
+      'mov:corte': 'Toca el recorrido del jugador sin balón, punto a punto.',
+      'mov:pantalla': 'Toca dónde empieza el bloqueador y dónde pone el bloqueo.',
+      'mov:defensa': 'Toca de dónde sale la ayuda y a dónde llega.'
+    };
+
+    function pinta() {
+      /* la barra */
+      barra.querySelectorAll('.piz-h').forEach(function (b) {
+        b.classList.toggle('on', b.dataset.k === modo);
+      });
+      ayuda.textContent = modo ? AYUDA[modo] :
+        'Arrastra las fichas para colocarlas. Toca una para quitarla o darle el balón.';
+
+      /* la pista */
+      var e = esq();
+      var vista = { jug: e.jug, conos: e.conos, mov: (e.mov || []).slice() };
+      if (trazo && trazo.pts.length >= 2) vista.mov.push(trazo);
+      wrap.innerHTML = '';
+      var svg;
+      try { svg = SF.pizarra(vista, x.deporte); }
+      catch (err) { wrap.appendChild(el('<p class="hint">No se ha podido dibujar.</p>')); return; }
+      /* lo seleccionado se marca encima, sin tocar el dibujo de verdad */
+      var NS = 'http://www.w3.org/2000/svg';
+      function marca(cx, cy) {
+        var c = document.createElementNS(NS, 'circle');
+        c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', 0.78);
+        c.setAttribute('fill', 'none'); c.setAttribute('stroke', 'var(--purple-dk)');
+        c.setAttribute('stroke-width', 0.1); c.setAttribute('stroke-dasharray', '0.3 0.2');
+        svg.appendChild(c);
+      }
+      if (sel && sel.tipo === 'jug' && e.jug[sel.i]) marca(e.jug[sel.i].x, e.jug[sel.i].y);
+      if (sel && sel.tipo === 'cono' && (e.conos || [])[sel.i]) marca(e.conos[sel.i][0], e.conos[sel.i][1]);
+      if (trazo && trazo.pts.length === 1) marca(trazo.pts[0][0], trazo.pts[0][1]);
+      wrap.appendChild(svg);
+
+      /* el panel de lo seleccionado */
+      panel.innerHTML = '';
+      if (trazo) {
+        panel.appendChild(el('<span class="hint">Trazo a medias: ' + trazo.pts.length + ' punto(s).</span>'));
+        var bT = el('<button type="button" class="btn btn-light">Terminar el trazo</button>');
+        bT.onclick = function () { cerrarTrazo(); modo = null; pinta(); };
+        var bD = el('<button type="button" class="btn btn-light">Descartarlo</button>');
+        bD.onclick = function () { trazo = null; modo = null; pinta(); };
+        panel.appendChild(bT); panel.appendChild(bD);
+      } else if (sel && sel.tipo === 'jug' && e.jug[sel.i]) {
+        var j = e.jug[sel.i];
+        panel.appendChild(el('<span class="hint">Ficha ' + esc(String(j.n)) + '</span>'));
+        var inN = el('<input class="piz-n" maxlength="3" value="' + esc(String(j.n)) + '">');
+        inN.oninput = function () { j.n = this.value.trim() || '?'; };
+        inN.onchange = function () { pinta(); };
+        panel.appendChild(inN);
+        var bB = el('<button type="button" class="btn btn-light">' + (j.balon ? 'Quitarle el balón' : 'Darle el balón') + '</button>');
+        bB.onclick = function () {
+          var d = !j.balon;
+          if (d) e.jug.forEach(function (o) { o.balon = false; });
+          j.balon = d; pinta();
+        };
+        panel.appendChild(bB);
+        var bQ = el('<button type="button" class="btn btn-light">Quitar la ficha</button>');
+        bQ.onclick = function () { e.jug.splice(sel.i, 1); sel = null; pinta(); };
+        panel.appendChild(bQ);
+      } else if (sel && sel.tipo === 'cono' && (e.conos || [])[sel.i]) {
+        panel.appendChild(el('<span class="hint">Cono</span>'));
+        var bQC = el('<button type="button" class="btn btn-light">Quitar el cono</button>');
+        bQC.onclick = function () { e.conos.splice(sel.i, 1); sel = null; pinta(); };
+        panel.appendChild(bQC);
+      } else if ((e.mov || []).length) {
+        panel.appendChild(el('<span class="hint">' + e.mov.length + ' movimiento(s) en este paso</span>'));
+        var bU = el('<button type="button" class="btn btn-light">Deshacer el último</button>');
+        bU.onclick = function () { e.mov.pop(); pinta(); };
+        panel.appendChild(bU);
+      }
+
+      /* los pasos */
+      tiras.innerHTML = '';
+      pasos.forEach(function (p, i) {
+        var b = el('<button type="button" class="piz-p' + (i === iPaso ? ' on' : '') + '">' + (i + 1) + '</button>');
+        b.onclick = function () { cerrarTrazo(); iPaso = i; sel = null; modo = null; pinta(); };
+        tiras.appendChild(b);
+      });
+      var bMas = el('<button type="button" class="piz-p piz-mas">+ Paso</button>');
+      bMas.onclick = function () {
+        cerrarTrazo();
+        /* nace copiado: la misma gente, ya colocada, sin los movimientos */
+        var base = JSON.parse(JSON.stringify(esq()));
+        base.mov = [];
+        pasos.splice(iPaso + 1, 0, { texto: '', clave: '', esquema: base });
+        iPaso++; sel = null; modo = null; pinta();
+      };
+      tiras.appendChild(bMas);
+      if (pasos.length > 1) {
+        var bMenos = el('<button type="button" class="piz-p piz-menos">Quitar este paso</button>');
+        bMenos.onclick = function () {
+          pasos.splice(iPaso, 1);
+          iPaso = Math.max(0, iPaso - 1); sel = null; trazo = null; pinta();
+        };
+        tiras.appendChild(bMenos);
+      }
+
+      campos.querySelector('#pzt').value = paso().texto || '';
+      campos.querySelector('#pzc').value = paso().clave || '';
+    }
+
+    var foot = el('<div class="modal-actions"></div>');
+    var bC = el('<button class="btn">Cancelar</button>');
+    bC.onclick = function () { modalVerEjercicio(x, quien, misEq, mando, puede); };
+    var bG = el('<button class="btn btn-primary">Guardar los dibujos</button>');
+    bG.onclick = function () {
+      cerrarTrazo();
+      /* Un paso sin fichas no es un paso: se cae solo, sin avisar dos veces. */
+      var limpio = pasos.filter(function (p) { return ((p.esquema || {}).jug || []).length; });
+      SF.store.ejercicioPasos(x.id, limpio);
+      var fresco = SF.store.ejercicios().filter(function (y) { return y.id === x.id; })[0] || x;
+      U.toast(limpio.length ? 'Dibujos guardados' : 'Se han quitado los dibujos');
+      modalVerEjercicio(fresco, quien, misEq, mando, puede);
+      SF.router.render();
+    };
+    foot.appendChild(bC); foot.appendChild(bG);
+    box.appendChild(foot);
+
+    U.modal('Dibujar: ' + x.nombre, box);
+    pinta();
+  }
+
+  /* --- IMPORTAR LA HOJA DE UN ENTRENADOR (20/09/2026) ------------------------
+     Un entrenador ya tiene sus sesiones escritas: en un PDF, en un Word, en una
+     tabla o en un papel fotografiado. Volver a teclearlas es lo que hace que una
+     biblioteca se quede vacía, y por eso esto existe.
+
+     CÓMO FUNCIONA, Y QUÉ NO HACE:
+     - La IA lee la hoja y PROPONE. Nada entra en la biblioteca sin que alguien
+       lo marque. Una hoja mal leída que se guarda sola es peor que no tener
+       importador: ensucia la estantería y nadie sabe de dónde salió.
+     - Lo que la IA no ha leído con seguridad viene marcado en ámbar. Se ve
+       antes de guardar, no después.
+     - Sin servidor —modo local, o la IA apagada— hay un LECTOR BÁSICO que parte
+       el texto pegado por ejercicios. Es tonto pero honesto, y evita que la
+       pantalla no sirva para nada cuando no hay IA. */
+  function importarHojas(quien, misEq, mando) {
+    var box = el('<div class="imp"></div>');
+    var propuesta = null, cargando = false;
+
+    box.appendChild(el('<p class="hint" style="margin-top:0">Sube la hoja tal como la tengas ' +
+      '—PDF, foto del papel, Word, Excel— o pega el texto. Se leerá y verás los ejercicios ' +
+      'uno a uno antes de que entren en la biblioteca.</p>'));
+
+    var zona = el('<div class="imp-entrada"></div>');
+    var inFile = el('<input type="file" id="impf" accept=".pdf,.docx,.xlsx,.csv,.txt,image/*">');
+    var nomFile = el('<span class="hint"></span>');
+    zona.appendChild(el('<label for="impf" class="btn btn-light">Elegir el archivo</label>'));
+    zona.appendChild(inFile);
+    zona.appendChild(nomFile);
+    box.appendChild(zona);
+
+    var ta = el('<textarea id="impt" rows="6" placeholder="…o pega aquí la sesión escrita"></textarea>');
+    box.appendChild(ta);
+
+    var aviso = el('<p class="imp-aviso"></p>');
+    box.appendChild(aviso);
+
+    var lista = el('<div class="imp-lista"></div>');
+    box.appendChild(lista);
+
+    var archivo = null;
+    inFile.onchange = function () {
+      archivo = this.files && this.files[0] ? this.files[0] : null;
+      nomFile.textContent = archivo ? archivo.name : '';
+    };
+
+    /* ---- el lector básico, para cuando no hay IA ---- */
+    function leerBasico(txt) {
+      var brutos = String(txt).split(/\n\s*\n|\n(?=\s*(?:\d+[\.\)-]|[-•*])\s+)/);
+      /* Si la hoja numera los ejercicios, lo que no va numerado es cabecera
+         ("Sesión infantil A · martes") y no se propone como ejercicio. */
+      var NUM = /^\s*(?:\d+[\.\)-]|[-•*])\s+/;
+      if (brutos.some(function (t) { return NUM.test(t); })) {
+        brutos = brutos.filter(function (t) { return NUM.test(t); });
+      }
+      var out = [];
+      brutos.forEach(function (t) {
+        t = t.trim(); if (t.length < 8) return;
+        var lineas = t.split('\n');
+        var titulo = lineas[0].replace(/^\s*(?:\d+[\.\)-]|[-•*])\s*/, '').trim();
+        var resto = lineas.slice(1).join(' ').trim();
+        /* "10'", "10 min", "10min" al final del titulo es minutaje, no nombre */
+        var min = 0;
+        var MIN = /(\d{1,3})\s*(?:min(?:utos)?\b|['’′])/i;
+        var m = titulo.match(MIN) || t.match(MIN);
+        if (m) { min = +m[1]; titulo = titulo.replace(m[0], '').replace(/[·,\-–—]\s*$/, '').trim(); }
+        if (!titulo) return;
+        out.push({ nombre: titulo.slice(0, 120), descripcion: resto.slice(0, 1200),
+          claves: '', minutos: (min >= 1 && min <= 120) ? min : 0, jugadores: '', material: '',
+          carpeta: null, objetivo: null, momento: null, formato: null, practica: null,
+          etapa: null, dudoso: '' });
+      });
+      return out.slice(0, 40);
+    }
+
+    var MOTIVOS = {
+      sin_clave: 'Este ScoutFlow no tiene la IA activada, así que la hoja no se puede leer sola.',
+      sin_gemini: 'Para leer un PDF o una foto hace falta Gemini. Con las otras IA solo se puede leer texto, Word o Excel.',
+      muy_grande: 'El archivo pasa de 12 MB. Prueba a mandar solo las páginas de los ejercicios.',
+      archivo: 'No se ha podido abrir ese archivo.',
+      sin_texto: 'Ese archivo no traía texto que leer.',
+      sin_ejercicios: 'Se ha leído la hoja, pero no se ha reconocido ningún ejercicio dentro.',
+      proveedor: 'La IA ha contestado con un error.',
+      metodo: 'Llamada mal hecha.'
+    };
+
+    function pintaAviso(txt, tipo) {
+      aviso.textContent = txt || '';
+      aviso.className = 'imp-aviso' + (tipo ? ' ' + tipo : '');
+    }
+
+    /* ---- leer ---- */
+    var bLeer = el('<button class="btn btn-primary">Leer la hoja</button>');
+    bLeer.onclick = function () {
+      if (cargando) return;
+      var txt = ta.value.trim();
+      if (!archivo && !txt) { U.toast('Sube un archivo o pega el texto'); return; }
+      cargando = true; bLeer.disabled = true; bLeer.textContent = 'Leyendo la hoja…';
+      pintaAviso('', '');
+      lista.innerHTML = '';
+
+      function conCuerpo(cuerpo) {
+        fetch('/api/hojas', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cuerpo) })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d && d.ok) { propuesta = d.ejercicios; pintaPropuesta(d.sesion, 'la IA'); }
+            else respaldo(d && d.motivo);
+          })
+          .catch(function () { respaldo('sin_servidor'); })
+          .then(function () { cargando = false; bLeer.disabled = false; bLeer.textContent = 'Leer la hoja'; });
+      }
+
+      function respaldo(motivo) {
+        var txt2 = ta.value.trim();
+        var basico = txt2 ? leerBasico(txt2) : [];
+        var porQue = MOTIVOS[motivo] || (motivo === 'sin_servidor'
+          ? 'No hay conexión con el servidor, así que la IA no ha podido leerla.'
+          : 'No se ha podido leer con la IA.');
+        if (basico.length) {
+          propuesta = basico;
+          pintaPropuesta('', 'el lector básico');
+          pintaAviso(porQue + ' Esto es lo que ha sacado el lector básico partiendo el texto: ' +
+            'repásalo con calma, porque no entiende de baloncesto.', 'ama');
+        } else {
+          propuesta = null;
+          pintaAviso(porQue + (archivo ? ' Prueba a pegar el texto a mano.' : ''), 'mal');
+        }
+      }
+
+      if (archivo) {
+        var fr = new FileReader();
+        fr.onload = function () {
+          var s = String(fr.result || ''), i = s.indexOf(',');
+          conCuerpo({ archivo: i >= 0 ? s.slice(i + 1) : s, mime: archivo.type || '',
+            nombre: archivo.name || '', texto: txt });
+        };
+        fr.onerror = function () { respaldo('archivo'); cargando = false; bLeer.disabled = false; bLeer.textContent = 'Leer la hoja'; };
+        fr.readAsDataURL(archivo);
+      } else {
+        conCuerpo({ texto: txt });
+      }
+    };
+
+    /* ---- la propuesta ---- */
+    function pintaPropuesta(sesion, quienLeyo) {
+      lista.innerHTML = '';
+      if (!propuesta || !propuesta.length) return;
+      lista.appendChild(el('<p class="sec-label">' + propuesta.length +
+        (propuesta.length === 1 ? ' ejercicio encontrado' : ' ejercicios encontrados') +
+        ' por ' + esc(quienLeyo) + (sesion ? ' · ' + esc(sesion) : '') + '</p>'));
+      propuesta.forEach(function (e, i) {
+        var f = el('<div class="imp-ej"></div>');
+        var cab = el('<label class="imp-cab"><input type="checkbox" checked data-i="' + i + '">' +
+          '<b>' + esc(e.nombre) + '</b></label>');
+        f.appendChild(cab);
+        var meta = el('<div class="imp-meta"></div>');
+        var selC = el('<select></select>');
+        selC.appendChild(el('<option value="">¿En qué carpeta?</option>'));
+        (SF.EJ_CARPETAS || []).forEach(function (c) {
+          selC.appendChild(el('<option value="' + c.k + '"' + (c.k === e.carpeta ? ' selected' : '') + '>' + esc(c.label) + '</option>'));
+        });
+        selC.onchange = function () { e.carpeta = this.value || null; };
+        meta.appendChild(selC);
+        var inM = el('<input type="number" min="0" max="120" value="' + (e.minutos || '') + '" placeholder="min">');
+        inM.oninput = function () { e.minutos = +this.value || 0; };
+        meta.appendChild(inM);
+        meta.appendChild(el('<span class="hint">' + esc(SF.etapaTexto(e.etapa) || 'Sin edad') + '</span>'));
+        f.appendChild(meta);
+        if (e.descripcion) f.appendChild(el('<p class="imp-desc">' + esc(e.descripcion) + '</p>'));
+        if (e.claves) f.appendChild(el('<p class="imp-clave">' + esc(e.claves) + '</p>'));
+        if (e.dudoso) f.appendChild(el('<p class="imp-dudoso">Esto no se lee con seguridad: ' + esc(e.dudoso) + '</p>'));
+        lista.appendChild(f);
+      });
+      lista.appendChild(el('<p class="hint">Lo que no marques no se guarda. ' +
+        'Un ejercicio sin carpeta cae en la que le corresponda por su objetivo.</p>'));
+      bAdd.style.display = '';
+    }
+
+    var foot = el('<div class="modal-actions"></div>');
+    foot.appendChild(bLeer);
+    var bAdd = el('<button class="btn btn-primary">Añadir los marcados</button>');
+    bAdd.style.display = 'none';
+    bAdd.onclick = function () {
+      if (!propuesta) return;
+      var marcados = [];
+      lista.querySelectorAll('.imp-cab input').forEach(function (c) {
+        if (c.checked) marcados.push(propuesta[+c.dataset.i]);
+      });
+      if (!marcados.length) { U.toast('No has marcado ninguno'); return; }
+      marcados.forEach(function (e) {
+        var obj = e.objetivo || 'tecnica';
+        SF.store.ejercicioSet({
+          nombre: e.nombre, objetivo: obj, momento: e.momento || 'Parte principal',
+          minutos: e.minutos || 10, jugadores: e.jugadores || '', material: e.material || '',
+          descripcion: e.descripcion || '', claves: e.claves || '',
+          nivel: mando ? 'club' : 'personal', team_id: null,
+          deporte: (SF.store.academy ? (SF.store.academy().sport || 'baloncesto') : 'baloncesto'),
+          etapa: e.etapa || null,
+          formato: e.formato || 'grupo', practica: e.practica || 'serie',
+          carpeta: e.carpeta || SF.carpetaPorObjetivo(obj), seccion: null
+        }, quien);
+      });
+      U.closeModal();
+      U.toast(marcados.length === 1 ? 'Un ejercicio añadido' : marcados.length + ' ejercicios añadidos');
+      SF.router.render();
+    };
+    foot.appendChild(bAdd);
+    var bC = el('<button class="btn">Cerrar</button>'); bC.onclick = U.closeModal;
+    foot.appendChild(bC);
+    box.appendChild(foot);
+
+    U.modal('Importar una hoja de entrenamiento', box);
   }
 
   function modalEjercicio(x, quien, misEq, mando, soloLeer) {
@@ -19577,6 +20195,8 @@ window.SF = window.SF || {};
     /* Las familias que ya usa el club, para no inventarse una nueva por una
        tilde. Escribir "pase-y-corte" y "pase y corte" parte la escalera en dos
        y nadie se entera hasta que faltan peldaños. */
+    var marcadas = SF.etapasDe(x.etapa);
+    var carpIni = x.carpeta || SF.carpetaPorObjetivo(x.objetivo || 'tecnica');
     function datalistFamilias() {
       var vistas = {};
       SF.store.ejercicios().forEach(function (e) { if (e.familia) vistas[e.familia] = 1; });
@@ -19597,16 +20217,29 @@ window.SF = window.SF || {};
       }).join('') + '</select></div>' +
       '<div class="frow"><label>Minutos</label><input id="ed" type="number" min="1" max="120" value="' + (x.minutos || 10) + '"></div>' +
       '<div class="frow"><label>Jugadores</label><input id="ej" value="' + esc(x.jugadores || '') + '" placeholder="8-16"></div>' +
-      /* La etapa va de A a B, nunca una sola: un ejercicio bueno sirve para
-         mas de una edad, y encerrarlo en una lo esconde a los demas. */
-      '<div class="frow"><label>Edad desde</label><select id="ea1">' +
+      /* Las edades se MARCAN, no se acotan. Con "desde/hasta" hay que elegir
+         de corrido, y un ejercicio puede valer para mini y para cadete y no
+         para infantil. Marcadas todas es lo mismo que "todas las edades", y
+         sin marcar ninguna el ejercicio no recomienda edad: sale siempre. */
+      '<div class="frow" style="grid-column:1/-1"><label>Para qué edades ' +
+      '<span class="hint">marca todas las que valgan; sin marcar ninguna, sale en todas las búsquedas</span></label>' +
+      '<div class="ej-edades" id="eae">' +
       (SF.EJ_ETAPAS || []).map(function (e) {
-        return '<option value="' + e.k + '"' + sel(e.k, (x.etapa || {}).de || 1) + '>' + esc(e.label + ' · ' + e.edad) + '</option>';
+        var on = marcadas.indexOf(e.k) >= 0;
+        return '<label class="edad-chip' + (on ? ' on' : '') + '">' +
+          '<input type="checkbox" value="' + e.k + '"' + (on ? ' checked' : '') + '>' +
+          esc(e.label) + ' <small>' + esc(e.edad) + '</small></label>';
+      }).join('') +
+      '<button type="button" class="lnk" id="eat">Todas</button></div></div>' +
+      /* En que carpeta vive. Sin esto, un ejercicio nuevo del club se quedaba
+         sin carpeta y no aparecia en ninguna estanteria: escrito, guardado y
+         invisible. Se propone la que corresponde a su objetivo, y se cambia. */
+      '<div class="frow"><label>Carpeta</label><select id="ecar">' +
+      (SF.EJ_CARPETAS || []).map(function (c) {
+        return '<option value="' + c.k + '"' + sel(c.k, carpIni) + '>' + esc(c.label) + '</option>';
       }).join('') + '</select></div>' +
-      '<div class="frow"><label>hasta</label><select id="ea2">' +
-      (SF.EJ_ETAPAS || []).map(function (e) {
-        return '<option value="' + e.k + '"' + sel(e.k, (x.etapa || {}).a || (x.etapa || {}).de || 5) + '>' + esc(e.label + ' · ' + e.edad) + '</option>';
-      }).join('') + '</select></div>' +
+      '<div class="frow"><label>Sección <span class="hint">dentro de la carpeta</span></label>' +
+      '<select id="esec"></select></div>' +
       '<div class="frow"><label>Cuántos son</label><select id="ef">' +
       (SF.EJ_FORMATOS || []).map(function (o) {
         return '<option value="' + o.k + '"' + sel(o.k, x.formato || 'grupo') + '>' + esc(o.label) + '</option>';
@@ -19650,6 +20283,54 @@ window.SF = window.SF || {};
     }).join('') + '</select>');
     zonaE.appendChild(selE);
     box.appendChild(zonaE);
+    /* Se sigue guardando un rango, porque es lo que lee todo lo demas, mas
+       la lista de huecos. Ninguna marcada = sin edad recomendada (null), que
+       es como se comporta un ejercicio sin clasificar: sale siempre. */
+    function etapaMarcada() {
+      var ks = [];
+      box.querySelectorAll('#eae input[type=checkbox]').forEach(function (c) {
+        if (c.checked) ks.push(+c.value);
+      });
+      if (!ks.length) return null;
+      ks.sort(function (p, q) { return p - q; });
+      var de = ks[0], a2 = ks[ks.length - 1], fuera = [];
+      for (var k = de; k <= a2; k++) if (ks.indexOf(k) < 0) fuera.push(k);
+      var et = { de: de, a: a2 };
+      if (fuera.length) et.fuera = fuera;
+      return et;
+    }
+    /* Las secciones dependen de la carpeta, asi que se repintan al cambiarla.
+       Se puede dejar "Sin seccion": la seccion ordena dentro de la carpeta,
+       no decide si el ejercicio existe. */
+    var selCar = box.querySelector('#ecar'), selSec = box.querySelector('#esec');
+    function pintaSecciones() {
+      var c = SF.carpetaDe(selCar.value), actual = selSec.value || x.seccion || '';
+      selSec.innerHTML = '<option value="">Sin sección</option>' +
+        ((c && c.secciones) || []).map(function (s) {
+          return '<option value="' + s[0] + '"' + (s[0] === actual ? ' selected' : '') + '>' + esc(s[1]) + '</option>';
+        }).join('');
+    }
+    selCar.onchange = function () { selSec.value = ''; pintaSecciones(); };
+    pintaSecciones();
+
+    /* La casilla entera hace de boton: pulsar el texto tambien marca. Y el
+       chip se pinta al vuelo para que se vea lo marcado sin repintar nada. */
+    var cajaEd = box.querySelector('#eae');
+    if (cajaEd) {
+      cajaEd.addEventListener('change', function (ev) {
+        var c = ev.target;
+        if (c && c.type === 'checkbox') c.parentNode.classList.toggle('on', c.checked);
+      });
+      var bTodas = box.querySelector('#eat');
+      bTodas.onclick = function () {
+        var cs = cajaEd.querySelectorAll('input[type=checkbox]');
+        var faltan = false;
+        cs.forEach(function (c) { if (!c.checked) faltan = true; });
+        cs.forEach(function (c) { c.checked = faltan; c.parentNode.classList.toggle('on', faltan); });
+        bTodas.textContent = faltan ? 'Ninguna' : 'Todas';
+      };
+    }
+
     function revisaNivel() { zonaE.style.display = selN.value === 'equipo' ? '' : 'none'; }
     selN.onchange = revisaNivel; revisaNivel();
 
@@ -19671,17 +20352,18 @@ window.SF = window.SF || {};
         descripcion: box.querySelector('#ex').value.trim(), claves: box.querySelector('#ec').value.trim(),
         nivel: selN.value, team_id: selN.value === 'equipo' ? selE.value : null,
         deporte: x.deporte || (SF.store.academy ? (SF.store.academy().sport || 'baloncesto') : 'baloncesto'),
-        etapa: { de: +box.querySelector('#ea1').value || 1,
-                 a: Math.max(+box.querySelector('#ea1').value || 1, +box.querySelector('#ea2').value || 5) },
+        etapa: etapaMarcada(),
         formato: box.querySelector('#ef').value,
         practica: box.querySelector('#ep').value,
         familia: box.querySelector('#efa').value.trim() || null,
         escalon: +box.querySelector('#ees').value || null,
         no_todavia: box.querySelector('#ent').value.trim(),
-        /* `ejercicioSet` reemplaza el objeto entero, asi que lo que el
-           formulario NO pregunta hay que arrastrarlo a mano. Sin esto, editar
-           el nombre de un ejercicio le borraba los pasos y los esquemas. */
-        min_jug: x.min_jug, max_jug: x.max_jug, pasos: x.pasos || null, autor: x.autor
+        carpeta: selCar.value,
+        seccion: selSec.value || null,
+        /* Lo que el formulario no pregunta se arrastra tal cual. Los `pasos`
+           NO viajan: el almacen no los toca (no estan en su lista), y asi
+           guardar un cambio de nombre no puede llevarselos. */
+        min_jug: x.min_jug, max_jug: x.max_jug
       }, quien);
       U.closeModal(); U.toast(nuevo ? 'Ejercicio añadido' : 'Guardado'); SF.router.render();
     };
