@@ -4729,6 +4729,711 @@ SF.EJERCICIOS_BASE = SF.EJERCICIOS_BASE.concat(SF.EJ_FAMILIA_PYC);
   });
   SF.EJ_ESQUEMAS_TANDA2 = n;
 })();
+(function () {
+  var FRONTAL = [7.5, 8.0], ALA_D = [12.0, 5.3], ALA_I = [3.0, 5.3];
+  var ESQ_D = [13.6, 1.8], ESQ_I = [1.4, 1.8], POSTE_D = [9.7, 3.0];
+  function a(n, p, b) { return { n: n, x: p[0], y: p[1], eq: 'ataque', balon: !!b }; }
+  function d(n, p) { return { n: n, x: p[0], y: p[1], eq: 'defensa' }; }
+  function pase(de, a2, c) { return { tipo: 'pase', pts: c ? [de, c, a2] : [de, a2] }; }
+  function corte() { return { tipo: 'corte', pts: [].slice.call(arguments) }; }
+  function bote() { return { tipo: 'drible', pts: [].slice.call(arguments) }; }
+  function bloq(de, a2) { return { tipo: 'pantalla', pts: [de, a2] }; }
+  function def() { return { tipo: 'defensa', pts: [].slice.call(arguments) }; }
+  function P(t, k, jug, mov, ex) {
+    var e = { jug: jug, mov: mov || [] };
+    if (ex) for (var q in ex) e[q] = ex[q];
+    return { texto: t, clave: k, esquema: e };
+  }
+  var S = {};
+
+  /* ---------- CALENTAMIENTO con recorrido ---------- */
+  S.ejc1 = [
+    P('Dos filas en la línea de fondo. Se cruza la pista entera con un desplazamiento distinto cada vez.',
+      'Se sale a la vez y en línea: si uno adelanta, el ejercicio se convierte en una carrera.',
+      [a('1', [5.0, 1.0]), a('2', [10.0, 1.0])],
+      [corte([5.0, 1.0], [5.0, 12.8]), corte([10.0, 1.0], [10.0, 12.8])],
+      { colas: [[5.0, 0.4], [10.0, 0.4]] }),
+    P('Se vuelve trotando suave por el lateral, y se enlaza con el siguiente desplazamiento.',
+      'Rango alto y ritmo bajo. Esto prepara la articulación, no es una carrera.',
+      [a('1', [2.0, 10.0]), a('2', [13.0, 10.0])],
+      [corte([5.0, 12.8], [2.0, 11.0], [2.0, 2.0]), corte([10.0, 12.8], [13.0, 11.0], [13.0, 2.0])])
+  ];
+  S.ejc10 = [
+    P('Seis conos repartidos en zigzag de fondo a fondo. Se sale botando con la mano de fuera.',
+      'El cono se ataca de frente, no se rodea de lejos. Si se pasa a un metro, no hay cambio que hacer.',
+      [a('1', [3.0, 1.2], 1)],
+      [], { conos: [[5.5, 3.2], [3.0, 5.6], [5.5, 8.0], [3.0, 10.4], [5.5, 12.4]] }),
+    P('Cambio de mano en cada cono: primero por delante, después entre las piernas, después por detrás.',
+      'El cambio se hace bajo y pegado al cono. Un cambio alto y lejos es un balón robado.',
+      [a('1', [5.5, 12.0], 1)],
+      [bote([3.0, 1.2], [5.5, 3.2], [3.0, 5.6], [5.5, 8.0], [3.0, 10.4], [5.5, 12.4])],
+      { conos: [[5.5, 3.2], [3.0, 5.6], [5.5, 8.0], [3.0, 10.4], [5.5, 12.4]] })
+  ];
+  S.ejc11 = [
+    P('De fondo a fondo a máxima velocidad, cambiando de mano en cada línea del campo.',
+      'A esta velocidad el balón va por delante del cuerpo, no al lado. Si va al lado, se frena.',
+      [a('1', [7.5, 1.0], 1)],
+      [bote([7.5, 1.0], [6.6, 4.0], [8.4, 7.0], [6.6, 10.0], [7.5, 12.8])]),
+    P('Cuatro idas con descanso completo entre ellas. Es velocidad, no resistencia.',
+      'Si no se descansa del todo, se está entrenando otra cosa y además se bota peor.',
+      [a('1', [7.5, 12.6], 1)], [])
+  ];
+  S.ejc12 = [
+    P('Se juega dentro de media pista, con todos botando a la vez. Quien la queda persigue botando también.',
+      'Los límites se marcan y no se negocian: fuera de media pista, la queda.',
+      [a('1', [4.0, 4.0], 1), a('2', [10.5, 3.0], 1), a('3', [8.0, 9.0], 1), d('P', [6.0, 6.5])],
+      [corte([6.0, 6.5], [7.4, 8.2])]),
+    P('El que pierde el balón o es pillado, pasa a perseguir. Sin parar el juego.',
+      'Aquí no se corrige técnica: se corrige que miren el balón. El que mira abajo, es pillado.',
+      [a('1', [3.0, 6.0], 1), a('2', [12.0, 5.0], 1), a('3', [9.0, 11.0], 1), d('P', [7.5, 9.0])],
+      [corte([7.5, 9.0], [9.0, 10.4])])
+  ];
+  S.ejc13 = [
+    P('Por parejas, enfrentados a tres metros. Uno manda y el otro copia en espejo.',
+      'Enfrentados de verdad: si se ponen de lado, no se ve lo que hace el otro.',
+      [a('1', [5.5, 7.0], 1), a('2', [9.5, 7.0], 1)], []),
+    P('El que manda cambia de mano y de ritmo libremente; el otro reproduce lo que ve. Se cambia cada 30 segundos.',
+      'Copiar obliga a mirar al compañero, no al balón. Ese es el objetivo escondido del juego.',
+      [a('1', [4.5, 7.0], 1), a('2', [10.5, 7.0], 1)],
+      [bote([5.5, 7.0], [4.5, 7.0]), bote([9.5, 7.0], [10.5, 7.0])])
+  ];
+
+  /* ---------- PASE ---------- */
+  S.ejc14 = [
+    P('Parejas enfrentadas a cinco metros, repartidas por la pista.',
+      'Cinco metros de verdad. A dos metros no hace falta técnica, y a diez no se corrige nada.',
+      [a('1', [5.0, 6.0], 1), a('2', [10.0, 6.0])], []),
+    P('Diez de pecho, diez picados y diez por encima de la cabeza, sin que el balón caiga al suelo.',
+      'El pase sale con un paso hacia el compañero. Un pase sin pie no llega tenso.',
+      [a('1', [5.0, 6.0]), a('2', [10.0, 6.0], 1)],
+      [pase([5.0, 6.0], [10.0, 6.0])])
+  ];
+  S.ejc15 = [
+    P('En parejas, con dos balones: uno sale de pecho y el otro picado, a la vez.',
+      'Se acuerda antes quién pasa arriba y quién abajo. Si los dos van al mismo sitio, chocan.',
+      [a('1', [5.5, 6.5], 1), a('2', [10.0, 6.5], 1)], []),
+    P('Sin parar durante un minuto, y después se cambian los papeles.',
+      'Se mira al centro, no a las manos del compañero: el balón propio se siente, no se mira.',
+      [a('1', [5.5, 6.5], 1), a('2', [10.0, 6.5], 1)],
+      [pase([5.5, 6.5], [10.0, 6.5], [7.7, 5.6]), pase([10.0, 6.5], [5.5, 6.5], [7.7, 7.4])])
+  ];
+  S.ejc20 = [
+    P('Cinco calles: las dos bandas, los dos intermedios y el centro. El balón sale del centro.',
+      'Aquí se trabaja la amplitud: el que no abre su calle deja el campo estrecho para todos.',
+      [a('1', [7.5, 1.4], 1), a('2', [12.6, 1.4]), a('3', [2.4, 1.4]), a('4', [10.2, 1.4]), a('5', [4.8, 1.4])],
+      []),
+    P('Se pasa y se corre por detrás del que recibe, igual que en la trenza de tres, pero con el campo entero.',
+      'Con cinco calles hay que levantar la cabeza: el pase largo aparece solo si alguien lo ve.',
+      [a('1', [7.5, 4.6]), a('2', [12.6, 4.6]), a('3', [2.4, 4.6]), a('4', [10.2, 4.6], 1), a('5', [4.8, 4.6])],
+      [pase([7.5, 4.6], [10.2, 4.6]), corte([7.5, 4.6], [9.2, 5.8], [10.6, 6.6])])
+  ];
+  S.ejc23 = [
+    P('El atacante recibe en la esquina y dos defensores le cierran contra la banda y el fondo.',
+      'La doble llega de verdad: si los defensores no cierran, no hay presión de la que salir.',
+      [a('1', ESQ_D, 1), a('2', ALA_I), d('X1', [12.4, 2.6]), d('X2', [13.4, 3.4])],
+      [def([12.4, 3.6], [12.4, 2.6]), def([13.6, 4.2], [13.4, 3.4])]),
+    P('Tiene que pivotar, proteger el balón y sacarlo con un solo pase al compañero que sube al lado contrario.',
+      'Primero se protege el balón, después se busca al compañero. Al revés se pierde.',
+      [a('1', ESQ_D, 1), a('2', [6.0, 5.6]), d('X1', [12.4, 2.6]), d('X2', [13.4, 3.4])],
+      [pase(ESQ_D, [6.0, 5.6], [10.0, 6.4]), corte(ALA_I, [6.0, 5.6])])
+  ];
+
+  /* ---------- TIRO ---------- */
+  S.ejc26 = [
+    P('A un metro del aro, de frente al tablero y sin mano de apoyo.',
+      'Pegado de verdad: si se aleja, se compensa con el cuerpo y el gesto deja de aislarse.',
+      [a('1', [7.5, 3.2], 1)], []),
+    P('Diez seguidas metidas antes de retroceder un paso. Después, la otra mano.',
+      'Si el balón sale girando de lado, el codo está abierto. Se corrige ahí, no más lejos.',
+      [a('1', [7.5, 4.4], 1)],
+      [corte([7.5, 3.2], [7.5, 4.4])])
+  ];
+  S.ejc28 = [
+    P('De rodillas en el suelo, a tres metros del aro.',
+      'Las rodillas quedan fijas: si se balancea el tronco, vuelve a aparecer el impulso de piernas.',
+      [a('1', [7.5, 5.0], 1)], []),
+    P('Se tira usando solo el tren superior, buscando el mismo arco que de pie.',
+      'Sin piernas o el gesto es limpio o el balón no llega. Por eso funciona este ejercicio.',
+      [a('1', [7.5, 5.0], 1)],
+      [pase([7.5, 4.6], [7.6, 2.6], [8.4, 3.4])])
+  ];
+  S.ejc32 = [
+    P('Se ataca el aro con dos botes, obligando al defensor a retroceder.',
+      'El ataque tiene que ser creíble: si no amenaza, el defensor no retrocede y no hay espacio que ganar.',
+      [a('1', ALA_D, 1), d('X', [11.4, 4.4])],
+      [bote(ALA_D, [10.4, 4.0])]),
+    P('Frenada, paso largo hacia atrás para separarse, y tiro con el cuerpo ya equilibrado.',
+      'El paso atrás no es saltar hacia atrás. Si se salta, el tiro sale corto siempre.',
+      [a('1', [11.6, 5.4], 1), d('X', [10.2, 3.8])],
+      [corte([10.4, 4.0], [11.6, 5.4])])
+  ];
+  S.ejc36 = [
+    P('Entrada normal desde el ala, con dos botes hacia el aro.',
+      'Este recurso se enseña cuando la entrada de siempre ya sale limpia, no antes.',
+      [a('1', [12.0, 6.0], 1)],
+      [bote([12.0, 6.0], [10.4, 4.6])]),
+    P('Se bate con el pie del MISMO lado que la mano de tiro, rompiendo el ritmo que espera la defensa.',
+      'Es un recurso, no la forma normal de entrar. Si se usa siempre, deja de sorprender.',
+      [a('1', [9.2, 3.6], 1)],
+      [corte([10.4, 4.6], [9.2, 3.6], [8.4, 2.8])])
+  ];
+  S.ejc38 = [
+    P('El interior pide en el poste bajo, de espaldas al aro, y recibe del ala.',
+      'Se pide con el brazo lejos del defensor y con el pie dentro: la posición se gana antes del pase.',
+      [a('1', ALA_D, 1), a('2', POSTE_D), d('X', [10.4, 2.4])],
+      [pase(ALA_D, POSTE_D)]),
+    P('Siente al defensor con el antebrazo y gira hacia el lado que ha quedado libre para finalizar.',
+      'Primero se siente al defensor, después se decide. Girar sin saber dónde está es girar a ciegas.',
+      [a('1', ALA_D), a('2', [8.8, 2.8], 1), d('X', [10.4, 2.4])],
+      [corte(POSTE_D, [8.8, 2.8])])
+  ];
+
+  /* ---------- DEFENSA ---------- */
+  S.ejc40 = [
+    P('En postura defensiva en un lateral de la zona, sin balón.',
+      'Cadera baja, pies más anchos que los hombros y las manos activas antes de empezar.',
+      [d('X', [5.3, 3.4])], []),
+    P('Se cruza la zona de lado a lado sin cruzar los pies y sin subir la cadera. Ida y vuelta, cuatro series.',
+      'Si los pies se juntan, el jugador ya no puede reaccionar. Se para el ejercicio y se repite.',
+      [d('X', [9.7, 3.4])],
+      [def([5.3, 3.4], [9.7, 3.4])])
+  ];
+  S.ejc42 = [
+    P('El atacante ataca el hombro del defensor y consigue pasar a su lado.',
+      'El atacante va a ganar la posición a propósito: es lo que hace que haya algo que recuperar.',
+      [a('1', [11.0, 6.4], 1), d('X', [10.4, 5.4])],
+      [bote([11.0, 6.4], [9.8, 5.0])]),
+    P('El defensor abre la cadera y recupera con un paso de caída, sin correr de frente.',
+      'Es el movimiento que separa defender de perseguir. Se practica lento hasta que sale solo.',
+      [a('1', [9.8, 5.0], 1), d('X', [9.2, 4.2])],
+      [def([10.4, 5.4], [9.2, 4.2])])
+  ];
+  S.ejc44 = [
+    P('El atacante bota dos veces y para. A partir de ahí ya no puede volver a botar.',
+      'El momento exacto en que para el bote es la señal. Si el defensor no la ve, llega tarde.',
+      [a('1', FRONTAL, 1), d('X', [7.5, 7.0])],
+      [bote(FRONTAL, [8.2, 7.2])]),
+    P('El defensor se le echa encima con las manos altas para cerrarle todas las líneas de pase.',
+      'En cuanto para el bote, el defensor sube un metro. Ese metro provoca el pase malo.',
+      [a('1', [8.2, 7.2], 1), d('X', [8.2, 6.4])],
+      [def([7.5, 7.0], [8.2, 6.4])])
+  ];
+  S.ejc45 = [
+    P('El atacante bota parado; el defensor delante, en postura y con la mano de abajo activa.',
+      'La mano que trabaja es la de abajo. La de arriba molesta la visión, no roba.',
+      [a('1', [7.5, 6.6], 1), d('X', [7.5, 5.6])], []),
+    P('El defensor intenta tocar el balón sin agarrar ni golpear el brazo. Se cuentan los toques limpios.',
+      'De abajo arriba. La mano que va de arriba abajo es falta siempre, la pite o no el árbitro.',
+      [a('1', [7.0, 6.6], 1), d('X', [7.4, 5.8])],
+      [def([7.5, 5.6], [7.4, 5.8])])
+  ];
+  S.ejc48 = [
+    P('Un compañero quieto hace de bloqueo sobre el defensor, que tiene que decidir antes de llegar.',
+      'Se decide antes de llegar al bloqueo y se dice en voz alta. El que calla deja un tiro libre de marca.',
+      [a('1', ALA_D, 1), a('2', [12.6, 6.6]), d('X', [11.4, 4.6])],
+      [bloq([12.6, 6.6], [12.2, 5.6])]),
+    P('Pasa por delante o por detrás según lo que se le pida, y recupera la posición al otro lado.',
+      'Pasar por delante quita el tiro; por detrás quita la entrada. Ninguna es la buena siempre.',
+      [a('1', [10.6, 4.8], 1), a('2', [12.2, 5.6]), d('X', [11.2, 4.6])],
+      [bote(ALA_D, [10.6, 4.8]), def([11.4, 4.6], [11.8, 5.2], [11.2, 4.6])])
+  ];
+  S.ejc50 = [
+    P('Tras el tiro, el defensor busca el contacto para cerrarle el camino al atacante.',
+      'El defensor hace su trabajo de verdad: sin un buen bloqueo de rebote no hay nada que esquivar.',
+      [a('1', [10.0, 4.6]), d('X', [9.4, 3.8])], []),
+    P('El atacante finta corto hacia un lado y se va por el contrario a buscar el rebote.',
+      'La finta es corta y con los pies. Una finta larga da tiempo a recolocarse.',
+      [a('1', [8.4, 3.4]), d('X', [9.4, 3.8])],
+      [corte([10.0, 4.6], [10.6, 4.2], [8.4, 3.4])])
+  ];
+  S.ejc51 = [
+    P('Uno tira desde el perímetro y dos esperan el rebote sin posiciones asignadas.',
+      'Nadie tiene a quién cerrar: aquí no hay pareja, hay balón.',
+      [a('1', FRONTAL, 1), a('2', [6.4, 4.2]), a('3', [9.0, 4.2])],
+      [pase(FRONTAL, [7.6, 2.8], [7.5, 5.0])]),
+    P('Quien lo coge finaliza; quien no, defiende. Se sigue hasta canasta.',
+      'Gana el que salta con las dos manos y cae con equilibrio, no el más alto.',
+      [a('1', [7.8, 3.0], 1), d('X', [6.8, 3.4]), a('3', FRONTAL)],
+      [corte([7.8, 3.0], [7.6, 2.4])])
+  ];
+
+  var n = 0;
+  (SF.EJERCICIOS_BASE || []).forEach(function (x) {
+    if (S[x.id] && !(x.pasos || []).length) { x.pasos = S[x.id]; n++; }
+  });
+  SF.EJ_ESQUEMAS_TANDA3 = n;
+})();
+
+(function () {
+  var FRONTAL = [7.5, 8.0], ALA_D = [12.0, 5.3], ALA_I = [3.0, 5.3];
+  var ESQ_D = [13.6, 1.8], ESQ_I = [1.4, 1.8], POSTE_D = [9.7, 3.0], POSTE_I = [5.3, 3.0];
+  function a(n, p, b) { return { n: n, x: p[0], y: p[1], eq: 'ataque', balon: !!b }; }
+  function d(n, p) { return { n: n, x: p[0], y: p[1], eq: 'defensa' }; }
+  function pase(de, a2, c) { return { tipo: 'pase', pts: c ? [de, c, a2] : [de, a2] }; }
+  function corte() { return { tipo: 'corte', pts: [].slice.call(arguments) }; }
+  function bote() { return { tipo: 'drible', pts: [].slice.call(arguments) }; }
+  function bloq(de, a2) { return { tipo: 'pantalla', pts: [de, a2] }; }
+  function def() { return { tipo: 'defensa', pts: [].slice.call(arguments) }; }
+  function P(t, k, jug, mov, ex) {
+    var e = { jug: jug, mov: mov || [] };
+    if (ex) for (var q in ex) e[q] = ex[q];
+    return { texto: t, clave: k, esquema: e };
+  }
+  var S = {};
+
+  /* ---------- 1 CONTRA 1 ---------- */
+  S.ejc54 = [
+    P('El atacante llega botando desde medio campo; el defensor le espera en el triple.',
+      'No se para a organizarse: la ventaja está en la velocidad de llegada.',
+      [a('1', [7.5, 11.4], 1), d('X', [7.5, 7.4])],
+      [bote([7.5, 11.4], [8.2, 9.4])]),
+    P('Ataca sin frenar, eligiendo lado antes de llegar al defensor.',
+      'Si frena para pensar, la ventaja se ha ido y esto pasa a ser un 1x1 parado.',
+      [a('1', [9.0, 6.2], 1), d('X', [8.4, 5.8])],
+      [bote([8.2, 9.4], [9.0, 6.2], [9.4, 4.4])])
+  ];
+  S.ejc56 = [
+    P('Un pasador fijo arriba y el atacante en el perímetro, listo para cortar.',
+      'El corte sale sin frenar y con la mano de pedir arriba desde el primer paso.',
+      [a('1', FRONTAL, 1), a('2', ALA_D)], []),
+    P('Corta hacia el aro, recibe en carrera y finaliza sin bote.',
+      'Se recibe cara al balón. De espaldas no se recibe: se choca con el balón.',
+      [a('1', FRONTAL), a('2', [9.4, 3.4], 1)],
+      [corte(ALA_D, [10.8, 4.4], [9.4, 3.4]), pase(FRONTAL, [9.4, 3.4])])
+  ];
+  S.ejc58 = [
+    P('Se acuerda antes por qué lado puede atacar el atacante. El defensor se coloca para cerrarle el otro.',
+      'El lado se dice en voz alta antes de empezar. Si no, cada uno defiende lo que quiere.',
+      [a('1', ALA_D, 1), d('X', [11.0, 4.6])], []),
+    P('El defensor le obliga a ir siempre por ese lado, con los pies y el cuerpo, no con las manos.',
+      'La mano solo molesta la visión. Lo que cierra el camino son los pies.',
+      [a('1', [10.4, 3.8], 1), d('X', [10.0, 3.6])],
+      [bote(ALA_D, [10.4, 3.8]), def([11.0, 4.6], [10.0, 3.6])])
+  ];
+  S.ejc59 = [
+    P('El interior pide en el poste bajo. El defensor se coloca en tres cuartos por delante, con el brazo en la línea de pase.',
+      'Se defiende ANTES de que el balón entre. Cuando ya está dentro, la pelea está medio perdida.',
+      [a('1', ALA_D, 1), a('2', POSTE_D), d('X', [10.4, 3.6])], []),
+    P('El exterior intenta meter el balón; si no puede, el balón cambia de lado y el defensor tiene que recolocarse rápido.',
+      'Al cambiar el balón de lado, el defensor cruza por delante. Cruzar por detrás llega tarde siempre.',
+      [a('1', ALA_I, 1), a('2', POSTE_D), d('X', [9.0, 3.4])],
+      [pase(ALA_D, ALA_I, [7.5, 6.8]), def([10.4, 3.6], [9.0, 3.4])])
+  ];
+
+  /* ---------- 2 CONTRA 2 ---------- */
+  S.ejc61 = [
+    P('Dos contra dos en el frontal. El bloqueador sube al centro, donde los dos lados están disponibles.',
+      'En el centro no hay banda que ayude: el defensor tiene que elegir de verdad.',
+      [a('1', FRONTAL, 1), a('2', [7.5, 10.0]), d('X1', [7.5, 7.0]), d('X2', [7.5, 9.2])],
+      [corte([7.5, 10.0], [8.6, 8.8])]),
+    P('El que lleva el balón lee hacia qué lado le dejan y ataca por ahí.',
+      'Se lee al defensor del bloqueador, no al propio. Es lo que casi nadie mira al principio.',
+      [a('1', [9.2, 6.6], 1), a('2', [8.6, 8.8]), d('X1', [8.4, 7.4]), d('X2', [8.0, 7.8])],
+      [bote(FRONTAL, [9.2, 6.6])]),
+    P('El bloqueador continúa al aro o se abre al tiro, según lo que haga SU defensor.',
+      'Si los dos defensores se van al balón, el bloqueador queda solo. Ese es el premio.',
+      [a('1', [9.2, 6.6], 1), a('2', [7.8, 4.4]), d('X1', [8.6, 6.2]), d('X2', [9.2, 7.2])],
+      [corte([8.6, 8.8], [7.8, 4.4])])
+  ];
+  S.ejc64 = [
+    P('Dos contra dos con un pasador neutral fuera, que juega siempre con quien ataca.',
+      'El comodín no bota ni tira: solo devuelve. Si juega, esto se convierte en un 3x2.',
+      [a('1', ALA_D, 1), a('2', POSTE_D), a('C', FRONTAL),
+       d('X1', [11.4, 4.4]), d('X2', [10.4, 2.6])], []),
+    P('Da una salida siempre disponible y obliga a la defensa a no dormirse en el lado del balón.',
+      'El ataque tiene que usarlo: si el comodín no toca el balón en toda la posesión, no ha servido de nada.',
+      [a('1', ALA_I), a('2', POSTE_D, 1), a('C', FRONTAL),
+       d('X1', [4.2, 4.6]), d('X2', [10.4, 2.6])],
+      [pase(ALA_D, FRONTAL), pase(FRONTAL, ALA_I), corte(ALA_D, [8.4, 4.0], ALA_I)])
+  ];
+
+  /* ---------- 3 CONTRA 3 ---------- */
+  S.ejc69 = [
+    P('Tres contra tres en media pista. No se puede tirar hasta haber dado cinco pases válidos.',
+      'Los pases de vuelta al mismo jugador no cuentan. Esa coletilla es la que hace funcionar el ejercicio.',
+      [a('1', FRONTAL, 1), a('2', ALA_D), a('3', ALA_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0])],
+      [pase(FRONTAL, ALA_D)]),
+    P('Se cuentan en voz alta. Al quinto, el primero que quede libre tira.',
+      'Contar en voz alta es del equipo, no del entrenador: así saben cuándo llega el momento.',
+      [a('1', [9.0, 4.2]), a('2', ALA_D), a('3', ALA_I, 1),
+       d('X1', [8.4, 4.8]), d('X2', [11.2, 5.0]), d('X3', [4.2, 5.2])],
+      [pase(ALA_D, ALA_I, [7.5, 6.6]), corte(FRONTAL, [9.0, 4.2])])
+  ];
+  S.ejc70 = [
+    P('Tres contra tres con la condición de que el balón tiene que entrar dentro de la zona antes de tirar.',
+      'Entrar dentro no es tirar dentro: vale con que el balón pase por ahí y vuelva a salir.',
+      [a('1', FRONTAL, 1), a('2', POSTE_D), a('3', ALA_I),
+       d('X1', [7.5, 7.0]), d('X2', [10.4, 2.6]), d('X3', [3.8, 5.0])],
+      [pase(FRONTAL, POSTE_D)]),
+    P('Cuando entra, la defensa ayuda y el balón sale fuera para tiro. Solo entonces vale la canasta.',
+      'Obliga a mirar dentro antes de tirar de fuera, que es el hábito que más cuesta crear.',
+      [a('1', FRONTAL), a('2', POSTE_D), a('3', ALA_I, 1),
+       d('X1', [7.5, 7.0]), d('X2', [9.4, 3.2]), d('X3', [4.6, 4.6])],
+      [pase(POSTE_D, ALA_I, [6.8, 4.2]), def([3.8, 5.0], [4.6, 4.6])])
+  ];
+
+  /* ---------- 4 CONTRA 4 ---------- */
+  S.ejc72 = [
+    P('Cuatro abiertos. Cada pase obliga al pasador a cortar hacia el aro.',
+      'La regla no se negocia: el que pasa y se queda quieto pierde la posesión para su equipo.',
+      [a('1', FRONTAL, 1), a('2', ALA_D), a('3', ALA_I), a('4', ESQ_D),
+       d('X1', [7.5, 7.0]), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0]), d('X4', [12.8, 2.6])],
+      [pase(FRONTAL, ALA_D)]),
+    P('El hueco que deja el que corta lo ocupa otro, de inmediato, sin que nadie lo diga.',
+      'Se reemplaza el hueco, no al compañero. Y se arranca con el pase, no después.',
+      [a('1', [9.0, 3.6]), a('2', ALA_D, 1), a('3', [5.8, 7.2]), a('4', ESQ_D),
+       d('X1', [8.4, 4.2]), d('X2', [11.2, 5.0]), d('X3', [4.8, 6.4]), d('X4', [12.8, 2.6])],
+      [corte(FRONTAL, [9.0, 3.6]), corte(ALA_I, [5.8, 7.2])])
+  ];
+  S.ejc73 = [
+    P('Cuatro contra cuatro con cinco pases mínimos antes de poder tirar.',
+      'Los pases de vuelta al mismo jugador no cuentan: si no, se resuelve con dos jugadores.',
+      [a('1', FRONTAL, 1), a('2', ALA_D), a('3', ALA_I), a('4', ESQ_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0]), d('X4', [2.2, 2.6])],
+      [pase(FRONTAL, ALA_D)]),
+    P('Se cuentan en voz alta y, al llegar, se busca el mejor tiro disponible.',
+      'Cinco pases no es tocar el balón cinco veces: es mover a la defensa cinco veces.',
+      [a('1', FRONTAL), a('2', ALA_D), a('3', ALA_I, 1), a('4', ESQ_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.2, 5.0]), d('X3', [4.2, 5.2]), d('X4', [2.2, 2.6])],
+      [pase(ALA_D, FRONTAL), pase(FRONTAL, ALA_I)])
+  ];
+  S.ejc74 = [
+    P('Cuatro contra cuatro normal. Cuando la defensa roba, el cronómetro empieza a contar.',
+      'El robo tiene que ser limpio: un balón suelto tras rebote no cuenta como robo.',
+      [a('1', FRONTAL), a('2', ALA_D), a('3', ALA_I), a('4', ESQ_D),
+       d('X1', [7.8, 7.2], 0), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0]), d('X4', [12.8, 2.6])],
+      [def([7.5, 7.0], [7.8, 7.2])]),
+    P('Todo lo que se anote en los seis segundos siguientes vale doble.',
+      'Premia correr justo después de robar, que es cuando más fácil es anotar y menos se aprovecha.',
+      [a('1', [7.6, 10.4], 1), a('2', [11.6, 10.0]), a('3', [3.6, 10.0]),
+       d('X1', [7.5, 12.0]), d('X2', [10.4, 12.2])],
+      [corte([7.8, 7.2], [7.6, 10.4]), corte(ALA_D, [11.6, 10.0]), corte(ALA_I, [3.6, 10.0])])
+  ];
+  S.ejc75 = [
+    P('Cada posesión arranca con un saque de banda en campo de ataque. Cinco segundos para sacar.',
+      'El que saca cuenta en voz alta: a los cinco segundos, balón para el otro equipo.',
+      [a('1', [14.4, 6.6], 1), a('2', [11.6, 4.2]), a('3', FRONTAL), a('4', ESQ_D),
+       d('X1', [13.2, 6.4]), d('X2', [10.8, 4.6]), d('X3', [7.5, 7.0]), d('X4', [12.8, 2.6])], []),
+    P('Se juega la posesión entera hasta canasta o hasta que la defensa recupere.',
+      'El saque es la situación que más se repite en partido y la que menos se entrena.',
+      [a('1', [12.6, 5.6]), a('2', [11.6, 4.2], 1), a('3', FRONTAL), a('4', ESQ_D),
+       d('X1', [12.4, 6.2]), d('X2', [10.8, 4.6]), d('X3', [7.5, 7.0]), d('X4', [12.8, 2.6])],
+      [pase([14.4, 6.6], [11.6, 4.2]), corte([14.4, 6.6], [12.6, 5.6])])
+  ];
+
+  /* ---------- 5 CONTRA 5 ---------- */
+  S.ejc76 = [
+    P('Partido normal, cinco contra cinco, cambiando solo la puntuación: el tiro exterior vale cuatro.',
+      'No se explica nada más. Lo interesante es ver qué hacen ellos solos con esa regla.',
+      [a('1', FRONTAL, 1), a('2', ALA_D), a('3', ALA_I), a('4', ESQ_D), a('5', POSTE_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0]), d('X4', [12.8, 2.6]), d('X5', [6.0, 2.8])],
+      []),
+    P('Se juega diez minutos y se comenta después qué ha cambiado en la ocupación del campo.',
+      'La puntuación cambia el comportamiento más que cualquier charla. Se nota en dos minutos.',
+      [a('1', FRONTAL), a('2', ALA_D, 1), a('3', ALA_I), a('4', ESQ_D), a('5', POSTE_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.4, 5.2]), d('X3', [3.8, 5.0]), d('X4', [12.8, 2.6]), d('X5', [6.0, 2.8])],
+      [pase(FRONTAL, ALA_D)])
+  ];
+  S.ejc77 = [
+    P('Quedan diez segundos. Un equipo pierde de dos y saca de banda en campo de ataque.',
+      'Con reloj de verdad y con faltas. Ensayarlo sin tensión no sirve para el domingo.',
+      [a('1', [14.4, 7.0], 1), a('2', ALA_D), a('3', ALA_I), a('4', ESQ_I), a('5', POSTE_D),
+       d('X1', [13.2, 6.8]), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0]), d('X4', [2.2, 2.6]), d('X5', [10.0, 2.8])],
+      []),
+    P('Se juega, se para y se repite con los papeles cambiados, para que los dos equipos vivan las dos situaciones.',
+      'Defender diez segundos con dos de ventaja se entrena tan poco como atacarlos, y se falla igual.',
+      [a('1', [12.4, 6.0]), a('2', ALA_D, 1), a('3', ALA_I), a('4', ESQ_I), a('5', POSTE_D),
+       d('X1', [12.4, 6.6]), d('X2', [11.4, 5.2]), d('X3', [3.8, 5.0]), d('X4', [2.2, 2.6]), d('X5', [10.0, 2.8])],
+      [pase([14.4, 7.0], ALA_D), corte([14.4, 7.0], [12.4, 6.0])])
+  ];
+  S.ejc78 = [
+    P('Dos minutos con el marcador ajustado y las faltas de equipo ya contadas.',
+      'El marcador y las faltas se escriben donde todos los vean. Si no, nadie gestiona nada.',
+      [a('1', FRONTAL, 1), a('2', ALA_D), a('3', ALA_I), a('4', ESQ_D), a('5', POSTE_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0]), d('X4', [12.8, 2.6]), d('X5', [6.0, 2.8])],
+      []),
+    P('Aparece la decisión de hacer falta o no, y a quién hacérsela.',
+      'Hacer falta también se entrena: cuándo, a quién y cómo hacerla sin arriesgar el tiro de tres.',
+      [a('1', FRONTAL), a('2', ALA_D), a('3', ALA_I, 1), a('4', ESQ_D), a('5', POSTE_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.2, 5.0]), d('X3', [3.6, 5.2]), d('X4', [12.8, 2.6]), d('X5', [6.0, 2.8])],
+      [def([3.8, 5.0], [3.6, 5.2])])
+  ];
+  S.ejc79 = [
+    P('Partido normal con el entrenador arbitrando de verdad, pitando lo que pitaría un árbitro.',
+      'Se pita y se sigue. Si se explica cada decisión, el partido se convierte en una clase.',
+      [a('1', FRONTAL, 1), a('2', ALA_D), a('3', ALA_I), a('4', ESQ_D), a('5', POSTE_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0]), d('X4', [12.8, 2.6]), d('X5', [6.0, 2.8])],
+      []),
+    P('Se explica lo justo, y solo en las paradas.',
+      'Si nunca se les pita nada, el domingo se enfadan con el árbitro. Aquí se aprende a jugar con decisiones en contra.',
+      [a('1', FRONTAL), a('2', ALA_D, 1), a('3', ALA_I), a('4', ESQ_D), a('5', POSTE_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.4, 5.2]), d('X3', [3.8, 5.0]), d('X4', [12.8, 2.6]), d('X5', [6.0, 2.8])],
+      [bote(ALA_D, [10.8, 4.4])])
+  ];
+  S.ejc80 = [
+    P('Un equipo defiende en pista y van entrando equipos nuevos a atacarle.',
+      'Se prepara el orden de entrada antes de empezar. Si no, los últimos se enfrían esperando.',
+      [a('1', FRONTAL, 1), a('2', ALA_D), a('3', ALA_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0])],
+      []),
+    P('Quien anota se queda; quien falla, sale y entra el siguiente.',
+      'Mete competición sin marcador. Cuidado con los equipos que se quedan mucho rato fuera: se rota igual.',
+      [a('1', [8.6, 4.0], 1), a('2', ALA_D), a('3', ALA_I),
+       d('X1', [8.2, 5.0]), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0])],
+      [bote(FRONTAL, [8.6, 4.0])])
+  ];
+
+  /* ---------- SUPERIORIDAD ---------- */
+  S.ejc82 = [
+    P('Salen dos contra uno hacia una canasta. El resto espera fuera, en dos filas.',
+      'Las filas se preparan antes: el ejercicio no puede pararse a organizar quién sale.',
+      [a('1', [5.6, 8.6], 1), a('2', [10.0, 8.6]), d('X', [7.5, 4.4])],
+      [corte([5.6, 8.6], [6.2, 6.0]), corte([10.0, 8.6], [9.6, 6.0])],
+      { colas: [[3.0, 11.0], [12.0, 11.0]] }),
+    P('El que tira se queda a defender y entran dos nuevos por el otro lado. Sin parar.',
+      'La fatiga es parte del ejercicio: decidir cansado es lo que pasa en el último cuarto.',
+      [a('1', [7.8, 3.2], 1), d('X', [7.4, 4.0]), a('3', [5.0, 10.6]), a('4', [10.2, 10.6])],
+      [corte([5.0, 10.6], [5.6, 12.6]), corte([10.2, 10.6], [10.0, 12.6])],
+      { colas: [[3.0, 11.0], [12.0, 11.0]] })
+  ];
+  S.ejc84 = [
+    P('La defensa coge el rebote y sale cuatro contra tres hacia la canasta contraria.',
+      'La salida empieza con el primer pase, no con el bote: botar el rebote regala la ventaja.',
+      [a('1', [7.5, 3.4], 1), a('2', [12.2, 5.0]), a('3', [2.8, 5.0]), a('4', [7.5, 6.4]),
+       d('X1', [7.5, 9.0]), d('X2', [10.6, 10.4]), d('X3', [4.4, 10.4])],
+      [pase([7.5, 3.4], [12.2, 5.0])]),
+    P('Los tres defensores cubren primero la canasta y después el balón; el ataque tiene tres segundos de ventaja.',
+      'Si el ataque administra la ventaja, la pierde. Tres pases y tiro.',
+      [a('1', [8.4, 9.0]), a('2', [12.4, 9.6], 1), a('3', [3.0, 9.6]), a('4', [7.5, 11.0]),
+       d('X1', [7.5, 12.0]), d('X2', [10.4, 11.6]), d('X3', [5.0, 11.6])],
+      [pase([12.4, 9.6], [7.5, 11.0], [10.0, 11.2])])
+  ];
+  S.ejc85 = [
+    P('Ataque de cinco contra cuatro en media pista: hay un atacante libre en todo momento.',
+      'Se empieza con los cinco bien abiertos: si se juntan, la defensa cubre a dos con uno.',
+      [a('1', FRONTAL, 1), a('2', ALA_D), a('3', ALA_I), a('4', ESQ_D), a('5', ESQ_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.2, 5.0]), d('X3', [3.8, 5.0]), d('X4', [7.5, 3.0])],
+      []),
+    P('La defensa rota para tapar al libre; el ataque mueve el balón más rápido de lo que rota la defensa.',
+      'La defensa gana tiempo rotando pronto. El ataque gana dando el pase de más, no el de menos.',
+      [a('1', FRONTAL), a('2', ALA_D), a('3', ALA_I), a('4', ESQ_D, 1), a('5', ESQ_I),
+       d('X1', [7.5, 7.0]), d('X2', [11.6, 4.2]), d('X3', [3.8, 5.0]), d('X4', [7.5, 3.0])],
+      [pase(FRONTAL, ALA_D), pase(ALA_D, ESQ_D), def([11.2, 5.0], [11.6, 4.2])])
+  ];
+
+  /* ---------- PREPARACIÓN FÍSICA con recorrido ---------- */
+  S.ejc89 = [
+    P('Salidas de cinco metros desde cuatro posiciones: de pie, sentado, de espaldas y tumbado.',
+      'La posición de salida se cambia cada serie: arrancar siempre igual entrena solo una cosa.',
+      [a('1', [7.5, 2.0])],
+      [], { conos: [[7.5, 7.0]] }),
+    P('Seis salidas con descanso completo entre cada una.',
+      'Es velocidad, no resistencia: si no se descansa entero, se está entrenando otra cosa.',
+      [a('1', [7.5, 6.6])],
+      [corte([7.5, 2.0], [7.5, 6.6])], { conos: [[7.5, 7.0]] })
+  ];
+  S.ejc90 = [
+    P('Recorrido de coordinación entre conos, con cambios de dirección cortos.',
+      'Los pies rápidos y cortos. Si se alargan los pasos, deja de ser coordinación.',
+      [a('1', [4.0, 11.0])],
+      [corte([4.0, 11.0], [5.4, 9.4], [4.0, 7.8], [5.4, 6.2])],
+      { conos: [[5.4, 9.4], [4.0, 7.8], [5.4, 6.2]] }),
+    P('Al salir del recorrido, recepción y finalización: el gesto técnico llega con los pies ya cansados.',
+      'Lo que se mira es la técnica al final, no el tiempo del recorrido.',
+      [a('1', [6.6, 4.6], 1), a('2', FRONTAL)],
+      [corte([5.4, 6.2], [6.6, 4.6]), pase(FRONTAL, [6.6, 4.6])],
+      { conos: [[5.4, 9.4], [4.0, 7.8], [5.4, 6.2]] })
+  ];
+  S.ejc95 = [
+    P('Carrera continua suave con cambios de dirección amplios, marcados con conos abiertos.',
+      'La progresión la marca el fisio, no las ganas del jugador ni el calendario de partidos.',
+      [a('1', [3.0, 2.0])],
+      [corte([3.0, 2.0], [6.0, 6.0], [3.0, 10.0], [6.0, 12.5])],
+      { conos: [[6.0, 6.0], [3.0, 10.0]] }),
+    P('Los ángulos se van cerrando sesión a sesión, según lo que indique el parte del fisioterapeuta.',
+      'Un ángulo cerrado antes de tiempo es la forma más habitual de recaer.',
+      [a('1', [6.0, 8.0])],
+      [corte([3.0, 4.0], [6.0, 6.5], [3.6, 9.0])],
+      { conos: [[6.0, 6.5], [3.6, 9.0]] })
+  ];
+  S.ejc96 = [
+    P('Tiro, entrada y bote a intensidad controlada, sin nadie enfrente.',
+      'Sin oposición y sin contacto. Es el último escalón antes de volver con el grupo.',
+      [a('1', ALA_D, 1)],
+      [bote(ALA_D, [10.6, 4.4], [9.0, 3.4])]),
+    P('Se repite el gesto completo varias veces y se para al primer aviso de molestia.',
+      'Saltarse este paso es como volver a lesionarse en dos semanas. El jugador tiene que quererlo entender.',
+      [a('1', [9.0, 3.4], 1)], [])
+  ];
+
+  var n = 0;
+  (SF.EJERCICIOS_BASE || []).forEach(function (x) {
+    if (S[x.id] && !(x.pasos || []).length) { x.pasos = S[x.id]; n++; }
+  });
+  SF.EJ_ESQUEMAS_TANDA4 = n;
+})();
+(function () {
+  var FRONTAL = [7.5, 8.0], ALA_D = [12.0, 5.3], ALA_I = [3.0, 5.3];
+  var ESQ_D = [13.6, 1.8], ESQ_I = [1.4, 1.8];
+  var POSTE_D = [9.7, 3.0], POSTE_I = [5.3, 3.0];
+  function a(n, p, b) { return { n: n, x: p[0], y: p[1], eq: 'ataque', balon: !!b }; }
+  function d(n, p) { return { n: n, x: p[0], y: p[1], eq: 'defensa' }; }
+  function pase(de, a2, c) { return { tipo: 'pase', pts: c ? [de, c, a2] : [de, a2] }; }
+  function corte() { return { tipo: 'corte', pts: [].slice.call(arguments) }; }
+  function bote() { return { tipo: 'drible', pts: [].slice.call(arguments) }; }
+  function bloq(de, a2) { return { tipo: 'pantalla', pts: [de, a2] }; }
+  function def() { return { tipo: 'defensa', pts: [].slice.call(arguments) }; }
+  function P(t, k, jug, mov, ex) {
+    var e = { jug: jug, mov: mov || [] };
+    if (ex) for (var q in ex) e[q] = ex[q];
+    return { texto: t, clave: k, esquema: e };
+  }
+  var S = {};
+
+  S.ejb1 = [
+    P('Dos filas en la línea de fondo, una a cada lado del aro.',
+      'Filas cortas: si hay más de ocho por fila, se monta una tercera. Nadie calienta esperando.',
+      [a('1', [4.4, 1.0]), a('2', [4.4, 0.4]), a('3', [10.6, 1.0]), a('4', [10.6, 0.4])], []),
+    P('Ida hasta medio campo con el desplazamiento que toque: talones, rodillas, lateral, carioca.',
+      'El desplazamiento cambia cada ida; lo que no cambia es que se llega a la línea, no antes.',
+      [a('1', [4.4, 1.0]), a('3', [10.6, 1.0])],
+      [corte([4.4, 1.0], [4.4, 13.6]), corte([10.6, 1.0], [10.6, 13.6])]),
+    P('Vuelta trotando por fuera para no cruzarse con los que suben.',
+      'Volver por fuera evita el choque y mantiene el ritmo. Es la regla que más se olvida.',
+      [a('1', [4.4, 13.6]), a('3', [10.6, 13.6])],
+      [corte([4.4, 13.6], [1.0, 10.0], [1.0, 0.8]), corte([10.6, 13.6], [14.0, 10.0], [14.0, 0.8])]),
+    P('En las tres últimas series cada jugador sube con balón, botando con la mano de fuera.',
+      'El balón entra cuando el cuerpo ya está caliente, no antes: así el bote se trabaja, no se sufre.',
+      [a('1', [4.4, 1.0], 1), a('3', [10.6, 1.0], 1)],
+      [bote([4.4, 1.0], [4.4, 13.6]), bote([10.6, 1.0], [10.6, 13.6])])
+  ];
+
+  S.ejb3 = [
+    P('Una fila tira y la otra pasa. El tirador espera en la primera de las cinco posiciones.',
+      'El pasador manda: el tiro sale cuando llega un buen pase, no cuando el tirador quiere.',
+      [a('1', ESQ_I, 0), a('2', [7.5, 9.2], 1), a('3', [7.5, 9.9])],
+      [pase([7.5, 9.2], ESQ_I)]),
+    P('Recibe con los pies ya orientados y tira sin bote.',
+      'Los pies llegan antes que el balón. Si llegan después, el tiro sale tarde y corto.',
+      [a('1', ESQ_I, 1), a('2', [7.5, 9.2])],
+      [pase(ESQ_I, [7.6, 2.6], [4.0, 5.0])]),
+    P('El tirador coge su rebote y se va a la fila de pase; el pasador pasa a tirar.',
+      'Cada uno sigue a su balón. Sin esa rotación el ejercicio se para a los dos minutos.',
+      [a('1', [5.0, 2.2], 1), a('2', [7.5, 9.2])],
+      [corte([5.0, 2.2], [7.5, 9.9]), corte([7.5, 9.2], ALA_I)]),
+    P('Se recorren las cinco posiciones: dos esquinas, dos alas y frontal.',
+      'Se cuenta por equipos hasta un número de aciertos, no por tiempo: así nadie tira por tirar.',
+      [a('1', ESQ_I), a('2', ALA_I), a('3', FRONTAL), a('4', ALA_D), a('5', ESQ_D)], [])
+  ];
+
+  S.ejb4 = [
+    P('Cuatro atacantes en los vértices de un cuadrado de conos y dos defensores dentro.',
+      'El cuadrado no se mueve: los que se mueven son los apoyos dentro de él.',
+      [a('1', [4.5, 9.5], 1), a('2', [10.5, 9.5]), a('3', [10.5, 5.0]), a('4', [4.5, 5.0]),
+       d('X', [7.0, 8.0]), d('Y', [8.0, 6.5])],
+      [], { conos: [[4.5, 9.5], [10.5, 9.5], [10.5, 5.0], [4.5, 5.0]] }),
+    P('Se mantiene la posesión pasando por fuera; el balón no puede volver a quien lo dio.',
+      'Prohibir la devolución obliga a levantar la cabeza. Es lo que hace útil el rondo.',
+      [a('1', [4.5, 9.5], 1), a('2', [10.5, 9.5]), a('3', [10.5, 5.0]), a('4', [4.5, 5.0]),
+       d('X', [7.0, 8.0]), d('Y', [8.0, 6.5])],
+      [pase([4.5, 9.5], [10.5, 9.5]), pase([10.5, 9.5], [10.5, 5.0])]),
+    P('Un atacante puede entrar al centro para recibir de apoyo y sacar el balón al otro lado.',
+      'El pase interior parte el rondo en dos. Vale más que diez pases por fuera.',
+      [a('1', [4.5, 9.5], 1), a('4', [7.5, 7.2]), a('3', [10.5, 5.0]),
+       d('X', [6.4, 8.6]), d('Y', [9.0, 6.2])],
+      [pase([4.5, 9.5], [7.5, 7.2]), pase([7.5, 7.2], [10.5, 5.0])]),
+    P('Cambio de defensores cuando roban o a los 45 segundos.',
+      'Si los de dentro no cambian nunca, dejan de defender y empiezan a pasear.',
+      [a('1', [4.5, 9.5]), a('2', [10.5, 9.5]), d('X', [9.4, 8.8]), d('Y', [5.4, 9.0])],
+      [def([9.4, 8.8], [10.4, 9.2])])
+  ];
+
+  S.ejb5 = [
+    P('Balón en el ala con su defensor; el grande sube a poner el bloqueo directo.',
+      'El bloqueador avisa con la voz y llega parado. Si llega en movimiento, es falta.',
+      [a('1', ALA_D, 1), d('X', [11.6, 6.0]), a('5', [11.0, 7.6]), d('Y', [10.2, 6.8])],
+      [bloq([11.0, 7.6], [12.3, 6.2])]),
+    P('El defensor del balón decide: pasa por encima del bloqueo o por debajo.',
+      'Por encima si el jugador tira; por debajo si no. La decisión se toma antes, no durante.',
+      [a('1', ALA_D, 1), d('X', [11.9, 6.6]), a('5', [12.3, 6.2]), d('Y', [10.6, 6.4])],
+      [def([11.6, 6.0], [11.9, 6.6])]),
+    P('El grande defiende según la respuesta del club: salta al balón, se queda o cambia.',
+      'Las tres valen; lo que no vale es que cada uno haga una distinta en la misma posesión.',
+      [a('1', [11.0, 6.4], 1), a('5', [12.6, 7.0]), d('X', [11.0, 7.0]), d('Y', [10.4, 5.8])],
+      [bote(ALA_D, [11.0, 6.4]), def([10.6, 6.4], [10.4, 5.8])]),
+    P('El ataque lee lo que le dan: tiro, penetración o pase al que continúa.',
+      'Se alternan las dos respuestas que use el club y se cambian los papeles cada cuatro repeticiones.',
+      [a('1', [10.0, 6.0], 1), a('5', [9.6, 3.2]), d('X', [10.2, 6.8]), d('Y', [9.0, 4.0])],
+      [pase([10.0, 6.0], [9.6, 3.2])])
+  ];
+
+  S.ejb6 = [
+    P('Tres atacantes suben en abanico contra dos defensores colocados en línea.',
+      'Los tres carriles se ocupan siempre: el centro conduce, las bandas corren a la altura del balón.',
+      [a('1', [7.5, 11.0], 1), a('2', [2.0, 10.4]), a('3', [13.0, 10.4]),
+       d('X', [7.5, 6.4]), d('Y', [7.5, 3.0])],
+      [bote([7.5, 11.0], [7.5, 8.2]), corte([2.0, 10.4], [2.6, 6.8]), corte([13.0, 10.4], [12.4, 6.8])]),
+    P('El balón llega a la línea de tiros libres y obliga a decidir al defensor de arriba.',
+      'Parar en la línea, no seguir botando. Quien sigue botando le resuelve la duda al defensor.',
+      [a('1', [7.5, 6.6], 1), a('2', [2.6, 5.4]), a('3', [12.4, 5.4]),
+       d('X', [7.5, 5.4]), d('Y', [7.5, 2.6])],
+      []),
+    P('Pase al lado contrario del que salta el defensor y finalización.',
+      'El pase va donde el defensor no está. Si sale el mismo lado dos veces, es que no se mira.',
+      [a('1', [7.5, 6.6]), a('3', [12.4, 5.4], 1), d('X', [6.4, 5.2]), d('Y', [9.4, 3.2])],
+      [pase([7.5, 6.6], [12.4, 5.4]), bote([12.4, 5.4], [10.4, 2.6])]),
+    P('Al acabar, dos de los tres se quedan a defender contra un nuevo trío. Sin parar.',
+      'La transición es la clave: el que falla no se queda mirando el aro, ya está corriendo al otro lado.',
+      [a('1', [6.0, 9.0]), a('2', [9.0, 9.0]), d('X', [7.5, 2.4]), d('Y', [9.6, 2.8])],
+      [corte([6.0, 9.0], [6.4, 13.4]), corte([9.0, 9.0], [8.6, 13.4])])
+  ];
+
+  S.ejb7 = [
+    P('Cinco contra cinco en media pista con la plantilla repartida por nivel.',
+      'Los equipos se hacen antes de empezar, no discutiendo en la pista.',
+      [a('1', FRONTAL, 1), a('2', ALA_I), a('3', ALA_D), a('4', POSTE_I), a('5', POSTE_D),
+       d('X1', [7.5, 6.8]), d('X2', [4.0, 4.6]), d('X3', [11.0, 4.6]),
+       d('X4', [5.8, 2.6]), d('X5', [9.2, 2.6])], []),
+    P('Se añade la regla del día: mínimo de pases, obligación de jugar por dentro o canasta doble tras robo.',
+      'Una sola regla por partido. Con dos, los jugadores dejan de jugar y se dedican a contar.',
+      [a('1', ALA_I, 1), a('2', FRONTAL), a('4', POSTE_D), a('5', POSTE_I),
+       d('X1', [4.0, 4.6]), d('X4', [9.0, 3.4])],
+      [pase(ALA_I, POSTE_D, [6.0, 6.4])]),
+    P('El entrenador para solo cuando hay algo que corregir, y corrige sobre la pista.',
+      'Parar cada dos posesiones mata el partido. Se anota y se corrige en el siguiente corte.',
+      [a('1', [9.0, 5.0], 1), a('4', [9.7, 2.8]), d('X1', [8.4, 5.8]), d('X4', [9.0, 3.6])],
+      [bote([9.0, 5.0], [9.6, 4.0])]),
+    P('Se juega a tiempo o a una puntuación, y el equipo que pierde recoge el material.',
+      'Que haya algo en juego, por pequeño que sea. Un 5x5 sin marcador se convierte en un paseo.',
+      [a('1', FRONTAL), a('2', ALA_D), d('X1', [7.5, 6.6]), d('X2', [11.4, 5.0])], [])
+  ];
+
+  S.ejb8 = [
+    P('Filas en las dos alas. Se arranca con bote hacia el aro por la línea de fondo.',
+      'El primer paso sale largo y bajo. Si sale alto, el defensor ya ha recuperado.',
+      [a('1', ALA_D, 1), a('2', [12.6, 6.0]), a('3', ALA_I, 1)],
+      [bote(ALA_D, [11.4, 3.2], [9.8, 1.9]), bote(ALA_I, [3.6, 3.2], [5.2, 1.9])]),
+    P('Desde la derecha se finaliza con la mano derecha, protegiendo con el cuerpo.',
+      'La mano de fuera es la que sube. La de dentro aguanta al defensor, no empuja.',
+      [a('1', [9.8, 1.9], 1)], [corte([9.8, 1.9], [8.4, 1.5])]),
+    P('Desde la izquierda, mano izquierda. Cinco de cada lado antes de rotar.',
+      'La mano mala se trabaja cuando no hay nadie delante. Con oposición ya es tarde.',
+      [a('3', [5.2, 1.9], 1)], [corte([5.2, 1.9], [6.6, 1.5])]),
+    P('Se repite con un defensor pasivo que llega tarde y solo estorba.',
+      'Pasivo quiere decir presente, no dormido: el jugador tiene que notar que hay alguien.',
+      [a('1', [10.4, 2.6], 1), d('X', [9.2, 2.2]), a('2', ALA_D)],
+      [corte([10.4, 2.6], [8.6, 1.6]), def([9.2, 2.2], [8.8, 1.9])])
+  ];
+
+  var n = 0;
+  (SF.EJERCICIOS_BASE || []).forEach(function (x) {
+    if (S[x.id] && !(x.pasos || []).length) { x.pasos = S[x.id]; n++; }
+  });
+  SF.EJ_ESQUEMAS_TANDA5 = n;
+})();
+
+
 
 
 
