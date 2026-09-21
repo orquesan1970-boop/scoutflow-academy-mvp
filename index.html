@@ -3214,6 +3214,110 @@ SF.packsPara = function (ctx) {
 };
 SF.packDe = function (ctx) { return SF.packsPara(ctx)[0] || null; };
 
+/* --- EL ESTADO DE LA EQUIPACIÓN DE UNA PERSONA (21/09/2026) ------------------
+   Tres preguntas que hoy había que contestar abriendo siete fichas:
+   ¿quién NO ha pedido la equipación?, ¿quién la pidió y NO la ha recogido?, y
+   ¿de esos, a quién se le puede avisar ya porque su talla está en el almacén?
+
+   La tercera es la que vale dinero: la ropa llega, se queda en la estantería
+   y nadie avisa, porque nadie sabe mirar quince fichas cruzando tallas con
+   existencias. Aquí sale solo.
+
+   NO INVENTA UN ESTADO NUEVO. Lee lo que ya hay —el pack que le toca, las
+   tallas pedidas, las entregas y el almacén— y lo resume. Si mañana cambia el
+   pack o alguien entrega una prenda en la Tienda, esto cambia con ello.     */
+SF.estadoEquipacion = function (quien, ix) {
+  var esJug = !quien.kind || quien.kind === 'jugador';
+  var ko = quien.kit_order || {};
+  var pk = SF.packDe(SF.ctxTramite(quien, esJug ? 'padre' : (quien.role || 'entrenador')));
+  var out = { pack: pk, arts: [], pendientes: [], dadas: 0, pedido: false,
+    conStock: 0, estado: 'sin_pack', talla_sin: 0 };
+  if (!pk) return out;
+
+  var arts = SF.artsDe(pk);
+  var ent = ko.entregas || {};
+  var tallas = ko.sizes || {};
+  ix = ix || SF.stockIndice();
+
+  out.arts = arts;
+  arts.forEach(function (a) {
+    var st = ent[a.id] || {};
+    if (st.estado === 'entregado') { out.dadas++; return; }
+    /* En un cambio, lo que se espera es la talla NUEVA, no la devuelta. */
+    var talla = st.cambio_a || tallas[a.label] || st.talla || '';
+    var hay = talla ? (ix[SF.claveStock(a.id, a.temporada, talla)] || 0) : 0;
+    if (!talla) out.talla_sin++;
+    if (hay > 0) out.conStock++;
+    out.pendientes.push({ art: a, talla: talla, hay: hay, cambio: st.estado === 'cambio' });
+  });
+
+  /* PEDIDO HECHO quiere decir que la familia ya ha pasado por la tienda: o lo
+     dice el estado, o hay tallas elegidas, o ya le han dado algo. Cualquiera
+     de las tres sirve; exigir las tres dejaría fuera a medio club. */
+  out.pedido = ko.status === 'pedido' || ko.status === 'entregado' ||
+    Object.keys(tallas).length > 0 || out.dadas > 0;
+
+  if (!out.pendientes.length) out.estado = 'completa';
+  else if (!out.pedido) out.estado = 'sin_pedir';
+  else if (out.conStock >= out.pendientes.length) out.estado = 'lista';
+  else if (out.conStock > 0) out.estado = 'parte';
+  else out.estado = 'sin_recoger';
+  return out;
+};
+
+SF.EQUIP_ESTADOS = {
+  sin_pedir:   { label: 'Sin pedir',            tag: 'tag-danger' },
+  sin_recoger: { label: 'Pedida, sin recoger',  tag: 'tag-warn' },
+  parte:       { label: 'Parte, lista',         tag: 'tag-purple' },
+  lista:       { label: 'Lista para recoger',   tag: 'tag-green' },
+  completa:    { label: 'Entregada',            tag: 'tag-green' },
+  sin_pack:    { label: 'Sin pack',             tag: 'tag-gray' }
+};
+
+/* El texto del aviso. Va aquí y no dentro de la pantalla porque lo usan la
+   ficha del equipo y la del jugador, y dos textos parecidos que se separan con
+   el tiempo es como se acaba prometiendo a una familia algo distinto según
+   desde dónde se le escriba. */
+SF.avisoEquipacion = function (p, eq) {
+  if (eq.estado === 'sin_pedir') {
+    var precio = eq.pack && eq.pack.precio ? eq.pack.precio + ' €' : '';
+    return {
+      kind: 'equipacion', audience: 'familias',
+      title: 'Falta el pedido de la equipación',
+      body: 'Todavía no nos consta el pedido de la equipación de ' + p.full_name + '.\n\n' +
+        (eq.pack ? eq.pack.nombre + (precio ? ' · ' + precio : '') + '\n' : '') +
+        'Incluye: ' + eq.arts.map(function (a) { return a.label; }).join(', ') + '.\n\n' +
+        'El pedido se hace en la tienda del club, eligiendo tallas. ' +
+        'Si ya lo habéis hecho, avisad y lo comprobamos.'
+    };
+  }
+  var listas = eq.pendientes.filter(function (x) { return x.hay > 0; });
+  var faltan = eq.pendientes.filter(function (x) { return x.hay <= 0; });
+  /* Si no hay NADA para recoger, esto no es un aviso de recogida: se dice lo
+     que pasa de verdad, que es que su pedido sigue sin llegar. */
+  if (!listas.length) {
+    return {
+      kind: 'equipacion', audience: 'familias',
+      title: 'La equipación todavía no ha llegado',
+      body: 'El pedido de ' + p.full_name + ' está hecho y seguimos esperando al proveedor:\n\n' +
+        faltan.map(function (x) { return '· ' + x.art.label + (x.talla ? ' · talla ' + x.talla : ' · falta elegir la talla'); }).join('\n') +
+        '\n\nEn cuanto llegue os avisamos para venir a recogerla. No hace falta que hagáis nada.'
+    };
+  }
+  return {
+    kind: 'equipacion', audience: 'familias',
+    title: listas.length === eq.pendientes.length
+      ? 'La equipación ya se puede recoger'
+      : 'Parte de la equipación ya se puede recoger',
+    body: 'Ya está en el club, lista para recoger:\n\n' +
+      listas.map(function (x) { return '· ' + x.art.label + (x.talla ? ' · talla ' + x.talla : ''); }).join('\n') +
+      (faltan.length ? '\n\nTodavía no ha llegado:\n\n' +
+        faltan.map(function (x) { return '· ' + x.art.label + (x.talla ? ' · talla ' + x.talla : ' · falta elegir la talla'); }).join('\n') : '') +
+      '\n\nSe recoge en el club, en horario de administración. ' +
+      'Al entregarla la marcamos, así que si recibís este aviso otra vez es que sigue aquí.'
+  };
+};
+
 /* Los articulos de un pack, ya resueltos a objetos. Un articulo que se haya
    borrado del catalogo no revienta la pantalla: se cae y se dice. */
 SF.artsDe = function (pk) {
@@ -22901,6 +23005,38 @@ window.SF = window.SF || {};
     } else {
       wrap.appendChild(el('<p class="hint">' + (precio ? precio + ' € · ' : '') + 'Estado: ' + kitStatus(ko.status) + (ko.requested_at ? ' · ' + esc(ko.requested_at) : '') + '</p>'));
     }
+    /* EL ESTADO, DE UNA FRASE. La lista de abajo cuenta prenda a prenda, pero
+       la pregunta de un martes es otra: ¿esta persona tiene que venir a
+       recoger algo, o todavia no? Y si tiene, se avisa desde aqui mismo: el
+       mismo aviso que manda el parte del equipo, para que la familia no
+       reciba dos textos distintos segun quien le escriba. */
+    if (pk) {
+      var eqE = SF.estadoEquipacion(p);
+      var dE = SF.EQUIP_ESTADOS[eqE.estado] || {};
+      var linea = el('<p class="hint"><span class="tag ' + dE.tag + '">' + esc(dE.label) + '</span> ');
+      if (eqE.estado === 'sin_pedir') {
+        linea.appendChild(document.createTextNode('No consta el pedido en la tienda del club.'));
+      } else if (eqE.estado === 'completa') {
+        linea.appendChild(document.createTextNode('Todo entregado.'));
+      } else {
+        linea.appendChild(document.createTextNode(
+          eqE.conStock + ' de ' + eqE.pendientes.length + ' prendas pendientes ya están en el almacén' +
+          (eqE.talla_sin ? ' · ' + eqE.talla_sin + ' sin talla elegida' : '') + '.'));
+      }
+      wrap.appendChild(linea);
+      if (canManage && eqE.estado !== 'completa') {
+        var bAv = el('<button class="btn btn-light btn-sm">' + ico('arrow') +
+          (eqE.estado === 'sin_pedir' ? 'Reclamar el pedido' : 'Avisar para que la recojan') + '</button>');
+        bAv.onclick = function () {
+          SF.store.annCreate(p.team_id || null, SF.avisoEquipacion(p, eqE), [p.id]);
+          SF.store.update(p.id, { kit_reminder_at: SF.hoyISO() });
+          U.toast('Aviso enviado a la familia'); refresh(); SF.router.render();
+        };
+        wrap.appendChild(bAv);
+        if (p.kit_reminder_at) wrap.appendChild(el('<p class="hint">Último aviso de equipación: ' + fmtDate(p.kit_reminder_at) + '</p>'));
+      }
+    }
+
     var ml = el('<div class="mini-list"></div>');
     /* Lo que se ve aqui es la ENTREGA, que es lo que pregunta la familia. Si
        solo se enseñara la talla pedida, la ficha diria "talla M" de una
@@ -27852,6 +27988,108 @@ window.SF = window.SF || {};
          sola. Se queda, en gris y diciendo que esta pendiente de revision.
          Quitarla sola seria decirle al entrenador "ya puede" sin que nadie lo
          haya mirado, y quien se juega eso es el chaval, no la app. */
+  /* --- EL PARTE DE EQUIPACIÓN DEL EQUIPO (21/09/2026) ------------------------
+     Tres listas, en el orden en que cuestan dinero:
+       1. LISTA PARA RECOGER — su talla está en el almacén y nadie ha avisado.
+          Es la única que se resuelve con un botón, y por eso va primera.
+       2. PEDIDA, SIN RECOGER — está pedida y todavía no ha llegado.
+       3. SIN PEDIR — la familia aún no ha pasado por la tienda.
+
+     El aviso se manda UNO A UNO con lo de cada uno, igual que el de
+     documentación: nadie recibe una lista con las tallas de los demás.       */
+  /* Avisar deja marca en la ficha. Sin esto, el lunes siguiente nadie sabe si
+     ya se avisó y la familia recibe el mismo mensaje cuatro veces, que es la
+     forma más rápida de que dejen de leerlos. */
+  function avisarEquipacion(p, eq, teamId) {
+    SF.store.annCreate(p.team_id || teamId || null, SF.avisoEquipacion(p, eq), [p.id]);
+    SF.store.update(p.id, { kit_reminder_at: SF.hoyISO() });
+  }
+
+  function parteEquipacion(view, roster, t, puedeAvisar) {
+    if (!roster.length) return 0;
+    var ix = SF.stockIndice();
+    var filas = roster.map(function (p) { return { p: p, eq: SF.estadoEquipacion(p, ix) }; })
+      .filter(function (x) { return x.eq.pack && x.eq.estado !== 'completa'; });
+    if (!filas.length) return 0;
+
+    var ORDEN = { lista: 0, parte: 1, sin_recoger: 2, sin_pedir: 3 };
+    filas.sort(function (a, b) { return (ORDEN[a.eq.estado] || 9) - (ORDEN[b.eq.estado] || 9); });
+
+    var listos = filas.filter(function (x) { return x.eq.estado === 'lista' || x.eq.estado === 'parte'; });
+    var sinPedir = filas.filter(function (x) { return x.eq.estado === 'sin_pedir'; });
+
+    view.appendChild(el('<p class="sec-label">Equipación del equipo</p>'));
+    var resumen = [];
+    if (listos.length) resumen.push('<b>' + listos.length + '</b> para recoger');
+    var esperando = filas.filter(function (x) { return x.eq.estado === 'sin_recoger'; }).length;
+    if (esperando) resumen.push(esperando + ' esperando a que llegue');
+    if (sinPedir.length) resumen.push('<b>' + sinPedir.length + '</b> sin pedir');
+    view.appendChild(el('<p class="hint">' + resumen.join(' · ') +
+      '. Se cruza lo que cada uno pidió con lo que hay en el almacén; al entregar en la Tienda desaparece de aquí.</p>'));
+
+    var lista = el('<div class="mini-list"></div>');
+    filas.forEach(function (x) {
+      var d = SF.EQUIP_ESTADOS[x.eq.estado] || {};
+      var detalle;
+      if (x.eq.estado === 'sin_pedir') {
+        detalle = 'No consta el pedido' + (x.eq.pack.precio ? ' · ' + x.eq.pack.precio + ' €' : '');
+      } else {
+        var pend = x.eq.pendientes.length;
+        detalle = x.eq.dadas + ' de ' + x.eq.arts.length + ' entregadas · ' +
+          (x.eq.conStock ? x.eq.conStock + ' de ' + pend + ' ya en el almacén' : 'ninguna ha llegado todavía');
+        if (x.eq.talla_sin) detalle += ' · ' + x.eq.talla_sin + ' sin talla elegida';
+      }
+      if (x.p.kit_reminder_at) detalle += ' · avisado el ' + fmtDate(x.p.kit_reminder_at);
+      var fila = el('<div class="mini-row mr-wrap"><span><b>' + esc(x.p.full_name) + '</b> ' +
+        '<span class="tag ' + d.tag + '">' + esc(d.label) + '</span>' +
+        '<br><span class="hint">' + esc(detalle) + '</span></span>' +
+        '<span class="row-actions"></span></div>');
+      var acc = fila.querySelector('.row-actions');
+      /* Sin botón cuando no hay nada que contar: a quien está esperando a que
+         llegue su ropa no se le escribe «ya la puedes recoger». Un aviso que
+         no es verdad se paga con una familia viniendo al club para nada. */
+      if (puedeAvisar && x.eq.estado !== 'sin_recoger') {
+        var bA = el('<button class="lnk">Avisar</button>');
+        bA.onclick = function () {
+          avisarEquipacion(x.p, x.eq, t ? t.id : null);
+          U.toast('Aviso enviado a la familia de ' + x.p.full_name); SF.router.render();
+        };
+        acc.appendChild(bA);
+      }
+      var bF = el('<button class="lnk">Ficha</button>');
+      bF.onclick = function () { location.hash = '#/jugador/' + x.p.id; };
+      acc.appendChild(bF);
+      lista.appendChild(fila);
+    });
+    view.appendChild(lista);
+
+    if (puedeAvisar && (listos.length || sinPedir.length)) {
+      var barra = el('<div class="row-c"></div>');
+      if (listos.length) {
+        var b1 = el('<button class="btn btn-primary btn-sm">' + ico('arrow') +
+          'Avisar a los ' + listos.length + ' que ya la pueden recoger</button>');
+        b1.onclick = function () {
+          if (!confirm('Se enviará a cada familia un aviso con SUS prendas y SUS tallas. ¿Seguimos?')) return;
+          listos.forEach(function (x) { avisarEquipacion(x.p, x.eq, t ? t.id : null); });
+          U.toast(listos.length + ' avisos enviados'); SF.router.render();
+        };
+        barra.appendChild(b1);
+      }
+      if (sinPedir.length) {
+        var b2 = el('<button class="btn btn-light btn-sm">' + ico('arrow') +
+          'Reclamar el pedido a ' + sinPedir.length + '</button>');
+        b2.onclick = function () {
+          if (!confirm('Se enviará a cada familia un recordatorio de que falta su pedido. ¿Seguimos?')) return;
+          sinPedir.forEach(function (x) { avisarEquipacion(x.p, x.eq, t ? t.id : null); });
+          U.toast(sinPedir.length + ' recordatorios enviados'); SF.router.render();
+        };
+        barra.appendChild(b2);
+      }
+      view.appendChild(barra);
+    }
+    return filas.length;
+  }
+
   function parteDelEquipo(view, roster, opciones) {
     var op = opciones || {};
     var tocados = roster.map(function (p) { return { p: p, c: SF.consigna(p) }; })
@@ -27925,6 +28163,7 @@ window.SF = window.SF || {};
          proxima cita: es lo unico de esta pantalla que puede hacer daño si no
          se lee. */
       parteDelEquipo(view, roster);
+      parteEquipacion(view, roster, t, canManageThisTeam(t));
 
       /* --- Comunicados del club pendientes de reenviar --- */
       var meS = SF.store.staffMe();
@@ -28253,6 +28492,9 @@ window.SF = window.SF || {};
        direccion y el preparador fisico, que son justo quienes montan la carga
        de la semana. */
     parteDelEquipo(view, roster);
+    /* La equipacion va aqui arriba, con el parte: son las dos cosas que se
+       resuelven ENTRANDO al equipo, no buscando jugador a jugador. */
+    parteEquipacion(view, roster, t, canManageThisTeam(t));
 
     // Plantilla
     view.appendChild(el('<p class="sec-label">Plantilla</p>'));
