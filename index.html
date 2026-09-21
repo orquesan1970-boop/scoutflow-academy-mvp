@@ -2083,6 +2083,22 @@ table.alm td.alm-na{color:#CFCDD8;background:#FBFBFD}
    marcar de corrido, y hay ejercicios que valen para mini y para cadete pero
    no para infantil. La regla global pone width:100% a todo input, asi que la
    casilla necesita su width:auto o rompe la fila. */
+/* La entrada por factura. Cada línea es una ficha con sus tres decisiones
+   —artículo, talla y cantidad— porque una tabla con selects dentro no se puede
+   usar en un móvil, y el albarán se repasa muchas veces de pie en el almacén. */
+.fac textarea{width:100%;margin-top:8px}
+.fac-cab{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0 0}
+.fac-cab label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);flex:1 1 150px}
+.fac-cab input{width:100%}
+.fac-lineas{margin-top:12px;display:grid;gap:8px}
+.fac-l{border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:var(--surface)}
+.fac-l.fac-incompleta{border-color:var(--danger);background:var(--danger-bg)}
+.fac-txt{font-size:13px;line-height:1.45}
+.fac-campos{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.fac-campos select{width:auto;flex:1 1 170px;min-width:0}
+.fac-campos input{width:90px}
+.fac-mal{margin:6px 0 0;font-size:12px;color:var(--danger-ink)}
+.fac-mal:empty{display:none}
 /* Importar una hoja. La propuesta se lee como una lista de fichas, no como un
    formulario: lo que se hace aqui es decidir cual entra, no rellenar campos. */
 .imp textarea{width:100%;margin-top:8px}
@@ -11638,6 +11654,11 @@ SF.store = (function () {
            ropa del año pasado -que pasa, con un fichaje tardio- descontaria de
            las existencias de este. */
         temporada: m.temporada || art.temporada || SF.SEASON,
+        /* DOS FECHAS, y no es redundancia: `fecha` es cuando entró o salió de
+           verdad -una caja que llegó el viernes y se mete el lunes entró el
+           viernes- y `at` es cuando se apuntó. Con una sola, o el histórico
+           miente o no se puede auditar quién apuntó qué y cuándo. */
+        fecha: m.fecha || SF.hoyISO(),
         talla: m.talla, delta: m.delta, motivo: m.motivo || 'entrada',
         pack_id: m.pack_id || null,
         player_id: m.player_id || null, staff_id: m.staff_id || null,
@@ -16250,7 +16271,7 @@ window.SF = window.SF || {};
                 '<br><span class="hint">' + esc(mo.label) +
                 (m.nota ? ' · ' + esc(m.nota) : '') + '</span>' +
                 '</span><span class="row-actions"><span class="hint">' +
-                fmtDate((m.at || '').slice(0, 10)) + (hora ? ' a las ' + hora : '') +
+                fmtDate((m.fecha || m.at || '').slice(0, 10)) + (m.fecha ? '' : (hora ? ' a las ' + hora : '')) +
                 '<br>' + esc(m.por || '—') + '</span></span></div>'));
             });
             body.appendChild(lh);
@@ -18328,6 +18349,11 @@ window.SF = window.SF || {};
         var bE = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Entrada de mercancía</button>');
         bE.onclick = function () { modalEntrada(lista, paint); };
         out.appendChild(bE);
+        /* Un pedido de septiembre son trescientas prendas: a mano es media
+           mañana y un error que no se ve hasta junio. */
+        var bF = el('<button class="btn btn-primary btn-sm">' + ico('file') + 'Entrada por albarán</button>');
+        bF.onclick = function () { modalFactura(lista, paint); };
+        out.appendChild(bF);
       }
 
       out.appendChild(el('<p class="hint">Cada número es la <b>suma de sus movimientos</b>, no una cifra que ' +
@@ -18377,11 +18403,320 @@ window.SF = window.SF || {};
     U.modal('Almacén — ' + art.label, box);
   }
 
+  /* --- ENTRADA POR FACTURA (21/09/2026) --------------------------------------
+     Un pedido de septiembre son trescientas prendas en trece tallas. Meterlo a
+     mano es media mañana y un error garantizado, y ese error no se ve hasta
+     junio, cuando el almacén y la estantería ya no dicen lo mismo.
+
+     Se sube la factura o el albarán —PDF, foto o texto pegado—, se leen sus
+     líneas, se emparejan con NUESTRO catálogo y se repasan en una tabla. El
+     almacén no se mueve hasta que alguien pulsa el botón.
+
+     TRES COSAS QUE NO SE NEGOCIAN:
+     - Nada entra sin repasar. Una línea sin artículo o sin talla no se puede
+       meter, y se ve en rojo antes de pulsar nada.
+     - La misma factura dos veces avisa. Es el error más caro y el más fácil de
+       cometer: duplicar un pedido entero de golpe.
+     - Queda escrito de dónde salió cada movimiento: proveedor y número de
+       factura van en la nota. Un almacén que no sabe explicar sus números
+       vuelve a ser una hoja de cálculo. */
+  function modalFactura(lista, refresh) {
+    var box = el('<div class="fac"></div>');
+    var propuesta = null, cargando = false, archivo = null;
+
+    box.appendChild(el('<p class="hint" style="margin-top:0">Sube el albarán de entrega ' +
+      '—o la factura, si es lo que te mandan— en PDF o foto, o pega sus líneas. Se emparejan ' +
+      'con el catálogo y las repasas antes ' +
+      'de que toquen el almacén.</p>'));
+
+    var zona = el('<div class="imp-entrada"></div>');
+    var inFile = el('<input type="file" id="facf" accept=".pdf,.csv,.txt,image/*">');
+    var nomFile = el('<span class="hint"></span>');
+    zona.appendChild(el('<label for="facf" class="btn btn-light">Elegir el archivo</label>'));
+    zona.appendChild(inFile); zona.appendChild(nomFile);
+    box.appendChild(zona);
+    inFile.onchange = function () {
+      archivo = this.files && this.files[0] ? this.files[0] : null;
+      nomFile.textContent = archivo ? archivo.name : '';
+    };
+
+    var ta = el('<textarea id="fact" rows="5" placeholder="…o pega aquí las líneas del albarán"></textarea>');
+    box.appendChild(ta);
+
+    /* La cabecera del documento. La FECHA es la de la entrada real, no la de
+       hoy: una caja que llegó el viernes y se mete el lunes entró el viernes, y
+       si no se puede decir, el histórico miente. */
+    var cab = el('<div class="fac-cab">' +
+      '<label>Fecha de entrada<input type="date" id="facfecha" value="' + SF.hoyISO() + '"></label>' +
+      '<label>Proveedor<input id="facprov" placeholder="Quién lo manda"></label>' +
+      '<label>Nº de albarán<input id="facnum" placeholder="El que traiga el papel"></label></div>');
+    box.appendChild(cab);
+
+    var aviso = el('<p class="imp-aviso"></p>');
+    box.appendChild(aviso);
+    function pintaAviso(t, tipo) { aviso.textContent = t || ''; aviso.className = 'imp-aviso' + (tipo ? ' ' + tipo : ''); }
+
+    var tabla = el('<div class="fac-lineas"></div>');
+    box.appendChild(tabla);
+
+    /* ---- el emparejador de casa, para cuando no hay IA ----
+       Compara palabras: "CAMISETA JUEGO MORADA T-M 6" contra cada artículo del
+       catálogo, y se queda con el que más palabras comparte. Es tosco y lo
+       dice; sirve para un albarán escrito en texto, no para una foto. */
+    function normaliza(s) {
+      return String(s || '').toLowerCase()
+        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9ª\s]/g, ' ').replace(/\s+/g, ' ').trim();
+    }
+    function leerBasico(txt) {
+      var arts = lista.map(function (a) {
+        return { a: a, pal: normaliza(a.label).split(' ').filter(function (w) { return w.length > 2; }) };
+      });
+      var out = [];
+      String(txt).split('\n').forEach(function (linea) {
+        var t = linea.trim(); if (t.length < 4) return;
+        var n = normaliza(t), pals = n.split(' ');
+        var mejor = null, mejorN = 0;
+        /* Se comparan RAÍCES de cinco letras: el proveedor escribe "MORADO" y
+           el catálogo dice "morada", y "camisetas" no es "camiseta". Sin esto,
+           media factura se queda sin emparejar por una vocal. */
+        var raices = pals.map(function (w) { return w.slice(0, 5); });
+        arts.forEach(function (x) {
+          var c = x.pal.filter(function (w) { return raices.indexOf(w.slice(0, 5)) >= 0; }).length;
+          if (c > mejorN) { mejorN = c; mejor = x.a; }
+        });
+        if (mejorN < 2) return;              // con una palabra suelta no se empareja nada
+        /* LA TALLA, en este orden: lo que venga detrás de "talla", "t-" o "t.",
+           y si no, cualquier palabra que sea una talla suya. Con tallas
+           numéricas (6, 8, 10, 12) esto importa: en "6 x SUDADERA TALLA 12",
+           el 6 son unidades y el 12 es la talla, y al revés es un error que
+           además cuadra de totales, o sea que no se ve. */
+        var tallas = SF.tallasArt(mejor), talla = '', usadaTalla = -1;
+        var mT = n.match(/\b(?:talla|tall|tlla|t)\s*[-.]?\s*([a-z0-9]{1,4})\b/);
+        if (mT) {
+          var cand = mT[1];
+          tallas.forEach(function (tt) { if (!talla && normaliza(tt) === cand) talla = tt; });
+          if (talla) usadaTalla = pals.lastIndexOf(cand);
+        }
+        if (!talla) {
+          tallas.forEach(function (tt) {
+            var k = pals.indexOf(normaliza(tt));
+            if (!talla && k >= 0) { talla = tt; usadaTalla = k; }
+          });
+        }
+        /* LAS UNIDADES: "12 x", "x 12", "12 uds" o, si no hay ninguna de esas
+           formas, el primer número que no sea la talla. */
+        var cant = 0;
+        var mC = n.match(/\b(\d{1,4})\s*(?:x|uds?|unidades|pares)\b/) || n.match(/\b(?:x|cant(?:idad)?)\s*(\d{1,4})\b/);
+        if (mC) cant = +mC[1];
+        if (!cant) {
+          for (var q = 0; q < pals.length; q++) {
+            if (q === usadaTalla) continue;
+            if (/^\d{1,4}$/.test(pals[q])) { cant = +pals[q]; break; }
+          }
+        }
+        out.push({ art_id: mejor.id, texto: t.slice(0, 200), talla: talla,
+          cantidad: (cant > 0 && cant <= 5000) ? cant : 0, precio_unit: null,
+          dudoso: '', talla_rara: false });
+      });
+      return out;
+    }
+
+    var MOTIVOS = {
+      sin_clave: 'Este ScoutFlow no tiene la IA activada.',
+      sin_gemini: 'Para leer un PDF o una foto hace falta Gemini.',
+      muy_grande: 'El archivo pasa de 12 MB. Prueba a mandar solo las páginas del detalle.',
+      sin_catalogo: 'No hay artículos en el catálogo con los que emparejar.',
+      archivo: 'No se ha podido abrir ese archivo.',
+      sin_texto: 'Ese archivo no traía texto que leer.',
+      sin_lineas: 'Se ha leído el documento, pero no se ha reconocido ninguna línea de artículo.',
+      proveedor: 'La IA ha contestado con un error.'
+    };
+
+    var bLeer = el('<button class="btn btn-primary">Leer el albarán</button>');
+    bLeer.onclick = function () {
+      if (cargando) return;
+      var txt = ta.value.trim();
+      if (!archivo && !txt) { U.toast('Sube el albarán o pega sus líneas'); return; }
+      cargando = true; bLeer.disabled = true; bLeer.textContent = 'Leyendo…';
+      pintaAviso('', ''); tabla.innerHTML = '';
+
+      var catalogo = lista.map(function (a) {
+        return { id: a.id, label: a.label, tallas: SF.tallasArt(a) };
+      });
+
+      function fin() { cargando = false; bLeer.disabled = false; bLeer.textContent = 'Leer el albarán'; }
+
+      function conCuerpo(cuerpo) {
+        cuerpo.catalogo = catalogo;
+        fetch('/api/factura', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(cuerpo) })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (d && d.ok) {
+              propuesta = d.lineas;
+              if (d.proveedor) cab.querySelector('#facprov').value = d.proveedor;
+              if (d.numero) cab.querySelector('#facnum').value = d.numero;
+              if (d.fecha) cab.querySelector('#facfecha').value = d.fecha;
+              pintaLineas('la IA', true);
+              avisaDuplicado();
+            } else respaldo(d && d.motivo);
+          })
+          .catch(function () { respaldo('sin_servidor'); })
+          .then(fin);
+      }
+
+      function respaldo(motivo) {
+        var basico = ta.value.trim() ? leerBasico(ta.value) : [];
+        var porQue = MOTIVOS[motivo] || (motivo === 'sin_servidor'
+          ? 'No hay conexión con el servidor, así que la IA no ha podido leerla.'
+          : 'No se ha podido leer con la IA.');
+        if (basico.length) {
+          propuesta = basico; pintaLineas('el emparejador básico', false);
+          pintaAviso(porQue + ' Esto lo ha emparejado el buscador de palabras del propio ' +
+            'ScoutFlow: repasa artículo, talla y cantidad línea a línea.', 'ama');
+          avisaDuplicado();
+        } else {
+          propuesta = null;
+          pintaAviso(porQue + (archivo ? ' Prueba a pegar las líneas como texto.' : ''), 'mal');
+        }
+      }
+
+      if (archivo) {
+        var fr = new FileReader();
+        fr.onload = function () {
+          var s = String(fr.result || ''), i = s.indexOf(',');
+          conCuerpo({ archivo: i >= 0 ? s.slice(i + 1) : s, mime: archivo.type || '', texto: txt });
+        };
+        fr.onerror = function () { respaldo('archivo'); fin(); };
+        fr.readAsDataURL(archivo);
+      } else conCuerpo({ texto: txt });
+    };
+
+    /* El error más caro: meter dos veces el mismo pedido. Se busca el número de
+       factura en las notas de los movimientos que ya hay. */
+    function avisaDuplicado() {
+      var num = cab.querySelector('#facnum').value.trim();
+      if (!num) return;
+      var busca = num.toLowerCase();
+      var ya = SF.store.movs().filter(function (m) {
+        var t = (m.nota || '').toLowerCase();
+        /* Los dos nombres: el papel se llama albarán, pero hay proveedores que
+           mandan la factura directamente y así una cosa no se cuela por la
+           otra. */
+        return t.indexOf('albarán ' + busca) >= 0 || t.indexOf('albaran ' + busca) >= 0 ||
+               t.indexOf('factura ' + busca) >= 0;
+      });
+      if (ya.length) {
+        pintaAviso('⚠ El albarán ' + num + ' ya se metió (' + ya.length +
+          ' movimientos, el ' + fmtDate((ya[0].fecha || ya[0].at || '').slice(0, 10)) +
+          '). Si la metes otra vez, el almacén contará el doble.', 'mal');
+      }
+    }
+
+    function pintaLineas(quienLeyo, deIA) {
+      tabla.innerHTML = '';
+      if (!propuesta || !propuesta.length) return;
+      tabla.appendChild(el('<p class="sec-label">' + propuesta.length +
+        (propuesta.length === 1 ? ' línea leída por ' : ' líneas leídas por ') + esc(quienLeyo) + '</p>'));
+      propuesta.forEach(function (L, i) {
+        var f = el('<div class="fac-l"></div>');
+        /* Premarcado SOLO cuando lo ha leído la IA. Lo que empareja el buscador
+           de palabras se marca a mano: es un ayudante, no una fuente. */
+        var cabL = el('<label class="imp-cab"><input type="checkbox" data-i="' + i + '"' +
+          (deIA && L.art_id && L.cantidad > 0 && L.talla ? ' checked' : '') + '>' +
+          '<span class="fac-txt">' + esc(L.texto || '(sin texto)') + '</span></label>');
+        f.appendChild(cabL);
+        var fila = el('<div class="fac-campos"></div>');
+
+        var selA = el('<select></select>');
+        selA.appendChild(el('<option value="">¿Qué artículo es?</option>'));
+        lista.forEach(function (a) {
+          selA.appendChild(el('<option value="' + esc(a.id) + '"' +
+            (a.id === L.art_id ? ' selected' : '') + '>' + esc(a.label) + '</option>'));
+        });
+        var selT = el('<select></select>');
+        function pintaT() {
+          var art = lista.filter(function (a) { return a.id === selA.value; })[0];
+          var tallas = art ? SF.tallasArt(art) : [];
+          selT.innerHTML = '<option value="">¿Talla?</option>' + tallas.map(function (t) {
+            return '<option' + (t === L.talla ? ' selected' : '') + '>' + esc(t) + '</option>';
+          }).join('');
+          L.talla = selT.value;
+        }
+        selA.onchange = function () { L.art_id = this.value || null; pintaT(); revisa(); };
+        selT.onchange = function () { L.talla = this.value; revisa(); };
+        pintaT();
+        var inC = el('<input type="number" min="0" max="5000" value="' + (L.cantidad || '') + '" placeholder="uds">');
+        inC.oninput = function () { L.cantidad = +this.value || 0; revisa(); };
+
+        fila.appendChild(selA); fila.appendChild(selT); fila.appendChild(inC);
+        f.appendChild(fila);
+        if (L.dudoso) f.appendChild(el('<p class="imp-dudoso">No se lee con seguridad: ' + esc(L.dudoso) + '</p>'));
+        if (L.talla_rara) f.appendChild(el('<p class="imp-dudoso">La talla «' + esc(L.talla) +
+          '» no es de las que tiene este artículo. Elígela a mano.</p>'));
+        var pega = el('<p class="fac-mal"></p>');
+        f.appendChild(pega);
+        function revisa() {
+          var mal = !L.art_id ? 'Falta decir qué artículo es.'
+            : !L.talla ? 'Falta la talla.'
+            : !(L.cantidad > 0) ? 'Falta la cantidad.' : '';
+          pega.textContent = mal;
+          f.classList.toggle('fac-incompleta', !!mal);
+          var c = cabL.querySelector('input');
+          if (mal) { c.checked = false; c.disabled = true; } else { c.disabled = false; }
+        }
+        revisa();
+        tabla.appendChild(f);
+      });
+      tabla.appendChild(el('<p class="hint">Lo que no marques no entra. Una línea a la que le ' +
+        'falte artículo, talla o cantidad no se puede marcar: complétala o déjala fuera.</p>'));
+      bMeter.style.display = '';
+    }
+
+    var foot = el('<div class="modal-actions"></div>');
+    foot.appendChild(bLeer);
+    var bMeter = el('<button class="btn btn-primary">Meter en el almacén</button>');
+    bMeter.style.display = 'none';
+    bMeter.onclick = function () {
+      if (!propuesta) return;
+      var marcadas = [];
+      tabla.querySelectorAll('.imp-cab input').forEach(function (c) {
+        if (c.checked) marcadas.push(propuesta[+c.dataset.i]);
+      });
+      if (!marcadas.length) { U.toast('No has marcado ninguna línea'); return; }
+      var fecha = cab.querySelector('#facfecha').value || SF.hoyISO();
+      var prov = cab.querySelector('#facprov').value.trim();
+      var num = cab.querySelector('#facnum').value.trim();
+      var uds = marcadas.reduce(function (s, L) { return s + L.cantidad; }, 0);
+      if (!confirm('Van a entrar ' + uds + ' prendas en ' + marcadas.length +
+        (marcadas.length === 1 ? ' línea' : ' líneas') + ', con fecha ' + fmtDate(fecha) + '.\n\n¿Seguimos?')) return;
+      var nota = [prov, num ? 'albarán ' + num : ''].filter(Boolean).join(' · ');
+      marcadas.forEach(function (L) {
+        SF.store.movCrear({ art_id: L.art_id, talla: L.talla, delta: L.cantidad,
+          motivo: 'entrada', fecha: fecha, nota: nota });
+      });
+      U.closeModal();
+      U.toast(uds + ' prendas en el almacén');
+      refresh(); SF.router.render();
+    };
+    foot.appendChild(bMeter);
+    var bC = el('<button class="btn">Cerrar</button>'); bC.onclick = U.closeModal;
+    foot.appendChild(bC);
+    box.appendChild(foot);
+
+    U.modal('Entrada por albarán', box);
+  }
+
   /* Llega el pedido del proveedor: un artículo, varias tallas de golpe. Meterlo
      talla a talla son trece modales para una caja. */
   function modalEntrada(lista, refresh) {
     var box = el('<div></div>');
     box.appendChild(el('<p class="hint">Lo que ha llegado. Deja en blanco lo que no venga en la caja.</p>'));
+    var cabF = el('<div class="fac-cab">' +
+      '<label>Fecha de entrada<input type="date" id="entfecha" value="' + SF.hoyISO() + '"></label>' +
+      '<label>Nota <span class="hint">proveedor, nº de albarán…</span><input id="entnota" placeholder="Opcional"></label></div>');
+    box.appendChild(cabF);
     var sel = el('<div class="filters"><select id="ar">' +
       lista.map(function (a2) { return '<option value="' + esc(a2.id) + '">' + esc(a2.label) + '</option>'; }).join('') +
       '</select></div>');
@@ -18406,7 +18741,9 @@ window.SF = window.SF || {};
       g.querySelectorAll('input[data-t]').forEach(function (i) {
         var v = parseInt(i.value, 10);
         if (v > 0) {
-          SF.store.movCrear({ art_id: artId, talla: i.dataset.t, delta: v, motivo: 'entrada' });
+          SF.store.movCrear({ art_id: artId, talla: i.dataset.t, delta: v, motivo: 'entrada',
+            fecha: cabF.querySelector('#entfecha').value || SF.hoyISO(),
+            nota: cabF.querySelector('#entnota').value.trim() });
           n++; u += v;
         }
       });
@@ -18659,7 +18996,10 @@ window.SF = window.SF || {};
         '<br><span class="hint">' + esc(mo.label) + (quien ? ' · ' + esc(quien) : '') +
         ' · temporada ' + esc(m.temporada || '') + '</span>' +
         (m.nota ? '<br><span class="hint">' + esc(m.nota) + '</span>' : '') +
-        '</span><span class="row-actions"><span class="hint">' + fmtDate((m.at || '').slice(0, 10)) +
+        '</span><span class="row-actions"><span class="hint">' +
+        fmtDate((m.fecha || m.at || '').slice(0, 10)) +
+        (m.fecha && m.fecha !== (m.at || '').slice(0, 10)
+          ? ' <span class="hint">(apuntado el ' + fmtDate((m.at || '').slice(0, 10)) + ')</span>' : '') +
         ' · ' + esc(m.por || '') + '</span></span></div>'));
     });
     body.appendChild(l);
