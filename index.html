@@ -26317,6 +26317,63 @@ window.SF = window.SF || {};
     view.appendChild(env);
   };
 
+  /* EL PEDIDO DE ROPA DE UNA PERSONA DEL STAFF.
+     Hasta ahora la ficha decia "pendiente de pedir" y no habia forma de
+     pedirlo: el club acababa recogiendo las tallas por WhatsApp y
+     copiandolas a mano, que es justo el paso donde se pierden.
+
+     Las tallas de cada prenda son LAS SUYAS -`SF.tallasArt`-, no una lista
+     global: una camiseta de escuelas va por numeros y un chandal de
+     entrenador por letras, y ofrecer las trece juntas es pedir un error.
+
+     Lo rellena la propia persona desde Mi ficha, o administracion por ella.
+     Guardar marca el pedido como hecho: es lo que hace que deje de salir en
+     rojo en la lista y pase a esperar al proveedor. */
+  function modalPedidoStaff(s, eq) {
+    var ko = s.kit_order || {};
+    var tallas = ko.sizes || {};
+    var ex = {};
+    (ko.extras || []).forEach(function (e) { if (e && e.art_id) ex[e.art_id] = e.talla || ''; });
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint" style="margin-top:0">La ropa que le da el club esta temporada. ' +
+      'Elige la talla de cada prenda; lo que se deje sin elegir no se puede pedir ni buscar en el almacén.</p>'));
+    var grid = el('<div class="form-grid"></div>');
+    eq.arts.forEach(function (a2) {
+      var actual = tallas[a2.label] || ex[a2.id] || '';
+      var suelta = eq.extras.some(function (x) { return x.id === a2.id; });
+      grid.appendChild(el('<div class="frow"><label>' + esc(a2.label) +
+        (suelta ? ' <span class="hint">suelta</span>' : '') + '</label>' +
+        '<select data-a="' + esc(a2.id) + '" data-l="' + esc(a2.label) + '">' +
+        '<option value="">Sin elegir</option>' +
+        SF.tallasArt(a2).map(function (t) {
+          return '<option' + (t === actual ? ' selected' : '') + '>' + esc(t) + '</option>';
+        }).join('') + '</select></div>'));
+    });
+    box.appendChild(grid);
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+      '<button class="btn btn-primary">Guardar el pedido</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var sizes = {}, extras = (ko.extras || []).slice(), n = 0;
+      grid.querySelectorAll('select[data-a]').forEach(function (sel) {
+        if (!sel.value) return;
+        n++;
+        sizes[sel.dataset.l] = sel.value;
+        /* Si la prenda es suelta, la talla se guarda TAMBIEN en ella: asi la
+           prenda sabe su talla aunque alguien cambie el pack o la etiqueta. */
+        extras.forEach(function (e) { if (e.art_id === sel.dataset.a) e.talla = sel.value; });
+      });
+      var nuevo = Object.assign({}, ko, { sizes: sizes, extras: extras });
+      if (n) { nuevo.status = 'pedido'; nuevo.requested_at = ko.requested_at || SF.hoyISO(); }
+      SF.store.staffUpdate(s.id, { kit_order: nuevo }, 'Pedido de ropa: ' + n + ' tallas elegidas');
+      U.closeModal();
+      U.toast(n ? 'Pedido guardado' : 'Sin tallas elegidas');
+      SF.router.render();
+    };
+    box.appendChild(foot);
+    U.modal('Pedido de ropa — ' + s.full_name, box);
+  }
+
   /* Darle una prenda suelta a alguien del staff. Dos decisiones y ya: qué
      prenda y qué talla. La talla se pide aqui y no despues porque sin talla
      la prenda no se puede buscar en el almacen, y entonces el aviso de "ya la
@@ -26694,6 +26751,16 @@ window.SF = window.SF || {};
         lr.appendChild(filaR);
       });
       view.appendChild(lr);
+      /* EL PEDIDO. Lo rellena la propia persona desde Mi ficha, o
+         administración por ella: las tallas las sabe el interesado, pero quien
+         las persigue en septiembre es administración. */
+      if (eqS.tiene && (isMine || isAdminRole())) {
+        var hayTallas = Object.keys((s.kit_order || {}).sizes || {}).length > 0;
+        var bP = el('<button class="btn ' + (hayTallas ? 'btn-light' : 'btn-primary') + ' btn-sm">' +
+          ico('edit') + (hayTallas ? 'Cambiar las tallas' : 'Elegir las tallas y pedir') + '</button>');
+        bP.onclick = function () { modalPedidoStaff(s, eqS); };
+        view.appendChild(bP);
+      }
       /* Dar una prenda suelta a quien no tiene pack es la mitad de los casos
          del club: al delegado un polo, a la administrativa un chándal. */
       if (isAdminRole()) {
