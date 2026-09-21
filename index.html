@@ -8207,6 +8207,14 @@ SF.cuerpoDeCampo = function (teamId) {
 
 /* Estado de habilitación para la temporada en curso.
    Sin fila de esta temporada -> NO habilitado. La caducidad es automática. */
+/* Lo que se lee como función de alguien del staff: su puesto escrito a mano
+   si lo tiene («Nutricionista»), y si no, el nombre de su rol. */
+SF.staffPuesto = function (s) {
+  if (!s) return '';
+  if (s.puesto) return s.puesto;
+  if (!s.role) return 'Sin acceso a la app';
+  return (SF.ROLES[s.role] || {}).label || s.role;
+};
 SF.staffStatus = function (s) {
   var c = s.clearance || {}, l = s.licence || {};
   var okClear = !!(c.cleared && c.season === SF.SEASON);
@@ -11442,6 +11450,35 @@ SF.store = (function () {
     /* ---- STAFF ---- */
     staff: function () { return db().staff.slice(); },
     staffGet: function (id) { return db().staff.filter(function (s) { return s.id === id; })[0] || null; },
+    /* Alta de una persona del staff. Número correlativo (S-006…), ficha en
+       borrador y SIN habilitar: la habilitación la da quien compruebe el
+       certificado, no el alta. Los roles de familia y jugador no son staff. */
+    staffCrear: function (obj) {
+      obj = obj || {};
+      var nombre = String(obj.full_name || '').trim();
+      if (!nombre) return null;
+      var rol = obj.role || '';
+      if (rol && (!SF.ROLES[rol] || rol === 'padre' || rol === 'jugador')) return null;
+      var d = db(); d.staff = d.staff || [];
+      var who = (SF.USERS || {})[d.role] || d.role;
+      var lab = (SF.ROLES[d.role] || {}).label || d.role;
+      var s = {
+        id: 's' + Date.now() + Math.floor(Math.random() * 1000),
+        num: d.staff.reduce(function (m, x) { return Math.max(m, x.num || 0); }, 0) + 1,
+        full_name: nombre, role: rol, puesto: String(obj.puesto || '').trim().slice(0, 40),
+        email: obj.email || '', phone: obj.phone || '',
+        team_ids: (obj.team_ids || []).slice(),
+        bio: '', qualification: obj.qualification || '', qual_entity: '', qual_year: null, qual_number: '',
+        languages: '', licence: {}, clearance: {}, experience: [], training: [], cv_file: '',
+        lock: { state: 'borrador' },
+        history: [{ at: new Date().toISOString(), by: who, role: lab,
+          action: 'Alta en el staff' + (obj.puesto ? ' como ' + obj.puesto : '') }]
+      };
+      d.staff.push(s);
+      espejoCoaches(d);
+      save(d);
+      return s;
+    },
     /* Quién soy yo: en la demo, el primer staff con mi rol. En producción
        saldrá del usuario autenticado. */
     staffMe: function () {
@@ -17826,7 +17863,7 @@ window.SF = window.SF || {};
       staffMal.forEach(function (x) {
         var s = x.s;
         var av = s.doc_reminder_at ? '<span class="hint">avisado ' + fmtDate(s.doc_reminder_at) + '</span> ' : '';
-        var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> <span class="hint">' + SF.staffCode(s.num) + ' · ' + esc(roleLabel(s.role)) + '</span><br>' +
+        var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> <span class="hint">' + SF.staffCode(s.num) + ' · ' + esc(SF.staffPuesto(s)) + '</span><br>' +
           x.pend.map(function (d) {
             return '<span class="tag ' + (d.grave ? 'tag-danger' : 'tag-warn') + '">' + esc(d.label) + '</span>';
           }).join(' ') + '</span>' +
@@ -18435,7 +18472,7 @@ window.SF = window.SF || {};
         }
         return !ft || (s.team_ids || []).indexOf(ft) >= 0;
       }).map(function (s) { return { kind: 'staff', id: s.id, obj: s, nombre: s.full_name,
-        donde: roleLabel(s.role) }; });
+        donde: SF.staffPuesto(s) }; });
 
       var filas = gente.concat(staff).map(function (q) { q.est = estadoPack(q); return q; })
         .filter(function (q) { return !!q.est; });
@@ -25179,7 +25216,7 @@ window.SF = window.SF || {};
           var s = SF.store.staffGet(x.staff_id);
           var nombre = /^nav:/.test(x.clave) ? SF.seccionLabel(x.clave.slice(4)) : SF.permLabel(x.clave);
           var row = el('<div class="mini-row"><span><b>' + esc(s ? s.full_name : '—') + '</b> ' +
-            '<span class="hint">' + esc(s ? roleLabel(s.role) : '') + '</span><br>' +
+            '<span class="hint">' + esc(s ? SF.staffPuesto(s) : '') + '</span><br>' +
             'Pide <b>' + esc(nombre) + '</b><br><span class="hint"><i>"' + esc(x.motivo) + '"</i> · ' +
             fmtDate((x.at || '').slice(0, 10)) + '</span></span><span class="row-actions"></span></div>');
           if (esDirector) {
@@ -25348,7 +25385,7 @@ window.SF = window.SF || {};
       SF.store.staff().forEach(function (s) {
         var suyos = todos.filter(function (x) { return x.staff_id === s.id && x.until >= hoy; });
         var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> ' +
-          '<span class="hint">' + esc(roleLabel(s.role)) + '</span>' +
+          '<span class="hint">' + esc(SF.staffPuesto(s)) + '</span>' +
           (suyos.length ? '<br>' + suyos.map(function (x) {
             var nombre = /^nav:/.test(x.perm) ? SF.seccionLabel(x.perm.slice(4)) : SF.permLabel(x.perm);
             return '<span class="tag tag-purple">' + esc(nombre) + '</span>';
@@ -26753,9 +26790,107 @@ window.SF = window.SF || {};
     return '<span class="tag ' + cls + '">' + st.label + '</span>';
   }
 
+  /* DAR DE ALTA A ALGUIEN DEL STAFF (21/09/2026).
+     Hasta hoy la lista de Staff solo se podía mirar: no había forma de meter
+     al preparador físico nuevo, a la psicóloga o a la persona de
+     administración que entra en octubre.
+
+     Dos cosas distintas que conviene no mezclar:
+     - EL PUESTO es lo que la persona hace en el club y lo que se lee en la
+       lista: «Entrenador», o uno escrito a mano («Nutricionista», «Utillero»,
+       «Jefe de prensa») para lo que no está en la lista.
+     - EL ACCESO es lo que puede ver en la app, y sale del rol. Un puesto
+       escrito a mano no inventa permisos: se elige con qué rol entra, o
+       «sin acceso a la app» (solo ficha: sueldo, ropa, habilitación).
+     Así un club puede tener un nutricionista sin que nadie tenga que
+     diseñarle permisos, y sin que por defecto vea nada de los chavales.
+
+     Solo da de alta dirección y administración: dar de alta es dar acceso a
+     fichas de menores, y eso no se reparte. Un rol de dirección solo lo
+     puede dar el director. La ficha nace SIN HABILITAR: hasta que alguien
+     compruebe el certificado de delitos sexuales de esta temporada, sale en
+     rojo y no puede trabajar con jugadores. */
+  function modalAltaStaff() {
+    var esDir = SF.store.role() === 'director';
+    var grupos = SF.rolesPorGrupo().map(function (g) {
+      return { label: g.label, keys: g.keys.filter(function (k) {
+        if (k === 'padre' || k === 'jugador') return false;
+        if (!esDir && (k === 'director' || /^dt_/.test(k))) return false;
+        return true;
+      }) };
+    }).filter(function (g) { return g.keys.length; });
+    function opcionesRol(sel, conSinAcceso) {
+      return (conSinAcceso ? '<option value="">Sin acceso a la app (solo ficha)</option>' : '') +
+        grupos.map(function (g) {
+          return '<optgroup label="' + esc(g.label) + '">' + g.keys.map(function (k) {
+            return '<option value="' + k + '"' + (k === sel ? ' selected' : '') + '>' + esc(SF.ROLES[k].label) + '</option>';
+          }).join('') + '</optgroup>';
+        }).join('');
+    }
+    var teams = SF.store.teams();
+    var w = el('<div><div class="form-grid">' +
+      '<div class="frow" style="grid-column:1/-1"><label>Nombre y apellidos *</label><input id="as-n" maxlength="80" placeholder="Nombre Apellido Apellido"></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Puesto *</label><select id="as-p">' +
+        opcionesRol('entrenador', false) +
+        '<optgroup label="Otro"><option value="__otro">Otro puesto (escribirlo)…</option></optgroup></select></div>' +
+      '<div class="frow as-otro" style="grid-column:1/-1;display:none"><label>¿Cómo se llama el puesto?</label>' +
+        '<input id="as-po" maxlength="40" placeholder="Nutricionista, utillero, jefe de prensa…"></div>' +
+      '<div class="frow as-otro" style="grid-column:1/-1;display:none"><label>¿Qué puede ver en la app?</label>' +
+        '<select id="as-pr">' + opcionesRol('', true) + '</select>' +
+        '<p class="hint" style="margin:4px 0 0">Entra con los permisos de ese rol. Si no necesita la app, «sin acceso».</p></div>' +
+      '<div class="frow"><label>Email</label><input id="as-e" type="email" maxlength="80"></div>' +
+      '<div class="frow"><label>Teléfono</label><input id="as-t" maxlength="30"></div>' +
+      '<div class="frow" style="grid-column:1/-1"><label>Titulación</label><input id="as-q" maxlength="80" placeholder="TD1 Baloncesto, Grado en Psicología…"></div>' +
+      '</div></div>');
+    if (teams.length) {
+      w.appendChild(el('<p class="sec-label">Equipos (se puede cambiar después)</p>'));
+      var tt = el('<div class="perm-cols"></div>');
+      teams.forEach(function (t) {
+        tt.appendChild(el('<label class="chk perm-chk"><input type="checkbox" value="' + esc(t.id) + '"> ' + esc(t.name) + '</label>'));
+      });
+      w.appendChild(tt);
+    }
+    w.appendChild(el('<p class="hint">Nace <b>sin habilitar</b>: hasta que se compruebe su certificado de esta ' +
+      'temporada no puede trabajar con jugadores. El resto (licencia, experiencia, CV) lo completa en su ficha.</p>'));
+    var sp = w.querySelector('#as-p');
+    sp.onchange = function () {
+      w.querySelectorAll('.as-otro').forEach(function (x) { x.style.display = sp.value === '__otro' ? '' : 'none'; });
+    };
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+      '<button class="btn btn-primary">Dar de alta</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var nombre = w.querySelector('#as-n').value.trim().replace(/\s+/g, ' ');
+      if (!nombre) { U.toast('Falta el nombre'); return; }
+      var otro = sp.value === '__otro';
+      var puesto = otro ? w.querySelector('#as-po').value.trim() : '';
+      if (otro && !puesto) { U.toast('Escribe cómo se llama el puesto'); return; }
+      var rol = otro ? w.querySelector('#as-pr').value : sp.value;
+      var repe = SF.store.staff().filter(function (x) {
+        return String(x.full_name || '').toLowerCase() === nombre.toLowerCase();
+      })[0];
+      if (repe && !confirm('Ya hay alguien en el staff que se llama ' + repe.full_name + '. ¿Dar de alta otra ficha igualmente?')) return;
+      var ids = [].map.call(w.querySelectorAll('.perm-cols input:checked'), function (i) { return i.value; });
+      var s = SF.store.staffCrear({
+        full_name: nombre, role: rol, puesto: puesto,
+        email: w.querySelector('#as-e').value.trim(), phone: w.querySelector('#as-t').value.trim(),
+        qualification: w.querySelector('#as-q').value.trim(), team_ids: ids
+      });
+      if (!s) { U.toast('No se ha podido dar de alta'); return; }
+      U.closeModal(); U.toast(s.full_name + ' ya está en el staff');
+      location.hash = '#/staff/' + s.id;
+    };
+    w.appendChild(foot);
+    U.modal('Añadir al staff', w);
+  }
+
   pages.staff = function (view, id) {
     if (id) return pages['staff-ficha'](view, id);   // #/staff/s1 -> ficha
-    view.innerHTML = head('Staff', 'Cuerpo técnico y personal del club. Titulación, licencia y habilitación.');
+    var puedeAlta = isAdminRole();
+    view.innerHTML = head('Staff', 'Cuerpo técnico y personal del club. Titulación, licencia y habilitación.',
+      puedeAlta ? '<button class="btn btn-primary" id="alta-staff">' + ico('plus') + 'Añadir al staff</button>' : '');
+    var bAlta = view.querySelector('#alta-staff');
+    if (bAlta) bAlta.onclick = modalAltaStaff;
     var all = SF.store.staff();
 
     /* Aviso arriba: lo que hay que resolver, no la lista entera. */
@@ -26797,7 +26932,7 @@ window.SF = window.SF || {};
       var lkTag = lkS === 'confirmada' ? '<span class="tag tag-gray">bloqueada</span>'
         : (lkS === 'desbloqueada' ? '<span class="tag tag-warn">desbloqueada</span>' : '<span class="tag tag-info">borrador</span>');
       var rr = SF.ropaResumen(SF.estadoEquipacion(s, ixRopa, true));
-      var tr = el('<tr><td>' + SF.staffCode(s.num) + '</td><td><div class="tcell"><span class="av-sm">' + U.initials(s.full_name) + '</span>' + esc(s.full_name) + '</div></td><td>' + esc(roleLabel(s.role)) + '</td><td>' + esc(s.qualification || '—') + '</td><td>' + esc(teams || '—') + '</td>' +
+      var tr = el('<tr><td>' + SF.staffCode(s.num) + '</td><td><div class="tcell"><span class="av-sm">' + U.initials(s.full_name) + '</span>' + esc(s.full_name) + '</div></td><td>' + esc(SF.staffPuesto(s)) + '</td><td>' + esc(s.qualification || '—') + '</td><td>' + esc(teams || '—') + '</td>' +
         '<td><span class="tag ' + rr.tag + '">' + esc(rr.label) + '</span></td>' +
         '<td>' + staffBadge(s) + ' ' + lkTag + '</td></tr>');
       tr.onclick = function () { location.hash = '#/staff/' + s.id; };
@@ -26950,13 +27085,13 @@ window.SF = window.SF || {};
       U.toast('Guardado'); SF.router.render();
     }
 
-    view.innerHTML = head(mine ? 'Mi ficha' : 'Ficha de staff', SF.staffCode(s.num) + ' · ' + roleLabel(s.role));
+    view.innerHTML = head(mine ? 'Mi ficha' : 'Ficha de staff', SF.staffCode(s.num) + ' · ' + SF.staffPuesto(s));
 
     // Cabecera
     var hd = el('<div class="ficha-head"><div class="fh-photo">' + U.initials(s.full_name) + '</div><div class="fh-info"></div></div>');
     hd.querySelector('.fh-info').innerHTML =
       '<h2>' + esc(s.full_name) + '</h2>' +
-      '<p class="fh-sub"><b>' + SF.staffCode(s.num) + '</b> · ' + esc(roleLabel(s.role)) + (s.email ? ' · ' + esc(s.email) : '') + (s.phone ? ' · ' + esc(s.phone) : '') + '</p>' +
+      '<p class="fh-sub"><b>' + SF.staffCode(s.num) + '</b> · ' + esc(SF.staffPuesto(s)) + (s.email ? ' · ' + esc(s.email) : '') + (s.phone ? ' · ' + esc(s.phone) : '') + '</p>' +
       '<p>' + staffBadge(s) + (st.why ? ' <span class="hint">' + esc(st.why) + '</span>' : '') + '</p>';
     view.appendChild(hd);
 
@@ -28905,7 +29040,7 @@ window.SF = window.SF || {};
           var s = SF.store.staffGet(t.staff_id);
           if (!s) return;
           ulP.appendChild(el('<div class="mini-row"><span>' + esc(s.full_name) +
-            ' <span class="hint">' + esc(roleLabel(s.role)) + '</span></span>' +
+            ' <span class="hint">' + esc(SF.staffPuesto(s)) + '</span></span>' +
             '<span class="row-actions">' + (t.read_at ? '<span class="tag tag-green">leído</span>' : '<span class="tag tag-gray">sin leer</span>') +
             '</span></div>'));
         });
@@ -29708,7 +29843,7 @@ window.SF = window.SF || {};
     sTeam.forEach(function (s) {
       var stt = SF.staffStatus(s);
       var cls = stt.level === 'ok' ? 'tag-green' : (stt.level === 'warn' ? 'tag-warn' : 'tag-danger');
-      var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> · ' + esc(roleLabel(s.role)) + ' <span class="hint">' + SF.staffCode(s.num) + '</span></span>' +
+      var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> · ' + esc(SF.staffPuesto(s)) + ' <span class="hint">' + SF.staffCode(s.num) + '</span></span>' +
         '<span class="row-actions"><span class="tag ' + cls + '">' + stt.label + '</span><button class="lnk" data-open>Ver ficha</button>' +
         (can ? '<button class="lnk-del" data-q title="Quitar del equipo">' + ico('x') + '</button>' : '') + '</span></div>');
       row.querySelector('[data-open]').onclick = function () { location.hash = '#/staff/' + s.id; };
@@ -29740,7 +29875,7 @@ window.SF = window.SF || {};
         if (!libres.length) box.appendChild(el('<p class="hint">Todo el staff ya está asignado a este equipo.</p>'));
         libres.forEach(function (s) {
           var stt = SF.staffStatus(s);
-          var r2 = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span><b>' + esc(s.full_name) + '</b> · ' + esc(roleLabel(s.role)) + '</span><span class="hint">' + stt.label + '</span></button>');
+          var r2 = el('<button class="mini-row" style="width:100%;text-align:left;cursor:pointer"><span><b>' + esc(s.full_name) + '</b> · ' + esc(SF.staffPuesto(s)) + '</span><span class="hint">' + stt.label + '</span></button>');
           r2.onclick = function () { SF.store.staffAssign(s.id, t.id, true); U.closeModal(); U.toast(s.full_name + ' asignado a ' + t.name); SF.router.render(); };
           box.appendChild(r2);
         });
@@ -30289,7 +30424,7 @@ window.SF = window.SF || {};
       var ls = el('<div class="mini-list"></div>');
       staffMal.forEach(function (s) {
         var l = s.licence || {};
-        var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> <span class="hint">' + esc(roleLabel(s.role)) + '</span><br>' +
+        var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> <span class="hint">' + esc(SF.staffPuesto(s)) + '</span><br>' +
           '<span class="tag tag-warn">Licencia de ' + esc(l.season || 'ninguna') + '</span> <span class="hint">hay que renovarla para ' + esc(SF.SEASON) + '</span></span>' +
           '<span class="row-actions"><button class="lnk" data-f>ficha</button></span></div>');
         row.querySelector('[data-f]').onclick = function () { location.hash = '#/staff/' + s.id; };
@@ -30337,7 +30472,7 @@ window.SF = window.SF || {};
   function textoStaff(s) {
     var eq = (s.team_ids || []).map(function (id) { return (SF.store.teamGet(id) || {}).name; });
     var l = s.licence || {};
-    var t = [s.full_name, SF.staffCode(s.num), roleLabel(s.role), s.qualification, s.qual_entity,
+    var t = [s.full_name, SF.staffCode(s.num), SF.staffPuesto(s), s.qualification, s.qual_entity,
       s.qual_number, l.category, l.number, s.languages, s.email, eq.join(' ')];
     return SF.norm(t.filter(Boolean).join(' '));
   }
@@ -30461,7 +30596,7 @@ window.SF = window.SF || {};
         var st = SF.staffStatus(s);
         var eq = (s.team_ids || []).map(function (id) { return (SF.store.teamGet(id) || {}).name; }).filter(Boolean);
         var row = el('<div class="mini-row"><span><b>' + esc(s.full_name) + '</b> <span class="hint">' +
-          SF.staffCode(s.num) + ' · ' + esc(roleLabel(s.role)) + (s.qualification ? ' · ' + esc(s.qualification) : '') + '</span><br>' +
+          SF.staffCode(s.num) + ' · ' + esc(SF.staffPuesto(s)) + (s.qualification ? ' · ' + esc(s.qualification) : '') + '</span><br>' +
           '<span class="tag ' + (st.level === 'ok' ? 'tag-green' : st.level === 'warn' ? 'tag-warn' : 'tag-danger') + '">' + st.label + '</span> ' +
           (eq.length ? '<span class="hint">' + esc(eq.join(', ')) + '</span>' : '<span class="hint">sin equipo asignado</span>') +
           '</span><span class="row-actions"><button class="lnk" data-v>abrir ficha</button></span></div>');
