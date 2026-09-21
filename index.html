@@ -3252,32 +3252,58 @@ SF.estadoEquipacion = function (quien, ix, comoStaff) {
     ? { rol: quien.role || 'entrenador', segment: null, esStaff: true, player_id: null }
     : SF.ctxTramite(quien, 'padre');
   var pk = SF.packDe(ctx);
-  var out = { pack: pk, arts: [], pendientes: [], dadas: 0, pedido: false,
-    conStock: 0, estado: 'sin_pack', talla_sin: 0 };
-  if (!pk) return out;
+  var out = { pack: pk, arts: [], extras: [], pendientes: [], dadas: 0, pedido: false,
+    conStock: 0, estado: 'sin_pack', talla_sin: 0, tiene: false };
 
-  var arts = SF.artsDe(pk);
   var ent = ko.entregas || {};
   var tallas = ko.sizes || {};
   ix = ix || SF.stockIndice();
 
+  /* EL PACK NO ES LO ÚNICO. A un delegado o a una administrativa no les toca
+     el pack entero, pero el club les da un polo o un chándal, y esa prenda
+     también se pide, también llega y también se queda en la estantería si
+     nadie avisa. Las sueltas viven en `kit_order.extras` y se comportan
+     exactamente igual que las del pack: mismo estado, mismo aviso, misma
+     entrega desde la Tienda descontando del almacén. */
+  var deExtra = {};
+  (ko.extras || []).forEach(function (e) {
+    if (!e || !e.art_id) return;
+    deExtra[e.art_id] = e.talla || '';
+  });
+
+  var arts = SF.artsDe(pk);
+  var vistos = {};
+  arts.forEach(function (a2) { vistos[a2.id] = 1; });
+  Object.keys(deExtra).forEach(function (id) {
+    if (vistos[id]) return;                       // si ya va en su pack, no se cuenta dos veces
+    var a3 = SF.store.artGet(id);
+    if (a3) { arts = arts.concat([a3]); out.extras.push(a3); vistos[id] = 1; }
+  });
+
   out.arts = arts;
+  out.tiene = arts.length > 0;
+  if (!out.tiene) return out;
+
   arts.forEach(function (a) {
     var st = ent[a.id] || {};
     if (st.estado === 'entregado') { out.dadas++; return; }
     /* En un cambio, lo que se espera es la talla NUEVA, no la devuelta. */
-    var talla = st.cambio_a || tallas[a.label] || st.talla || '';
+    var talla = st.cambio_a || tallas[a.label] || deExtra[a.id] || st.talla || '';
     var hay = talla ? (ix[SF.claveStock(a.id, a.temporada, talla)] || 0) : 0;
     if (!talla) out.talla_sin++;
     if (hay > 0) out.conStock++;
-    out.pendientes.push({ art: a, talla: talla, hay: hay, cambio: st.estado === 'cambio' });
+    out.pendientes.push({ art: a, talla: talla, hay: hay, cambio: st.estado === 'cambio',
+      suelta: !!deExtra[a.id] && out.extras.some(function (x) { return x.id === a.id; }) });
   });
 
   /* PEDIDO HECHO quiere decir que la familia ya ha pasado por la tienda: o lo
      dice el estado, o hay tallas elegidas, o ya le han dado algo. Cualquiera
      de las tres sirve; exigir las tres dejaría fuera a medio club. */
   out.pedido = ko.status === 'pedido' || ko.status === 'entregado' ||
-    Object.keys(tallas).length > 0 || out.dadas > 0;
+    Object.keys(tallas).length > 0 || out.dadas > 0 ||
+    /* Una prenda suelta con talla ya elegida ES un pedido hecho: la eligió
+       quien se la asignó, no hay tienda por medio. */
+    Object.keys(deExtra).some(function (id) { return !!deExtra[id]; });
 
   if (!out.pendientes.length) out.estado = 'completa';
   else if (!out.pedido) out.estado = 'sin_pedir';
@@ -3301,7 +3327,7 @@ SF.EQUIP_ESTADOS = {
    Son las tres cosas que puede estar haciendo una prenda, y cada una la
    resuelve una persona distinta: el interesado, el proveedor y el club. */
 SF.ropaResumen = function (eq) {
-  if (!eq || !eq.pack) return { label: '—', tag: 'tag-gray', corto: '—' };
+  if (!eq || !eq.tiene) return { label: '—', tag: 'tag-gray', corto: '—' };
   if (eq.estado === 'completa') return { label: 'Entregada', tag: 'tag-green', corto: 'Entregada' };
   if (eq.estado === 'sin_pedir') return { label: 'Pendiente de pedir', tag: 'tag-danger', corto: 'Sin pedir' };
   if (eq.estado === 'sin_recoger') return { label: 'Pendiente de llegar', tag: 'tag-warn', corto: 'Sin llegar' };
@@ -11810,6 +11836,24 @@ SF.store = (function () {
            "modificacion de la ficha" y entierran lo que si importa. */
         this.staffUpdate(quien.id, { kit_order: ks }, 'Equipación: entrega actualizada');
       }
+    },
+
+    /* LAS PRENDAS SUELTAS de una persona: lo que el club le da sin que le
+       toque un pack entero. Se guardan en su `kit_order.extras` porque son
+       parte de lo mismo -lo que esta persona tiene que recibir- y asi la
+       entrega, el aviso y el almacen no necesitan enterarse de nada nuevo. */
+    ropaExtras: function (kind, id, extras) {
+      var lista = (extras || []).filter(function (e) { return e && e.art_id; })
+        .map(function (e) { return { art_id: e.art_id, talla: e.talla || '' }; });
+      if (kind === 'jugador') {
+        var p = this.get(id) || {};
+        this.update(id, { kit_order: Object.assign({}, p.kit_order || {}, { extras: lista }) });
+      } else {
+        var s = this.staffGet(id) || {};
+        this.staffUpdate(id, { kit_order: Object.assign({}, s.kit_order || {}, { extras: lista }) },
+          'Ropa prevista actualizada');
+      }
+      return lista;
     },
 
     tramitesHechos: function () { return db().tramites_hechos || []; },
@@ -26273,6 +26317,50 @@ window.SF = window.SF || {};
     view.appendChild(env);
   };
 
+  /* Darle una prenda suelta a alguien del staff. Dos decisiones y ya: qué
+     prenda y qué talla. La talla se pide aqui y no despues porque sin talla
+     la prenda no se puede buscar en el almacen, y entonces el aviso de "ya la
+     puedes recoger" no se puede dar nunca. */
+  function modalPrendaSuelta(s) {
+    var arts = SF.store.articulos().filter(function (a) {
+      return !a.archivado && (!a.temporada || SF.mismaTemporada(a.temporada, SF.SEASON));
+    });
+    if (!arts.length) { U.toast('No hay artículos en el catálogo'); return; }
+    var box = el('<div></div>');
+    box.appendChild(el('<p class="hint" style="margin-top:0">Ropa que le da el club a esta persona ' +
+      'sin que le toque el pack entero: un polo, un chándal. Se comporta igual que la del pack ' +
+      '—se pide, llega y se entrega desde la Tienda— y cuenta en el almacén.</p>'));
+    var grid = el('<div class="form-grid">' +
+      '<div class="frow"><label>Prenda</label><select id="psa">' +
+      arts.map(function (a) { return '<option value="' + esc(a.id) + '">' + esc(a.label) + '</option>'; }).join('') +
+      '</select></div>' +
+      '<div class="frow"><label>Talla</label><select id="pst"></select></div></div>');
+    box.appendChild(grid);
+    function pintaT() {
+      var a = arts.filter(function (x) { return x.id === grid.querySelector('#psa').value; })[0];
+      var ix = SF.stockIndice();
+      grid.querySelector('#pst').innerHTML = '<option value="">Sin elegir todavía</option>' +
+        SF.tallasArt(a).map(function (t) {
+          var hay = ix[SF.claveStock(a.id, a.temporada, t)] || 0;
+          return '<option value="' + esc(t) + '">' + esc(t) + (hay > 0 ? ' · ' + hay + ' en almacén' : ' · no hay') + '</option>';
+        }).join('');
+    }
+    grid.querySelector('#psa').onchange = pintaT; pintaT();
+    var foot = el('<div class="modal-actions"><button class="btn">Cancelar</button>' +
+      '<button class="btn btn-primary">Dársela</button></div>');
+    foot.children[0].onclick = U.closeModal;
+    foot.children[1].onclick = function () {
+      var artId = grid.querySelector('#psa').value, talla = grid.querySelector('#pst').value;
+      var ex = ((s.kit_order || {}).extras || []).slice();
+      if (ex.some(function (e) { return e.art_id === artId; })) { U.toast('Esa prenda ya la tiene prevista'); return; }
+      ex.push({ art_id: artId, talla: talla });
+      SF.store.ropaExtras('staff', s.id, ex);
+      U.closeModal(); U.toast('Prenda añadida'); SF.router.render();
+    };
+    box.appendChild(foot);
+    U.modal('Darle una prenda — ' + s.full_name, box);
+  }
+
   pages['mi-ficha'] = function (view) {
     var me = SF.store.staffMe();
     if (!me) { view.innerHTML = head('Mi ficha', '') + '<div class="empty-panel"><p>Tu rol todavía no tiene ficha de staff creada.</p></div>'; return; }
@@ -26563,11 +26651,13 @@ window.SF = window.SF || {};
        igual siendo de un entrenador que de un chaval. */
     (function () {
       var eqS = SF.estadoEquipacion(s, null, true);
-      if (!eqS.pack) return;
+      if (!eqS.pack && !eqS.extras.length && !isAdminRole()) return;
       var rr = SF.ropaResumen(eqS);
       sec('Ropa del club');
       view.appendChild(el('<p class="hint"><span class="tag ' + rr.tag + '">' + esc(rr.label) + '</span> ' +
-        esc(eqS.pack.nombre) + ' · ' + eqS.dadas + ' de ' + eqS.arts.length + ' entregadas' +
+        esc(eqS.pack ? eqS.pack.nombre : (eqS.extras.length ? 'Prendas sueltas' : 'Sin ropa asignada')) +
+        (eqS.extras.length && eqS.pack ? ' + ' + eqS.extras.length + (eqS.extras.length === 1 ? ' suelta' : ' sueltas') : '') +
+        ' · ' + eqS.dadas + ' de ' + eqS.arts.length + ' entregadas' +
         (eqS.talla_sin ? ' · ' + eqS.talla_sin + ' sin talla elegida' : '') + '</p>'));
       var lr = el('<div class="mini-list"></div>');
       var entS = (s.kit_order || {}).entregas || {};
@@ -26576,15 +26666,44 @@ window.SF = window.SF || {};
         var estado = st2.estado || 'pendiente';
         var d2 = SF.PRENDA_ESTADOS[estado] || {};
         var pend = eqS.pendientes.filter(function (x) { return x.art.id === a2.id; })[0];
-        var talla = st2.cambio_a || st2.talla || ((s.kit_order || {}).sizes || {})[a2.label] || '';
+
+        /* La talla la manda el cálculo, que ya sabe de dónde sale en cada caso
+           —cambio, pack o prenda suelta—. Volver a deducirla aquí es como se
+           acaban diciendo dos tallas distintas en dos pantallas. */
+        var talla = (pend && pend.talla) || st2.cambio_a || st2.talla ||
+          ((s.kit_order || {}).sizes || {})[a2.label] || '';
         var extra = estado === 'entregado' ? (st2.at ? fmtDate(st2.at) : '')
           : (pend && pend.hay > 0 ? 'en el almacén, lista para darle' : 'todavía no ha llegado');
-        lr.appendChild(el('<div class="mini-row mr-wrap"><span><b>' + esc(a2.label) + '</b><br>' +
+        var esSuelta = eqS.extras.some(function (x) { return x.id === a2.id; });
+        var filaR = el('<div class="mini-row mr-wrap"><span><b>' + esc(a2.label) + '</b>' +
+          (esSuelta ? ' <span class="tag tag-gray">suelta</span>' : '') + '<br>' +
           '<span class="tag ' + d2.tag + '">' + esc(d2.label) + '</span> <span class="hint">' +
-          (talla ? 'talla ' + esc(talla) : 'sin talla elegida') + ' · ' + esc(extra) + '</span></span></div>'));
+          (talla ? 'talla ' + esc(talla) : 'sin talla elegida') + ' · ' + esc(extra) + '</span></span></div>');
+        /* Una prenda suelta se puede quitar mientras no se haya entregado.
+           Después no: lo entregado lo cuenta el almacén, y borrarlo de aquí
+           dejaría una salida sin dueño. */
+        if (esSuelta && estado !== 'entregado' && isAdminRole()) {
+          var bQ = el('<button class="lnk-del" title="Quitar esta prenda">' + ico('x') + '</button>');
+          bQ.onclick = function () {
+            var ex = ((s.kit_order || {}).extras || []).filter(function (e) { return e.art_id !== a2.id; });
+            SF.store.ropaExtras('staff', s.id, ex);
+            U.toast('Quitada'); SF.router.render();
+          };
+          filaR.appendChild(bQ);
+        }
+        lr.appendChild(filaR);
       });
       view.appendChild(lr);
-      if (isAdminRole() && eqS.estado !== 'completa') {
+      /* Dar una prenda suelta a quien no tiene pack es la mitad de los casos
+         del club: al delegado un polo, a la administrativa un chándal. */
+      if (isAdminRole()) {
+        var bMas = el('<button class="btn btn-light btn-sm">' + ico('plus') + 'Darle una prenda</button>');
+        bMas.onclick = function () { modalPrendaSuelta(s); };
+        view.appendChild(bMas);
+      }
+      /* Sin nada asignado no hay nada que avisar: la sección se queda con el
+         botón de darle una prenda y ya. Un aviso vacío es peor que ninguno. */
+      if (isAdminRole() && eqS.tiene && eqS.estado !== 'completa') {
         var bR = el('<button class="btn btn-light btn-sm">' + ico('arrow') +
           (eqS.estado === 'sin_pedir' ? 'Pedirle las tallas' : 'Avisar para que la recoja') + '</button>');
         bR.onclick = function () {
@@ -28460,7 +28579,7 @@ window.SF = window.SF || {};
     if (!roster.length) return 0;
     var ix = SF.stockIndice();
     var filas = roster.map(function (p) { return { p: p, eq: SF.estadoEquipacion(p, ix) }; })
-      .filter(function (x) { return x.eq.pack && x.eq.estado !== 'completa'; });
+      .filter(function (x) { return x.eq.tiene && x.eq.estado !== 'completa'; });
     if (!filas.length) return 0;
 
     var ORDEN = { lista: 0, parte: 1, sin_recoger: 2, sin_pedir: 3 };
