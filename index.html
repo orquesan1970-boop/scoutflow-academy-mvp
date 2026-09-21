@@ -8464,7 +8464,7 @@ SF.docVencido = function (d) { return !!(d.due && !SF.docListo(d) && d.due < SF.
    falta fuera para poder decir "no tienes acceso a Finanzas" en vez de
    "no tienes acceso a finanzas". */
 SF.SECCION_LABEL = {
-  inicio: 'Inicio', agenda: 'Agenda', jugadores: 'Jugadores', equipos: 'Equipos',
+  inicio: 'Inicio', tablon: 'Tablón', agenda: 'Agenda', jugadores: 'Jugadores', equipos: 'Equipos',
   calendario: 'Calendario', horarios: 'Cuadrantes', sesiones: 'Sesiones', importar: 'Importar',
   'importar-datos': 'Datos de partido', captacion: 'Captación', documentos: 'Documentos',
   licencias: 'Licencias', tramites: 'Fichas e inscripciones', tienda: 'Tienda',
@@ -8480,7 +8480,7 @@ SF.seccionLabel = function (k) { return SF.SECCION_LABEL[k] || k; };
 
 /* Que se puede repartir seccion a seccion. No estan todas: las de "lo mio" y
    los portales no se conceden, se tienen por ser quien eres. */
-SF.SECCIONES_REPARTIBLES = ['inicio', 'agenda', 'jugadores', 'equipos', 'calendario', 'horarios', 'sesiones',
+SF.SECCIONES_REPARTIBLES = ['inicio', 'tablon', 'agenda', 'jugadores', 'equipos', 'calendario', 'horarios', 'sesiones',
   'importar', 'importar-datos', 'captacion', 'documentos', 'licencias', 'tramites', 'tienda', 'informes', 'family',
   'finanzas', 'presupuesto', 'economia', 'sueldos', 'comunicados', 'staff', 'adjuntos', 'mi-equipo'];
 
@@ -8530,6 +8530,19 @@ SF.permDeSeccion = function (sec) {
 SF.ROLES_BLOQUEADOS = ['padre', 'jugador', 'director'];
 SF.LLAVES_BLOQUEADAS = ['canSeeNotes', 'canManagePermissions'];
 
+/* EL DIRECTOR LO TIENE TODO, y no a mano. Su rol no se puede tocar (es "fijo"),
+   así que si una capacidad o una sección nueva no se le añadía en su lista, se
+   quedaba sin ella para siempre: pasó con ver el personal, la documentación,
+   los comunicados, crear equipos y Mi equipo. Ahora se calcula de las listas:
+   cualquier permiso o sección que se añada mañana le llega solo. */
+(function () {
+  var d = SF.ROLES.director;
+  SF.CAPACIDADES.forEach(function (c) { d[c.k] = true; });
+  (SF.PERM_KEYS || []).forEach(function (p) { if (p.key) d[p.key] = true; });
+  d.canSeeNotes = true; d.canManagePermissions = true;
+  SF.SECCIONES_REPARTIBLES.forEach(function (sec) { if (d.nav.indexOf(sec) < 0) d.nav.push(sec); });
+})();
+
 /* QUIÉN REVISA EL TABLÓN, de fábrica: dirección, administración y todas las
    direcciones técnicas. Es una CAPACIDAD como cualquier otra (`canTablon`):
    el club la quita o la da por rol en Permisos, y el director se la puede dar
@@ -8545,7 +8558,11 @@ Object.keys(SF.ROLES).forEach(function (k) {
    diecisiete listas a mano: la siguiente persona que cree un rol no tiene que
    acordarse. Va justo después de Inicio; en los portales, al final. */
 SF.conTablon = function (r) {
-  if (!r || !r.nav || r.nav.indexOf('tablon') >= 0) return r;
+  /* Salvo que el club se lo haya quitado a ese rol a propósito en Permisos
+     (`sin_tablon`). Se guarda como marca y no borrándolo de la lista porque
+     los roles ajustados antes de que existiera el tablón tampoco lo tienen en
+     su lista, y a esos sí hay que ponérselo. */
+  if (!r || !r.nav || r.sin_tablon || r.nav.indexOf('tablon') >= 0) return r;
   var c = Object.assign({}, r); c.nav = r.nav.slice();
   var i = c.nav.indexOf('inicio');
   c.nav.splice(i >= 0 ? i + 1 : c.nav.length, 0, 'tablon');
@@ -8603,6 +8620,9 @@ SF.PERM_KEYS = [
   { key: 'canSeeSalaries', label: 'Ver y gestionar los sueldos del club', nav: ['sueldos'] },
   { key: 'canCreatePlayers', label: 'Dar de alta jugadores' }
 ];
+/* y los permisos sueltos que no están en el editor de roles (importar datos
+   de partido…): también son suyos. */
+SF.PERM_KEYS.forEach(function (p) { if (p.key) SF.ROLES.director[p.key] = true; });
 
 /* Nunca delegables. Notas internas incluye presupuesto y situación económica
    de la familia: eso se cambia en el organigrama, no con una excepción.
@@ -25305,7 +25325,7 @@ window.SF = window.SF || {};
       if (puede) {
         var bG = el('<button class="btn btn-primary">Guardar</button>');
         bG.onclick = function () {
-          var patch = { nav: nav };
+          var patch = { nav: nav, sin_tablon: nav.indexOf('tablon') < 0 };
           SF.CAPACIDADES.forEach(function (c) { patch[c.k] = caps[c.k]; });
           SF.store.rolSet(k, patch, SF.store.me().name);
           U.closeModal(); U.toast('Guardado. Vale para todo el que tenga ese rol'); SF.router.render();
