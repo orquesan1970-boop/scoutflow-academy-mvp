@@ -7362,8 +7362,15 @@ SF.tablonTipo = function (k) {
    demás espera a que uno de ellos lo mire. Las direcciones técnicas entran
    todas (general, escuelas, minis…): es su club tanto como el del director. */
 SF.tablonRevisa = function (rk) {
-  rk = rk || (SF.store && SF.store.role ? SF.store.role() : '');
-  return rk === 'director' || rk === 'administrativo' || /^dt_/.test(String(rk));
+  /* Con un rol, lo que dice ese rol (con lo que el club haya cambiado). Sin
+     él, lo que puede la persona que está usando la app AHORA: su rol más los
+     permisos que le hayan dado a ella en concreto. Preguntar por el nombre del
+     rol, como hacía antes, hacía imposible dárselo a una persona suelta. */
+  if (rk) { var r = SF.rolDe(rk); return !!(r && r.canTablon); }
+  var p = null;
+  try { p = SF.perms ? SF.perms() : null; } catch (e) { p = null; }
+  if (!p && SF.store && SF.store.role) p = SF.rolDe(SF.store.role());
+  return !!(p && p.canTablon);
 };
 
 SF.TABLON_MAX = 280;       // lo que cabe en una pizarra sin que haya que leerla con lupa
@@ -8500,6 +8507,8 @@ SF.CAPACIDADES = [
   { k: 'canEditTeams',      label: 'Crear y editar equipos (sin borrarlos)', grupo: 'Lo que puede hacer',
     aviso: 'Incluye cambiar el cuerpo técnico, y eso da o quita acceso a las fichas de los jugadores.' },
   { k: 'canAnnounce',       label: 'Enviar comunicados del club',       grupo: 'Lo que puede hacer' },
+  { k: 'canTablon',         label: 'Revisar y publicar en el tablón del club', grupo: 'Lo que puede hacer',
+    aviso: 'Lo que apruebe lo lee todo el club, familias incluidas.' },
   { k: 'canAskCita',        label: 'Pedir cita con salud',              grupo: 'Lo que puede hacer' },
   { k: 'canManageFinance',  label: 'Gestionar cobros y planes de pago', grupo: 'Dinero' },
   { k: 'canSeeSalaries',    label: 'Ver y gestionar los sueldos',       grupo: 'Dinero',
@@ -8520,6 +8529,16 @@ SF.permDeSeccion = function (sec) {
 
 SF.ROLES_BLOQUEADOS = ['padre', 'jugador', 'director'];
 SF.LLAVES_BLOQUEADAS = ['canSeeNotes', 'canManagePermissions'];
+
+/* QUIÉN REVISA EL TABLÓN, de fábrica: dirección, administración y todas las
+   direcciones técnicas. Es una CAPACIDAD como cualquier otra (`canTablon`):
+   el club la quita o la da por rol en Permisos, y el director se la puede dar
+   a una persona suelta con fecha de caducidad. Solo se pone si el rol no dice
+   nada: lo que el club haya decidido no se toca. */
+Object.keys(SF.ROLES).forEach(function (k) {
+  if (SF.ROLES[k].canTablon !== undefined) return;
+  if (k === 'director' || k === 'administrativo' || /^dt_/.test(k)) SF.ROLES[k].canTablon = true;
+});
 
 /* El tablón es de TODO el club. Se añade aquí, que es por donde pasa cualquier
    rol -también los que el club haya personalizado en Permisos-, en vez de en
@@ -8567,6 +8586,10 @@ SF.PERM_KEYS = [
   { key: 'canStore', label: 'Entregar ropa y mover el almacén', nav: ['tienda'] },
   { key: 'canEditTeams', label: 'Crear y editar equipos (sin borrarlos)', nav: ['equipos'] },
   { key: 'canAnnounce', label: 'Enviar comunicados del club', nav: ['comunicados'] },
+  /* Revisar el tablón. Se puede dar a una persona suelta —el coordinador que
+     lleva la cantina, la delegada que organiza las fiestas— sin darle nada
+     más, y quitársela cuando deje de hacerlo. */
+  { key: 'canTablon', label: 'Revisar y publicar en el tablón del club' },
   { key: 'canImportData', label: 'Importar datos de partido', nav: ['importar-datos'] },
   { key: 'canSeeStaff', label: 'Ver el listado de staff', nav: ['staff'] },
   /* El cuadrante de preparacion fisica lo escribe la coordinacion. Esta llave
@@ -12067,7 +12090,7 @@ SF.store = (function () {
       var d = db(); d.tablon = d.tablon || [];
       var u = this.currentUser() || {};
       var rk = d.role;
-      var directo = SF.tablonRevisa(rk);
+      var directo = SF.tablonRevisa();       // su rol Y sus permisos personales
       var hoy = SF.hoyISO();
       var hasta = datos.hasta || SF.sumaDias(hoy, SF.TABLON_DIAS);
       /* Nadie cuelga algo para dentro de medio año: pasado el tope, se recorta
