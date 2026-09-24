@@ -209,6 +209,8 @@ function limpia(s) {
    Si el plan de Vercel no permite este tope, el despliegue lo avisa. */
 export const config = { maxDuration: 30 };
 
+import { mismaCasa, fueraDeCasa } from './_origen.js';
+
 export default async function handler(req, res) {
   const gem = process.env.GEMINI_API_KEY;
   const ant = process.env.ANTHROPIC_API_KEY;
@@ -231,6 +233,12 @@ export default async function handler(req, res) {
   }
 
   if (req.method !== 'POST') return res.status(405).json({ ok: false, motivo: 'metodo' });
+  /* Solo responde a nuestra propia app: esto gasta cuota. Era la única de las
+     siete funciones de IA sin esta valla (hallazgo C1 de la auditoría del
+     23/09/2026): cualquiera con la URL podía mandarle 40.000 caracteres o un
+     archivo y gastar la cuota del club. El GET de arriba sigue abierto porque
+     no llama a ningún modelo. */
+  if (!mismaCasa(req)) return fueraDeCasa(res);
   if (!gem && !ant && !oai) return res.status(200).json({ ok: false, motivo: 'sin_clave' });
 
   const b = req.body || {};
