@@ -21,6 +21,7 @@
 
 import { inflateRawSync } from 'zlib';
 import { mismaCasa, fueraDeCasa } from './_origen.js';
+import { modeloGemini, modeloClaude, modeloOpenAI } from './_modelo.js';
 
 export const config = { maxDuration: 60 };
 
@@ -179,7 +180,7 @@ function textoDeExcel(buf) {
 
 /* -------------------------------------------------------------------------- */
 async function conGemini(partes, key) {
-  const modelo = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const modelo = modeloGemini();
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent?key=' + key;
   const r = await fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -198,7 +199,7 @@ async function conGemini(partes, key) {
 }
 
 async function conClaude(texto, key) {
-  const modelo = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
+  const modelo = modeloClaude();
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
@@ -217,7 +218,7 @@ async function conClaude(texto, key) {
 }
 
 async function conOpenAI(texto, key) {
-  const modelo = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const modelo = modeloOpenAI();
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },

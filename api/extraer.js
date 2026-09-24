@@ -13,7 +13,8 @@
      3) OPENAI_API_KEY      → OpenAI          · de pago, por uso
 
    Se configuran en Vercel → Settings → Environment Variables.
-   Opcionales: GEMINI_MODEL, ANTHROPIC_MODEL, OPENAI_MODEL.
+   Opcionales: GEMINI_MODEL, ANTHROPIC_MODEL, OPENAI_MODEL. Si no están, manda
+   api/_modelo.js, que es donde vive el modelo de cada proveedor.
 
    Cambiar de proveedor es cambiar una variable. No hay que tocar código.
    Si no hay ninguna clave, no falla: avisa y la app tira del lector básico.
@@ -104,7 +105,7 @@ function esquemaClaude() {
 
 /* --- Una llamada por proveedor. Todas devuelven { campos, modelo } o lanzan --- */
 async function conGemini(texto, key) {
-  const modelo = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const modelo = modeloGemini();
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent?key=' + key;
   const r = await fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -123,7 +124,7 @@ async function conGemini(texto, key) {
 }
 
 async function conClaude(texto, key) {
-  const modelo = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
+  const modelo = modeloClaude();
   const r = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
@@ -144,7 +145,7 @@ async function conClaude(texto, key) {
 }
 
 async function conOpenAI(texto, key) {
-  const modelo = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const modelo = modeloOpenAI();
   const r = await fetch('https://api.openai.com/v1/chat/completions', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + key },
@@ -162,6 +163,7 @@ async function conOpenAI(texto, key) {
 }
 
 import { mismaCasa, fueraDeCasa } from './_origen.js';
+import { modeloGemini, modeloClaude, modeloOpenAI } from './_modelo.js';
 
 /* CUÁNTO SE LE DEJA TARDAR. Por defecto Vercel corta una función a los 10
    segundos y devuelve un error que no explica nada. Sacar los datos de un mensaje largo puede pasar de ahi.

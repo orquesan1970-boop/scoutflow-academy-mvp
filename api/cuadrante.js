@@ -105,7 +105,7 @@ function esquemaClaude() {
 function pideTexto(e) { return e.tipo === 'texto'; }
 
 async function conGemini(e, key) {
-  const modelo = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+  const modelo = modeloGemini();
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent?key=' + key;
   const parts = pideTexto(e)
     ? [{ text: e.texto }]
@@ -127,7 +127,7 @@ async function conGemini(e, key) {
 }
 
 async function conClaude(e, key) {
-  const modelo = process.env.ANTHROPIC_MODEL || 'claude-haiku-4-5-20251001';
+  const modelo = modeloClaude();
   let contenido;
   if (pideTexto(e)) contenido = e.texto;
   else if (e.mime === 'application/pdf') contenido = [
@@ -154,7 +154,7 @@ async function conClaude(e, key) {
 }
 
 async function conOpenAI(e, key) {
-  const modelo = process.env.OPENAI_MODEL || 'gpt-4o-mini';
+  const modelo = modeloOpenAI();
   if (!pideTexto(e) && e.mime === 'application/pdf') {
     throw new Error('Con OpenAI no se puede leer un PDF directamente. Sube una foto de la hoja, o pásalo a Excel.');
   }
@@ -210,6 +210,7 @@ function limpia(s) {
 export const config = { maxDuration: 30 };
 
 import { mismaCasa, fueraDeCasa } from './_origen.js';
+import { modeloGemini, modeloClaude, modeloOpenAI, REVISADO } from './_modelo.js';
 
 export default async function handler(req, res) {
   const gem = process.env.GEMINI_API_KEY;
@@ -228,7 +229,11 @@ export default async function handler(req, res) {
       proveedor: proveedor,
       /* Los tres leen imágenes. El PDF, todos menos OpenAI. */
       imagen: !!proveedor,
-      pdf: !!(gem || ant)
+      pdf: !!(gem || ant),
+      /* Qué modelo se usaría, sin llamarlo. Es como se comprueba desde fuera
+         que el modelo puesto en Vercel es el que toca (F0-03) sin gastar IA. */
+      modelo: gem ? modeloGemini() : ant ? modeloClaude() : oai ? modeloOpenAI() : null,
+      modelos_revisados: REVISADO
     });
   }
 

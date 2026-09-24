@@ -125,7 +125,7 @@ const ESQUEMA_PROPUESTA = `Responde SOLO con un objeto JSON:
 Máximo 8 momentos, los más útiles para entrenar. Si el tramo no da para tanto, devuelve menos.`;
 
 async function pideAGemini(key, payload) {
-  const modelo = process.env.GEMINI_VIDEO_MODEL || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+  const modelo = modeloGeminiVideo();
   const url = 'https://generativelanguage.googleapis.com/v1beta/models/' + modelo + ':generateContent?key=' + key;
   const r = await fetch(url, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload)
@@ -159,6 +159,7 @@ function limpia(v, max) {
 }
 
 import { mismaCasa, fueraDeCasa } from './_origen.js';
+import { modeloGeminiVideo } from './_modelo.js';
 
 /* CUÁNTO SE LE DEJA TARDAR. Por defecto Vercel corta una función a los 10
    segundos y devuelve un error que no explica nada. Mirar 40 segundos de partido a 2 fotogramas por segundo le lleva a Gemini bastante mas que eso.
