@@ -13037,7 +13037,12 @@ SF.ui = (function () {
   /* tarjeta de jugador (vista principal) */
   function playerCard(p) {
     var nat = (p.nationality || []).join(' / ');
-    var ssc = SF.scoutScore(p);
+    /* EL SCORE SOLO PARA QUIEN PUEDE VERLO (F0-07). La tarjeta no miraba el
+       permiso y el entrenador, administración o el fisio veían el Score de
+       todos sus jugadores aunque su rol no lo tuviera. Sin permiso, la tarjeta
+       no lleva ni el hueco: un «—» también cuenta algo. */
+    var verScore = !!(SF.perms && SF.perms().canSeeScore);
+    var ssc = verScore ? SF.scoutScore(p) : null;
     var score = ssc ? ssc.score : '—';
     var card = el(
       '<button class="pcard" data-id="' + p.id + '">' +
@@ -13049,7 +13054,7 @@ SF.ui = (function () {
       '<div class="pcard-meta">' + esc(p.primary_position || '—') + ' · ' +
       (p.height_cm ? (p.height_cm / 100).toFixed(2) + ' m' : (p.height_est_cm ? '~' + (p.height_est_cm / 100).toFixed(2) + ' m' : '—')) +
       (p.dorsal ? ' · dorsal ' + esc(p.dorsal) : '') + '</div>' +
-      '<div class="pcard-row">' + statusTag(p.status) + '<span class="pcard-score">' + ico('star') + ' ' + score + '</span></div>' +
+      '<div class="pcard-row">' + statusTag(p.status) + (verScore ? '<span class="pcard-score">' + ico('star') + ' ' + score + '</span>' : '') + '</div>' +
       '</div></button>'
     );
     card.onclick = function () { location.hash = '#/jugador/' + p.id; };
@@ -15167,10 +15172,13 @@ window.SF = window.SF || {};
         rows.forEach(function (p) { g.appendChild(U.playerCard(p)); });
         out.appendChild(g);
       } else {
-        var t = el('<table class="tbl"><thead><tr><th>Jugador</th><th>Año</th><th>Posición</th><th>Estado</th><th>Score</th></tr></thead><tbody></tbody></table>');
+        /* La columna Score, solo con permiso (F0-07): la tabla es la misma
+           lista que las tarjetas y tiene que callar lo mismo. */
+        var verSc = !!role().canSeeScore;
+        var t = el('<table class="tbl"><thead><tr><th>Jugador</th><th>Año</th><th>Posición</th><th>Estado</th>' + (verSc ? '<th>Score</th>' : '') + '</tr></thead><tbody></tbody></table>');
         var tb = t.querySelector('tbody');
         rows.forEach(function (p) {
-          var tr = el('<tr><td><div class="tcell"><span class="av-sm">' + U.initials(p.full_name) + '</span>' + esc(p.full_name) + '</div></td><td>' + (p.birth_year || '—') + '</td><td>' + esc(p.primary_position || '—') + '</td><td>' + U.statusTag(p.status) + '</td><td>' + (function () { var x = SF.scoutScore(p); return x ? x.score : '—'; })() + '</td></tr>');
+          var tr = el('<tr><td><div class="tcell"><span class="av-sm">' + U.initials(p.full_name) + '</span>' + esc(p.full_name) + '</div></td><td>' + (p.birth_year || '—') + '</td><td>' + esc(p.primary_position || '—') + '</td><td>' + U.statusTag(p.status) + '</td>' + (verSc ? '<td>' + (function () { var x = SF.scoutScore(p); return x ? x.score : '—'; })() + '</td>' : '') + '</tr>');
           tr.onclick = function () { location.hash = '#/jugador/' + p.id; };
           tb.appendChild(tr);
         });
@@ -15803,9 +15811,12 @@ window.SF = window.SF || {};
           var hl = el('<div class="mini-list"></div>');
           log.slice().reverse().slice(0, 6).forEach(function (e) {
             var temp = e.season || SF.seasonOf(e.date);
+            /* Quien evalúa sin permiso de Score (el entrenador) ve que su
+               evaluación quedó guardada, pero no el número que sale (F0-07). */
             var ssH = e.stats ? SF.scoutScore(p, e.stats) : null;
+            var verH = !!role().canSeeScore;
             hl.appendChild(el('<div class="mini-row"><span><b>' + esc(temp) + '</b> · ' + esc(e.by) + ' · ' + esc(e.role) +
-              (ssH ? ' · Score ' + ssH.score : '<span class="hint"> · sin detalle guardado</span>') +
+              (ssH ? (verH ? ' · Score ' + ssH.score : ' · evaluación guardada') : '<span class="hint"> · sin detalle guardado</span>') +
               '</span><span class="hint">' + esc(e.date) + '</span></div>'));
           });
           body.appendChild(hl);
@@ -16817,12 +16828,21 @@ window.SF = window.SF || {};
      nuevo a la ficha.
 
      Fuera quedan, a propósito: notas internas, situación económica,
-     antecedentes médicos, disponibilidad clínica, teléfonos, correos, DNI,
-     dirección y los datos de la familia. Ninguno hace falta para escribir un
-     resumen deportivo. */
+     antecedentes médicos, disponibilidad, teléfonos, correos, DNI, dirección,
+     los datos de la familia y el Scout Score. Ninguno hace falta para escribir
+     un resumen deportivo.
+
+     EL SCOUT SCORE NO SALE (F0-17). Es una valoración interna del club, que la
+     regla 10 del proyecto no deja viajar a la IA, y este informe se puede
+     publicar a la familia: un «91 sobre 100» escrito por la IA en su pestaña
+     de Informes es justo lo que el club no quiere enseñar. Las notas de cada
+     apartado sí van: son las que el modelo necesita para decir en qué destaca.
+
+     LA DISPONIBILIDAD TAMPOCO. «No disponible · sin saltos» no dice el
+     diagnóstico, pero sí que hay un problema de salud, y eso ya es dato de
+     salud (art. 4.15 y 9 del RGPD). Para un resumen deportivo no hace falta. */
   function fichaParaIA(p) {
     var sp = SF.SPORTS[p.sport] || {};
-    var ss = SF.scoutScore(p);
     var f = {};
     function set(k, v) { if (v !== null && v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)) f[k] = v; }
 
@@ -16836,8 +16856,6 @@ window.SF = window.SF || {};
     set('estado', p.status); set('edad_de_inicio', p.start_age);
     set('nacionalidades', p.nationality); set('curso', p.course); set('idioma_ingles', p.english);
     set('objetivo', p.objective);
-
-    if (ss) { set('score', ss.score + ' sobre 100'); set('score_cobertura', ss.puestos + ' de ' + ss.total + ' apartados evaluados'); }
 
     /* Las notas, en texto plano y diciendo la escala: sin eso el modelo no
        sabe si un 6 es bueno o malo. */
@@ -16856,17 +16874,12 @@ window.SF = window.SF || {};
     if (fl.length > 1) {
       set('anios_en_el_club', fl.length);
       set('evolucion', fl.map(function (x) {
-        return x.season + ': ' + (x.altura ? (x.altura / 100).toFixed(2) + ' m' : 'sin medir') +
-          (x.score != null ? ', score ' + x.score : '');
+        return x.season + ': ' + (x.altura ? (x.altura / 100).toFixed(2) + ' m' : 'sin medir');
       }));
     }
 
     var pend = Object.keys(p.documents || {}).filter(function (k) { return p.documents[k] === 'pendiente'; });
     set('documentos_pendientes', pend);
-
-    /* Disponibilidad SIN diagnóstico, igual que en el resto de la app. */
-    var dz = SF.dispo(p);
-    if (dz.activa) set('disponibilidad', dz.def.corto + (dz.limitacion ? ' · ' + dz.limitacion : ''));
 
     var ch = SF.careerNorm(p.career_history);
     if (ch.length) set('trayectoria', ch.map(function (c) {
@@ -16959,7 +16972,7 @@ window.SF = window.SF || {};
         'Revísalo antes de usarlo: puede equivocarse. <button class="lnk" data-q>¿Qué se ha enviado?</button></p>');
       pie.querySelector('[data-q]').onclick = function () {
         U.modal('Qué ha salido del club', el('<div><p class="hint">Solo estos campos. No se envían notas internas, ' +
-          'ni datos económicos, ni médicos, ni teléfonos o correos de la familia.</p>' +
+          'ni datos económicos, ni médicos ni de disponibilidad, ni el Scout Score, ni teléfonos o correos de la familia.</p>' +
           '<p class="bz-body">' + esc((d.enviado || []).join('\n')) + '</p></div>'));
       };
       box.appendChild(pie);
@@ -16973,8 +16986,10 @@ window.SF = window.SF || {};
   function informePorReglas(p, motivo, detalle) {
     var strengths = [], gaps = [];
     if (p.height_cm >= 195) strengths.push('Envergadura física destacada para su posición.');
+    /* Sin el Scout Score (F0-17): este resumen también puede acabar delante
+       de la familia. Lo que se dice sale de las notas, que sí puede leer. */
     var ssInf = SF.scoutScore(p);
-    if (ssInf && ssInf.score >= 80) strengths.push('Scout Score alto (' + ssInf.score + ' sobre 100, de ' + ssInf.puestos + ' apartados evaluados).');
+    if (ssInf && ssInf.score >= 80) strengths.push('Evaluaciones altas en la mayoría de apartados (' + ssInf.puestos + ' evaluados).');
     if ((p.nationality || []).length > 1) strengths.push('Doble nacionalidad: facilita movilidad internacional.');
     if (!strengths.length) strengths.push('Perfil en evaluación; faltan datos para destacar fortalezas.');
     var missing = [];
@@ -19443,7 +19458,9 @@ window.SF = window.SF || {};
          está vacía, el resumen va a estar vacío, y más vale avisar antes. */
       var ss = SF.scoutScore(p);
       var pend = SF.pendientesDe(p);
-      var pista = ss ? 'Score ' + ss.score + ' · ' + ss.puestos + '/' + ss.total + ' evaluado' : 'sin evaluar todavía';
+      /* Cuánto está evaluado sí lo ve todo el que analiza; el número del
+         Score, solo quien tiene permiso (F0-07). */
+      var pista = ss ? (role().canSeeScore ? 'Score ' + ss.score + ' · ' : '') + ss.puestos + '/' + ss.total + ' evaluado' : 'sin evaluar todavía';
       if (pend.length) pista += ' · ' + pend.map(function (x) { return x.t.toLowerCase(); }).join(', ');
 
       var row = el('<div class="att"><div class="av av-purple">' + U.initials(p.full_name) + '</div>' +
