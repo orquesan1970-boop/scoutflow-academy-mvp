@@ -23,8 +23,11 @@
 const PERMITIDOS = [
   'nombre', 'anio', 'edad', 'posicion', 'posicion_2', 'altura_cm', 'peso_kg',
   'envergadura_cm', 'mano', 'usa_dos_manos', 'equipo', 'categoria', 'club',
-  'liga', 'estado', 'anios_en_el_club', 'score', 'score_cobertura',
-  'evaluacion', 'evolucion', 'documentos_pendientes', 'disponibilidad',
+  'liga', 'estado', 'anios_en_el_club',
+  /* Fuera desde el 25/09/2026 (F0-17): el Scout Score ('score',
+     'score_cobertura') es una valoración interna que no viaja a la IA, y la
+     disponibilidad es dato de salud. */
+  'evaluacion', 'evolucion', 'documentos_pendientes',
   'nacionalidades', 'curso', 'idioma_ingles', 'objetivo', 'edad_de_inicio',
   'trayectoria', 'selecciones', 'proxima_cita',
   /* Lo que se le ha visto hacer en los partidos: los cortes que marco su
@@ -36,7 +39,13 @@ const PERMITIDOS = [
 
 /* Palabras que delatan que alguien ha metido donde no debía. Si aparecen en
    una clave, ese campo no sale del servidor. */
-const PROHIBIDO = /nota|interna|econom|beca|presupuesto|salud|medic|lesion|diagn|alerg|sangre|telefono|movil|email|correo|dni|direccion|iban|banco|tutor|padre|madre|familia/i;
+const PROHIBIDO = /nota|interna|econom|beca|presupuesto|salud|medic|lesion|diagn|alerg|sangre|dispon|score|telefono|movil|email|correo|dni|direccion|iban|banco|tutor|padre|madre|familia/i;
+
+/* Y dentro de los valores: una línea de evolución de una versión anterior de
+   la app puede traer «score 84» pegado. Se quita antes de salir. */
+function sinScore(t) {
+  return String(t).replace(/,?\s*(scout\s*)?score\s*:?\s*\d+(\s*(sobre|\/)\s*100)?/gi, '').trim();
+}
 
 function limpiar(ficha) {
   const out = {};
@@ -48,8 +57,8 @@ function limpiar(ficha) {
     /* Nada de objetos anidados con sorpresas: solo texto, números y listas
        de texto. Un objeto puede traer dentro cualquier cosa. */
     if (typeof v === 'object' && !Array.isArray(v)) return;
-    if (Array.isArray(v)) out[k] = v.slice(0, 40).map(x => String(x).slice(0, 200));
-    else out[k] = String(v).slice(0, 400);
+    if (Array.isArray(v)) out[k] = v.slice(0, 40).map(x => sinScore(x).slice(0, 200));
+    else out[k] = sinScore(v).slice(0, 400);
   });
   return out;
 }
