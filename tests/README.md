@@ -38,6 +38,7 @@ Si ya tienes un Chromium instalado, `CHROMIUM_PATH=/ruta/a/chrome` evita descarg
 | `ia-ficha.js` | Lo que manda el navegador al pulsar «Analizar» no lleva Score ni disponibilidad, y el informe por reglas no dice el Score | F0-17 |
 | `papelera.js` | Solo dirección y quien dio de alta ven «Editar perfil» y «Dar de baja»; la baja se recupera entera; el borrado definitivo pide dos pasos | F0-08 |
 | `recorrido.js` | Los 17 roles por todas sus pantallas en 1366×900 y 390×844: 0 errores de JavaScript, ninguna puerta cerrada, 0 Scores para quien no tiene permiso, botones de la ficha según permiso, ningún desborde nuevo en móvil | F0-07, F0-08, F0-09 |
+| `esquema/` | `database/schema_v3.sql` corre limpio dos veces en PostgreSQL y sus reglas de acceso aíslan clubes, notas internas y familias (se ejecuta con `psql`, ver `esquema/README.md`) | F0-10 |
 | `_comun.js` | Servidor local, arranque del navegador y marcador de resultados | — |
 
 ## Reglas
