@@ -1,0 +1,13 @@
+{
+  "name": "scoutflow-pruebas",
+  "private": true,
+  "description": "Pruebas automáticas de ScoutFlow Academy. No forman parte de lo que publica Vercel.",
+  "type": "commonjs",
+  "scripts": {
+    "todo": "node todas.js",
+    "recorrido": "node recorrido.js"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}
