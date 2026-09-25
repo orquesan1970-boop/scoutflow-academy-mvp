@@ -11586,6 +11586,51 @@ SF.store = (function () {
       save(d);
     },
 
+    /* ── BAJA CON PAPELERA (F0-08) ──
+       Antes «Eliminar» borraba la ficha para siempre, y el botón lo tenía
+       cualquier rol. Ahora dar de baja SACA la ficha de la lista del club y la
+       guarda entera en `papelera`, con quién, cuándo y por qué. Se recupera
+       tal cual estaba, en su sitio.
+       La ficha sale de `players` (no se marca dentro) a propósito: así ninguna
+       pantalla, contador, cuadrante o aviso puede seguir contándola por
+       olvido. El borrado definitivo existe —el derecho de supresión del RGPD
+       lo exige— pero solo para dirección, y solo desde la papelera. */
+    darDeBaja: function (id, quien, motivo) {
+      var d = db();
+      var pos = -1;
+      for (var i = 0; i < d.players.length; i++) if (d.players[i].id === id) { pos = i; break; }
+      if (pos < 0) return null;
+      var p = d.players.splice(pos, 1)[0];
+      p.baja = { at: new Date().toISOString(), by: (quien && quien.name) || '', staff_id: (quien && quien.staff_id) || '',
+                 role: d.role || '', motivo: String(motivo || '').slice(0, 300), pos: pos };
+      if (!Array.isArray(d.papelera)) d.papelera = [];
+      d.papelera.unshift(p);
+      save(d);
+      return p;
+    },
+    papelera: function () { return (db().papelera || []).slice(); },
+    restaurar: function (id, quien) {
+      var d = db();
+      var lista = d.papelera || [];
+      var pos = -1;
+      for (var i = 0; i < lista.length; i++) if (lista[i].id === id) { pos = i; break; }
+      if (pos < 0) return null;
+      var p = lista.splice(pos, 1)[0];
+      var b = p.baja || {};
+      delete p.baja;
+      p.bajas_previas = (p.bajas_previas || []).concat([{ at: b.at, by: b.by, motivo: b.motivo,
+        restaurada: new Date().toISOString(), restaurada_por: (quien && quien.name) || '' }]);
+      var donde = Math.min(b.pos != null ? b.pos : 0, d.players.length);
+      d.players.splice(donde, 0, p);
+      save(d);
+      return p;
+    },
+    borrarDePapelera: function (id) {
+      var d = db();
+      d.papelera = (d.papelera || []).filter(function (x) { return x.id !== id; });
+      save(d);
+    },
+
     /* ── Equipos ── */
     teams: function () { return db().teams.slice(); },
     teamGet: function (id) { return db().teams.filter(function (t) { return t.id === id; })[0] || null; },
@@ -14877,8 +14922,12 @@ window.SF = window.SF || {};
       (SF.router.puede('importar') ? '<button class="btn" id="imp">' + ico('ai') + 'Importar mensaje</button>' : '') +
       (SF.router.puede('inscripcion') ? '<button class="btn" id="insc">' + ico('file') + 'Inscripción</button>' : '') +
       (r0.canCreatePlayers ? '<button class="btn btn-primary" id="nuevo">' + ico('plus') + 'Nuevo jugador</button>' : '');
+    /* La papelera, solo si hay algo que el que entra pueda ver (F0-08). */
+    var enPapelera = papeleraVisible().length;
+    if (enPapelera) actions = '<button class="btn" id="papel">' + ico('trash') + 'Papelera (' + enPapelera + ')</button>' + actions;
     view.innerHTML = head('Jugadores', 'Vista principal: tarjetas con foto', actions);
     var bN = view.querySelector('#nuevo'); if (bN) bN.onclick = openCreate;
+    var bP = view.querySelector('#papel'); if (bP) bP.onclick = abrirPapelera;
     var bI = view.querySelector('#imp'); if (bI) bI.onclick = function () { location.hash = '#/importar'; };
     /* Empieza siempre de cero: si alguien dejó una inscripción a medias, la
        siguiente familia no debe encontrarse los datos del anterior. */
@@ -15208,6 +15257,94 @@ window.SF = window.SF || {};
     render();
   };
 
+  /* ===================== BAJAS Y PAPELERA (F0-08) =====================
+     Quién gestiona una ficha: dirección (director y las cinco direcciones
+     técnicas) y la persona que la dio de alta, si su rol puede dar de alta.
+     OJO, y se dice claro: esto lo decide el navegador. En Supabase cualquier
+     miembro del club puede todavía cambiar o borrar filas (hallazgo C4); eso
+     lo cierra la Fase 1 (F1-05). */
+  SF.ROLES_DIRECCION = ['director', 'dt_general', 'dt_femenino', 'dt_masculino', 'dt_escuelas', 'dt_minis'];
+  function esDireccion() { return SF.ROLES_DIRECCION.indexOf(SF.store.role()) >= 0; }
+  function puedeGestionarFicha(p) {
+    if (esDireccion()) return true;
+    var me = SF.store.staffMe();
+    return !!(role().canCreatePlayers && me && p && p.created_by_staff_id === me.id);
+  }
+  SF.puedeGestionarFicha = puedeGestionarFicha;
+
+  /* Lo que cada uno ve en la papelera: dirección, todo; quien dio de baja o de
+     alta una ficha, las suyas. */
+  function papeleraVisible() {
+    var me = SF.store.staffMe();
+    return SF.store.papelera().filter(function (p) {
+      if (esDireccion()) return true;
+      if (!me) return false;
+      return (p.baja && p.baja.staff_id === me.id) || p.created_by_staff_id === me.id;
+    });
+  }
+
+  function pedirBaja(p) {
+    var box = el('<div>' +
+      '<p>La ficha de <b>' + esc(p.full_name) + '</b> sale de la lista del club y pasa a la <b>papelera</b>. ' +
+      'No se borra nada: se puede recuperar tal cual desde <b>Jugadores → Papelera</b>.</p>' +
+      '<div class="frow"><label>Motivo (opcional)</label><input id="bmot" maxlength="300" placeholder="Por ejemplo: deja el club, ficha duplicada, error al darlo de alta"></div>' +
+      '</div>');
+    var pie = el('<div class="row-c"><button class="btn" data-no>Cancelar</button>' +
+      '<button class="btn btn-danger" data-si>' + ico('trash') + 'Dar de baja</button></div>');
+    U.modal('Dar de baja', box, pie);
+    pie.querySelector('[data-no]').onclick = U.closeModal;
+    pie.querySelector('[data-si]').onclick = function () {
+      SF.store.darDeBaja(p.id, quienFirma(), box.querySelector('#bmot').value);
+      U.closeModal();
+      U.toast(p.full_name + ' dado de baja. Está en la papelera.');
+      location.hash = '#/jugadores';
+    };
+  }
+
+  function abrirPapelera() {
+    var box = el('<div></div>');
+    function pinta() {
+      box.innerHTML = '';
+      var lista = papeleraVisible();
+      if (!lista.length) { box.appendChild(el('<p class="hint">La papelera está vacía.</p>')); return; }
+      box.appendChild(el('<p class="hint">Fichas dadas de baja. Al recuperarlas vuelven con todo lo que tenían. ' +
+        'El borrado definitivo es solo para dirección y no tiene vuelta atrás.</p>'));
+      var ul = el('<div class="mini-list"></div>');
+      lista.forEach(function (p) {
+        var b = p.baja || {};
+        var fila = el('<div class="mini-row"><span><b>' + esc(p.full_name) + '</b> · ' + (p.birth_year || '—') +
+          '<br><span class="hint">Baja el ' + esc(fmtDate(String(b.at || '').slice(0, 10))) + (b.by ? ' por ' + esc(b.by) : '') +
+          (b.motivo ? ' · ' + esc(b.motivo) : '') + '</span></span>' +
+          '<span class="row-c"><button class="btn btn-sm" data-rec>' + ico('back') + 'Recuperar</button>' +
+          (esDireccion() ? '<button class="btn btn-sm btn-danger" data-borra title="Borrar para siempre" aria-label="Borrar para siempre">' + ico('trash') + '</button>' : '') +
+          '</span></div>');
+        fila.querySelector('[data-rec]').onclick = function () {
+          SF.store.restaurar(p.id, quienFirma());
+          U.toast(p.full_name + ' recuperado');
+          pinta();
+          SF.router.render();
+        };
+        var bb = fila.querySelector('[data-borra]');
+        if (bb) bb.onclick = function () {
+          /* Dos pasos, y el segundo dice lo que pasa. Es la única acción de la
+             app que no se puede deshacer. */
+          if (bb.dataset.seguro !== '1') {
+            bb.dataset.seguro = '1';
+            bb.innerHTML = ico('trash') + 'Pulsa otra vez: se borra para siempre';
+            return;
+          }
+          SF.store.borrarDePapelera(p.id);
+          U.toast('Ficha de ' + p.full_name + ' borrada para siempre');
+          pinta();
+        };
+        ul.appendChild(fila);
+      });
+      box.appendChild(ul);
+    }
+    pinta();
+    U.modal('Papelera de jugadores', box);
+  }
+
   /* ===================== FICHA MAESTRA ===================== */
   var TABS = [
     ['perfil', 'Perfil'], ['deportivo', 'Deportivo'], ['trayectoria', 'Trayectoria'], ['academico', 'Académico'], ['familia', 'Familia'],
@@ -15223,15 +15360,24 @@ window.SF = window.SF || {};
     var allowed = r.tabs === 'all' ? TABS.map(function (t) { return t[0]; }) : r.tabs;
 
     var back = '<button class="btn" id="back">' + ico('back') + 'Jugadores</button>';
-    var edit = '<button class="btn" id="ed">' + ico('edit') + 'Editar perfil</button><button class="btn btn-danger" id="del">' + ico('trash') + '</button>';
+    /* EDITAR Y DAR DE BAJA, SOLO DIRECCIÓN Y QUIEN DIO DE ALTA LA FICHA (F0-08).
+       Antes los dos botones salían a cualquier rol que abriera la ficha: un
+       entrenador o un fisio podían cambiar el perfil o borrar al jugador. Lo
+       suyo lo siguen haciendo en su pestaña (evaluar, medir, disponibilidad);
+       el perfil y la baja son de quien lleva la ficha. */
+    var gestiona = puedeGestionarFicha(p);
+    var edit = gestiona
+      ? '<button class="btn" id="ed">' + ico('edit') + 'Editar perfil</button>' +
+        '<button class="btn btn-danger" id="del" title="Dar de baja" aria-label="Dar de baja">' + ico('trash') + '</button>'
+      : '';
     view.innerHTML = head('Ficha del jugador', '', back + edit);
     view.querySelector('#back').onclick = function () { location.hash = '#/jugadores'; };
-    view.querySelector('#del').onclick = function () {
-      if (confirm('¿Eliminar a ' + p.full_name + '?')) { SF.store.remove(p.id); U.toast('Eliminado'); location.hash = '#/jugadores'; }
-    };
-    view.querySelector('#ed').onclick = function () {
-      U.modal('Editar perfil', playerForm(p, function (data) { SF.store.update(p.id, data); U.toast('Guardado'); SF.router.render(); }));
-    };
+    if (gestiona) {
+      view.querySelector('#del').onclick = function () { pedirBaja(p); };
+      view.querySelector('#ed').onclick = function () {
+        U.modal('Editar perfil', playerForm(p, function (data) { SF.store.update(p.id, data); U.toast('Guardado'); SF.router.render(); }));
+      };
+    }
 
     var fhead = el('<div class="ficha-head"><div class="fh-photo">' + U.initials(p.full_name) + '</div><div class="fh-info"></div></div>');
     var nat = (p.nationality || []).join(', ');
