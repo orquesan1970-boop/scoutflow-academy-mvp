@@ -1,126 +1,162 @@
 # ScoutFlow Academy
 
-CRM deportivo para academias y clubes de formación. Gestiona el jugador de
+CRM deportivo para academias y clubes de formación. Gestiona al jugador de
 principio a fin: captación, admisión, seguimiento deportivo, documentación,
 familias, personal y dinero.
 
 **From Prospect to Player**
 
-- Aplicación: <https://app.scoutflow-academy.com> · desplegada por Vercel desde
-  este repositorio, rama `main`
-- Academia piloto: CBJA Academy — 277 jugadores, 27 equipos
-- Product Owner: Jorge Andrés
+- Aplicación: <https://app.scoutflow-academy.com>, detrás de una contraseña
+  (`SF_PASS`) mientras se construye. Vercel la publica sola desde la rama `main`.
+- Web comercial: <https://scoutflow-academy.com> (carpeta `web/`, aparte de la app).
+- Academia piloto: CBJA Academy · Product Owner: Jorge Andrés.
 
 ---
 
-## Estado real, sin adornos
+## Estado real, sin adornos (25/09/2026)
 
 | Pieza | Estado |
 |---|---|
-| Aplicación | **Funcionando.** ~20 secciones, 17 roles |
-| Acceso | **Real.** Correo y contraseña (Supabase Auth) |
-| Base de datos | **Real.** Supabase, servidor de Frankfurt (UE) |
-| Guardado en la nube | **Real.** Automático, con respaldo local si se cae la red |
-| IA (leer mensajes, analizar fichas, leer cuadrantes) | **Real.** Gemini / Claude / OpenAI, la que esté configurada |
-| Historial de versiones | **Real**, si se ejecuta `database/nube.sql` |
-| Varios usuarios en un mismo club | **No.** Una cuenta = un club (Paso 2, pendiente) |
-| Permisos en el servidor | **No.** Los roles se aplican en el navegador |
-| Pagos online | **No.** Stripe está previsto, no conectado |
-| Subida de archivos a la nube | **No.** Los documentos se registran, no se almacenan |
+| Aplicación | **Funciona.** 37 páginas, 17 roles, 22 capacidades, ficha de 14 pestañas. Recorrido automático: 714 pantallas, 0 errores |
+| Acceso | **Real.** Correo y contraseña con Supabase Auth |
+| Varios usuarios en un club | **Preparado** (Paso 2): el club es de sus miembros (`members`), se entra con un código de invitación y el rol lo dice el servidor. Falta confirmar que `paso2_multiusuario.sql` está ejecutado en el Supabase real (tarea F1-01) |
+| Base de datos | **Real.** Supabase en Frankfurt. Una fila por jugador, persona del staff o equipo en `academy_docs`; el resto de listas, en bloque |
+| Permisos | **Solo en el navegador.** En el servidor cualquier miembro puede todavía leer, cambiar y borrar todo el club. Lo cierra la Fase 1 |
+| IA | **Real.** 7 funciones en `api/` con Gemini (alternativas: Claude y OpenAI). Solo responden a la propia app, pero todavía no saben quién llama ni tienen tope por usuario |
+| Dónde corren las funciones | Frankfurt (`fra1`), igual que la base de datos |
+| Fotos y archivos | **No.** Los documentos se registran, no se almacenan |
+| Pagos online | **No.** Previsto, sin conectar |
+| Correo y avisos al móvil | **No** |
 
-### Lo que hay que saber antes de tocar nada
-
-**La aplicación entera es `index.html`.** Un solo archivo, sin paso de
-compilación: se edita y se sube. Las carpetas `css/`, `js/` y `data/` son de la
-primera versión y **la aplicación no las usa** — están para no romper enlaces
-antiguos. Si editas ahí, no cambia nada. Se irán retirando.
-
-**Una cuenta = un club.** Cada correo registrado tiene su propio club. Si entra
-otra persona con otro correo, no ve este club: ve uno vacío.
-
-**El rol se elige en un desplegable**, no viene del servidor. Sirve para probar
-y para el piloto; **no es seguridad**. Hasta que los permisos vivan en Supabase
-(RLS), esto es un piloto de una persona, no una aplicación para todo el club.
+El plan para llegar a producción, con sus 85 tareas, vive en el Project de
+Claude («Estado de salida a producción»). Este README describe el código.
 
 ---
 
 ## Estructura
 
 ```text
-index.html            LA APLICACIÓN ENTERA (~18.000 líneas)
-api/                  Funciones de servidor (Vercel)
-  extraer.js            lee un mensaje y saca los datos del jugador
-  analizar.js           analiza una ficha y propone el siguiente paso
-  cuadrante.js          lee un cuadrante de preparación física (foto o Excel)
-middleware.js         Contraseña de acceso a todo el dominio (ver abajo)
-database/
-  nube.sql              LAS TABLAS QUE USA LA APP HOY. Empieza por aquí
-  schema_completo.sql   El modelo relacional al que se quiere llegar
-  SUPABASE_auth_v2.sql  Autenticación y permisos por fila (Paso 2)
-  PRUEBAS_RLS.sql       Comprobaciones de que los permisos aíslan de verdad
-docs/                 Documentación por temas: roles, permisos, familia, menores
-web/                  Borrador de la web comercial (aparte de la aplicación)
-css/ js/ data/        De la primera versión. LA APP NO LOS USA
+index.html            LA APLICACIÓN ENTERA (~35.000 líneas, sin paso de compilación)
+api/                  Funciones de servidor (Vercel), todas en Frankfurt
+  _origen.js            valla: solo responde a peticiones de la propia app
+  _modelo.js            qué modelo de IA usa cada proveedor, en un solo sitio
+  extraer.js            lee un mensaje (WhatsApp, correo) y saca la ficha
+  analizar.js           resumen de un jugador para dirección o su entrenador
+  video.js              informe a partir de los cortes de vídeo marcados
+  video-ia.js           la IA mira un tramo de un vídeo de YouTube
+  cuadrante.js          lee un cuadrante de preparación física (foto, Excel, PDF)
+  factura.js            lee un albarán y lo empareja con el catálogo de ropa
+  hojas.js              lee la hoja de entrenamiento de un entrenador
+database/             SQL de Supabase (ver abajo cuál manda)
+tests/                Pruebas automáticas (no se publican: ver .vercelignore)
+middleware.js         Puerta de contraseña de la web (deja fuera /api)
+vercel.json           Región de las funciones (fra1) y caché
+web/                  Web comercial, que se publica aparte
+docs/                 Documentación por temas de agosto de 2026. Útil, pero
+                      puede estar desfasada: el estado manda en el Project
 ```
 
+Las carpetas `css/`, `js/`, `data/`, `config/`, `components/`, `pages/` y
+`assets/` eran de la primera versión (junio) y **la app nunca las usó**. Se
+retiraron el 25/09/2026 (tarea F0-11); una de ellas llevaba datos personales
+reales.
+
+### Dentro de `index.html`
+
+| Bloque | Qué contiene |
+|---|---|
+| `<style>` | Todo el CSS y las variables de marca (morado `#6F5AEF`) |
+| `js/data.js` | Semilla de ejemplo (todo inventado), 17 roles, 22 capacidades, ejercicios, planes, catálogos |
+| `js/store.js` | `SF.store`: todas las operaciones sobre los datos y las migraciones (cada una con su bandera, corre una vez) |
+| `js/ui.js` | Ventanas, avisos, iconos y la tarjeta de jugador |
+| `js/pages.js` | Las 37 páginas |
+| `js/router.js` | Menú, rutas por `#/` y control de acceso por rol |
+| Nube | `SF.cloud`: login, partir y juntar filas, subida solo de lo que cambió, historial |
+| `js/app.js` | Arranque: primero la nube, luego el router |
+
+Los nombres `js/…` son etiquetas de bloque dentro del mismo archivo, no archivos.
+
+### SQL: cuál manda
+
+| Archivo | Qué es |
+|---|---|
+| `database/paso2_multiusuario.sql` | **El que manda hoy.** `academies`, `members`, `invitations`, `academy_docs`, sus reglas y funciones |
+| `database/nube.sql` | Historial de versiones (`academy_data_historial`) |
+| `database/schema_v3.sql` | El destino: el modelo por entidades (tarea F0-10). **No se ejecuta todavía** |
+| `schema.sql`, `schema_completo.sql`, `SUPABASE_auth_v2.sql`, `PRUEBAS_RLS.sql` | Versiones anteriores, de referencia. No ejecutar |
+
+---
+
 ## Trabajar en local
-
-Doble clic en `index.html` y funciona: los datos se guardan en el navegador
-(`localStorage`) y no tocan la nube. Es el sitio para trastear sin miedo.
-
-Con servidor local, que es lo recomendable:
 
 ```bash
 python3 -m http.server 8899   # y abrir http://localhost:8899
 ```
 
-Las funciones de `api/` **no funcionan en local** (necesitan Vercel). Sin ellas,
-la aplicación no se cae: avisa y tira del lector básico.
+Sin conexión a Supabase la app entra en **modo local**: siembra sus datos de
+ejemplo (todos inventados) y los guarda en el navegador. Se cambia de rol con
+`SF.store.setRole('entrenador')` en la consola y recargando.
+
+Las funciones de `api/` necesitan Vercel. Sin ellas la app no se cae: avisa y
+usa el lector por reglas.
+
+## Pruebas
+
+```bash
+cd tests && npm install && npx playwright install chromium && cd ..
+node tests/todas.js
+```
+
+Qué comprueba cada una, en `tests/README.md`. **Un cambio no se publica si no
+pasan**, y cada tarea añade su prueba de lo que no debe pasar.
 
 ## Publicar
 
-Subir `index.html` a la rama `main` y Vercel despliega solo, en un par de
-minutos. Después conviene comprobar que lo subido es lo que se quería:
+Vercel publica lo que hay en `main`. Después de subir, se comprueba que lo
+publicado es exactamente lo probado, **contra el commit**, no contra `main`:
 
 ```bash
 git fetch origin main
-git show origin/main:index.html | cmp - index.html && echo "idéntico"
+git cat-file -p origin/main:index.html | cmp - index.html && echo "idéntico"
 ```
+
+Y en el navegador, **Ctrl+F5**, porque sin eso sigue sirviendo la versión anterior.
+
+Si algo sale mal, Vercel guarda los despliegues anteriores y deja volver a uno
+con un clic (Deployments → el anterior → Promote).
+
+Comprobación rápida de que el servidor vive, sin gastar IA:
+<https://app.scoutflow-academy.com/api/cuadrante> → `{"ok":true,"modelo":"…"}`.
 
 ## Variables de entorno (Vercel → Settings → Environment Variables)
 
 | Variable | Para qué |
 |---|---|
-| `SF_PASS` | Contraseña de acceso a todo el dominio, **incluidas las funciones de IA**. Mientras exista, nadie entra sin ella. Es lo único que hoy impide que alguien de fuera gaste las claves de IA |
-| `SF_USER` | Usuario de esa contraseña (por defecto `cbja`) |
-| `GEMINI_API_KEY` | IA de Google. Tiene capa gratuita — es la primera que se busca |
-| `ANTHROPIC_API_KEY` | IA de Anthropic (de pago por uso) |
-| `OPENAI_API_KEY` | IA de OpenAI (de pago por uso) |
+| `SF_PASS` / `SF_USER` | Contraseña de la web mientras se construye. **No tapa `/api/`**: las funciones se protegen solas con `api/_origen.js` |
+| `GEMINI_API_KEY` | IA de Google. Es la primera que se busca, y la única que puede mirar vídeo |
+| `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` | Alternativas para texto e imagen |
+| `GEMINI_MODEL`, `GEMINI_VIDEO_MODEL`, `ANTHROPIC_MODEL`, `OPENAI_MODEL` | Opcionales. Si no están, manda `api/_modelo.js`. Un modelo retirado puesto aquí se ignora |
+| `SF_API_ABIERTA=1` | Quita la valla de origen para probar con `curl`. Nunca en producción |
 
-Se usa la primera clave de IA que esté configurada. Cambiar de proveedor es
-cambiar una variable: no hay que tocar código.
-
-> **Antes de quitar `SF_PASS`** para abrir la aplicación a familias y personal,
-> hay que proteger las funciones de `api/` con la sesión de Supabase y un límite
-> por usuario. Hoy están abiertas: lo único que las tapa es esa contraseña.
+Los modelos se revisan cada mes contra las páginas de retiradas de cada
+proveedor (enlaces en `api/_modelo.js`).
 
 ## Copias de seguridad
 
-Supabase, en el plan contratado, **no hace copias** ("Last backup: No backups"),
-y el club se guarda como una sola fila que se pisa en cada guardado.
-
 - **Configuración → Copias de seguridad** descarga el club entero con la fecha
   en el nombre, y avisa cuando hace más de 14 días de la última.
-- Restaurar **exige** descargar antes lo que hay, revisa el archivo y dice qué
-  trae antes de tocar nada.
-- Ejecutando `database/nube.sql` se activa el historial: una versión al día,
-  las diez últimas, y volver atrás desde la propia aplicación.
+- Restaurar exige descargar antes lo que hay y dice qué trae antes de tocar nada.
+- Con `database/nube.sql` ejecutado, la app guarda una versión al día (las diez
+  últimas) y deja volver atrás.
+- Las copias automáticas del propio Supabase llegan con su plan de pago (tarea F0-15).
 
-## Qué falta para dejar de ser un piloto
+## Lo que falta para producción
 
-1. Academias compartidas: varias personas en un mismo club, con invitaciones.
-2. Que el rol venga del perfil del usuario y desaparezca el desplegable.
-3. Permisos aplicados en el servidor (RLS), no solo escondiendo botones.
-4. Migrar el JSON único al modelo relacional de `schema_completo.sql`.
-5. Proteger las funciones de IA con sesión y límites de uso.
-6. Pruebas automáticas de acceso, permisos, guardado, importación y finanzas.
+1. **Permisos en el servidor** (Fase 1): reglas por rol en Supabase para notas,
+   sueldos, salud y familias; la sesión en cada llamada a `api/` y un tope de IA
+   por usuario y club.
+2. **Legal** (Fase 2): aviso legal, privacidad, encargo de tratamiento con el
+   club, evaluación de impacto, delegado de protección del menor.
+3. **Familias y móvil** (Fase 3): fotos y documentos en almacenamiento privado,
+   correo, avisos al móvil.
+4. **Cobro** (Fase 4) y **escala** (Fase 5).
