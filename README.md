@@ -112,8 +112,18 @@ pasan**, y cada tarea añade su prueba de lo que no debe pasar.
 
 ## Publicar
 
-Vercel publica lo que hay en `main`. Después de subir, se comprueba que lo
-publicado es exactamente lo probado, **contra el commit**, no contra `main`:
+**Nada va a `main` sin pasar antes por la rama `pruebas`** (tarea F0-14):
+
+1. El cambio se sube a la rama **`pruebas`**. Vercel crea solo una **vista previa**
+   con su propia dirección (la enlaza GitHub en el commit, en «Deployments»).
+2. Se prueba en esa dirección: la app, el móvil y `/api/cuadrante`. La vista previa
+   usa las mismas variables que producción solo si están marcadas también para
+   *Preview* en Vercel.
+3. Si está bien, **pull request de `pruebas` a `main`** y *Merge*. Vercel publica
+   `main` en producción.
+
+Después de publicar, se comprueba que lo publicado es exactamente lo probado,
+**contra el commit**, no contra lo que dice la web:
 
 ```bash
 git fetch origin main
@@ -123,7 +133,7 @@ git cat-file -p origin/main:index.html | cmp - index.html && echo "idéntico"
 Y en el navegador, **Ctrl+F5**, porque sin eso sigue sirviendo la versión anterior.
 
 Si algo sale mal, Vercel guarda los despliegues anteriores y deja volver a uno
-con un clic (Deployments → el anterior → Promote).
+con un clic (Deployments → el anterior → Promote to Production).
 
 Comprobación rápida de que el servidor vive, sin gastar IA:
 <https://app.scoutflow-academy.com/api/cuadrante> → `{"ok":true,"modelo":"…"}`.
