@@ -7758,11 +7758,16 @@ SF.pfAvisos = function (lista) {
 /* Los tres preparadores, con el color con el que salen en la hoja. El color
    ahora es un dato de la persona y no su posicion en una lista: antes, dar de
    alta a alguien nuevo le cambiaba el color a todos los demas, y el color es
-   justo lo que se usa para leer la hoja de un vistazo. */
+   justo lo que se usa para leer la hoja de un vistazo.
+   LOS NOMBRES SON INVENTADOS (F0-05): son los de la semilla de ejemplo. La
+   hoja real del club tenía los nombres de sus preparadores, y el repositorio
+   es público. La migración `_pf_real_v1` ya corrió en el club real, así que
+   cambiar esto no le toca nada: solo cambia lo que ve un club nuevo o la
+   demo. La estructura (ids, colores, coordinador, sesiones) es la misma. */
 SF.PF_STAFF_REAL = [
-  { id: 's23', nombre: 'Miguel Tolé',  alias: 'Miguel',       color: 'naranja', rol: 'coord_pf' },
-  { id: 's4',  nombre: 'Miguel Ángel', alias: 'Miguel Ángel', color: 'azul' },
-  { id: 's25', nombre: 'Aarón',        alias: 'Aarón',        color: 'verde' }
+  { id: 's23', nombre: 'Óscar Latorre', alias: 'Óscar', color: 'naranja', rol: 'coord_pf' },
+  { id: 's4',  nombre: 'Diego Sosa',    alias: 'Diego', color: 'azul' },
+  { id: 's25', nombre: 'Hugo Marín',    alias: 'Hugo',  color: 'verde' }
 ];
 
 /* Los equipos, con el nombre que usa el club. Se renombran los que ya existian
@@ -7832,14 +7837,14 @@ SF.PF_SESIONES_REAL = [
 SF.PF_CRITERIOS_REAL = [
   'Nacionales: 3 sesiones; Especiales/Sub-22 Oro: 2.',
   'PF de 50 min; inicio exacto 60 min antes de pista.',
-  'Miguel Ángel: lunes y jueves en Juan de Austria.',
-  'Nacional Fem: Miguel Ángel salvo miércoles (Miguel).',
-  'Junior 2009 Fem: Miguel Ángel.',
+  'Diego: lunes y jueves en Juan de Austria.',
+  'Nacional Fem: Diego salvo miércoles (Óscar).',
+  'Junior 2009 Fem: Diego.',
   'Sin solapamientos; reparto final 8–8–8.'
 ];
 SF.PF_NOTA_REAL = 'PF: 50 min · inicio 60 min antes de pista';
 SF.PF_OPERATIVA_REAL = 'El viernes se prioriza Junior Especial 2009 Masc frente a Sub-22 Oro Fem ' +
-  'por continuidad con Aarón. Si se desea priorizar Sub-22 Oro Fem, puede sustituirse esa sesión ' +
+  'por continuidad con Hugo. Si se desea priorizar Sub-22 Oro Fem, puede sustituirse esa sesión ' +
   'sin alterar el resto del cuadrante.';
 SF.PF_ALCANCE_REAL = 'Solo Nacionales, Especiales y Sub-22 Oro';
 
@@ -9433,9 +9438,18 @@ function P(o) {
   }, o);
 }
 
+/* DATOS DE EJEMPLO, TODOS INVENTADOS (F0-05). Hasta el 25/09/2026 la ficha
+   p1 era una persona real, con su fecha de nacimiento, y el repositorio es
+   público. Se sustituye por un jugador inventado con el mismo perfil (base
+   de 2002, doble nacionalidad, ficha a medias), que es lo que usan las
+   pruebas y la demo.
+   OJO: esto solo cambia la semilla, es decir, lo que recibe un almacén
+   VACÍO. Un club que ya tiene sus datos guardados no se entera: su p1 sigue
+   siendo el suyo. Nunca se añade aquí una migración que renombre fichas de
+   un club real. */
 SF.SEED_PLAYERS = [
-  P({ id: 'p1', scoutflow_id: 'SF-2026-0001', first_name: 'Pablo Ignacio', last_name: 'Andrés Suárez',
-    full_name: 'Pablo Ignacio Andrés Suárez', birth_date: '2002-08-25', birth_year: 2002, gender: 'M',
+  P({ id: 'p1', scoutflow_id: 'SF-2026-0001', first_name: 'Lucas', last_name: 'Ferreyra Gil',
+    full_name: 'Lucas Ferreyra Gil', birth_date: '2002-03-14', birth_year: 2002, gender: 'M',
     nationality: ['Argentina', 'España'], sport: 'baloncesto', primary_position: 'Base', secondary_position: 'Escolta',
     height_cm: 186, status: 'Datos incompletos', channel: 'WhatsApp', capture_date: '2026-05-30',
     documents: { pasaporte: 'pendiente', expediente: 'pendiente', video_highlights: 'pendiente', seguro_medico: 'pendiente' },
@@ -22802,8 +22816,8 @@ window.SF = window.SF || {};
        azar, no. */
     function mejor(txt, lista, campo) {
       if (!txt) return { id: '', score: 0 };
-      /* El apodo manda. En este club hay un Miguel y un Miguel Ángel, y la
-         hoja escribe "Miguel" a secas: comparando por parecido eso empata con
+      /* El apodo manda. Si en un club hay un Juan y un Juan Carlos y la
+         hoja escribe "Juan" a secas, comparando por parecido eso empata con
          los dos y se quedaria en blanco siempre. Cada persona lleva el nombre
          con el que sale en la hoja (`alias`), y si coincide exacto no hay nada
          que adivinar. Es la diferencia entre una regla lista y conocer al
